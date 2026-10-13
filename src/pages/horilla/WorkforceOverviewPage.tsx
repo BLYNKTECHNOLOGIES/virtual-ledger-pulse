@@ -19,17 +19,19 @@ import { WorkforceTimingAlerts } from "@/components/horilla/workforce/WorkforceT
 import { WorkforceAlertsStrip } from "@/components/horilla/workforce/WorkforceAlertsStrip";
 import { RequirementReasonDialog, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
 import {
-  useHiringRequirements, useRequirementTransition, useStaffingMatrix, useCompanyActiveCount, useWorkforceLookups,
+  useHiringRequirements, useRequirementTransition, useStaffingMatrix, useCompanyActiveCount, useWorkforceLookups, useForecastEvents,
 } from "@/hooks/hrms/useWorkforcePlanning";
+import { buildForecast, horizonEndFor } from "@/lib/hrms/workforceForecast";
 import {
   EMPTY_FILTERS, PRIORITY_CLASS, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL, daysUntil, findRebalances,
-  formatIstDate, matchesFilters, planningShifts, sortByOperatingOrder, sumLines, type StaffingDerived, type WorkforceFilterState,
+  formatIstDate, istToday, matchesFilters, planningShifts, requirementMatchesFilters, sortByOperatingOrder, sumLines, type StaffingDerived, type WorkforceFilterState,
 } from "@/lib/hrms/workforce";
 import { useLeavingSoon } from "@/hooks/hrms/useWorkforceRepair";
 import { WorkforceBudgetCard } from "@/components/horilla/workforce/WorkforceBudgetCard";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 const OPEN = new Set(["pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
+const OPEN_OR_DRAFT = new Set(["draft", ...OPEN]);
 const PRIORITY_ORDER = ["critical", "high", "medium", "low"];
 
 export default function WorkforceOverviewPage() {
@@ -49,25 +51,54 @@ export default function WorkforceOverviewPage() {
   const transition = useRequirementTransition();
 
   const title = (id: string) => (lookups?.positions || []).find((p) => p.id === id)?.title;
-  const filtered = useMemo(() => rows.filter((r) => matchesFilters(r, filters)), [rows, filters]);
+  // Lines carry no target date of their own; the date filter uses their open requirements' target joining dates.
+  const reqDates = useMemo(() => {
+    const m = new Map<string, (string | null)[]>();
+    requirements.filter((r) => OPEN_OR_DRAFT.has(r.status) && r.staffing_plan_id).forEach((r) => {
+      m.set(r.staffing_plan_id, [...(m.get(r.staffing_plan_id) || []), r.target_joining_date]);
+    });
+    return m;
+  }, [requirements]);
+  const filtered = useMemo(() => rows.filter((r) => matchesFilters(r, filters, reqDates)), [rows, filters, reqDates]);
   const t = useMemo(() => sumLines(filtered), [filtered]);
+  const lineById = useMemo(() => new Map(rows.map((r) => [r.plan_id, r])), [rows]);
 
   const reqsByLine = useMemo(() => {
     const m = new Map<string, any[]>();
-    requirements.filter((r) => OPEN.has(r.status) && r.staffing_plan_id).forEach((r) => {
+    requirements.filter((r) => OPEN_OR_DRAFT.has(r.status) && r.staffing_plan_id).forEach((r) => {
       m.set(r.staffing_plan_id, [...(m.get(r.staffing_plan_id) || []), r]);
     });
     return m;
   }, [requirements]);
-  const pending = requirements.filter((r) => r.status === "pending_approval");
-  const lineIds = new Set(filtered.map((r) => r.plan_id));
-  const openReqs = requirements.filter((r) => OPEN.has(r.status) && (!r.staffing_plan_id || lineIds.has(r.staffing_plan_id)));
+  const inFilters = (r: any) => requirementMatchesFilters(r, lineById, filters);
+  const pending = requirements.filter((r) => r.status === "pending_approval" && inFilters(r));
+  const openReqs = requirements.filter((r) => OPEN.has(r.status) && inFilters(r));
+  // Approving needs a target joining date (forecast) and, for "adds headcount" requests, the line check — both live in the details.
+  const quickApprove = (q: any) => !!q.target_joining_date && !(q.adds_headcount > 0);
+
+  // Projected gap at the end of the next 90 days — same calculation as the Forecast page (approved hiring only, no attrition).
+  const events = useForecastEvents();
+  const projectedGap = useMemo(() => {
+    if (!events.data) return null;
+    const today = istToday();
+    const f = buildForecast({
+      today, end: horizonEndFor(today, "90"), includePending: false, attritionPct: 0,
+      lines: filtered.map((r) => ({ plan_id: r.plan_id, required_hc: r.required_hc, current_hc: r.current_hc })),
+      events: events.data,
+    });
+    return f.totals.lineGap;
+  }, [events.data, filtered]);
 
   // People on notice in planned roles — including those who sit on no staffing line.
   const leavingQ = useLeavingSoon();
-  const leaving = useMemo(() => (leavingQ.data || []).filter((p) =>
-    (filters.departmentId === "all" || p.department_id === filters.departmentId) &&
-    (filters.positionId === "all" || p.position_id === filters.positionId)), [leavingQ.data, filters.departmentId, filters.positionId]);
+  // On a line: the line must match every filter. Off any line: department / role only, and not when a shift is chosen.
+  const leaving = useMemo(() => (leavingQ.data || []).filter((p) => {
+    const line = p.plan_id ? lineById.get(p.plan_id) : undefined;
+    if (line) return matchesFilters(line, { ...filters, fromDate: "", toDate: "" });
+    return filters.shift === "all" &&
+      (filters.departmentId === "all" || p.department_id === filters.departmentId) &&
+      (filters.positionId === "all" || p.position_id === filters.positionId);
+  }), [leavingQ.data, filters, lineById]);
   const offLine = leaving.filter((p) => !p.plan_id).length;
   const nextLeaving = useMemo(() => leaving.map((n) => n.last_working_day).filter(Boolean).sort()[0] ?? null, [leaving]);
 
@@ -166,9 +197,12 @@ export default function WorkforceOverviewPage() {
               hint={t.nextReadyDate ? `Next ready ${formatIstDate(t.nextReadyDate)}` : "Nobody in training"} />
             <WorkforceKpiCard label="Hiring in progress" value={t.requested} icon={ClipboardList}
               hint={`${pending.length} awaiting approval · ${t.uncovered} not yet requested`} />
+            <WorkforceKpiCard label="Projected gap (90 days)" value={projectedGap ?? "—"} icon={CalendarClock}
+              tone={(projectedGap ?? 0) > 0 ? "warning" : "default"}
+              hint={<Link className="text-primary hover:underline" to="/hrms/workforce-planning/forecast">Sum of line shortfalls · open forecast</Link> as any} />
             <WorkforceKpiCard label="Pipeline" value={t.pipeline} icon={CalendarClock} hint={`${t.selected} selected · ${t.joining} joining`} />
             <WorkforceKpiCard label="Approved" value={t.approved} icon={UserCheck} hint={`Vacant seats ${t.vacant} (approved − on roll per line)`} />
-            <WorkforceKpiCard label="Leaving soon" value={leaving.length} icon={UserMinus} tone={leaving.length > 0 ? "warning" : "default"}
+            <WorkforceKpiCard label="Leaving soon (on notice)" value={leaving.length} icon={UserMinus} tone={leaving.length > 0 ? "warning" : "default"}
               hint={leaving.length === 0 ? "Nobody on notice"
                 : `${offLine ? `${offLine} on no line · ` : ""}${nextLeaving ? `next last day ${formatIstDate(nextLeaving)}` : "last day not set"}`} />
           </div>
@@ -185,6 +219,9 @@ export default function WorkforceOverviewPage() {
                 actionRows.map((r) => {
                   const lineReqs = reqsByLine.get(r.plan_id) || [];
                   const pendingReq = lineReqs.find((q) => q.status === "pending_approval");
+                  const drafts = lineReqs.filter((q) => q.status === "draft");
+                  const draftHc = drafts.reduce((a, q) => a + (Number(q.number_required) || 0), 0);
+                  const notRequested = Math.max(0, r.uncoveredHiringRequirement - draftHc);
                   return (
                     <div key={r.plan_id} className="rounded-lg border border-border p-3">
                       <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
@@ -212,7 +249,8 @@ export default function WorkforceOverviewPage() {
                           <div className="text-right">
                             <span className="block text-lg font-semibold tabular-nums text-destructive">Need {r.netHiringRequirement}</span>
                             <span className="block text-xs text-muted-foreground">
-                              {r.uncoveredHiringRequirement > 0 ? `${r.uncoveredHiringRequirement} not requested` : `${r.open_requirement_hc} requested`}
+                              {notRequested > 0 ? `${notRequested} not requested` : `${r.open_requirement_hc} requested`}
+                              {draftHc > 0 ? ` · ${draftHc} in draft` : ""}
                             </span>
                           </div>
                           {canManage && pendingReq && (
@@ -221,7 +259,8 @@ export default function WorkforceOverviewPage() {
                                 onClick={() => setReasonTarget({ id: pendingReq.id, requirement_no: pendingReq.requirement_no, action: "reject" })}>
                                 <ThumbsDown className="h-3.5 w-3.5" /> Reject
                               </Button>
-                              <Button size="sm" disabled={transition.isPending} onClick={() => transition.mutate({ id: pendingReq.id, action: "approve" })}>
+                              <Button size="sm" disabled={transition.isPending}
+                                onClick={() => quickApprove(pendingReq) ? transition.mutate({ id: pendingReq.id, action: "approve" }) : openReq(pendingReq.id)}>
                                 <ThumbsUp className="h-3.5 w-3.5" /> Approve
                               </Button>
                             </>
@@ -229,8 +268,11 @@ export default function WorkforceOverviewPage() {
                           {lineReqs[0] && !pendingReq && (
                             <Button size="sm" variant="outline" onClick={() => openReq(lineReqs[0].id)}>Open requirement</Button>
                           )}
-                          {canManage && r.uncoveredHiringRequirement > 0 && (
-                            <Button size="sm" onClick={() => create(r)}>Create requirement</Button>
+                          {drafts[0] && (
+                            <Button size="sm" variant="outline" onClick={() => openReq(drafts[0].id)}>Open draft</Button>
+                          )}
+                          {canManage && notRequested > 0 && (
+                            <Button size="sm" onClick={() => create({ ...r, uncoveredHiringRequirement: notRequested })}>Create requirement</Button>
                           )}
                         </div>
                       </div>
@@ -269,7 +311,7 @@ export default function WorkforceOverviewPage() {
                     <div key={q.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-2.5">
                       <button type="button" className="min-w-0 text-left" onClick={() => openReq(q.id)}>
                         <p className="truncate text-sm font-medium text-foreground">
-                          {q.requirement_no} · {q.positions?.title} · {q.shift_label || "Any shift"} · {q.number_required}
+                          {q.requirement_no} · {q.positions?.title} · {q.shift_label || (q.staffing_plan_id ? lineById.get(q.staffing_plan_id)?.shiftLabel : null) || "Any shift"} · {(q.adds_headcount ?? 0) > 0 ? `adds +${q.adds_headcount}` : q.number_required}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {q.departments?.name} · target {formatIstDate(q.target_joining_date)} · {q.source === "capacity_occupancy" ? "raised by the system" : `raised by ${q.requested_by_name || "—"}`}
@@ -281,7 +323,8 @@ export default function WorkforceOverviewPage() {
                             onClick={() => setReasonTarget({ id: q.id, requirement_no: q.requirement_no, action: "reject" })}>
                             <ThumbsDown className="h-3.5 w-3.5" /> Reject
                           </Button>
-                          <Button size="sm" disabled={transition.isPending} onClick={() => transition.mutate({ id: q.id, action: "approve" })}>
+                          <Button size="sm" disabled={transition.isPending}
+                            onClick={() => quickApprove(q) ? transition.mutate({ id: q.id, action: "approve" }) : openReq(q.id)}>
                             <ThumbsUp className="h-3.5 w-3.5" /> Approve
                           </Button>
                         </div>
@@ -290,7 +333,7 @@ export default function WorkforceOverviewPage() {
                   ))
                 )}
                 {openReqs.length > 0 && (
-                  <p className="pt-1 text-xs text-muted-foreground">{openReqs.length} open requirements in total.</p>
+                  <p className="pt-1 text-xs text-muted-foreground">{openReqs.length} open requirements match these filters.</p>
                 )}
               </CardContent>
             </Card>
@@ -315,7 +358,8 @@ export default function WorkforceOverviewPage() {
           </div>
 
           <WorkforceTimingAlerts />
-          <WorkforceAlertsStrip rows={rows} positionTitle={title} canManage={canManage}
+          <WorkforceAlertsStrip rows={filtered} scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
+            shiftFiltered={filters.shift !== "all"} positionTitle={title} canManage={canManage}
             onPlanDesks={(s) => navigate(`/hrms/workforce-planning/staffing-plan?plan_desk=${s.id}`)}
             onOpenLine={(id) => navigate(`/hrms/workforce-planning/staffing-plan?line=${id}`)} />
 

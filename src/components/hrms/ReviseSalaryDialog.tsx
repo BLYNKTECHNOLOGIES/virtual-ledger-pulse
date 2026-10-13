@@ -436,7 +436,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         qc.invalidateQueries({ queryKey: ["gate_lop"] });
         toast.success(
           `${res.mode === "addition" ? "Addition" : "Deduction"} staged on the ${format(new Date(res.period), "MMM yyyy")} payroll month`,
-          { description: "Push it to RazorpayX from the Payroll Cockpit (Step 5 · Additions & Deductions)." },
+          { description: "Push it to RazorpayX from the Payroll Cockpit’s “Inputs push” step." },
         );
         onOpenChange(false);
       } else {
@@ -547,7 +547,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             />
             {employee && mode === "recurring" && (
               <p className="text-xs text-muted-foreground mt-1">
-                Current CTC ₹{currentTotal.toLocaleString("en-IN")} · Basic ₹{currentBasic.toLocaleString("en-IN")}
+                Current annual CTC ₹{currentTotal.toLocaleString("en-IN")} · Annual basic ₹{currentBasic.toLocaleString("en-IN")}
               </p>
             )}
           </div>
@@ -643,7 +643,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
               <div className="text-xs bg-muted/50 border border-border rounded p-2 text-muted-foreground">
                 This is staged into that month's payroll inputs. Push it to RazorpayX from the Payroll Cockpit
-                (Step 5 · Additions & Deductions) — nothing is sent from here.
+                (“Inputs push” step) — nothing is sent from here.
               </div>
             </>
           )}
@@ -670,8 +670,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>New Total (CTC) ₹</Label>
-                  <Input type="number" inputMode="decimal" value={newTotal} onChange={(e) => setNewTotal(e.target.value)} className="text-foreground" placeholder="e.g. 60000" />
+                  <Label>New annual CTC (₹ per year)</Label>
+                  <Input type="number" inputMode="decimal" value={newTotal} onChange={(e) => setNewTotal(e.target.value)} className="text-foreground" placeholder="e.g. 300000" />
+                  {nT > 0 && <p className="text-[11px] text-muted-foreground mt-1">≈ ₹{Math.round(nT / 12).toLocaleString("en-IN")} per month</p>}
                   {nT > 0 && currentTotal > 0 && (
                     <p className={cn("text-xs mt-1", totalDelta >= 0 ? "text-success" : "text-destructive")}>
                       {totalDelta >= 0 ? "+" : ""}₹{totalDelta.toLocaleString("en-IN")} ({totalDeltaPct.toFixed(1)}%)
@@ -679,7 +680,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                   )}
                 </div>
                 <div>
-                  <Label>New Basic ₹</Label>
+                  <Label>New annual basic (₹ per year)</Label>
                   <Input type="number" inputMode="decimal" value={newBasic} onChange={(e) => setNewBasic(e.target.value)} className="text-foreground" placeholder="Optional" />
                   <p className="text-xs text-muted-foreground mt-1">Leave blank to keep basic unchanged.</p>
                 </div>
@@ -696,7 +697,7 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
                     {midMonthPreview.kind === "deduction"
                       ? `A recovery deduction of about ₹${midMonthPreview.amount.toLocaleString("en-IN")} will be staged into ${midMonthPreview.monthLabel} payroll inputs (${midMonthPreview.daysBefore} day(s) belong to the old CTC).`
                       : `Arrears of about ₹${midMonthPreview.amount.toLocaleString("en-IN")} will be staged into ${midMonthPreview.monthLabel} payroll inputs (${midMonthPreview.daysBefore} day(s) at the old, higher CTC).`}
-                    {" "}The exact figure is recomputed with Loss of Pay when the CTC reaches RazorpayX, and is pushed from Payroll Cockpit Step 5.
+                    {" "}The exact figure is recomputed with Loss of Pay when the CTC reaches RazorpayX, and is pushed from the Payroll Cockpit’s “Inputs push” step.
                   </p>
                 </div>
               )}

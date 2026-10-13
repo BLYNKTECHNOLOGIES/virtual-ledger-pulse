@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { syncFnFDepositReservations, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
 import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { finalizeSeparation } from "@/lib/finalizeSeparation";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 
 export default function FnFSettlementPage() {
@@ -291,8 +292,9 @@ export default function FnFSettlementPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:justify-end">
                     <div className="min-w-0">
-                      <p className="text-lg font-bold text-foreground flex items-center gap-1 tabular-nums">
-                        <IndianRupee className="h-4 w-4" />{Number(s.net_payable).toLocaleString("en-IN")}
+                      <p className={`text-lg font-bold flex items-center gap-1 tabular-nums ${Number(s.net_payable) < 0 ? "text-destructive" : "text-foreground"}`}>
+                        {Number(s.net_payable) < 0 && <span className="text-xs font-medium">Recover</span>}
+                        <IndianRupee className="h-4 w-4" />{Math.abs(Number(s.net_payable)).toLocaleString("en-IN")}
                       </p>
 
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge(s.status)}`}>
@@ -334,9 +336,15 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
                     {(s.status === "calculated" || s.status === "pending_approval") && (
-                      <Button size="sm" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "approved" })}>
-                        Approve
-                      </Button>
+                      <ConfirmButton
+                        title="Approve this F&F settlement?"
+                        description={`Net ${Number(s.net_payable) < 0 ? "recoverable" : "payable"}: ₹${Math.abs(Number(s.net_payable)).toLocaleString("en-IN")}. It is then queued for the cockpit's Inputs push step.`}
+                        confirmLabel="Approve F&F"
+                        destructive={false}
+                        onConfirm={() => updateStatusMutation.mutate({ id: s.id, status: "approved" })}
+                      >
+                        <Button size="sm" className="h-8">Approve</Button>
+                      </ConfirmButton>
                     )}
                     {s.status === "approved" && (() => {
                       const canMarkPaid = ["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""));
@@ -391,7 +399,7 @@ export default function FnFSettlementPage() {
 
                   </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 mt-3 text-xs border-t border-border pt-3">
                   <div>
                     <span className="text-muted-foreground block">Final-Month Salary</span>
                     <p className="font-medium tabular-nums">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p>
@@ -404,6 +412,7 @@ export default function FnFSettlementPage() {
                   <div><span className="text-muted-foreground block">Loan Recovery</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.loan_recovery).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Penalties</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.penalty_deductions).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Other Ded.</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.other_deductions).toLocaleString("en-IN")}</p></div>
+                  <div><span className="text-muted-foreground block">Notice Pay Rec.</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.breakdown?.notice_pay_recovery || 0).toLocaleString("en-IN")}</p></div>
                 </div>
                 {(Number(s.leave_encashment_amount || 0) > 0 || Number(s.breakdown?.gratuity_amount || 0) > 0) && (
                   <p className="mt-2 text-[11px] text-amber-600 inline-flex items-center gap-1">

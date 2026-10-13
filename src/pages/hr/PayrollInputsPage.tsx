@@ -1387,7 +1387,7 @@ export default function PayrollInputsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Push to RazorpayX?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will send <strong>{pushConfirm?.label}</strong> (₹{Number(pushConfirm?.amount || 0).toLocaleString("en-IN")}) for <strong>{pushConfirm && empLabel(pushConfirm)}</strong> for period <strong>{pushConfirm?.period_month}</strong>. It will apply on the next RazorpayX payroll run.
+              This will send <strong>{pushConfirm?.label}</strong> (₹{Number(pushConfirm?.amount || 0).toLocaleString("en-IN")}) for <strong>{pushConfirm && empLabel(pushConfirm)}</strong> for <strong>{pushConfirm?.period_month ? new Date(pushConfirm.period_month).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }) : ""}</strong>. It will apply on the next RazorpayX payroll run.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1410,7 +1410,7 @@ export default function PayrollInputsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => dnpConfirm && doNotPay.mutate(dnpConfirm)} disabled={doNotPay.isPending}>
-              {doNotPay.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Confirm
+              {doNotPay.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Mark Do-Not-Pay
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1426,8 +1426,8 @@ export default function PayrollInputsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => resetConfirm && resetMods.mutate(resetConfirm)} disabled={resetMods.isPending}>
-              {resetMods.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Reset
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => resetConfirm && resetMods.mutate(resetConfirm)} disabled={resetMods.isPending}>
+              {resetMods.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Reset all
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -208,7 +208,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       <p className="font-semibold text-foreground">{IN_MONTH(r.period_month)}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <SourceTag source={d.hasRegister ? "register_csv" : "dashboard_only"} compact />
-                        {f.dnp && <Badge variant="destructive" className="text-[9px] px-1.5 py-0">Paused</Badge>}
+                        {f.dnp && <Badge variant="destructive" className="text-[9px] px-1.5 py-0">Do-Not-Pay</Badge>}
                         {f.isPaid && <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[9px] px-1.5 py-0">Paid{f.paidOn ? ` · ${f.paidOn}` : ""}</Badge>}
                       </div>
                     </button>
@@ -220,7 +220,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       {razorpayEmployeeId && !f.isPaid && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="More actions" title="More actions"><MoreHorizontal className="w-4 h-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setAdjustRow(r)}>
@@ -282,7 +282,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="flex gap-1 flex-wrap">
-                          {f.dnp && <Badge variant="destructive" className="text-[10px]">Paused</Badge>}
+                          {f.dnp && <Badge variant="destructive" className="text-[10px]">Do-Not-Pay</Badge>}
                           {f.isPaid && <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[10px]">Paid{f.paidOn ? ` · ${f.paidOn}` : ""}</Badge>}
                           {!f.isPaid && !f.dnp && (
                             <span className="text-[10px] text-muted-foreground" title="RazorpayX's view-payroll API does not return a payment state for a payslip, so paid/unpaid can't be confirmed here.">
@@ -319,7 +319,7 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                         {razorpayEmployeeId && !f.isPaid ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="More actions" title="More actions"><MoreHorizontal className="w-4 h-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setOpenRow(r)}>View details</DropdownMenuItem>

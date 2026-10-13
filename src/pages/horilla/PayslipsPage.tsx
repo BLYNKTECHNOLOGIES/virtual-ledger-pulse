@@ -181,6 +181,9 @@ function generatePayslipPDF(detail: any) {
   doc.save(`Payslip_${empName.replace(/\s+/g, "_")}_${run.pay_period_end || "unknown"}.pdf`);
 }
 
+/** "₹12,345" for a number, "—" when there is no amount (display only). */
+const inrOrDash = (v: unknown) => (v == null || v === "" ? "—" : `₹${Number(v).toLocaleString("en-IN")}`);
+
 export default function PayslipsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -285,7 +288,7 @@ export default function PayslipsPage() {
       <Alert className="border-primary/30 bg-primary/[0.03]">
         <Info className="h-4 w-4" />
         <AlertDescription className="text-xs">
-          <strong>Doctrine:</strong> RazorpayX is the canonical source of payslips. Records shown here
+          <strong>Note:</strong> RazorpayX is the source of truth for payslips. Records shown here
           include local drafts and legacy runs; for the definitive payslip and PDF, use the "View on
           RazorpayX" link where present. Payslip parity is monitored on the Data Health page.
         </AlertDescription>
@@ -314,15 +317,15 @@ export default function PayslipsPage() {
           columns={["Employee", "Badge ID", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status", "Actions"].map((h) => ({ key: h, label: h, className: ["Gross","Deductions","Net Salary","Days"].includes(h) ? "text-right" : "" }))}
           keyFor={(p: any) => p.id}
           tableMinWidth="min-w-0"
-          emptyState={<Card><CardContent className="p-0"><EmptyState icon={FileText} title="No payslips found" description="Generate payslips from a payroll run first." /></CardContent></Card>}
+          emptyState={<Card><CardContent className="p-0"><EmptyState icon={FileText} title="No payslips found" description="Payslips appear after they are imported from RazorpayX in the Monthly Cockpit." /></CardContent></Card>}
           renderRow={(p: any) => (
             <>
               <td className="px-4 py-3 font-medium">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
               <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
               <td className="px-4 py-3 text-xs"><PayslipRunLabel payslip={p} /></td>
-              <td className="px-4 py-3 text-success font-medium text-right tabular-nums">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
-              <td className="px-4 py-3 text-destructive text-right tabular-nums">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
-              <td className="px-4 py-3 font-semibold text-right tabular-nums">₹{p.net_salary?.toLocaleString('en-IN')}</td>
+              <td className="px-4 py-3 text-success font-medium text-right tabular-nums whitespace-nowrap">{inrOrDash(p.gross_salary)}</td>
+              <td className="px-4 py-3 text-destructive text-right tabular-nums whitespace-nowrap">{inrOrDash(p.total_deductions)}</td>
+              <td className="px-4 py-3 font-semibold text-right tabular-nums whitespace-nowrap">{inrOrDash(p.net_salary)}</td>
               <td className="px-4 py-3 text-right tabular-nums">{p.present_days || 0}/{p.working_days || 0}</td>
               <td className="px-4 py-3"><PayslipStatusBadge status={p.status || "draft"} statusColor={statusColor} /></td>
               <td className="px-4 py-3"><Button size="sm" variant="ghost" className="h-7" onClick={() => { setDetail(p); setPayRef(""); }}><Eye className="h-3.5 w-3.5 mr-1" /> View</Button></td>
@@ -339,9 +342,9 @@ export default function PayslipsPage() {
               </div>
               <PayslipRunLabel payslip={p} />
               <div className="hrms-mobile-kv">
-                <span>Gross</span><span className="text-success">₹{p.gross_salary?.toLocaleString('en-IN')}</span>
-                <span>Deductions</span><span className="text-destructive">₹{p.total_deductions?.toLocaleString('en-IN')}</span>
-                <span>Net Salary</span><span>₹{p.net_salary?.toLocaleString('en-IN')}</span>
+                <span>Gross</span><span className="text-success">{inrOrDash(p.gross_salary)}</span>
+                <span>Deductions</span><span className="text-destructive">{inrOrDash(p.total_deductions)}</span>
+                <span>Net Salary</span><span>{inrOrDash(p.net_salary)}</span>
                 <span>Days</span><span>{p.present_days || 0}/{p.working_days || 0}</span>
               </div>
               <Button size="sm" variant="outline" className="w-full h-9" onClick={() => { setDetail(p); setPayRef(""); }}>
@@ -468,7 +471,7 @@ export default function PayslipsPage() {
                   ))}
                   <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
                     <span>Total Earnings</span>
-                    <span className="text-success">₹{detail.total_earnings?.toLocaleString('en-IN')}</span>
+                    <span className="text-success">{inrOrDash(detail.total_earnings)}</span>
                   </div>
                 </div>
               </div>
@@ -488,7 +491,7 @@ export default function PayslipsPage() {
                   )}
                   <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
                     <span>Total Deductions</span>
-                    <span className="text-destructive">₹{detail.total_deductions?.toLocaleString('en-IN')}</span>
+                    <span className="text-destructive">{inrOrDash(detail.total_deductions)}</span>
                   </div>
                 </div>
               </div>
@@ -496,7 +499,7 @@ export default function PayslipsPage() {
               {/* Net */}
               <div className="bg-[#E8604C]/5 border border-[#E8604C]/20 rounded-lg p-3 flex justify-between items-center">
                 <span className="font-semibold text-foreground">Net Salary</span>
-                <span className="text-xl font-bold text-[#E8604C]">₹{detail.net_salary?.toLocaleString('en-IN')}</span>
+                <span className="text-xl font-bold text-[#E8604C]">{inrOrDash(detail.net_salary)}</span>
               </div>
 
               {/* Payment */}

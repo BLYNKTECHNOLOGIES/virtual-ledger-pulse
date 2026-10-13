@@ -464,6 +464,7 @@ export default function MonthlyPayrollCockpitPage() {
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Monthly Payroll Cockpit"
+        description="Work the month top to bottom: lock attendance, settle exits and revisions, push LOP and inputs to RazorpayX, run payroll there, then import payslips and close the month."
       />
 
       {/* Command bar — month, progress rail, close-month */}
@@ -743,7 +744,7 @@ export default function MonthlyPayrollCockpitPage() {
                                 <li key={r}>{r}. Open the tool, run the calculation and stage the rows.</li>
                               ))}
                               {step.step_key === "inputs_push" &&
-                                stepGate.lopReasons.map((r) => <li key={r}>Pending in Step 4: {r}.</li>)}
+                                stepGate.lopReasons.map((r) => <li key={r}>Pending in the LOP push step: {r}.</li>)}
                               {step.step_key === "inputs_push" &&
                                 stepGate.recoveryReasons.map((r) => (
                                   <li key={r}>{r}. Open the tool to push {stepGate.recPending === 1 ? "it" : "them"}.</li>
@@ -814,7 +815,7 @@ export default function MonthlyPayrollCockpitPage() {
                               setAckNotes(step.ack_notes ?? "");
                             }}
                           >
-                            <CheckCircle2 className="h-4 w-4" /> Confirm
+                            <CheckCircle2 className="h-4 w-4" /> Confirm anyway
                           </Button>
                         )}
                         {stepRecalcReasons.length > 0 && !closed && (
@@ -870,7 +871,10 @@ export default function MonthlyPayrollCockpitPage() {
               Acknowledge — Step {ackStep?.step_no}: {ackStep?.step_label}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This records you as having completed this step for {monthLabel}. A short note is optional but recommended.
+              This records you as having completed this step for {monthLabel}.
+              {ackStep && ackStep.live_status !== "complete" && ackStep.step_key !== "run_on_razorpay"
+                ? " The system still reports work pending here — confirm only if that is deliberate, and say why in the note."
+                : " A short note is optional but recommended."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea
@@ -910,7 +914,7 @@ export default function MonthlyPayrollCockpitPage() {
             <AlertDialogTitle>Close {monthLabel}?</AlertDialogTitle>
             <AlertDialogDescription>
               {blockers.length === 0 ? (
-                <>All prior steps are complete. Closing freezes acknowledgements for this month.</>
+                <>All prior steps are complete. Closing freezes the acknowledgements for {monthLabel} and can’t be undone from this screen. Salary revisions held until after payroll are then sent to RazorpayX.</>
               ) : (
                 <>
                   <div className="mb-2 text-destructive">Cannot close — resolve first:</div>

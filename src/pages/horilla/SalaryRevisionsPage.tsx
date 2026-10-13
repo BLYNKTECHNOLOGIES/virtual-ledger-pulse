@@ -494,7 +494,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
         res.kind === "deduction"
           ? `Recovery of ₹${Number(res.amount).toLocaleString("en-IN")} staged in ${period} payroll inputs`
           : `Arrears of ₹${Number(res.amount).toLocaleString("en-IN")} staged in ${period} payroll inputs`,
-        { description: "RazorpayX pays the whole month at the new CTC — push this from Payroll Cockpit Step 5." },
+        { description: "RazorpayX pays the whole month at the new CTC — push this from the Payroll Cockpit’s “Inputs push” step." },
       );
     } else if (res.error) {
       toast.warning("Mid-month correction not staged.", { description: String(res.error).slice(0, 200) });
@@ -571,7 +571,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   tone="info"
                   icon={Clock}
                   label={`Staged${r.payout_month ? ` · ${format(new Date(r.payout_month), "MMM")}` : ""}`}
-                  detail={`Staged in the ${r.payout_month ? format(new Date(r.payout_month), "MMMM yyyy") : ""} payroll inputs — push it from the Payroll Cockpit (Step 5).`}
+                  detail={`Staged in the ${r.payout_month ? format(new Date(r.payout_month), "MMMM yyyy") : ""} payroll inputs — push it from the Payroll Cockpit (“Inputs push” step).`}
                 />
               );
             } else if (isRecordOnlyPayout) {
@@ -880,7 +880,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                             ? "Already pushed to RazorpayX."
                             : adj.provisional
                               ? "Provisional — recalculated and finalised automatically once this CTC is pushed to RazorpayX. Not pushable yet."
-                              : "Final — push it from Payroll Cockpit Step 5."
+                              : "Final — push it from the Payroll Cockpit’s “Inputs push” step."
                         }`}
                       />
                     </Link>

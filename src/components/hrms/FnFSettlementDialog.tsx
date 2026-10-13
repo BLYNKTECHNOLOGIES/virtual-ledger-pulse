@@ -425,8 +425,8 @@ export function FnFSettlementDialog({ open, onOpenChange, employees = [], settle
           <div><Label>Notes</Label><Textarea className="mt-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           <Card className="bg-muted/50">
             <CardContent className="p-3 text-center">
-              <p className="text-xs text-muted-foreground">Net Payable</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">₹{netPayable.toLocaleString("en-IN")}</p>
+              <p className="text-xs text-muted-foreground">{netPayable < 0 ? "Net recoverable from employee" : "Net Payable"}</p>
+              <p className={`text-2xl font-bold tabular-nums ${netPayable < 0 ? "text-destructive" : "text-foreground"}`}>{netPayable < 0 ? "−" : ""}₹{Math.abs(netPayable).toLocaleString("en-IN")}</p>
             </CardContent>
           </Card>
         </div>

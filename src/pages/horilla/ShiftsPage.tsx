@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 import { Plus, Pencil, Trash2, Clock } from "lucide-react";
@@ -16,7 +17,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 
-const defaultForm = { name: "", start_time: "09:00", end_time: "18:00", break_duration_minutes: 60, is_night_shift: false };
+const defaultForm = {
+  name: "", start_time: "09:00", end_time: "18:00", break_duration_minutes: 60, is_night_shift: false,
+  planning_shift_id: null as string | null, is_training_shift: false,
+};
 
 export default function ShiftsPage() {
   const qc = useQueryClient();
@@ -37,6 +41,9 @@ export default function ShiftsPage() {
   const invalidateShifts = () => {
     qc.invalidateQueries({ queryKey: ["hr_shifts"] });
     qc.invalidateQueries({ queryKey: ["hr_shifts_active"] });
+    // Planning groups and training flags drive every workforce screen.
+    ["workforce_lookups", "workforce_staffing_matrix", "workforce_seat_occupancy", "workforce_unplanned_scopes", "workforce_trainees", "workforce_line_people"]
+      .forEach((key) => qc.invalidateQueries({ queryKey: [key] }));
   };
 
   const saveMutation = useMutation({
@@ -89,7 +96,10 @@ export default function ShiftsPage() {
 
   const openEdit = (s: any) => {
     setEditId(s.id);
-    setForm({ name: s.name, start_time: s.start_time, end_time: s.end_time, break_duration_minutes: s.break_duration_minutes, is_night_shift: s.is_night_shift });
+    setForm({
+      name: s.name, start_time: s.start_time, end_time: s.end_time, break_duration_minutes: s.break_duration_minutes,
+      is_night_shift: s.is_night_shift, planning_shift_id: s.planning_shift_id ?? null, is_training_shift: !!s.is_training_shift,
+    });
     setShowDialog(true);
   };
 
@@ -133,6 +143,10 @@ export default function ShiftsPage() {
                 </div>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{s.start_time?.slice(0, 5)} — {s.end_time?.slice(0, 5)}</p>
+                  {s.planning_shift_id && (
+                    <p className="text-xs">Counts as {(shifts as any[]).find((x) => x.id === s.planning_shift_id)?.name ?? "another shift"} for workforce planning</p>
+                  )}
+                  {s.is_training_shift && <p className="text-xs">Training shift</p>}
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
@@ -168,6 +182,29 @@ export default function ShiftsPage() {
             <div className="flex items-center gap-2">
               <Switch checked={form.is_night_shift} onCheckedChange={(v) => setForm({ ...form, is_night_shift: v })} />
               <Label>Night Shift</Label>
+            </div>
+            <div>
+              <Label>Counts as (workforce planning)</Label>
+              <Select
+                value={form.planning_shift_id ?? "self"}
+                onValueChange={(v) => setForm({ ...form, planning_shift_id: v === "self" ? null : v })}
+              >
+                <SelectTrigger className="mt-1 h-9 text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self">Itself</SelectItem>
+                  {(shifts as any[])
+                    .filter((x) => x.id !== editId && !x.planning_shift_id && !x.is_training_shift)
+                    .map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">People on this shift are planned and seated as that shift (e.g. an exemption variant of a main shift).</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <Switch checked={form.is_training_shift} onCheckedChange={(v) => setForm({ ...form, is_training_shift: v })} />
+              <div>
+                <Label>Training shift</Label>
+                <p className="text-xs text-muted-foreground">People on it are trainees: they sit in the training zone and are not counted on roll.</p>
+              </div>
             </div>
           </div>
           <DialogFooter>

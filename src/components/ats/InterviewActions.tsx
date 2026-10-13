@@ -48,7 +48,7 @@ export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onO
     try { setWaText(await fillWhatsAppForInterview(iv.id, waTpl.body ?? "")); } catch (e) { toast.error(atsErrorMessage(e)); }
   };
 
-  const refresh = () => { for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k }); };
+  const refresh = () => { for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], ["ats", "slot-offers"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k }); };
 
   const setStatus = async (status: "completed" | "no_show" | "scheduled") => {
     if (busy) return;

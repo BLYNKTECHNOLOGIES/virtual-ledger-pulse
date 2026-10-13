@@ -161,8 +161,10 @@ export function OfferTimesDialog({ open, onOpenChange, target, moveInterview, pr
     return app[app.length - 1] ?? t[t.length - 1] ?? null;
   }, [thread.data, target.applicationId]);
 
+  const [emailSent, setEmailSent] = useState(false);
+  useEffect(() => { setEmailSent(false); }, [created]);
   const sendEmail = async () => {
-    if (!created || sending) return;
+    if (!created || sending || emailSent) return;
     setSending(true);
     try {
       const r = await sendCandidateEmail({
@@ -171,7 +173,7 @@ export function OfferTimesDialog({ open, onOpenChange, target, moveInterview, pr
         replyToId: latest?.id ?? null, fileIds: [],
       });
       if (r.status === "failed") toast.error(mailErrorMessage(r.error));
-      else toast.success("Email sent");
+      else { toast.success("Email sent"); setEmailSent(true); }
       sendId.current = crypto.randomUUID();
       qc.invalidateQueries({ queryKey: ["ats", "mail"] });
       qc.invalidateQueries({ queryKey: convKeys.all });
@@ -196,9 +198,10 @@ export function OfferTimesDialog({ open, onOpenChange, target, moveInterview, pr
     <div className="flex w-full flex-wrap justify-end gap-2">
       <Button variant="outline" onClick={copyLink}>Copy link</Button>
       {waPhone && <Button variant="outline" onClick={() => void openWa()}>Send on WhatsApp</Button>}
-      <Button disabled={!mailOn || !target.email || sending || !subject.trim() || !body.trim()} onClick={sendEmail}>
-        {sending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Send email
+      <Button disabled={emailSent || !mailOn || !target.email || sending || !subject.trim() || !body.trim()} onClick={sendEmail}>
+        {sending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}{emailSent ? "Sent ✓" : "Send email"}
       </Button>
+      <Button variant="outline" onClick={close}>Done</Button>
     </div>
   ) : (
     <div className="flex w-full justify-end gap-2">

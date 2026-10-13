@@ -144,19 +144,24 @@ export default function AtsInboxPage() {
     try {
       await setConversation(candidateId, action === "unsnooze" ? "reopen" : action, until);
       toast.success(action === "done" ? "Conversation marked done" : action === "reopen" ? "Conversation reopened" : action === "unsnooze" ? "Conversation unsnoozed" : "Conversation snoozed");
+      if (view !== "all") {
+        // Drop the row from the cached list first, so the first-row auto-select can't pick it again.
+        qc.setQueryData(convKeys.list(view as ConvView, search), (d: any) =>
+          d?.pages ? { ...d, pages: d.pages.map((pg: ConversationRow[]) => pg.filter((r) => r.candidate_id !== candidateId)) } : d);
+      }
       advanceFrom(candidateId, snapshot);
       qc.invalidateQueries({ queryKey: convKeys.all });
     } catch (e) { toast.error(atsErrorMessage(e)); }
   };
 
   // Keyboard: j/k (↓/↑) move · e done/reopen · s snooze · / search.
-  const kb = useRef({ rows, selIdx, view, isConv, isLg });
-  kb.current = { rows, selIdx, view, isConv, isLg };
+  const kb = useRef({ rows, selIdx, view, isConv, isLg, act });
+  kb.current = { rows, selIdx, view, isConv, isLg, act };
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isTyping(e.target) || document.querySelector("[role=dialog],[role=alertdialog]")) return;
-      const { rows: rs, selIdx: i, view: v, isConv: ic, isLg: lg } = kb.current;
+      const { rows: rs, selIdx: i, view: v, isConv: ic, isLg: lg, act: doAct } = kb.current;
       if (!ic) return;
       const k = e.key;
       if (k === "/") { e.preventDefault(); searchRef.current?.focus(); return; }
@@ -171,7 +176,7 @@ export default function AtsInboxPage() {
       }
       const cur = i >= 0 ? rs[i] : null;
       if (!cur) return;
-      if (k === "e") { e.preventDefault(); void act(cur.candidate_id!, v === "done" ? "reopen" : "done"); }
+      if (k === "e") { e.preventDefault(); void doAct(cur.candidate_id!, v === "done" ? "reopen" : "done"); }
       else if (k === "s") { e.preventDefault(); setSnoozeFor(cur.candidate_id!); }
     };
     window.addEventListener("keydown", h);
@@ -276,7 +281,7 @@ export default function AtsInboxPage() {
               <div className="flex min-h-0 flex-col border-r border-border">{convList}</div>
               <div className="min-h-0 min-w-0 overflow-hidden">
                 {sel ? (
-                  <CandidateReviewPanel key={sel} candidateId={sel} appId={sp.get("app") ?? selRow?.application_id ?? null} initialPaneTab="messages" className="h-full"
+                  <CandidateReviewPanel key={sel} candidateId={sel} appId={sp.get("app") ?? selRow?.application_id ?? null} initialPaneTab="messages" shortcuts={false} className="h-full"
                     onAppChange={(id) => setParams({ app: id }, true)} onConversationChanged={() => advanceFrom(sel, rows)} />
                 ) : !conv.isLoading && !rows.length ? null : <div className="p-4"><RowsSkeleton rows={6} /></div>}
               </div>

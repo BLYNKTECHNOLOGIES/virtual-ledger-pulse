@@ -85,7 +85,7 @@ export function CareersSettingsSection() {
     qc.invalidateQueries({ queryKey: statusKey });
   };
 
-  const isAdmin = useIsHrAdmin();
+  const isAdmin = useIsHrAdmin().data === true;
   const careersSource = (sources.data ?? []).find((s) => s.code === "careers");
   const s = status.data;
   const c = s ? connection(s) : null;

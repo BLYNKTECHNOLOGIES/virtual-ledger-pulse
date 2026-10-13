@@ -227,7 +227,7 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
 }
 
 function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread }: { m: AtsMessage; fileIds: Set<string>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void }) {
-  const isAdmin = useIsHrAdmin();
+  const isAdmin = useIsHrAdmin().data === true;
   const out = m.direction === "outbound";
   const [showQuoted, setShowQuoted] = useState(false);
   const [origOpen, setOrigOpen] = useState(false);

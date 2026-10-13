@@ -65,7 +65,7 @@ const canUndo = (r: ImportListRow) =>
   r.status !== "undone" && Date.now() - new Date(r.created_at).getTime() < UNDO_DAYS * 86_400_000;
 
 export function ImportHistory() {
-  const isAdmin = useIsHrAdmin();
+  const isAdmin = useIsHrAdmin().data === true;
   const q = useImports();
   const isMobile = useIsMobile();
   const [viewing, setViewing] = useState<ImportListRow | null>(null);

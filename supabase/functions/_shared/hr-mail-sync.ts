@@ -1,6 +1,7 @@
 // Shared HR mailbox IMAP sync worker.
 // Used by hr-mail-fetch (user-authenticated) and by diagnostics.
 import { fetchMessages, parseMessage } from './imap-client.ts'
+import { imapHostAllowed, secretByName } from './mailbox-secrets.ts'
 
 function stripHtml(html: string) {
   return html.replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -38,8 +39,14 @@ export async function syncHrMailboxes(admin: any, opts: SyncOptions = {}) {
 
   for (const mb of mailboxes) {
     const host = mb.imap_host
-    const user = (mb.imap_user_secret ? Deno.env.get(mb.imap_user_secret) : Deno.env.get('HR_SMTP_USER'))?.trim()
-    const pass = (mb.imap_pass_secret ? Deno.env.get(mb.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS'))?.replace(/\s+/g, '')
+    const user = (mb.imap_user_secret ? secretByName(mb.imap_user_secret) : Deno.env.get('HR_SMTP_USER'))?.trim()
+    const pass = (mb.imap_pass_secret ? secretByName(mb.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS'))?.replace(/\s+/g, '')
+
+    if (!imapHostAllowed(host)) {
+      errors.push({ mailbox: mb.from_address, error: 'IMAP host not allowed' })
+      await admin.from('hr_mailboxes').update({ imap_last_error: 'IMAP host not allowed' }).eq('id', mb.id)
+      continue
+    }
 
     if (!host || !user || !pass) {
       const msg = 'IMAP host or credentials missing'
@@ -111,7 +118,7 @@ export async function syncHrMailboxes(admin: any, opts: SyncOptions = {}) {
       }
 
       const siblingIds = (allMailboxes || [])
-        .filter((x: any) => `${x.imap_host}:${(Deno.env.get(x.imap_user_secret || '') || '').trim().toLowerCase()}` === accountKey)
+        .filter((x: any) => `${x.imap_host}:${(secretByName(x.imap_user_secret) || '').trim().toLowerCase()}` === accountKey)
         .map((x: any) => x.id)
       await admin.from('hr_mailboxes').update({
         imap_last_uid: maxUid,

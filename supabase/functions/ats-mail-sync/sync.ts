@@ -15,6 +15,7 @@ import {
   type ImapFetchItem, type MailAttachment, type MailHeader, type ThreadRef,
 } from '../_shared/ats-mail.ts'
 import { sendQueued } from '../_shared/ats-mail-deliver.ts'
+import { imapHostAllowed, secretByName } from '../_shared/mailbox-secrets.ts'
 import { type CalendarReply, findCalendarReply, INTERVIEW_UID_RE } from '../_shared/ats-ics.ts'
 
 const corsHeaders = {
@@ -33,6 +34,7 @@ const MAX_FULL = 15 // candidate emails downloaded per run
 const MAX_LOOKBACK = 50 // emails looked at by "find older emails" for one candidate
 const MAX_MESSAGE_BYTES = 25 * 1024 * 1024
 const UNREADABLE_NOTE = 'The content of this email could not be shown in the ATS. Open it in the HR mailbox.'
+const RESUME_NAME_RE = /resume|résumé|curriculum|bio[\s_-]?data|(^|[^a-z])cv([^a-z]|$)/i // "MyResume.pdf", "Rahul_CV.pdf"; not "pan_recvd.pdf"
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 class SyncError extends Error {
@@ -116,9 +118,10 @@ async function openMailbox(admin: any, mailboxId: string, imap: AtsImap, caCerts
   const mailbox = (mailboxes ?? []).find((m: any) => m.id === mailboxId && m.is_active)
   if (!mailbox) throw new SyncError('mailbox_unavailable')
   if (!mailbox.imap_enabled || !mailbox.imap_host) throw new SyncError('receiving_off')
+  if (!imapHostAllowed(mailbox.imap_host)) throw new SyncError('imap_host_not_allowed')
   // Same credential lookup as the HR mailbox reader (secret names are stored on hr_mailboxes).
-  const user = (mailbox.imap_user_secret ? Deno.env.get(mailbox.imap_user_secret) : Deno.env.get('HR_SMTP_USER'))?.trim()
-  const pass = (mailbox.imap_pass_secret ? Deno.env.get(mailbox.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS'))
+  const user = (mailbox.imap_user_secret ? secretByName(mailbox.imap_user_secret) : Deno.env.get('HR_SMTP_USER'))?.trim()
+  const pass = (mailbox.imap_pass_secret ? secretByName(mailbox.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS'))
     ?.replace(/\s+/g, '')
   if (!user || !pass) throw new SyncError('mailbox_credentials_missing')
   const self = new Set<string>([
@@ -426,7 +429,6 @@ async function storeOne(
   if (fErr) return 'retry'
   const bySha = new Map<string, string>()
   for (const f of known ?? []) if (f.sha256) bySha.set(f.sha256, f.id)
-  let hasResume = (known ?? []).some((f: any) => f.kind === 'resume')
   const seen = new Set<string>()
   const files: Record<string, unknown>[] = []
   const listed: Record<string, unknown>[] = []
@@ -454,8 +456,7 @@ async function storeOne(
       continue
     }
     uploaded.push(path)
-    const resume = ['pdf', 'doc', 'docx'].includes(a.ext) && (/(resume|cv|curriculum|bio[\s_-]?data)/i.test(a.filename) || !hasResume)
-    if (resume) hasResume = true
+    const resume = ['pdf', 'doc', 'docx'].includes(a.ext) && RESUME_NAME_RE.test(a.filename)
     files.push({
       kind: resume ? 'resume' : 'other', file_name: a.filename.slice(0, 255), storage_path: path,
       mime_type: a.contentType, size_bytes: a.bytes.length, sha256: sha,

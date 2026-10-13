@@ -141,6 +141,7 @@ const UNREACHABLE = "Couldn't reach the mailbox. It will try again in 5 minutes.
 
 export function mailErrorMessage(code?: string | null, field?: string | null): string {
   switch (code) {
+    case "imap_host_not_allowed": return "The HR mailbox points to a mail server that isn't allowed. Ask a developer to check the HR mailbox settings.";
     case "mail_disabled": return "Email is turned off. Turn it on in ATS → Settings → Email.";
     case "mailbox_unavailable": return "The HR mailbox isn't available. Check ATS → Settings → Email.";
     case "no_email": return "This candidate has no email address. Add one with Edit profile.";

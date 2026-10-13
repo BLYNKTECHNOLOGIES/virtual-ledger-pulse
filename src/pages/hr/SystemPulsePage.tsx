@@ -238,8 +238,8 @@ export default function SystemPulsePage() {
           tone={staleTone}
           primary={`${stale.open ?? 0} open`}
           secondary={`Oldest ${stale.oldest_age_hours ?? 0}h`}
-          actionHref="/hrms/attendance/regularization"
-          actionLabel="Watchdog"
+          actionHref="/hrms/attendance/stale-sessions"
+          actionLabel="Stale sessions"
         />
         <Tile
           icon={ShieldAlert}
@@ -376,7 +376,7 @@ export default function SystemPulsePage() {
               : `${gov!.joiner_readiness.receipts_stamped}/${gov!.joiner_readiness.tracked} stamped`
           }
           secondary={`${gov?.joiner_readiness.broken ?? 0} broken chain${(gov?.joiner_readiness.broken ?? 0) === 1 ? "" : "s"} · re-checked daily 07:00 IST`}
-          actionHref="/hrms/employees"
+          actionHref="/hrms/employee"
           actionLabel="Employees"
         />
 

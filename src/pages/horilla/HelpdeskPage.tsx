@@ -108,15 +108,15 @@ export default function HelpdeskPage() {
             ) : filtered.map((t: any) => (
               <div key={t.id} className="p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="font-medium text-sm min-w-0 flex-1">{t.title}</div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(t.status)}`}>{t.status}</span>
+                  <div className="min-w-0 flex-1"><div className="font-medium text-sm">{t.title}</div>{t.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{t.description}</p>}</div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(t.status)} capitalize`}>{String(t.status || "").replace(/_/g, " ")}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="capitalize">{t.category}</span>
                   <span>•</span>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityColor(t.priority)}`}>{t.priority}</span>
                   <span>•</span>
-                  <span className="tabular-nums">{new Date(t.created_at).toLocaleDateString()}</span>
+                  <span className="tabular-nums">{new Date(t.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
                 </div>
                 {(t.status === "open" || t.status === "in_progress") && (
                   <div className="flex gap-2 pt-1">
@@ -146,15 +146,15 @@ export default function HelpdeskPage() {
                 </td></tr>
               ) : filtered.map((t: any) => (
                 <tr key={t.id} className="border-b hover:bg-muted/50">
-                  <td className="px-4 py-3 font-medium">{t.title}</td>
+                  <td className="px-4 py-3"><div className="font-medium">{t.title}</div>{t.description && <p className="text-xs text-muted-foreground line-clamp-2 max-w-md">{t.description}</p>}</td>
                   <td className="px-4 py-3 text-muted-foreground capitalize">{t.category}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityColor(t.priority)}`}>{t.priority}</span></td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(t.status)}`}>{t.status}</span></td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{new Date(t.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor(t.status)} capitalize`}>{String(t.status || "").replace(/_/g, " ")}</span></td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{new Date(t.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
-                      {t.status === "open" && <Button size="sm" variant="ghost" className="text-warning h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "in_progress" })}><Clock className="h-4 w-4" /></Button>}
-                      {(t.status === "open" || t.status === "in_progress") && <Button size="sm" variant="ghost" className="text-success h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "resolved" })}><CheckCircle className="h-4 w-4" /></Button>}
+                      {t.status === "open" && <Button size="sm" variant="ghost" className="text-warning h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "in_progress" })}><Clock className="h-4 w-4 mr-1" />Start</Button>}
+                      {(t.status === "open" || t.status === "in_progress") && <Button size="sm" variant="ghost" className="text-success h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "resolved" })}><CheckCircle className="h-4 w-4 mr-1" />Resolve</Button>}
                     </div>
                   </td>
                 </tr>

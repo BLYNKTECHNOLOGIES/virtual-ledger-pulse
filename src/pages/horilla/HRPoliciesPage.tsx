@@ -2,16 +2,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { FileText, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 
-const CATEGORIES = ["All", "General", "Leave", "Attendance", "Conduct", "Benefits", "Safety", "Other"];
+/** Long policies start collapsed; "Read full policy" opens them. */
+const isLong = (text: string) => text.length > 280 || text.split("\n").length > 4;
 
 export default function HRPoliciesPage() {
-  const [category, setCategory] = useState("All");
   const [search, setSearch] = useState("");
 
   const { data: policies = [], isLoading } = useQuery({
@@ -26,11 +25,10 @@ export default function HRPoliciesPage() {
     },
   });
 
-  const filtered = policies.filter((p: any) => {
-    const matchCat = category === "All" || p.category === category;
-    const matchSearch = !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.content?.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
-  });
+  const q = search.trim().toLowerCase();
+  const filtered = policies.filter((p: any) =>
+    !q || p.title?.toLowerCase().includes(q) || p.body?.toLowerCase().includes(q)
+  );
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -39,31 +37,15 @@ export default function HRPoliciesPage() {
         description="Company policies and guidelines"
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search policies..."
-            className="w-full h-9 pl-9 pr-3 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:border-primary"
-          />
-        </div>
-        <div className="flex gap-1 flex-wrap">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${
-                category === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search policies..."
+          aria-label="Search policies"
+          className="w-full h-9 pl-9 pr-3 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:border-primary"
+        />
       </div>
 
       {isLoading ? (
@@ -74,26 +56,31 @@ export default function HRPoliciesPage() {
         <EmptyState
           icon={FileText}
           title="No policies found"
-          description={search || category !== "All" ? "Try adjusting your search or filter." : "No HR policies have been added yet."}
+          description={q ? "Try a different search." : "No HR policies have been added yet."}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filtered.map((policy: any) => (
             <Card key={policy.id}>
               <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-sm font-semibold">{policy.title}</CardTitle>
-                  <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 text-muted-foreground">
-                    {policy.category || "General"}
-                  </span>
-                </div>
+                <CardTitle className="text-sm font-semibold">{policy.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4">
-                  {policy.content}
-                </p>
+                {!policy.body ? (
+                  <p className="text-sm text-muted-foreground">No text added yet.</p>
+                ) : isLong(policy.body) ? (
+                  <details className="group">
+                    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                      <span className="block text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4 group-open:line-clamp-none">{policy.body}</span>
+                      <span className="mt-1 inline-block text-xs font-medium text-primary group-open:hidden">Read full policy</span>
+                      <span className="mt-1 hidden text-xs font-medium text-primary group-open:inline-block">Show less</span>
+                    </summary>
+                  </details>
+                ) : (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{policy.body}</p>
+                )}
                 <p className="text-[10px] tabular-nums text-muted-foreground mt-3">
-                  Updated {new Date(policy.updated_at || policy.created_at).toLocaleDateString("en-IN")}
+                  Updated {new Date(policy.updated_at || policy.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                 </p>
               </CardContent>
             </Card>

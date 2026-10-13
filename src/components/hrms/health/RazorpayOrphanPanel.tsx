@@ -163,7 +163,7 @@ export function RazorpayOrphanPanel({ scanSignal = 0 }: { scanSignal?: number })
               </div>
               <div className="flex md:flex-col gap-2 md:items-end">
                 <Link
-                  to="/hrms/onboarding/pipeline"
+                  to="/hrms/onboarding-pipeline"
                   className="text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-muted whitespace-nowrap"
                 >
                   Onboard in HRMS

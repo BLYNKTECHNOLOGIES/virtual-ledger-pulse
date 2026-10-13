@@ -68,6 +68,7 @@ export default function AttendanceStaleSessionsPage() {
           : `Watchdog: nothing open (${(d?.auto_resolved || 0) + (d?.closed || 0)} auto-resolved)`
       );
       qc.invalidateQueries({ queryKey: ["hr_stale_sessions"] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e?.message || "Watchdog failed"),
   });
@@ -276,6 +277,17 @@ export default function AttendanceStaleSessionsPage() {
             <div className="space-y-1">
               <Label>Out-time (IST)</Label>
               <Input type="datetime-local" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
+              {dlg?.row?.in_time && (() => {
+                const inT = new Date(dlg.row.in_time);
+                const outT = outTime ? new Date(`${outTime}:00+05:30`) : null;
+                const mins = outT && !isNaN(outT.getTime()) ? Math.round((outT.getTime() - inT.getTime()) / 60000) : null;
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    In-time {formatInTimeZone(inT, "Asia/Kolkata", "dd MMM, hh:mm a")} IST
+                    {mins !== null && (mins > 0 ? ` · worked ${Math.floor(mins / 60)}h ${mins % 60}m` : " · out-time must be after in-time")}
+                  </p>
+                );
+              })()}
             </div>
           )}
           <div className="space-y-1">

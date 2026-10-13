@@ -34,8 +34,21 @@ export default function ShiftsPage() {
   });
 
 
+  const invalidateShifts = () => {
+    qc.invalidateQueries({ queryKey: ["hr_shifts"] });
+    qc.invalidateQueries({ queryKey: ["hr_shifts_active"] });
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Friendly duplicate-name guard (case-insensitive): a repeated name makes
+      // the terminal shift-window sync upsert the same key twice and fail raw.
+      const name = form.name.trim();
+      const { data: existing, error: dupErr } = await supabase.from("hr_shifts").select("id, name").ilike("name", name.replace(/[\\%_]/g, "\\$&"));
+      if (dupErr) throw dupErr;
+      if ((existing || []).some((s: any) => s.id !== editId && String(s.name).trim().toLowerCase() === name.toLowerCase())) {
+        throw new Error(`A shift named "${name}" already exists. Use a different name.`);
+      }
       if (editId) {
         const { error } = await supabase.from("hr_shifts").update(form).eq("id", editId);
         if (error) throw error;
@@ -45,7 +58,7 @@ export default function ShiftsPage() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_shifts"] });
+      invalidateShifts();
       setShowDialog(false);
       setEditId(null);
       setForm(defaultForm);
@@ -59,7 +72,7 @@ export default function ShiftsPage() {
       const { error } = await supabase.from("hr_shifts").update({ is_active }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_shifts"] }),
+    onSuccess: () => invalidateShifts(),
   });
 
   const deleteMutation = useMutation({
@@ -68,7 +81,7 @@ export default function ShiftsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_shifts"] });
+      invalidateShifts();
       toast.success("Shift deleted");
     },
     onError: (e: any) => toast.error(e.message),

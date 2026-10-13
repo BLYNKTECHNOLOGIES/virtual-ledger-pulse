@@ -15,6 +15,7 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import {
   EMPLOYMENT_TYPE_OPTIONS,
   normEmploymentType,
+  planningShifts,
   HIRING_REASONS,
   PRIORITIES,
   PRIORITY_LABEL,
@@ -175,7 +176,7 @@ export function HiringRequirementDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Not shift specific</SelectItem>
-                  {(lookups?.shifts || []).map((s) => (
+                  {planningShifts(lookups?.shifts || []).map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>

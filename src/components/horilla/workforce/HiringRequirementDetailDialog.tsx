@@ -74,6 +74,7 @@ export function HiringRequirementDetailDialog({
   const move = useMoveRequirement();
   const [moveTo, setMoveTo] = useState("");
   const [moveReason, setMoveReason] = useState("");
+  const [approveDate, setApproveDate] = useState("");
 
   // Live row (the list snapshot may be stale after an action)
   const live = useQuery({
@@ -153,9 +154,10 @@ export function HiringRequirementDetailDialog({
           <Badge variant="outline" className={REQ_STATUS_CLASS[r.status]}>{REQ_STATUS_LABEL[r.status] ?? r.status}</Badge>
           <Badge variant="outline" className={PRIORITY_CLASS[r.priority]}>{PRIORITY_LABEL[r.priority] ?? r.priority}</Badge>
           {r.source === "department_request" && <Badge variant="outline">Department request · {r.requested_by_name || "head of department"}</Badge>}
+          {(r.adds_headcount ?? 0) > 0 && <Badge variant="outline" className="border-primary/40 text-primary">Adds +{r.adds_headcount} headcount</Badge>}
         </span>
       }
-      description={`${r.positions?.title ?? "Position"} · ${r.departments?.name ?? "Department"}${r.shift_label ? ` · ${r.shift_label}` : ""}`}
+      description={`${r.positions?.title ?? "Position"} · ${r.departments?.name ?? "Department"} · ${r.shift_label || line?.shiftLabel || "Any shift"}`}
       contentClassName="max-w-3xl"
       footer={
         <div className="flex w-full flex-col flex-wrap gap-2 sm:flex-row sm:justify-end">
@@ -213,12 +215,15 @@ export function HiringRequirementDetailDialog({
           const b = budget.data?.requirements.find((x) => x.id === r.id);
           const range = r.salary_min || r.salary_max
             ? `${formatInr(r.salary_min ?? r.salary_max)}–${formatInr(r.salary_max ?? r.salary_min)} a month`
-            : b?.per_person != null ? `${formatInr(b.per_person)} a month` : "no salary figure";
+            : b?.per_person != null ? `${formatInr(b.per_person)} a month (average)` : "no salary figure";
           const people = b?.people ?? stillNeeded;
           return (
             <div className="rounded-lg border border-border p-3 text-sm">
               <p className="text-foreground">Budget: {range} × {people}{b?.per_person != null ? ` ≈ ${formatInr(b.per_person * people)} a month` : ""}</p>
               <p className="text-xs text-muted-foreground">Basis: {b?.basis ?? (r.salary_min || r.salary_max ? "requirement salary range" : "—")}. {BUDGET_SOURCE_LABEL}. Visible to HRMS managers only.</p>
+              {b?.no_range && OPEN.includes(r.status) && (
+                <p className="mt-1 text-xs text-warning">No salary range on this request — priced on an average. <button type="button" className="underline" onClick={() => setEditOpen(true)}>Add a salary range</button></p>
+              )}
             </div>
           );
         })()}
@@ -281,7 +286,11 @@ export function HiringRequirementDetailDialog({
 
         <div className="rounded-lg border border-border p-3 text-sm">
           <p className="mb-1 font-semibold text-foreground">Staffing line</p>
-          {line ? (
+          {matrix.isLoading ? (
+            <p className="text-muted-foreground">Loading the staffing line…</p>
+          ) : matrix.isError ? (
+            <p className="text-destructive">Couldn't load staffing lines. <button type="button" className="underline" onClick={() => matrix.refetch()}>Try again</button></p>
+          ) : line ? (
             <p className="text-muted-foreground">
               {line.department_name} · {line.position_title} · {line.shiftLabel} — required <span className="text-foreground">{line.required_hc}</span>,
               on roll <span className="text-foreground">{line.current_hc}</span>, short <span className="text-foreground">{Math.max(0, line.staffingGap)}</span>,
@@ -294,7 +303,7 @@ export function HiringRequirementDetailDialog({
           ) : (
             <p className="text-muted-foreground">Not linked to a staffing line.</p>
           )}
-          {canMove && (
+          {canMove && !matrix.isLoading && !matrix.isError && (
             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
               <Select value={moveTo} onValueChange={setMoveTo}>
                 <SelectTrigger className="h-8 text-foreground sm:w-44"><SelectValue placeholder={line ? "Move to line" : "Link to line"} /></SelectTrigger>
@@ -316,7 +325,7 @@ export function HiringRequirementDetailDialog({
           <p><span className="text-muted-foreground">Employment type: </span><span className="text-foreground">{r.employment_type ? employmentTypeLabel(r.employment_type) : "—"}</span></p>
           <p><span className="text-muted-foreground">Experience: </span><span className="text-foreground">{r.experience_required || "—"}</span></p>
           <p><span className="text-muted-foreground">Monthly salary: </span><span className="text-foreground">
-            {r.salary_min || r.salary_max ? `₹${r.salary_min ?? "—"} – ₹${r.salary_max ?? "—"}` : "—"}</span></p>
+            {r.salary_min || r.salary_max ? `${formatInr(r.salary_min ?? r.salary_max)} – ${formatInr(r.salary_max ?? r.salary_min)}` : "—"}</span></p>
           <p><span className="text-muted-foreground">Raised by: </span><span className="text-foreground">{r.requested_by_name || "System"} on {formatIstDateTime(r.requested_at)}</span></p>
           <p><span className="text-muted-foreground">Approval: </span><span className="text-foreground">
             {r.approved_at ? `${r.approver_name || "Approved"} · ${formatIstDateTime(r.approved_at)}` : r.status === "pending_approval" ? "Awaiting any HRMS manager" : "—"}</span></p>
@@ -364,12 +373,35 @@ export function HiringRequirementDetailDialog({
             <AlertDialogTitle>Approve {r.requirement_no}?</AlertDialogTitle>
             <AlertDialogDescription>
               {needed} {needed === 1 ? "person" : "people"} for {r.positions?.title ?? "this role"}. Once approved, an ATS job can be opened.
+              {(r.adds_headcount ?? 0) > 0 && (line?.follow_desks
+                ? ` This request adds ${r.adds_headcount} beyond the line's required number, but the line follows its desk group and can't exceed its desks — switch the line to fixed numbers first (Staffing Plan) or add desks.`
+                : ` This request adds headcount: approving also raises the line's required number by ${r.adds_headcount}${line ? ` (${line.required_hc} → ${line.required_hc + r.adds_headcount})` : ""}, recorded in the line's history.`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {(r.adds_headcount ?? 0) > 0 && line?.follow_desks && (
+            <Link className="text-sm text-primary underline-offset-2 hover:underline" to={`/hrms/workforce-planning/staffing-plan?line=${line.plan_id}`}>Open the line in Staffing Plan</Link>
+          )}
+          {!r.target_joining_date && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Target joining date * — without one the forecast places this hire at the end of whatever period is chosen.</p>
+              <Input type="date" className="h-9 text-foreground" value={approveDate} onChange={(e) => setApproveDate(e.target.value)} />
+            </div>
+          )}
           <Textarea rows={2} className="text-foreground" placeholder="Optional note" value={note} onChange={(e) => setNote(e.target.value)} />
           <AlertDialogFooter>
             <AlertDialogCancel>Back</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmAction(null); run("approve", note); }}>Approve</AlertDialogAction>
+            <AlertDialogAction disabled={!r.target_joining_date && !approveDate}
+              onClick={async () => {
+                setConfirmAction(null);
+                if (!r.target_joining_date && approveDate) {
+                  const { error } = await supabase.rpc("hr_update_requirement", {
+                    p_id: r.id, p_patch: { target_joining_date: approveDate }, p_reason: "Target joining date set at approval",
+                  });
+                  if (error) { toast.error(error.message || "Could not set the target joining date"); return; }
+                }
+                setApproveDate("");
+                run("approve", note);
+              }}>Approve</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

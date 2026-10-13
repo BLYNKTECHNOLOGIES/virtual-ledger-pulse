@@ -781,6 +781,12 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
         toast.success("Email sent");
         idRef.current = crypto.randomUUID();
         attemptSig.current = null;
+        clearDraft(candidate.id);
+        const until = followUpAt(fuChoice);
+        if (until) {
+          try { await setConversation(candidate.id, "follow_up", until); qc.invalidateQueries({ queryKey: convKeys.all }); }
+          catch (e) { toast.error(`Email sent · follow-up not set: ${atsErrorMessage(e)}`); }
+        }
         setSubject(""); setBody(""); setSel([]); setTplMeta({ code: null, purpose: "general" });
         onClose();
       }

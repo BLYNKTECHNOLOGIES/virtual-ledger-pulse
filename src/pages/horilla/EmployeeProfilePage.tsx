@@ -28,6 +28,7 @@ import { EmployeeDocumentsPanel } from "@/components/hrms/EmployeeDocumentsPanel
 import { EmployeeAttendanceCalendar } from "@/components/hrms/attendance/EmployeeAttendanceCalendar";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
+import { WORK_TYPES, normalizeWorkType, workTypeLabel, monthlyCtcOnRecord, fullName } from "@/lib/hrms/employeeFields";
 
 
 // ─── Tabs matching Horilla ───
@@ -42,20 +43,20 @@ const TABS = [
 // assigned there. We only show CTC here; the component breakdown is mirrored
 // read-only by <EmployeeSalaryStructure /> below.
 function SalarySummaryCard({ totalSalary }: { totalSalary?: number }) {
-  const ctc = totalSalary || 0;
-  const monthly = Math.round(ctc / 12);
+  const monthly = monthlyCtcOnRecord(totalSalary);
+  const ctc = monthly != null ? Number(totalSalary) : null;
 
   return (
     <div className="border border-border rounded-lg p-4 bg-muted/30 page-mount">
       <h3 className="text-sm font-semibold text-foreground mb-3">Salary Summary</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div>
-          <p className="text-xs text-muted-foreground">Annual CTC</p>
-          <p className="text-sm font-bold text-foreground">₹{ctc.toLocaleString("en-IN")}</p>
+          <p className="text-xs text-muted-foreground">Annual CTC on record</p>
+          <p className="text-sm font-bold text-foreground">{ctc != null ? `₹${ctc.toLocaleString("en-IN")}` : "Not set"}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Monthly CTC</p>
-          <p className="text-sm font-semibold text-foreground">₹{monthly.toLocaleString("en-IN")}</p>
+          <p className="text-xs text-muted-foreground">Monthly CTC on record</p>
+          <p className="text-sm font-semibold text-foreground">{monthly != null ? `₹${Math.round(monthly).toLocaleString("en-IN")}` : "Not set"}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Structure Source</p>
@@ -610,14 +611,14 @@ export default function EmployeeProfilePage() {
             .maybeSingle();
           if (clash) {
             throw new Error(
-              `That email is already used by ${clash.first_name || ""} ${clash.last_name || ""} (${clash.badge_id ?? "—"})`,
+              `That email is already used by ${fullName(clash)} (${clash.badge_id ?? "—"})`,
             );
           }
         }
         const firstName = (editForm.first_name ?? emp?.first_name ?? "").trim();
         const lastName = (editForm.last_name ?? emp?.last_name ?? "").trim();
         const badgeId = String(editForm.badge_id ?? emp?.badge_id ?? "").trim();
-        if (!firstName || !lastName) throw new Error("First and last name are required");
+        if (!firstName) throw new Error("First name is required");
         if (!badgeId) throw new Error("Badge ID is required");
 
         const { error } = await (supabase as any).from("hr_employees").update({
@@ -832,7 +833,7 @@ export default function EmployeeProfilePage() {
       department_id: workInfo?.department_id || "",
       job_position_id: workInfo?.job_position_id || "",
       job_role: workInfo?.job_role || "",
-      work_type: workInfo?.work_type || "",
+      work_type: normalizeWorkType(workInfo?.work_type) || "",
       employee_type: workInfo?.employee_type || "",
       location: workInfo?.location || "",
       company_name: workInfo?.company_name || "",
@@ -916,7 +917,7 @@ export default function EmployeeProfilePage() {
         <span aria-hidden="true">›</span>
         <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employees</button>
         <span aria-hidden="true">›</span>
-        <span aria-current="page" className="text-[#00bcd4] font-medium break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
+        <span aria-current="page" className="text-[#00bcd4] font-medium break-words">{fullName(emp)} ({emp.badge_id})</span>
       </nav>
       <button onClick={() => navigate("/hrms/employee")} className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground md:hidden">
         <ArrowLeft className="h-4 w-4" /> Employees
@@ -930,14 +931,14 @@ export default function EmployeeProfilePage() {
             <img src={emp.profile_image_url} className="w-14 h-14 md:w-20 md:h-20 rounded-lg object-cover shrink-0" alt="" />
           ) : (
             <div className={`w-14 h-14 md:w-20 md:h-20 rounded-lg ${color} flex items-center justify-center text-primary-foreground font-bold text-xl md:text-2xl shrink-0`}>
-              {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
+              {emp.first_name.charAt(0)}{(emp.last_name || "").charAt(0)}
             </div>
           )}
 
           {/* Info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-base md:text-lg font-semibold text-foreground break-words leading-snug">{emp.first_name} {emp.last_name} ({emp.badge_id})</h1>
+              <h1 className="text-base md:text-lg font-semibold text-foreground break-words leading-snug">{fullName(emp)} ({emp.badge_id})</h1>
               <DriftBadge employeeId={emp.id} />
             </div>
             <div className="flex min-w-0 items-center gap-2 mt-1 text-sm text-muted-foreground">
@@ -1179,7 +1180,7 @@ export default function EmployeeProfilePage() {
                       <label className="text-xs text-muted-foreground block mb-1">Reporting Manager</label>
                       <select value={workInfoForm.reporting_manager_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, reporting_manager_id: e.target.value })} className={inputCls}>
                         <option value="">Select Manager</option>
-                        {(allEmployees || []).filter((e: any) => e.id !== id).map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</option>)}
+                        {(allEmployees || []).filter((e: any) => e.id !== id).map((e: any) => <option key={e.id} value={e.id}>{fullName(e)} ({e.badge_id})</option>)}
                       </select>
                     </div>
                     <div>
@@ -1193,9 +1194,8 @@ export default function EmployeeProfilePage() {
                       <label className="text-xs text-muted-foreground block mb-1">Work Type</label>
                       <select value={workInfoForm.work_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_type: e.target.value })} className={inputCls}>
                         <option value="">Select</option>
-                        <option value="On-site">On-site</option>
-                        <option value="Remote">Remote</option>
-                        <option value="Hybrid">Hybrid</option>
+                        {workInfoForm.work_type && !WORK_TYPES.some(w => w.value === workInfoForm.work_type) && <option value={workInfoForm.work_type}>{workInfoForm.work_type} (legacy)</option>}
+                        {WORK_TYPES.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
                       </select>
                     </div>
                     <div>
@@ -1215,9 +1215,9 @@ export default function EmployeeProfilePage() {
                     { label: "Position", value: position?.title || "None" },
                     { label: "Department", value: dept?.name || "None" },
                     { label: "Shift", value: shift?.name || "None" },
-                    { label: "Work Type", value: prettyCase(workInfo?.work_type) },
+                    { label: "Work Type", value: workTypeLabel(workInfo?.work_type) },
                     { label: "Employee Type", value: employeeTypeLabel(workInfo?.employee_type) },
-                    { label: "Reporting Manager", value: reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None" },
+                    { label: "Reporting Manager", value: reportingManager ? `${fullName(reportingManager)} (${reportingManager.badge_id})` : "None" },
                   ]} />
                 </div>
                 <div className="hidden md:block border border-border rounded-lg overflow-x-auto hrms-scroll-table">
@@ -1239,10 +1239,10 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3 text-muted-foreground">{position?.title || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{dept?.name || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{shift?.name || "None"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.work_type)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{workTypeLabel(workInfo?.work_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{employeeTypeLabel(workInfo?.employee_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">
-                          {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
+                          {reportingManager ? `${fullName(reportingManager)} (${reportingManager.badge_id})` : "None"}
                         </td>
                       </tr>
                     </tbody>
@@ -1287,9 +1287,8 @@ export default function EmployeeProfilePage() {
                     <label className="text-xs text-muted-foreground block mb-1">Work Type</label>
                     <select value={workInfoForm.work_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_type: e.target.value })} className={inputCls}>
                       <option value="">Select</option>
-                      <option value="On-site">On-site</option>
-                      <option value="Remote">Remote</option>
-                      <option value="Hybrid">Hybrid</option>
+                      {workInfoForm.work_type && !WORK_TYPES.some(w => w.value === workInfoForm.work_type) && <option value={workInfoForm.work_type}>{workInfoForm.work_type} (legacy)</option>}
+                      {WORK_TYPES.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
                     </select>
                   </div>
                   <div>
@@ -1303,7 +1302,7 @@ export default function EmployeeProfilePage() {
                     <label className="text-xs text-muted-foreground block mb-1">Reporting Manager</label>
                     <select value={workInfoForm.reporting_manager_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, reporting_manager_id: e.target.value })} className={inputCls}>
                       <option value="">Select Manager</option>
-                      {(allEmployees || []).filter((e: any) => e.id !== id).map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</option>)}
+                      {(allEmployees || []).filter((e: any) => e.id !== id).map((e: any) => <option key={e.id} value={e.id}>{fullName(e)} ({e.badge_id})</option>)}
                     </select>
                   </div>
                   <div>
@@ -1353,7 +1352,7 @@ export default function EmployeeProfilePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Work Type</p>
-                    <p className="text-sm font-medium text-foreground mt-1">{prettyCase(workInfo?.work_type)}</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{workTypeLabel(workInfo?.work_type)}</p>
                   </div>
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Employee Type</p>
@@ -1370,7 +1369,7 @@ export default function EmployeeProfilePage() {
                   <div className="border border-border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground">Reporting Manager</p>
                     <p className="text-sm font-medium text-foreground mt-1">
-                      {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
+                      {reportingManager ? `${fullName(reportingManager)} (${reportingManager.badge_id})` : "None"}
                     </p>
                   </div>
                 </div>
@@ -1389,25 +1388,14 @@ export default function EmployeeProfilePage() {
                     </div>
 
                     <div>
-                      <p className="text-xs text-muted-foreground">Monthly Salary (CTC / 12)</p>
+                      <p className="text-xs text-muted-foreground">Monthly CTC on record (annual ÷ 12)</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         {(() => {
-                          // Monthly = Annual CTC / 12. Prefer hr_employees.total_salary
-                          // (annual CTC — RazorpayX source of truth); fall back to
-                          // legacy basic_salary column stored as annual, then to
-                          // work_info.basic_salary stored as monthly.
-                          const annual =
-                            Number((emp as any)?.total_salary) > 0
-                              ? Number((emp as any).total_salary)
-                              : Number((emp as any)?.basic_salary) > 0
-                                ? Number((emp as any).basic_salary)
-                                : Number(workInfo?.basic_salary) > 0
-                                  ? Number(workInfo.basic_salary) * 12
-                                  : 0;
-                          const monthly = annual / 12;
+                          // Monthly CTC on record = total_salary / 12 only (never Basic).
+                          const monthly = monthlyCtcOnRecord((emp as any)?.total_salary);
                           return (
                             <p className="text-sm text-foreground">
-                              {monthly > 0 ? `₹${Math.round(monthly).toLocaleString("en-IN")}` : "None"}
+                              {monthly != null ? `₹${Math.round(monthly).toLocaleString("en-IN")}` : "Not set"}
                             </p>
                           );
                         })()}

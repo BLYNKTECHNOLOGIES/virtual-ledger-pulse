@@ -567,7 +567,7 @@ function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
                   {doc.is_verified ? 'Verified' : 'Pending'}
                 </StatusPill>
                 {doc.file_url ? (
-                  <Button variant="outline" size="sm" onClick={() => { void openStoredDocument(doc.file_url); }}>
+                  <Button variant="outline" size="sm" onClick={() => { openStoredDocument(doc.file_url).catch((e: any) => sonnerToast.error(e?.message || 'Could not open this document')); }}>
                     View
                   </Button>
                 ) : (

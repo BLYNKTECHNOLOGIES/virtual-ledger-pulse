@@ -186,7 +186,8 @@ export default function EmployeeDocumentsPage() {
                   )}
                   {doc.file_url && (
                     <Button size="sm" variant="ghost" className="h-8 w-8 p-0"
-                      onClick={() => { void openStoredDocument(doc.file_url); }}>
+                      aria-label="Open document" title="Open document"
+                      onClick={() => { openStoredDocument(doc.file_url).catch((e: any) => toast.error(e?.message || "Could not open this document")); }}>
                       <ExternalLink className="h-4 w-4" />
                     </Button>
                   )}
@@ -226,9 +227,9 @@ export default function EmployeeDocumentsPage() {
                 <div className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-2.5">
                   <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-sm text-foreground truncate flex-1">{uploadedName || "Attached file"}</span>
-                  <a href={form.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-1">
+                  <button type="button" aria-label="Open document" title="Open document" onClick={() => { openStoredDocument(form.file_url).catch((e: any) => toast.error(e?.message || "Could not open this document")); }} className="text-muted-foreground hover:text-foreground p-1">
                     <ExternalLink className="h-4 w-4" />
-                  </a>
+                  </button>
                   <button
                     type="button"
                     onClick={() => { setForm((f) => ({ ...f, file_url: "" })); setUploadedName(""); }}

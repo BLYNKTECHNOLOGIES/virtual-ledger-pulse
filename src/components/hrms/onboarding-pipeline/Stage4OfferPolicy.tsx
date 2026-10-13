@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { privateDocRef } from "@/lib/storedDoc";
+import { openStoredDocument, privateDocRef } from "@/lib/storedDoc";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -135,16 +135,15 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
                   <div className="flex items-center gap-2 flex-wrap pl-1">
                     {d?.file_url ? (
                       <>
-                        <a
-                          href={d.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary underline flex items-center gap-1 max-w-[220px] truncate"
-                        >
+                        <button
+ type="button"
+ onClick={() => { openStoredDocument(d.file_url!).catch((e: any) => toast.error(e?.message || "Could not open this document")); }}
+ className="text-xs text-primary underline flex items-center gap-1 max-w-[220px] truncate text-left"
+ >
                           <Paperclip className="h-3 w-3 shrink-0" />
                           <span className="truncate">{d.file_name || "View file"}</span>
                           <ExternalLink className="h-3 w-3 shrink-0" />
-                        </a>
+                        </button>
                         <Button
                           type="button"
                           size="sm"
@@ -178,14 +177,13 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
                   </div>
                 )}
                 {readOnly && d?.file_url && (
-                  <a
-                    href={d.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary underline flex items-center gap-1 pl-1"
-                  >
+                  <button
+ type="button"
+ onClick={() => { openStoredDocument(d.file_url!).catch((e: any) => toast.error(e?.message || "Could not open this document")); }}
+ className="text-xs text-primary underline flex items-center gap-1 pl-1 text-left"
+ >
                     <Paperclip className="h-3 w-3" /> {d.file_name || "View file"}
-                  </a>
+                  </button>
                 )}
               </div>
             );

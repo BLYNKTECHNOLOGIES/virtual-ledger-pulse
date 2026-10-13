@@ -1,3 +1,5 @@
+import { openStoredDocument } from "@/lib/storedDoc";
+import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,8 +91,9 @@ export function EmployeeFilesTab() {
                 <div className="flex items-center gap-2 shrink-0">
                   {d.is_verified && <Badge variant="outline" className="text-[10px]">verified</Badge>}
                   {d.file_url && (
-                    <Button size="sm" variant="ghost" asChild>
-                      <a href={d.file_url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a>
+                    <Button size="sm" variant="ghost" aria-label="Open document" title="Open document"
+                      onClick={() => { openStoredDocument(d.file_url).catch((e: any) => toast.error(e?.message || "Could not open this document")); }}>
+                      <ExternalLink className="h-4 w-4" />
                     </Button>
                   )}
                 </div>

@@ -12,7 +12,7 @@ export async function completeErpRevocation(svc: any, userId: string) {
     ]);
     if (ae && ae.status !== 404 && ae.code !== "user_not_found") throw ae;
     if (re || ue) throw re || ue;
-    const tombstone = row?.status === "INACTIVE" && row?.username === `deleted_${userId.replaceAll("-", "")}` && row?.role_id == null && row?.badge_id == null;
+    const tombstone = row?.status === "INACTIVE" && row?.username === `deleted_${userId.replace(/-/g, "")}` && row?.role_id == null && row?.badge_id == null;
     if (auth?.user || (row && !tombstone) || roles?.length) throw new Error("ERP removal read-back failed");
     const { error: doneError } = await svc.from("hr_erp_access_revocations").update({completed_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()}).eq("user_id",userId);
     if (doneError) throw doneError;

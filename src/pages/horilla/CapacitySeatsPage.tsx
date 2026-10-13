@@ -498,6 +498,8 @@ export default function CapacitySeatsPage() {
 
       <WorkforceAlertsStrip
         rows={[]}
+        scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
+        shiftFiltered={filters.shift !== "all"}
         positionTitle={(id) => (lookups?.positions || []).find((p) => p.id === id)?.title}
         canManage={canManage}
         onPlanDesks={(seat) => navigate(`/hrms/workforce-planning/staffing-plan?plan_desk=${seat.id}`)}

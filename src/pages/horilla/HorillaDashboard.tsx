@@ -85,12 +85,27 @@ export default function HorillaDashboard() {
     queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_attendance").select("id, employee_id, attendance_status, late_minutes").eq("attendance_date", today)),
   });
 
-  const { data: leaveRequests } = useQuery({
+  // Leave counts come from head-only count queries (never a capped list); the
+  // pending list itself is only the 5 newest.
+  const { data: leaveCounts } = useQuery({
+    queryKey: ["hr_dashboard_leave_counts"],
+    queryFn: async () => {
+      const c = async (statuses: string[]) => {
+        const { count, error } = await (supabase as any).from("hr_leave_requests").select("id", { count: "exact", head: true }).in("status", statuses);
+        if (error) throw error;
+        return count ?? 0;
+      };
+      const [pending, approved, rejected] = await Promise.all([c(["requested", "manager_approved"]), c(["approved"]), c(["rejected"])]);
+      return { pending, approved, rejected };
+    },
+  });
+  const { data: pendingLeaves = [] } = useQuery({
     queryKey: ["hr_dashboard_leave"],
     queryFn: async () => {
       const { data } = await (supabase as any).from("hr_leave_requests")
         .select("id, status, employee_id, start_date, end_date, total_days, hr_employees!hr_leave_requests_employee_id_fkey(first_name, last_name), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name)")
-        .order("created_at", { ascending: false }).limit(200);
+        .in("status", ["requested", "manager_approved"])
+        .order("created_at", { ascending: false }).limit(5);
       return data || [];
     },
   });
@@ -141,8 +156,8 @@ export default function HorillaDashboard() {
   const notPunchedCount = (employees || []).filter((e: any) => e.is_active && !punchedIds.has(e.id)).length;
   const lastMonthLabel = format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), "MMM yyyy");
 
-  const pendingLeaves = (leaveRequests || []).filter((l: any) => l.status === "requested" || l.status === "manager_approved");
-  const approvedLeaves = (leaveRequests || []).filter((l: any) => l.status === "approved").length;
+  const pendingCount = leaveCounts?.pending ?? 0;
+  const approvedLeaves = leaveCounts?.approved ?? 0;
 
 
   // Department distribution
@@ -175,7 +190,7 @@ export default function HorillaDashboard() {
     { label: "Open Positions", to: "/hrms/ats/jobs", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Candidates", to: "/hrms/ats/candidates", value: atsCounts?.candidates ?? 0, sub: `${atsCounts?.hired ?? 0} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Present Today", to: "/hrms/attendance", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
-    { label: "Pending Leaves", to: "/hrms/leave/requests", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
+    { label: "Pending Leaves", to: "/hrms/leave/requests", value: pendingCount, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Onboarding", to: "/hrms/onboarding-pipeline", value: atsCounts?.onboarding ?? 0, sub: "in progress", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
     { label: "Payroll Months", to: "/hrms/payroll", value: payrollMonths.length, sub: payrollMonths[0] ? `Last: ${monthLabel(payrollMonths[0].pay_period_start)}` : "No payroll months yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
   ];
@@ -424,9 +439,9 @@ export default function HorillaDashboard() {
           <h3 className="text-sm font-semibold text-foreground mb-3">Leave Summary</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { label: "Pending", value: pendingLeaves.length, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
+              { label: "Pending", value: pendingCount, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
               { label: "Approved", value: approvedLeaves, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-              { label: "Rejected", value: (leaveRequests || []).filter((l: any) => l.status === "rejected").length, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+              { label: "Rejected", value: leaveCounts?.rejected ?? 0, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
             ].map(s => (
               <div key={s.label} className={`${s.bg} rounded-lg p-3 text-center`}>
                 <s.icon className={`h-5 w-5 ${s.color} mx-auto mb-1`} />

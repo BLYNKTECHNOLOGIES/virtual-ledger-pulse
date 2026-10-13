@@ -110,7 +110,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
   <div style="max-width:560px;margin:0 auto;padding:24px 14px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e6ecf3;border-radius:12px;border-collapse:separate;">
       <tr>
-        <td style="padding:16px 22px;background:${BRAND.ink};border-bottom:2px solid ${BRAND.blue};">
+        <td bgcolor="${BRAND.ink}" style="padding:16px 22px;background-color:${BRAND.ink};background-image:linear-gradient(${BRAND.ink},${BRAND.ink});border-bottom:2px solid ${BRAND.blue};">
           <table cellpadding="0" cellspacing="0" border="0"><tr>
             <td valign="middle"><img src="${BRAND.whiteLogo}" alt="BlynkEx" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;" /></td>
           </tr></table>

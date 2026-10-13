@@ -23,7 +23,7 @@ const B = HR_BRAND;
 /** Branded header strip used at the top of HR emails (dark plate + white logo). */
 export function hrHeaderHtml(): string {
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-    <td class="gutter" style="padding:16px 24px;background:${B.ink};border-bottom:2px solid ${B.blue};">
+    <td class="gutter" bgcolor="${B.ink}" style="padding:16px 24px;background-color:${B.ink};background-image:linear-gradient(${B.ink},${B.ink});border-bottom:2px solid ${B.blue};">
       <table cellpadding="0" cellspacing="0" border="0"><tr>
         <td valign="middle"><img src="${B.whiteLogo}" alt="BlynkEx" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;" /></td>
       </tr></table>

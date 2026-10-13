@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 import { Plus, Pencil, Shield, Clock, AlertTriangle, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -107,8 +108,17 @@ export function AttendancePoliciesPanel() {
                   {p.is_default && <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 text-[10px] rounded-full font-medium">Default</span>}
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                  {!p.is_default && <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`} title="Edit policy"><Pencil className="h-3.5 w-3.5" /></Button>
+                  {!p.is_default && (
+                    <ConfirmButton
+                      title={`Deactivate the “${p.name}” policy?`}
+                      description="It is turned off and removed from this list."
+                      confirmLabel="Deactivate policy"
+                      onConfirm={() => deleteMutation.mutate(p.id)}
+                    >
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" aria-label={`Deactivate ${p.name}`} title="Deactivate policy"><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </ConfirmButton>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="pt-0">

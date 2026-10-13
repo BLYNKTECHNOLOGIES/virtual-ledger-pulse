@@ -15,7 +15,7 @@ import {
   istDate,
   istTime,
 } from "./DayTileTooltip";
-import type { AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { resolveDayStatus, useAttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 
 
@@ -63,7 +63,9 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
   const regs: any[] = data?.regularizations || [];
   const stale: any[] = data?.stale_sessions || [];
   const lop = Number(data?.lop_contribution ?? 0);
-  const status = (daily?.status || "no_data") as AttendanceDayStatus;
+  // Same status the calendar tile shows (the payroll view of the day: holiday, week off, leave, absent).
+  const { data: dayRow } = useAttendanceDay(employeeId, open ? date : "");
+  const status = (dayRow ? resolveDayStatus(dayRow) : daily?.status || "no_data") as AttendanceDayStatus;
   const manualStatus: string | null = daily?.manual_status ?? null;
 
   const setStatus = useMutation({
@@ -171,6 +173,12 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
                   </Badge>
                 )}
               </div>
+              <Input
+                className="mt-2 h-8 text-xs"
+                placeholder="Reason (optional) — type it first, it's saved with the change"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
               <div className="mt-2 flex flex-wrap gap-2">
                 {([
                   { key: "present", label: "Present" },
@@ -200,12 +208,6 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
                   </Button>
                 )}
               </div>
-              <Input
-                className="mt-2 h-8 text-xs"
-                placeholder="Reason (optional, recorded in the audit log)"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-              />
               {manualStatus && daily?.manual_status_reason && (
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
                   Existing note: {daily.manual_status_reason}
@@ -223,7 +225,7 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
               <Stat label="Late by" value={`${daily?.late_by_minutes || 0}m`} tone={(daily?.late_by_minutes || 0) > 0 ? "warn" : undefined} />
               <Stat label="Early out by" value={`${daily?.early_by_minutes || 0}m`} tone={(daily?.early_by_minutes || 0) > 0 ? "warn" : undefined} />
               <Stat label="Sessions" value={String(daily?.session_count ?? sessions.length)} />
-              <Stat label="LOP today" value={lop === 0 ? "None" : lop === 0.5 ? "½ day" : String(lop)} tone={lop > 0 ? "bad" : "good"} />
+              <Stat label="LOP (this day)" value={lop === 0 ? "None" : lop === 0.5 ? "½ day" : String(lop)} tone={lop > 0 ? "bad" : "good"} />
             </div>
 
             {/* Sessions */}

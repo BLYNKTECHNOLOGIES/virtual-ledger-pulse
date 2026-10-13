@@ -12,6 +12,7 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { AlertTriangle, Clock, CheckCircle2, XCircle, RefreshCw, Inbox } from "lucide-react";
 
 type StaleRow = {
@@ -145,6 +146,7 @@ export default function AttendanceStaleSessionsPage() {
     <div className="space-y-4">
 <PageHeader
         title="Stale Attendance Sessions"
+        description="Employees with an IN punch but no OUT for more than 12 hours (usually a forgotten punch-out). The day is on hold, not counted as loss of pay, until you resolve it here."
         actions={
           <div className="flex gap-2">
             <Button
@@ -156,7 +158,7 @@ export default function AttendanceStaleSessionsPage() {
             </Button>
             <Button size="sm" onClick={() => runWatchdog.mutate()} disabled={runWatchdog.isPending}>
               <RefreshCw className={`h-4 w-4 mr-2 ${runWatchdog.isPending ? "animate-spin" : ""}`} />
-              Run scan
+              Scan now
             </Button>
           </div>
         }
@@ -194,12 +196,12 @@ export default function AttendanceStaleSessionsPage() {
               <CardContent className="space-y-3">
                 <div className="text-sm grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div>
-                    <div className="text-muted-foreground text-xs">Window date</div>
-                    <div>{r.attendance_date}</div>
+                    <div className="text-muted-foreground text-xs">Attendance date</div>
+                    <div>{format(new Date(`${r.attendance_date}T00:00:00`), "dd MMM yyyy")}</div>
                   </div>
                   <div>
                     <div className="text-muted-foreground text-xs">In-time (IST)</div>
-                    <div>{format(new Date(r.in_time), "dd MMM, HH:mm")}</div>
+                    <div>{formatInTimeZone(new Date(r.in_time), "Asia/Kolkata", "dd MMM, HH:mm")}</div>
                   </div>
                   <div>
                     <div className="text-muted-foreground text-xs">Open for</div>
@@ -236,6 +238,9 @@ export default function AttendanceStaleSessionsPage() {
                         <XCircle className="h-4 w-4 mr-1" /> Void
                       </Button>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      “Present — shift-standard out” closes the session at the scheduled shift end: present, no overtime, no loss of pay.
+                    </p>
                   </>
                 )}
               </CardContent>
@@ -256,6 +261,16 @@ export default function AttendanceStaleSessionsPage() {
         }
       >
         <div className="space-y-3">
+          {dlg?.resolution === "void" && (
+            <p className="text-sm text-destructive">
+              Deletes this IN punch. The day becomes unpaid unless a regularization is approved. This can't be undone.
+            </p>
+          )}
+          {dlg?.resolution === "confirm_long_shift" && (
+            <p className="text-sm text-muted-foreground">
+              Closes the session at the long-shift limit. No overtime is credited.
+            </p>
+          )}
           {dlg?.resolution === "set_out_time" && (
             <div className="space-y-1">
               <Label>Out-time (IST)</Label>
@@ -268,8 +283,16 @@ export default function AttendanceStaleSessionsPage() {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setDlg(null)}>Cancel</Button>
-            <Button onClick={submitResolution} disabled={resolve.isPending}>
-              <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm
+            <Button
+              variant={dlg?.resolution === "void" ? "destructive" : "default"}
+              onClick={submitResolution}
+              disabled={resolve.isPending}
+            >
+              {dlg?.resolution === "void" ? (
+                <><XCircle className="h-4 w-4 mr-1" /> Void session</>
+              ) : (
+                <><CheckCircle2 className="h-4 w-4 mr-1" /> {dlg?.resolution === "set_out_time" ? "Save out-time" : "Confirm long shift"}</>
+              )}
             </Button>
           </div>
         </div>

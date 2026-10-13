@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PauseCircle, PlayCircle, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 import { useAttendanceAutomation } from "@/hooks/hrms/useAttendanceAutomation";
 
 const ist = (ts?: string | null) =>
@@ -63,9 +64,16 @@ export function AttendanceAutomationCard() {
                 <PlayCircle className="h-4 w-4 mr-1" /> Resume & rebuild
               </Button>
             ) : (
-              <Button size="sm" variant="outline" className="h-8" onClick={() => pause.mutate(reason)} disabled={pause.isPending}>
-                <PauseCircle className="h-4 w-4 mr-1" /> Pause
-              </Button>
+              <ConfirmButton
+                title="Pause attendance marking and emails?"
+                description="Until you resume, nobody is marked absent and no attendance emails go out."
+                confirmLabel="Pause"
+                onConfirm={() => pause.mutate(reason)}
+              >
+                <Button size="sm" variant="outline" className="h-8" disabled={pause.isPending}>
+                  <PauseCircle className="h-4 w-4 mr-1" /> Pause
+                </Button>
+              </ConfirmButton>
             )}
             <Button
               size="sm"

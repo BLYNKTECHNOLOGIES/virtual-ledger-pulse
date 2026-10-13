@@ -178,9 +178,9 @@ export default function AttendanceCalendarPage() {
       {/* Month Nav + Filters */}
       <div className="hrms-toolbar items-stretch sm:items-center">
         <div className="flex items-center justify-between gap-2 bg-card border rounded-lg px-2 w-full sm:w-auto">
-          <Button variant="ghost" size="sm" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={prevMonth} aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></Button>
           <span className="font-semibold text-sm min-w-[140px] text-center">{format(currentMonth, "MMMM yyyy")}</span>
-          <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={nextMonth} aria-label="Next month"><ChevronRight className="h-4 w-4" /></Button>
         </div>
         <EmployeePicker
           employees={employees}
@@ -206,6 +206,14 @@ export default function AttendanceCalendarPage() {
             <span className="text-muted-foreground">{DAY_STATUS_LABEL[status]}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]">
+          <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+          <span className="text-muted-foreground">Top dot: late or left early</span>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[11px]">
+          <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+          <span className="text-muted-foreground">Bottom dot: on hold (no punch-out)</span>
+        </div>
       </div>
 
 
@@ -244,11 +252,11 @@ export default function AttendanceCalendarPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="rounded-md bg-success/10 text-success text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empPresent} P</span>
-                      {empHalf > 0 && <span className="rounded-md bg-info/10 text-info text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empHalf} ½D</span>}
-                      {empAbsent > 0 && <span className="rounded-md bg-destructive/10 text-destructive text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empAbsent} A</span>}
-                      {empLate > 0 && <span className="rounded-md bg-warning/15 text-warning text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empLate} L</span>}
-                      <span className="rounded-md bg-muted text-foreground text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{rate}%</span>
+                      <span title="Present days" className="rounded-md bg-success/10 text-success text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empPresent} P</span>
+                      {empHalf > 0 && <span title="Half days" className="rounded-md bg-warning/15 text-warning text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empHalf} ½D</span>}
+                      {empAbsent > 0 && <span title="Absent days" className="rounded-md bg-destructive/10 text-destructive text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empAbsent} A</span>}
+                      {empLate > 0 && <span title="Late days" className="rounded-md bg-warning/15 text-warning text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empLate} L</span>}
+                      <span title="Attendance rate (a half day counts as ½)" className="rounded-md bg-muted text-foreground text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{rate}%</span>
                     </div>
                   </div>
 
@@ -336,7 +344,7 @@ export default function AttendanceCalendarPage() {
               disabled={selectedEmps.length === 0 || !bulkDate || bulkMutation.isPending}
               className="h-9"
             >
-              {bulkMutation.isPending ? "Marking..." : `Mark ${selectedEmps.length} Employees`}
+              {bulkMutation.isPending ? "Marking…" : `Mark ${selectedEmps.length} employee${selectedEmps.length === 1 ? "" : "s"}`}
             </Button>
           </>
         }
@@ -386,6 +394,9 @@ export default function AttendanceCalendarPage() {
                 ))}
               </div>
             </div>
+            <p className="text-xs text-warning">
+              Present, Absent and Half day are saved as an HR override for every selected employee on this date and replace what the punches show.
+            </p>
           </div>
       </ResponsiveDialog>
 

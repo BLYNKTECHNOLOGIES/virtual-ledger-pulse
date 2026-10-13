@@ -12,7 +12,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { atsKeys, useAtsSettings, useAtsSources, useIsHrAdmin } from "@/lib/ats/api";
+import { atsKeys, useAtsSettings, useAtsSources, useCanManageAtsSettings, useIsHrAdmin } from "@/lib/ats/api";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDateTime } from "@/lib/ats/format";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";

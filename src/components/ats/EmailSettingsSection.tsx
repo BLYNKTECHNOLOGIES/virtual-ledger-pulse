@@ -24,7 +24,7 @@ import {
   useEmailTemplates, useMailStatus, type AtsEmailTemplate,
 } from "@/lib/ats/mail";
 import { INTERVIEW_PLACEHOLDERS } from "@/lib/ats/mail";
-import { useAtsSettings } from "@/lib/ats/api";
+import { useAtsSettings, useCanManageAtsSettings } from "@/lib/ats/api";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
 
 const LOOKBACK = [

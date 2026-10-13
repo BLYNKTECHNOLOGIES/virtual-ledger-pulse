@@ -87,6 +87,10 @@ export default function LeaveTypesPage() {
         is_paid: form.is_paid, requires_approval: form.requires_approval, color: form.color,
         is_encashable: form.is_encashable, exclude_company_leave: form.exclude_company_leave,
         exclude_holiday: form.exclude_holiday, is_compensatory_leave: form.is_compensatory_leave,
+        // carry_forward is written from policy (not left to the false column default)
+        // because fn_compute_fnf_leave_encashment only encashes carry_forward = true
+        // balances: Comp-Off false, every other type true.
+        carry_forward: !form.is_compensatory_leave,
         // Carry-forward expiry/cap and reset columns are intentionally not
         // written: company policy is unlimited, non-expiring carry forward
         // (year-end reset removed); only Comp-Off is settled via payroll.
@@ -131,7 +135,7 @@ export default function LeaveTypesPage() {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setEditSettled(t.carry_forward === false);
+    setEditSettled(!!t.is_compensatory_leave);
     setForm({
       name: t.name, code: t.code, max_days_per_year: t.max_days_per_year || 12,
       is_paid: t.is_paid ?? true, requires_approval: t.requires_approval ?? true, color: t.color || "#00CCFF",
@@ -146,7 +150,7 @@ export default function LeaveTypesPage() {
     setShowDialog(true);
   };
 
-  const getCarryForwardLabel = (t: any) => carryForwardPolicyLabel(t?.carry_forward === false);
+  const getCarryForwardLabel = (t: any) => carryForwardPolicyLabel(!!t?.is_compensatory_leave);
 
   const getTags = (t: any) => {
     const tags: { label: string; icon: React.ElementType; variant: "default" | "secondary" | "outline" }[] = [];

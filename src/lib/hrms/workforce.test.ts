@@ -58,10 +58,32 @@ describe("workforce rules", () => {
     expect(seatCountsInShift({ required_hc: 8 })).toBe(true);
   });
 
-  test("paused line names who declined and why; unpaused line has no text", () => {
+  test("paused line names who declined, how many and why; unpaused line has no text", () => {
     expect(pauseText({ auto_paused_at: null, auto_paused_by_name: null, auto_paused_reason: null })).toBeNull();
-    const t = pauseText({ auto_paused_at: "2026-10-13T10:00:00Z", auto_paused_by_name: "Abhishek", auto_paused_reason: "Night not opening" });
-    expect(t).toContain("declined by Abhishek");
+    const t = pauseText({ auto_paused_at: "2026-10-13T10:00:00Z", auto_paused_by_name: "Abhishek", auto_paused_reason: "Night not opening", auto_paused_need: 3 });
+    expect(t).toContain("paused for 3");
+    expect(t).toContain("by Abhishek");
     expect(t).toContain(": Night not opening");
+  });
+
+  test("replacements for people still on notice do not cover today's empty desks", () => {
+    // KYC Associate · Evening: 2 required, 1 on roll (on notice); 1 automatic + 1 replacement open
+    const base = { required_hc: 2, current_hc: 1, notice_period_hc: 1, open_requirement_hc: 2 } as any;
+    expect(deriveStaffingRow({ ...base, replacement_cover_hc: 1 }).uncoveredHiringRequirement).toBe(0);
+    expect(deriveStaffingRow({ ...base, open_requirement_hc: 1, replacement_cover_hc: 1 }).uncoveredHiringRequirement).toBe(1);
+  });
+});
+
+import { shiftsOutsideLine } from "./workforce";
+describe("shiftsOutsideLine", () => {
+  const shifts = [
+    { id: "m", name: "Morning Shift" }, { id: "mx", name: "Morning Shift Exemption", planning_shift_id: "m" },
+    { id: "e", name: "Evening Shift" }, { id: "n", name: "Night Shift" },
+  ];
+  test("a Morning line covers Morning Exemption but not Evening/Night", () => {
+    expect(shiftsOutsideLine(shifts, ["m", "mx", "e", "n"], ["m"]).map((s) => s.id)).toEqual(["e", "n"]);
+  });
+  test("an any-shift line covers every shift", () => {
+    expect(shiftsOutsideLine(shifts, ["e", "n"], [])).toEqual([]);
   });
 });

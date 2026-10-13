@@ -191,6 +191,7 @@ export function HiringRequirementDialog({
           {becomesManual && (
             <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
               This is an automatic request. Saving this change turns it into a manual request, so the system stops resizing it.
+              If you lower the number, automatic requests on this line pause for the part you removed (shown on the line, with "Raise again").
             </p>
           )}
         </div>

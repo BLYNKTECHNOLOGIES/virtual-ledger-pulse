@@ -173,6 +173,20 @@ export default function PositionsPage() {
   };
   const confirmLines = confirmSwitch ? linesOf(confirmSwitch.p.id) : [];
   const leaving = !!confirmSwitch && !confirmSwitch.value;
+  // Only lines left with no other role are switched off; shared lines keep their requests.
+  const confirmPlanIds = confirmLines.filter((r: any) => !(r.eligible_position_ids?.length > 1)).map((r) => r.plan_id);
+  const openOnLines = useQuery({
+    queryKey: ["workforce_hiring_requirements", "open-on-lines", confirmPlanIds.join(",")],
+    enabled: leaving && confirmPlanIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_hiring_requirements")
+        .select("id, requirement_no, status, number_required, shift_label, source")
+        .in("staffing_plan_id", confirmPlanIds)
+        .in("status", ["draft", "pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const blockIfOccupied = (p: any, action: "tentative" | "delete") => {
     const count = hiredCount(p.id);
@@ -499,7 +513,7 @@ export default function PositionsPage() {
             <AlertDialogDescription>
               {leaving
                 ? confirmLines.length
-                  ? "These staffing lines stop counting (lines shared with other roles keep the other roles), and their pending automatic hiring requests are cancelled:"
+                  ? "These staffing lines stop counting (lines shared with other roles keep the other roles):"
                   : "No staffing line uses this position."
                 : "Its earlier staffing lines stay removed. After this, add its lines again from the Staffing Plan (Add line, or Plan these desks on its desk group)."}
             </AlertDialogDescription>
@@ -509,6 +523,23 @@ export default function PositionsPage() {
               {confirmLines.map((r) => <li key={r.plan_id}>{r.position_title} · {r.shiftLabel} — required {r.required_hc}, on roll {r.current_hc}</li>)}
             </ul>
           )}
+          {leaving && (openOnLines.data?.length ?? 0) > 0 && (() => {
+            const all = openOnLines.data!;
+            const pend = all.filter((q: any) => q.status === "pending_approval");
+            const live = all.filter((q: any) => q.status !== "pending_approval");
+            return (
+              <div className="space-y-2 text-sm">
+                {pend.length > 0 && <div>
+                  <p className="text-muted-foreground">These requests not yet approved will be cancelled (reason: position taken out of planning):</p>
+                  <ul className="text-foreground">{pend.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
+                </div>}
+                {live.length > 0 && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-warning">
+                  <p>Drafts and approved or recruiting requests stay open on the removed lines — move them to another line or cancel them in Hiring Requirements:</p>
+                  <ul>{live.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
+                </div>}
+              </div>
+            );
+          })()}
           <AlertDialogFooter>
             <AlertDialogCancel>Back</AlertDialogCancel>
             <AlertDialogAction onClick={() => {

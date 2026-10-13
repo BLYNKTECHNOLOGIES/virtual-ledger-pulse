@@ -12510,6 +12510,7 @@ export type Database = {
           essl_badge_id: string | null
           first_name: string | null
           gender: string | null
+          hiring_requirement_id: string | null
           id: string
           job_role: string | null
           last_name: string | null
@@ -12561,6 +12562,7 @@ export type Database = {
           essl_badge_id?: string | null
           first_name?: string | null
           gender?: string | null
+          hiring_requirement_id?: string | null
           id?: string
           job_role?: string | null
           last_name?: string | null
@@ -12612,6 +12614,7 @@ export type Database = {
           essl_badge_id?: string | null
           first_name?: string | null
           gender?: string | null
+          hiring_requirement_id?: string | null
           id?: string
           job_role?: string | null
           last_name?: string | null
@@ -12671,6 +12674,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_hiring_requirement_id_fkey"
+            columns: ["hiring_requirement_id"]
+            isOneToOne: false
+            referencedRelation: "hr_hiring_requirements"
             referencedColumns: ["id"]
           },
           {
@@ -33010,7 +33020,12 @@ export type Database = {
         Returns: string
       }
       ats_move_stage: {
-        Args: { p_application_id: string; p_note?: string; p_stage_id: string }
+        Args: {
+          p_application_id: string
+          p_hired_shift?: string
+          p_note?: string
+          p_stage_id: string
+        }
         Returns: undefined
       }
       ats_name_case: { Args: { p: string }; Returns: string }
@@ -35928,6 +35943,7 @@ export type Database = {
         Args: { p_text: string; p_uid: string; p_verb: string }
         Returns: string
       }
+      hr_wf_onboarding_employee_type: { Args: { p: string }; Returns: string }
       hr_wf_onboarding_people: {
         Args: never
         Returns: {
@@ -35948,6 +35964,15 @@ export type Database = {
           resignation_status: string
           shift_id: string
         }[]
+      }
+      hr_wf_pick_requirement: {
+        Args: {
+          p_department: string
+          p_position: string
+          p_preferred?: string
+          p_shift: string
+        }
+        Returns: string
       }
       hr_wf_planning_shift: { Args: { p_shift: string }; Returns: string }
       hr_wf_queue_reconcile: { Args: never; Returns: undefined }
@@ -36021,6 +36046,7 @@ export type Database = {
           position_id: string
           position_title: string
           priority: string
+          replacement_cover_hc: number
           required_hc: number
           seat_active: boolean
           seat_capacity_id: string
@@ -36031,6 +36057,15 @@ export type Database = {
           target_date: string
           training_ready_date: string
         }[]
+      }
+      hr_wf_suggest_requirement: {
+        Args: {
+          p_department: string
+          p_position: string
+          p_preferred?: string
+          p_shift: string
+        }
+        Returns: string
       }
       hr_wf_trainee_allocation: {
         Args: never
@@ -36138,6 +36173,7 @@ export type Database = {
           position_id: string
           position_title: string
           priority: string
+          replacement_cover_hc: number
           required_hc: number
           seat_active: boolean
           seat_capacity_id: string

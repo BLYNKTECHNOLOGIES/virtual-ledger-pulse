@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CandidateTable } from "@/components/ats/CandidateTable";
 import { CareersJobCard } from "@/components/ats/CareersJobCard";
 import { WorkforceJobCard } from "@/components/ats/WorkforceJobCard";
+import { JobLineShiftNotice } from "@/components/ats/JobLineShiftNotice";
 import { PipelineBoard } from "@/components/ats/PipelineBoard";
 import { candidateHref, saveNavCtx, useCandidateList } from "@/lib/ats/candidates";
 import { useAtsSettings } from "@/lib/ats/api";
@@ -183,6 +184,7 @@ export default function AtsJobDetailPage() {
 
           <CareersJobCard job={j} />
           {j.requisition_id && <WorkforceJobCard requirementId={j.requisition_id} />}
+          {j.requisition_id && <JobLineShiftNotice requirementId={j.requisition_id} jobShiftIds={(j.shift_ids ?? []) as string[]} />}
 
           <SectionCard title="Key facts">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

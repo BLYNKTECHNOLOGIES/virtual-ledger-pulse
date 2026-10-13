@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { type AtsAppRow, type AtsCandidate } from "@/lib/ats/candidates";
 import { fmtDate, fmtDateTime } from "@/lib/ats/format";
-import { useMailStatus } from "@/lib/ats/mail";
+import { mailErrorMessage, useMailStatus } from "@/lib/ats/mail";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   activePanel, fmtUntil, ivState, ivWhen, missingFeedback, recLabel, useAppInterviews, type IvTarget,
 } from "@/lib/ats/interviews";
@@ -33,6 +35,21 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
   const list = useAppInterviews(app.application_id);
   const mail = useMailStatus();
   const mailOn = !!mail.data?.enabled;
+  // The real state of each interview's reminder email (newest per interview), one query for the whole card.
+  const reminders = useQuery({
+    queryKey: ["ats", "mail", "reminders", app.application_id],
+    enabled: !!app.application_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("ats_messages")
+        .select("interview_id, status, sent_at, error, created_at")
+        .eq("application_id", app.application_id!).eq("template_code", "interview-reminder").not("interview_id", "is", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const m = new Map<string, { status: string; sent_at: string | null; error: string | null }>();
+      for (const r of data ?? []) if (!m.has(r.interview_id!)) m.set(r.interview_id!, r);
+      return m;
+    },
+  });
   const [newOpen, setNewOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const first = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "the candidate";
@@ -94,8 +111,16 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                   <div className="flex flex-wrap items-center gap-1">
                     <PanelChips iv={iv} mailOn={mailOn} />
                     <ResponseChip iv={iv} />
-                    {iv.reminder_queued_at && (
-                      <Tip text={fmtDateTime(iv.reminder_queued_at)}><Badge variant="outline" tabIndex={0} className="font-normal text-muted-foreground">Reminder emailed</Badge></Tip>
+                    {(() => {
+                      const rm = reminders.data?.get(iv.id);
+                      if (!rm) return null;
+                      if (rm.status === "sent") return <Tip text={fmtDateTime(rm.sent_at)}><Badge variant="outline" tabIndex={0} className="font-normal text-muted-foreground">Reminder sent</Badge></Tip>;
+                      if (rm.status === "queued" || rm.status === "sending") return <Badge variant="outline" className="font-normal text-muted-foreground">Reminder waiting to send</Badge>;
+                      if (rm.status === "failed" || rm.status === "bounced") return <Tip text={mailErrorMessage(rm.error)}><Badge variant="outline" tabIndex={0} className="border-destructive/40 font-normal text-destructive">Reminder not delivered</Badge></Tip>;
+                      return null;
+                    })()}
+                    {false && (
+                      <span />
                     )}
                   </div>
                   {iv.internal_note && <Clamp lines={2} prefix="Note for interviewers: " text={iv.internal_note} />}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { MoreVertical } from "lucide-react";
+import { MessageCircle, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -14,6 +14,9 @@ import {
   setInterviewStatus, type InterviewRow, type IvMode, type IvTarget,
 } from "@/lib/ats/interviews";
 import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
+import { WhatsAppDialog, fillWhatsAppForInterview, pickWhatsAppReminder } from "./WhatsAppMenu";
+import { useWhatsAppTemplates } from "@/lib/ats/mail";
+import { atsErrorMessage } from "@/lib/ats/errors";
 import { NotifyInterviewDialog } from "./NotifyInterviewDialog";
 import { CancelInterviewDialog } from "./CancelInterviewDialog";
 import { InterviewFeedbackDialog } from "./InterviewFeedbackDialog";
@@ -21,8 +24,10 @@ import { InterviewFeedbackDialog } from "./InterviewFeedbackDialog";
 type Dlg = null | { kind: "change" } | { kind: "again" } | { kind: "notify" | "cancel" | "feedback" };
 
 /** Action buttons, ⋮ menu and the per-interview dialogs (shared by the candidate card and the Interviews tab). */
-export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onOpenFeedback }: {
+export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onOpenFeedback, waPhone }: {
   iv: InterviewRow; target: IvTarget; mailOn: boolean; canSchedule: boolean; primary?: boolean;
+  /** 10-digit phone; enables "WhatsApp reminder" on upcoming interviews. */
+  waPhone?: string | null;
   /** When given, the toast's "Add feedback" opens the dialog through the parent, so it still works after this row unmounts. */
   onOpenFeedback?: (iv: InterviewRow) => void;
 }) {
@@ -33,6 +38,13 @@ export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onO
   const members = activePanel(iv);
   const missing = missingFeedback(iv);
   const btn = primary ? "default" : "outline";
+  const waTemplates = useWhatsAppTemplates();
+  const waTpl = waPhone && st === "upcoming" && iv.status === "scheduled" ? pickWhatsAppReminder(waTemplates.data) : null;
+  const [waText, setWaText] = useState<string | null>(null);
+  const openWaReminder = async () => {
+    if (!waTpl) return;
+    try { setWaText(await fillWhatsAppForInterview(iv.id, waTpl.body ?? "")); } catch (e) { toast.error(atsErrorMessage(e)); }
+  };
 
   const refresh = () => { for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k }); };
 
@@ -93,6 +105,7 @@ export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onO
               ? <DropdownMenuItem onSelect={() => setDlg({ kind: "again" })}>Schedule again</DropdownMenuItem>
               : <div title="Reopen this application to schedule an interview."><DropdownMenuItem disabled>Schedule again</DropdownMenuItem></div>)}
             {st !== "no_show" && st !== "cancelled" && <DropdownMenuItem onSelect={copyDetails}>Copy details</DropdownMenuItem>}
+            {waTpl && <DropdownMenuItem onSelect={() => void openWaReminder()}><MessageCircle className="mr-2 h-4 w-4" /> WhatsApp reminder</DropdownMenuItem>}
             {(st === "upcoming" || st === "now" || st === "awaiting") && <>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDlg({ kind: "cancel" })}>Cancel interview…</DropdownMenuItem>
@@ -107,6 +120,10 @@ export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onO
       {dlg?.kind === "notify" && <NotifyInterviewDialog open onOpenChange={close} iv={iv} target={target} />}
       {dlg?.kind === "cancel" && <CancelInterviewDialog open onOpenChange={close} iv={iv} target={target} />}
       {dlg?.kind === "feedback" && <InterviewFeedbackDialog open onOpenChange={close} iv={iv} />}
+      {waText !== null && waPhone && waTpl && (
+        <WhatsAppDialog open onOpenChange={(o) => !o && setWaText(null)} candidateId={target.candidateId} applicationId={target.applicationId}
+          firstName={target.fullName.trim().split(/\s+/)[0] || "the candidate"} waPhone={waPhone} initialText={waText} templateCode={waTpl.code} />
+      )}
     </>
   );
 }

@@ -197,7 +197,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
 
   // ---- next-step bar: newest real reply that is newer than the newest sent email
   const lastIn = useMemo(() => [...msgs].reverse().find((m) => m.direction === "inbound" && !m.is_automatic && m.intent !== "auto_reply") ?? null, [msgs]);
-  const lastOutAt = useMemo(() => Math.max(0, ...msgs.filter((m) => m.direction === "outbound").map((m) => new Date(msgAt(m)).getTime())), [msgs]);
+  const lastOutAt = useMemo(() => Math.max(0, ...msgs.filter((m) => m.direction === "outbound" && m.status === "sent" && !m.is_automatic && m.sent_at).map((m) => new Date(m.sent_at!).getTime())), [msgs]);
   const barMsg = lastIn && new Date(msgAt(lastIn)).getTime() > lastOutAt ? lastIn : null;
   const resumeCandidate = useMemo(() => {
     if (!barMsg) return null;
@@ -537,7 +537,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
           </div>
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
-          {!out && <IntentMenu m={m} onChanged={onChanged} />}
+          {!out && (!m.is_automatic || m.intent) && <IntentMenu m={m} onChanged={onChanged} />}
           {m.purpose && m.purpose !== "general" && <Badge variant="secondary" className="font-normal">{purposeLabel(m.purpose)}</Badge>}
           {m.calendar_ics && <Badge variant="outline" className="gap-1 font-normal"><CalendarDays className="h-3 w-3" /> Calendar invite</Badge>}
           {!out && m.is_automatic && <Badge variant="outline" className="font-normal">Automatic reply</Badge>}
@@ -671,8 +671,12 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
     const d = readDraft(candidate.id);
     if (d && (d.body?.trim() || d.subject?.trim())) { if (d.subject) setSubject(d.subject); setBody(d.body ?? ""); }
   }, [candidate.id, preset]);
+  const sentRef = useRef(false);
   useEffect(() => {
+    // After a successful send the composer is cleared; re-enable saving once that has happened.
+    if (sentRef.current) { if (!body && !subject) sentRef.current = false; return; }
     const t = setTimeout(() => {
+      if (sentRef.current) return;
       try {
         if (body.trim()) localStorage.setItem(DRAFT_KEY(candidate.id), JSON.stringify({ subject, body }));
         else localStorage.removeItem(DRAFT_KEY(candidate.id));
@@ -781,6 +785,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
         toast.success("Email sent");
         idRef.current = crypto.randomUUID();
         attemptSig.current = null;
+        sentRef.current = true;
         clearDraft(candidate.id);
         const until = followUpAt(fuChoice);
         if (until) {

@@ -20,7 +20,7 @@ export interface NextStepCtx {
   mentionsAddress: boolean;
 }
 
-export const ADDRESS_RE = /\b(address|location|map|maps|kahan|kahaan)\b|पता/i;
+export const ADDRESS_RE = /\b(address|location|located|map|maps|directions?|landmark|kahan|kahaan|pata|reach (the )?office|where is (the |your )?office)\b|पता|कहाँ|कहां/i;
 
 /** Buttons of the next-step bar, primary first. */
 export function nextSteps(c: NextStepCtx): Step[] {

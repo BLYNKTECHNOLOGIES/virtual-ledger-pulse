@@ -34,5 +34,7 @@ describe("NextStepBar buttons per intent", () => {
   test("address detection", () => {
     for (const s of ["What is the office address?", "office kahan hai", "पता भेजिए", "share google map"]) expect(ADDRESS_RE.test(s)).toBe(true);
     expect(ADDRESS_RE.test("I will come tomorrow")).toBe(false);
+    for (const s of ["office ka pata bhejiye", "How do I reach the office?", "Where is your office", "कहाँ आना है", "Please share the directions"]) expect(ADDRESS_RE.test(s)).toBe(true);
+    expect(ADDRESS_RE.test("Thank you")).toBe(false);
   });
 });

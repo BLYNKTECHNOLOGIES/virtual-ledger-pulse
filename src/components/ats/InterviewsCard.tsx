@@ -54,6 +54,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
   const [newOpen, setNewOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const first = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "the candidate";
+  const waPhone = candidate.phone_norm && /^\d{10}$/.test(candidate.phone_norm) ? candidate.phone_norm : null;
   const canSchedule = app.status === "active" || app.status === "on_hold";
 
   const target: IvTarget = {
@@ -139,7 +140,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                   {st === "completed" && missing.length > 0 && <p className="text-sm text-warning">Feedback missing from {missing.map((m) => m.name).join(", ")}</p>}
                   {iv.status === "scheduled" && appClosed && <p className="text-sm text-warning">This application is closed. Cancel this interview if it won't happen.</p>}
 
-                  <InterviewActions iv={iv} target={target} mailOn={mailOn} canSchedule={canSchedule} />
+                  <InterviewActions iv={iv} target={target} mailOn={mailOn} canSchedule={canSchedule} waPhone={waPhone} />
                 </li>
               );
             })}

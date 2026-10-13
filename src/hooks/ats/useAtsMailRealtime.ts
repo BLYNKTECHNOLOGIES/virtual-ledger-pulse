@@ -24,6 +24,7 @@ export function useAtsMailRealtime(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     const pending = new Set<string>();
+    let replies: { candidate_id: string; name: string; intent: string | null }[] = [];
     let timer: ReturnType<typeof setTimeout> | null = null;
     const flush = () => {
       timer = null;
@@ -34,6 +35,17 @@ export function useAtsMailRealtime(enabled: boolean) {
         qc.invalidateQueries({ queryKey: candKeys.events(id) });
       }
       pending.clear();
+      const got = replies;
+      replies = [];
+      if (got.length === 1) {
+        const r = got[0];
+        toast(`New reply from ${r.name}`, {
+          description: intentMeta(r.intent)?.label,
+          action: { label: "Open", onClick: () => navRef.current(`/hrms/ats/inbox?view=needs_reply&c=${r.candidate_id}`) },
+        });
+      } else if (got.length > 1) {
+        toast(`${got.length} new replies`, { action: { label: "Open Inbox", onClick: () => navRef.current("/hrms/ats/inbox?view=needs_reply") } });
+      }
     };
     const bump = (cid?: string | null) => {
       if (cid) pending.add(cid);
@@ -44,14 +56,12 @@ export function useAtsMailRealtime(enabled: boolean) {
       .channel("ats-mail")
       .on("postgres_changes", { event: "*", schema: "public", table: "ats_messages" }, (p: any) => {
         const row = (p.new && Object.keys(p.new).length ? p.new : p.old) ?? {};
-        bump(row.candidate_id);
-        if (p.eventType === "INSERT" && row.direction === "inbound" && !row.is_automatic && row.intent !== "auto_reply" && row.candidate_id && !showingCandidate(row.candidate_id)) {
-          const meta = intentMeta(row.intent);
-          toast(`New reply from ${row.from_name || row.from_address || "a candidate"}`, {
-            description: meta?.label,
-            action: { label: "Open", onClick: () => navRef.current(`/hrms/ats/inbox?view=needs_reply&c=${row.candidate_id}`) },
-          });
+        // Only fresh replies toast: imports of older emails ("Find older emails", backfill) stay silent.
+        const fresh = row.received_at && Date.now() - new Date(row.received_at).getTime() <= 12 * 3_600_000;
+        if (p.eventType === "INSERT" && row.direction === "inbound" && !row.is_automatic && row.intent !== "auto_reply" && row.candidate_id && fresh && !showingCandidate(row.candidate_id)) {
+          replies.push({ candidate_id: row.candidate_id, name: row.from_name || row.from_address || "a candidate", intent: row.intent ?? null });
         }
+        bump(row.candidate_id);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "ats_conversation_state" }, (p: any) => {
         const row = (p.new && Object.keys(p.new).length ? p.new : p.old) ?? {};

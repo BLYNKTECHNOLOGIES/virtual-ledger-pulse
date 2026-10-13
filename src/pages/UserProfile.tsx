@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { monthlyCtcOnRecord, workTypeLabel, fullName } from '@/lib/hrms/employeeFields';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFileDropzone } from '@/hooks/useFileDropzone';
@@ -166,8 +167,9 @@ function EmployeeBankingTab({
 // that mirror (never a local template) so the employee always sees exactly
 // what RazorpayX will pay. Falls back to CTC-only when the mirror is empty.
 function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
-  const annualCTC = Number(hrEmployee?.total_salary) || 0;
-  const monthlyCTC = annualCTC / 12;
+  const monthlyOnRecord = monthlyCtcOnRecord(hrEmployee?.total_salary);
+  const annualCTC = monthlyOnRecord != null ? Number(hrEmployee.total_salary) : 0;
+  const monthlyCTC = monthlyOnRecord ?? 0;
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['ess_salary_mirror', hrEmployee?.id],
@@ -244,12 +246,12 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
       <SectionBlock title="Salary Information" icon={IndianRupee} bodyClassName="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-            <p className="ds-field-label">Annual CTC</p>
-            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{fmt(annualCTC)}</p>
+            <p className="ds-field-label">Annual CTC on record</p>
+            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{monthlyOnRecord != null ? fmt(annualCTC) : 'Not set'}</p>
           </div>
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-            <p className="ds-field-label">Monthly CTC</p>
-            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{fmt(monthlyCTC)}</p>
+            <p className="ds-field-label">Monthly CTC on record</p>
+            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{monthlyOnRecord != null ? fmt(monthlyCTC) : 'Not set'}</p>
           </div>
         </div>
 
@@ -1010,7 +1012,7 @@ export default function UserProfile() {
   };
 
   const displayName = hrEmployee
-    ? `${hrEmployee.first_name} ${hrEmployee.last_name}`
+    ? fullName(hrEmployee)
     : employeeData?.name || user?.firstName && user?.lastName
       ? `${user?.firstName} ${user?.lastName}`
       : user?.username || '';
@@ -1123,7 +1125,7 @@ export default function UserProfile() {
                   <Field label="Job Position" value={(workInfo as any)?.positions?.title || (workInfo as any)?.job_role || '—'} />
                   <Field label="Department" value={(workInfo as any)?.departments?.name || '—'} />
                   <Field label="Shift" value={(workInfo as any)?.shift_name || '—'} />
-                  <Field label="Work Type" value={(workInfo as any)?.work_type || '—'} />
+                  <Field label="Work Type" value={workTypeLabel((workInfo as any)?.work_type, '—')} />
                 </FieldGrid>
               </SectionBlock>
 

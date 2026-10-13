@@ -238,7 +238,7 @@ export default function LeaveTypesPage() {
                   <td className="px-4 py-3.5 text-center hidden md:table-cell">
                     <div className="inline-flex items-center gap-1.5">
                       <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className={`text-xs ${t.carry_forward === false ? "text-muted-foreground" : "text-foreground font-medium"}`}>
+                      <span className={`text-xs ${t.is_compensatory_leave ? "text-muted-foreground" : "text-foreground font-medium"}`}>
                         {getCarryForwardLabel(t)}
                       </span>
                     </div>

@@ -33,7 +33,7 @@ import { SOURCE_KINDS, fmtDateTime, sourceKindLabel } from "@/lib/ats/format";
 const chk = (r: { error: any }) => { if (r.error) throw r.error; };
 
 /* ---------- inline rename ---------- */
-function InlineName({ value, max, onSave, saving }: { value: string; max: number; onSave: (v: string) => void; saving?: boolean }) {
+function InlineName({ value, max, onSave, saving, disabled }: { value: string; max: number; onSave: (v: string) => void; saving?: boolean; disabled?: boolean }) {
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState(value);
   useEffect(() => setV(value), [value]);
@@ -41,7 +41,7 @@ function InlineName({ value, max, onSave, saving }: { value: string; max: number
     return (
       <span className="inline-flex min-w-0 items-center gap-1">
         <span className="truncate text-sm text-foreground">{value}</span>
-        <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Rename ${value}`} onClick={() => setEdit(true)}>
+        <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Rename ${value}`} disabled={disabled} onClick={() => setEdit(true)}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
       </span>

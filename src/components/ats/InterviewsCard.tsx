@@ -41,11 +41,11 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
     enabled: !!app.application_id,
     queryFn: async () => {
       const { data, error } = await supabase.from("ats_messages")
-        .select("interview_id, status, sent_at, error, created_at")
+        .select("interview_id, status, sent_at, error, created_at, calendar_revision")
         .eq("application_id", app.application_id!).eq("template_code", "interview-reminder").not("interview_id", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const m = new Map<string, { status: string; sent_at: string | null; error: string | null }>();
+      const m = new Map<string, { status: string; sent_at: string | null; error: string | null; calendar_revision: number | null }>();
       for (const r of data ?? []) if (!m.has(r.interview_id!)) m.set(r.interview_id!, r);
       return m;
     },
@@ -113,7 +113,8 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                     <ResponseChip iv={iv} />
                     {(() => {
                       const rm = reminders.data?.get(iv.id);
-                      if (!rm) return null;
+                      // A reminder for an earlier time of this interview (before it was moved) is not shown.
+                      if (!rm || (rm.calendar_revision != null && rm.calendar_revision !== iv.revision)) return null;
                       if (rm.status === "sent") return <Tip text={fmtDateTime(rm.sent_at)}><Badge variant="outline" tabIndex={0} className="font-normal text-muted-foreground">Reminder sent</Badge></Tip>;
                       if (rm.status === "queued" || rm.status === "sending") return <Badge variant="outline" className="font-normal text-muted-foreground">Reminder waiting to send</Badge>;
                       if (rm.status === "failed" || rm.status === "bounced") return <Tip text={mailErrorMessage(rm.error)}><Badge variant="outline" tabIndex={0} className="border-destructive/40 font-normal text-destructive">Reminder not delivered</Badge></Tip>;

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { DEDUCTION_COMPONENT_NAMES } from "@/lib/hrms/razorpayBulkSheet";
 import { useFormDraftPersistence } from "@/hooks/useFormDraftPersistence";
 import { useSearchParams } from "react-router-dom";
@@ -184,15 +185,20 @@ export default function PayrollInputsPage() {
   const { data: dnpMarks = {} } = useQuery({
     queryKey: ["payroll_dnp_marks", period],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_razorpay_sync_log")
-        .select("razorpay_employee_id, created_at, error_text, field_diff_summary, action")
-        .in("action", ["payroll_do_not_pay", "payroll_reset_modifications"])
-        .order("created_at", { ascending: true })
-        .limit(1000);
-      if (error) return {};
+      // Server-side month filter, newest first (paged, so nothing is cut off);
+      // replayed oldest → newest so the latest mark/reset wins.
+      let data: any[] = [];
+      try {
+        data = await fetchAllPaginated<any>(() => (supabase as any)
+          .from("hr_razorpay_sync_log")
+          .select("id, razorpay_employee_id, created_at, error_text, field_diff_summary, action")
+          .in("action", ["payroll_do_not_pay", "payroll_reset_modifications"])
+          .eq("field_diff_summary->>payroll_month", period)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false }));
+      } catch { return {}; }
       const map: Record<string, string> = {};
-      for (const r of data || []) {
+      for (const r of data.slice().reverse()) {
         const fds = r.field_diff_summary || {};
         if (String(fds.payroll_month || "") !== period) continue;
         const key = String(r.razorpay_employee_id ?? "");

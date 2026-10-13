@@ -81,6 +81,17 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
     queryFn: async () => (await (supabase as any).from("hr_attendance_punches").select("id,badge_id,punch_time,punch_type,raw_status").eq("device_serial", serial).order("punch_time", { ascending: false }).limit(200)).data || [],
   });
 
+  // Real punch total for this device (the list above is only the latest 200).
+  const punchCountQ = useQuery({
+    enabled: !!serial && open,
+    queryKey: ["bio-punches-count", serial],
+    queryFn: async () => {
+      const { count, error } = await (supabase as any).from("hr_attendance_punches").select("id", { count: "exact", head: true }).eq("device_serial", serial);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   const photosQ = useQuery({
     enabled: !!serial && open,
     queryKey: ["bio-photos", serial],
@@ -415,7 +426,7 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
               <TabsTrigger value="overview"><Activity className="h-3.5 w-3.5 mr-1" />Overview</TabsTrigger>
               <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1" />Users ({users.length})</TabsTrigger>
               <TabsTrigger value="bio"><Fingerprint className="h-3.5 w-3.5 mr-1" />Biometrics ({templates.length})</TabsTrigger>
-              <TabsTrigger value="punches"><Wifi className="h-3.5 w-3.5 mr-1" />Punches ({punches.length})</TabsTrigger>
+              <TabsTrigger value="punches"><Wifi className="h-3.5 w-3.5 mr-1" />Punches ({punchCountQ.data != null ? `${punchCountQ.data.toLocaleString("en-IN")} · latest ${punches.length}` : `latest ${punches.length}`})</TabsTrigger>
               <TabsTrigger value="oplog"><ScrollText className="h-3.5 w-3.5 mr-1" />Operator Log ({oplog.length})</TabsTrigger>
               <TabsTrigger value="photos"><ImageIcon className="h-3.5 w-3.5 mr-1" />Photos ({photos.length})</TabsTrigger>
               <TabsTrigger value="manage"><Settings2 className="h-3.5 w-3.5 mr-1" />Manage</TabsTrigger>
@@ -450,7 +461,7 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                         <StatCell label="Palms" value={info?.palm_count ?? palmTotal} />
                         <StatCell label="Cards" value={info?.card_count ?? cardTotal} />
                         <StatCell label="Passwords" value={info?.password_count} />
-                        <StatCell label="Transactions" value={info?.transaction_count ?? punches.length} />
+                        <StatCell label="Transactions" value={info?.transaction_count ?? punchCountQ.data ?? "—"} />
                       </div>
                     </CardContent></Card>
 

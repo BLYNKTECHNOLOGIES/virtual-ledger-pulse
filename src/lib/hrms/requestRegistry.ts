@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { istTime } from "@/components/hrms/attendance/DayTileTooltip";
 
 /**
@@ -84,14 +85,13 @@ function leaveStage(status: string): RequestStage {
 }
 
 async function fetchLeave(): Promise<UnifiedRequest[]> {
-  const { data, error } = await (supabase as any)
+  const data = await fetchAllPaginated<any>(() => (supabase as any)
     .from("hr_leave_requests")
     .select(
       "*, hr_employees!hr_leave_requests_employee_id_fkey(badge_id, first_name, last_name, email), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)",
     )
     .order("created_at", { ascending: false })
-    .limit(1000);
-  if (error) throw error;
+    .order("id", { ascending: false }));
 
   return ((data as any[]) || []).map((r) => {
     const stage = leaveStage(r.status);
@@ -142,14 +142,13 @@ function regStage(r: any): RequestStage {
 }
 
 async function fetchRegularization(): Promise<UnifiedRequest[]> {
-  const { data, error } = await (supabase as any)
+  const data = await fetchAllPaginated<any>(() => (supabase as any)
     .from("hr_attendance_regularization_requests")
     .select(
       "*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(badge_id, first_name, last_name, email)",
     )
     .order("created_at", { ascending: false })
-    .limit(1000);
-  if (error) throw error;
+    .order("id", { ascending: false }));
 
   return ((data as any[]) || []).map((r) => {
     const stage = regStage(r);
@@ -202,12 +201,11 @@ function bankChangeStage(status: string): RequestStage {
 }
 
 async function fetchBankChange(): Promise<UnifiedRequest[]> {
-  const { data, error } = await (supabase as any)
+  const data = await fetchAllPaginated<any>(() => (supabase as any)
     .from("hr_bank_change_requests")
     .select("*, hr_employees!hr_bank_change_requests_employee_id_fkey(badge_id, first_name, last_name, email)")
     .order("created_at", { ascending: false })
-    .limit(1000);
-  if (error) throw error;
+    .order("id", { ascending: false }));
 
   return ((data as any[]) || []).map((r) => {
     const stage = bankChangeStage(r.status);

@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,13 +18,26 @@ export default function HRLogsPage() {
   const [tab, setTab] = useState("emails");
   const [search, setSearch] = useState("");
 
-  const { data: emailLogs = [], isLoading: emailLoading } = useQuery({
-    queryKey: ["hr_email_send_log"],
+  const [emailStatus, setEmailStatus] = useState("all");
+  const [emailPage, setEmailPage] = useState(0);
+  const PAGE = 100;
+  const term = search.trim().replace(/[%,()*]/g, " ").trim();
+  const { data: emailRes, isLoading: emailLoading } = useQuery({
+    queryKey: ["hr_email_send_log", term, emailStatus, emailPage],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_email_send_log").select("*").order("created_at", { ascending: false }).limit(200);
-      return data || [];
+      let q = (supabase as any).from("hr_email_send_log").select("*", { count: "exact" })
+        .order("created_at", { ascending: false }).order("id", { ascending: false });
+      if (emailStatus !== "all") q = q.eq("status", emailStatus);
+      if (term) q = q.or(`recipient_email.ilike.%${term}%,subject.ilike.%${term}%,template_name.ilike.%${term}%`);
+      const { data, error, count } = await q.range(emailPage * PAGE, emailPage * PAGE + PAGE - 1);
+      if (error) throw error;
+      return { rows: data || [], count: count ?? 0 };
     },
   });
+  const emailLogs: any[] = emailRes?.rows ?? [];
+  const emailCount = emailRes?.count ?? 0;
+  const emailPages = Math.max(1, Math.ceil(emailCount / PAGE));
 
   const { data: notifLogs = [], isLoading: notifLoading } = useQuery({
     queryKey: ["hr_notification_log"],
@@ -32,11 +47,7 @@ export default function HRLogsPage() {
     },
   });
 
-  const filteredEmails = emailLogs.filter((e: any) =>
-    !search || e.recipient_email?.toLowerCase().includes(search.toLowerCase()) ||
-    e.subject?.toLowerCase().includes(search.toLowerCase()) ||
-    e.template_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredEmails = emailLogs;
 
   const filteredNotifs = notifLogs.filter((n: any) =>
     !search || n.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -49,16 +60,32 @@ export default function HRLogsPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search logs..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+        <Input placeholder="Search logs..." value={search} onChange={e => { setSearch(e.target.value); setEmailPage(0); }} className="pl-9 h-9" />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="emails" className="gap-1"><Mail className="h-3.5 w-3.5" /> Emails ({emailLogs.length})</TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3.5 w-3.5" /> Notifications ({notifLogs.length})</TabsTrigger>
+          <TabsTrigger value="emails" className="gap-1"><Mail className="h-3.5 w-3.5" /> Emails ({emailCount.toLocaleString("en-IN")})</TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3.5 w-3.5" /> Notifications (latest {notifLogs.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="emails">
+        <TabsContent value="emails" className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={emailStatus} onValueChange={(v) => { setEmailStatus(v); setEmailPage(0); }}>
+              <SelectTrigger className="h-9 w-40 text-foreground"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="sent">Sent</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {emailCount ? `${emailPage * PAGE + 1}–${Math.min(emailCount, (emailPage + 1) * PAGE)} of ${emailCount.toLocaleString("en-IN")}` : "0 emails"}
+            </span>
+            <Button size="sm" variant="outline" className="h-8" disabled={emailPage === 0} onClick={() => setEmailPage(p => p - 1)}>Previous</Button>
+            <Button size="sm" variant="outline" className="h-8" disabled={emailPage + 1 >= emailPages} onClick={() => setEmailPage(p => p + 1)}>Next</Button>
+          </div>
           <Card>
             <CardContent className="p-0">
               <Table>

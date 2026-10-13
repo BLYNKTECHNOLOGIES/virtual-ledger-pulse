@@ -776,6 +776,7 @@ export type Database = {
           owner_name: string | null
           owner_user_id: string | null
           position_text: string | null
+          preferred_shifts: string[] | null
           rating_avg: number | null
           rating_count: number
           reject_reason_id: string | null
@@ -807,6 +808,7 @@ export type Database = {
           owner_name?: string | null
           owner_user_id?: string | null
           position_text?: string | null
+          preferred_shifts?: string[] | null
           rating_avg?: number | null
           rating_count?: number
           reject_reason_id?: string | null
@@ -838,6 +840,7 @@ export type Database = {
           owner_name?: string | null
           owner_user_id?: string | null
           position_text?: string | null
+          preferred_shifts?: string[] | null
           rating_avg?: number | null
           rating_count?: number
           reject_reason_id?: string | null
@@ -30360,6 +30363,7 @@ export type Database = {
           notice_period_days: number | null
           phone: string | null
           position_text: string | null
+          preferred_shifts: string[] | null
           rating_avg: number | null
           rating_count: number | null
           ref_no: string | null

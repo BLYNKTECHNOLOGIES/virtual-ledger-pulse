@@ -30,6 +30,7 @@ export interface CandidateFilters {
   status: "active" | "hired" | "rejected" | "withdrawn" | "all";
   stage?: string;
   source?: string;
+  shift?: string;
   applied: "7d" | "30d" | "90d" | "all";
   unreviewed?: boolean;
   idle?: boolean;
@@ -48,6 +49,7 @@ export function parseFilters(sp: URLSearchParams): CandidateFilters {
     status: (["active", "hired", "rejected", "withdrawn", "all"].includes(st ?? "") ? st : "active") as CandidateFilters["status"],
     stage: sp.get("stage") || undefined,
     source: sp.get("source") || undefined,
+    shift: sp.get("shift")?.trim().slice(0, 60) || undefined,
     applied: (["7d", "30d", "90d", "all"].includes(ap ?? "") ? ap : "all") as CandidateFilters["applied"],
     unreviewed: sp.get("unreviewed") === "1",
     idle: sp.get("idle") === "1",
@@ -57,7 +59,7 @@ export function parseFilters(sp: URLSearchParams): CandidateFilters {
 }
 
 export const hasActiveFilters = (f: CandidateFilters) =>
-  !!(f.job || f.status !== "active" || f.stage || f.source || f.applied !== "all" || f.unreviewed || f.idle || f.q);
+  !!(f.job || f.status !== "active" || f.stage || f.source || f.shift || f.applied !== "all" || f.unreviewed || f.idle || f.q);
 
 /** Strip characters that would break the PostgREST `or` filter grammar. */
 const safeQ = (q: string) => q.replace(/[,()*%\\]/g, " ").trim();
@@ -69,6 +71,7 @@ function applyFilters(qb: any, f: CandidateFilters, idleDays: number) {
   else if (f.status !== "all") qb = qb.eq("status", f.status);
   if (f.stage) qb = qb.eq("stage_id", f.stage);
   if (f.source) qb = qb.eq("source_id", f.source);
+  if (f.shift) qb = qb.contains("preferred_shifts", [f.shift]);
   if (f.applied !== "all") {
     const days = { "7d": 7, "30d": 30, "90d": 90 }[f.applied];
     qb = qb.gte("applied_at", new Date(Date.now() - days * 86400_000).toISOString());
@@ -266,5 +269,20 @@ export const useBoardRows = (jobId: string | undefined, showHired: boolean) =>
       };
       const [rejected, withdrawn] = await Promise.all([headCount("rejected"), headCount("withdrawn")]);
       return { rows: (data ?? []) as AtsAppRow[], total: count ?? 0, rejected, withdrawn };
+    },
+  });
+
+/** Distinct preferred shifts candidates picked for one job (for the shift filter). */
+export const useJobPreferredShifts = (jobId?: string) =>
+  useQuery({
+    queryKey: ["ats", "cand", "job-shifts", jobId ?? ""],
+    enabled: !!jobId && jobId !== "general",
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("ats_applications") as any)
+        .select("preferred_shifts").eq("job_id", jobId!).not("preferred_shifts", "is", null).limit(1000);
+      if (error) throw error;
+      const set = new Set<string>();
+      for (const r of (data ?? []) as { preferred_shifts: string[] | null }[]) for (const s of r.preferred_shifts ?? []) set.add(s);
+      return [...set].sort((a, b) => a.localeCompare(b));
     },
   });

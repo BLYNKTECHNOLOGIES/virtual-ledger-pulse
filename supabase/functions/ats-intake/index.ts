@@ -1,6 +1,7 @@
 // Server-to-server intake of careers-website applications into the ATS.
 // Logs contain only codes, ids and timings — never personal data or URLs.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { parsePreferredShifts } from "./shifts.ts";
 
 const MAX_BODY = 64 * 1024;
 const MAX_FILE = 10 * 1024 * 1024;
@@ -253,6 +254,19 @@ Deno.serve(async (req) => {
     });
     if (rErr) throw rErr;
     const r = res as { candidate_id: string; application_id: string; duplicate: boolean; job_matched: boolean | null };
+
+    // preferred shifts (optional; never fails the application)
+    const shifts = parsePreferredShifts(p.preferred_shifts);
+    if (shifts) {
+      try {
+        const { data: cur } = await db.from("ats_applications").select("preferred_shifts").eq("id", r.application_id).maybeSingle();
+        const prev = (cur?.preferred_shifts ?? []) as string[];
+        if (prev.length !== shifts.length || prev.some((s, i) => s !== shifts[i])) {
+          const { error: sErr } = await db.from("ats_applications").update({ preferred_shifts: shifts }).eq("id", r.application_id);
+          if (sErr) log({ code: "shifts_store_failed", application_id: r.application_id });
+        }
+      } catch { log({ code: "shifts_store_failed", application_id: r.application_id }); }
+    }
 
     // resume
     stage = "resume";

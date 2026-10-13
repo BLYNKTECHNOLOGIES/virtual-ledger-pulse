@@ -87,3 +87,16 @@ describe("shiftsOutsideLine", () => {
     expect(shiftsOutsideLine(shifts, ["e", "n"], [])).toEqual([]);
   });
 });
+
+import { istNextDay, trainingEnded, overdueByLine } from "./workforce";
+describe("timing helpers", () => {
+  test("next day crosses month end", () => { expect(istNextDay("2026-10-31")).toBe("2026-11-01"); });
+  test("training ends the day after its completion date", () => {
+    expect(trainingEnded("2026-10-13", "2026-10-13")).toBe(false);
+    expect(trainingEnded("2026-10-12", "2026-10-13")).toBe(true);
+    expect(trainingEnded(null, "2026-10-13")).toBe(false);
+  });
+  test("overdue joiners grouped per line", () => {
+    expect(overdueByLine([{ plan_id: "a" }, { plan_id: "a" }, { plan_id: null }]).get("a")).toBe(2);
+  });
+});

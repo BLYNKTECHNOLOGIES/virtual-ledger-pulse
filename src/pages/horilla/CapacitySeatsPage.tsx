@@ -41,6 +41,7 @@ import {
 } from "@/hooks/hrms/useWorkforcePlanning";
 import { EMPTY_FILTERS, planningShiftId, sortByOperatingOrder, type WorkforceFilterState } from "@/lib/hrms/workforce";
 import { useNavigate } from "react-router-dom";
+import { DeskGroupRemoveDialog } from "@/components/horilla/workforce/DeskGroupRemoveDialog";
 import { WorkforceAlertsStrip } from "@/components/horilla/workforce/WorkforceAlertsStrip";
 
 type SeatPerson = {
@@ -111,7 +112,6 @@ export default function CapacitySeatsPage() {
   const { data: lookups } = useWorkforceLookups();
   const { data: people = [] } = useSeatOccupancy();
   const { data: headcountPlans = [] } = useHeadcountPlans();
-  const removeSeat = useDeleteSeatCapacity();
   const navigate = useNavigate();
 
   const allShifts = useMemo(() => (lookups?.shifts || []) as any[], [lookups?.shifts]);
@@ -880,27 +880,9 @@ export default function CapacitySeatsPage() {
         initial={dialog.initial}
       />
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this capacity entry?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The seat count for {deleteTarget?.departmentName} will no longer be tracked.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget) removeSeat.mutate(deleteTarget.id);
-                setDeleteTarget(null);
-              }}
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeskGroupRemoveDialog seat={deleteTarget} seats={seats as any[]} plans={headcountPlans as any[]}
+        lineLabel={(p: any) => `${(lookups?.positions || []).find((x: any) => x.id === p.position_id)?.title || "Role"} · ${allShifts.find((x) => x.id === p.shift_id)?.name || p.shift_label || "Any shift"}`}
+        onClose={() => setDeleteTarget(null)} />
     </div>
   );
 }

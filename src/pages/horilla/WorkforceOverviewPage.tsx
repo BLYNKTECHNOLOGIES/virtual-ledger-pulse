@@ -15,6 +15,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { WorkforceFilters } from "@/components/horilla/workforce/WorkforceFilters";
 import { WorkforceKpiCard } from "@/components/horilla/workforce/WorkforceKpiCard";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
+import { WorkforceTimingAlerts } from "@/components/horilla/workforce/WorkforceTimingAlerts";
 import { WorkforceAlertsStrip } from "@/components/horilla/workforce/WorkforceAlertsStrip";
 import { RequirementReasonDialog, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
 import {
@@ -313,6 +314,7 @@ export default function WorkforceOverviewPage() {
             </Card>
           </div>
 
+          <WorkforceTimingAlerts />
           <WorkforceAlertsStrip rows={rows} positionTitle={title} canManage={canManage}
             onPlanDesks={(s) => navigate(`/hrms/workforce-planning/staffing-plan?plan_desk=${s.id}`)}
             onOpenLine={(id) => navigate(`/hrms/workforce-planning/staffing-plan?line=${id}`)} />

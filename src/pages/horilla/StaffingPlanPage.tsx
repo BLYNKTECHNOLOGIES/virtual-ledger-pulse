@@ -19,6 +19,7 @@ import { AddLineDialog, type AddLineSeed } from "@/components/horilla/workforce/
 import { LinePanel } from "@/components/horilla/workforce/LinePanel";
 import { PlanHistoryDrawer } from "@/components/horilla/workforce/PlanHistoryDrawer";
 import { StaffingGrid, buildStaffingGrid, type GridRow } from "@/components/horilla/workforce/StaffingGrid";
+import { WorkforceTimingAlerts } from "@/components/horilla/workforce/WorkforceTimingAlerts";
 import { WorkforceAlertsStrip } from "@/components/horilla/workforce/WorkforceAlertsStrip";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
 import {
@@ -161,6 +162,7 @@ export default function StaffingPlanPage() {
         <WorkforceKpiCard label="Over-requested" value={totals.overRequested} tone={totals.overRequested > 0 ? "warning" : "default"} />
       </div>
 
+      <WorkforceTimingAlerts />
       <WorkforceAlertsStrip
         rows={rows}
         positionTitle={title}

@@ -55,7 +55,6 @@ const BLANK: HiringRequirementInput = {
   salary_min: null,
   salary_max: null,
   replacement_employee_id: null,
-  approver_name: null,
   staffing_plan_id: null,
   priority: "medium",
   status: "draft",

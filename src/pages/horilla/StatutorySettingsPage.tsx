@@ -139,6 +139,20 @@ export default function StatutorySettingsPage() {
     setEditing(emp);
   };
 
+  // A payroll month is closed once cockpit Step 7 (payroll run complete) is done.
+  const { data: closedMonths = new Set<string>() } = useQuery({
+    queryKey: ["hr_cockpit_closed_months"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_payroll_cockpit_state").select("period_month").eq("step_no", 7).eq("status", "done");
+      if (error) throw error;
+      return new Set<string>((data || []).map((r: any) => String(r.period_month).slice(0, 10)));
+    },
+  });
+  const closedNote = (m: string) => closedMonths.has(m.slice(0, 10)) ? (
+    <p className="text-xs text-destructive">Payroll for this month is already closed — pick a later month.</p>
+  ) : null;
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!editing) return;
@@ -147,14 +161,8 @@ export default function StatutorySettingsPage() {
       if (form.vpf_mode === "percent" && (val <= 0 || val > 88)) throw new Error("VPF percentage must be between 0 and 88");
       if (form.vpf_mode === "fixed" && val <= 0) throw new Error("VPF amount must be greater than zero");
 
-      // Closed-month guard
-      const { data: lock } = await (supabase as any)
-        .from("hr_payroll_runs")
-        .select("id,status,pay_period_start")
-        .eq("pay_period_start", form.effective_from)
-        .in("status", ["closed", "completed", "locked"])
-        .maybeSingle();
-      if (lock) throw new Error("That payroll month is already closed — pick a later effective month");
+      // Closed-month guard (also enforced server-side in hr_apply_statutory_change)
+      if (closedMonths.has(form.effective_from.slice(0, 10))) throw new Error("That payroll month is already closed — pick a later effective month");
 
       const { data: res, error } = await (supabase as any).rpc("hr_apply_statutory_change", {
         p_employee: editing.id,
@@ -192,6 +200,7 @@ export default function StatutorySettingsPage() {
     mutationFn: async () => {
       if (!selected.length) throw new Error("Select at least one employee");
       if (!bulk.reason.trim()) throw new Error("A reason is required");
+      if (closedMonths.has(bulk.effective_from.slice(0, 10))) throw new Error("That payroll month is already closed — pick a later effective month");
       let forward = 0;
       for (const id of selected) {
         const p = activeByEmp.get(id);
@@ -645,6 +654,7 @@ export default function StatutorySettingsPage() {
               value={form.effective_from.slice(0, 7)}
               onChange={(e) => setForm({ ...form, effective_from: `${e.target.value}-01` })}
             />
+            {closedNote(form.effective_from)}
           </div>
 
 
@@ -660,7 +670,7 @@ export default function StatutorySettingsPage() {
           <Button
             className="w-full"
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !form.reason.trim()}
+            disabled={saveMutation.isPending || !form.reason.trim() || closedMonths.has(form.effective_from.slice(0, 10))}
           >
             {saveMutation.isPending ? "Saving…" : "Save statutory settings"}
           </Button>
@@ -694,6 +704,7 @@ export default function StatutorySettingsPage() {
               value={bulk.effective_from.slice(0, 7)}
               onChange={(e) => setBulk({ ...bulk, effective_from: `${e.target.value}-01` })}
             />
+            {closedNote(bulk.effective_from)}
           </div>
           <div className="space-y-1.5">
             <Label>Reason (required)</Label>
@@ -706,7 +717,7 @@ export default function StatutorySettingsPage() {
           <Button
             className="w-full"
             onClick={() => bulkMutation.mutate()}
-            disabled={bulkMutation.isPending || !bulk.reason.trim()}
+            disabled={bulkMutation.isPending || !bulk.reason.trim() || closedMonths.has(bulk.effective_from.slice(0, 10))}
           >
             {bulkMutation.isPending ? "Applying…" : "Apply to selected"}
           </Button>

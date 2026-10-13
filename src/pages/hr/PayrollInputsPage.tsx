@@ -888,6 +888,9 @@ export default function PayrollInputsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Only RazorpayX Salary Component Library names appear here. A missing one must first be created in RazorpayX, then added to the HRMS catalogue by an admin.
+                    </p>
                     {form.component && (
                       <p className="text-[10px] text-muted-foreground">
                         Pushes as {additionTypeSlug(additionTypeCode(form.addition_type))} · {form.taxable ? "taxable" : "non-taxable"}

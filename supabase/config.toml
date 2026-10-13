@@ -177,3 +177,5 @@ project_id = "vagiqbespusdxsbqpvbo"
   enabled = true
   port = 54323
 
+  [functions.ats-reply-draft]
+    verify_jwt = false

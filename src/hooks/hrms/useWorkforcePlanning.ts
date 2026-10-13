@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import {
   deriveStaffingRow,
   type StaffingDerived,
@@ -366,10 +367,10 @@ export function useSaveHiringRequirement() {
           .from("hr_hiring_requirements").select("status").eq("id", id).single();
         if (readError) throw readError;
         const full = ["draft", "pending_approval"].includes(before?.status ?? "");
-        const patch: Record<string, unknown> = {};
+        const patch: Record<string, Json> = {};
         for (const [k, v] of Object.entries(rest)) {
           const allowed: readonly string[] = full ? ALL_REQUIREMENT_FIELDS : LIMITED_REQUIREMENT_FIELDS;
-          if (allowed.includes(k)) patch[k] = v;
+          if (allowed.includes(k)) patch[k] = v as Json;
         }
         const { error } = await supabase.rpc("hr_update_requirement", {
           p_id: id, p_patch: patch, p_reason: editReason?.trim() || null,

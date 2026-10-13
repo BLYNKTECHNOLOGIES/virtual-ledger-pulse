@@ -12,7 +12,7 @@ export function useResumeAutoHiring() {
     mutationFn: async (planId: string) => {
       const { data, error } = await supabase.rpc("hr_wf_resume_auto_hiring", { p_plan: planId });
       if (error) throw error;
-      return (data?.requirement_no ?? null) as string | null;
+      return ((data as { requirement_no?: string } | null)?.requirement_no ?? null) as string | null;
     },
     onSuccess: (no) => {
       invalidatePlanning(qc);

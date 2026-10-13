@@ -38,7 +38,7 @@ export function useWorkforceBudget(enabled: boolean) {
     queryFn: async (): Promise<WorkforceBudget> => {
       const { data, error } = await supabase.rpc("hr_workforce_budget");
       if (error) throw error;
-      return data as WorkforceBudget;
+      return data as unknown as WorkforceBudget;
     },
     staleTime: 60_000,
   });

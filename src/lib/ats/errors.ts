@@ -30,6 +30,9 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_IMPORT_INVALID", "Something in the file couldn't be read. Check it and try again."],
   ["ATS_REPORT_INVALID", "Check the dates: the end must be on or after the start, and the range can be at most 2 years."],
   ["ATS_STAGE_HAS_CANDIDATES", "Move the candidates out of this stage before turning it off."],
+  ["ATS_SELF_SCHEDULE_OFF", "Letting candidates pick a time is turned off in ATS → Settings → Interviews."],
+  ["ATS_OFFER_CLOSED", "This link is no longer open."],
+  ["ATS_SLOT_GONE", "That time is no longer free."],
   ["ATS_INVALID", "That didn't look right. Check the details and try again."],
   ["ATS_NOT_FOUND", "This record no longer exists."],
 ];
@@ -59,6 +62,7 @@ const IV_INVALID: Record<string, string> = {
   duration: "Pick a length between 10 minutes and 8 hours.",
   panel: "Choose up to 8 interviewers.",
   starts_at: "Pick a date and time.",
+  slots: "Each time must be at least 2 hours from now and within 30 days.",
 };
 
 /** Messages for interview actions (schedule, change, cancel, status, feedback). */

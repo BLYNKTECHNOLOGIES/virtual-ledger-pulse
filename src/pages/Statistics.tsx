@@ -35,23 +35,24 @@ export default function Statistics() {
       }
     >
     <div className="p-4 md:p-6">
-        {/* Header (single source of truth — StatisticsTab must never render its own) */}
-        <div className="mb-6">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-2.5">
-                <span className="p-2 bg-muted rounded-md border border-border">
-                  <BarChart3 className="h-5 w-5 text-muted-foreground" />
+        {/* Header (single source of truth — StatisticsTab never renders its own;
+            it hands its date filter and export controls to this header) */}
+        <StatisticsTab
+          renderHeader={(actions) => (
+            <PageHeader
+              title={
+                <span className="flex items-center gap-2.5">
+                  <span className="p-2 bg-muted rounded-md border border-border">
+                    <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                  </span>
+                  Statistics &amp; Analytics
                 </span>
-                Statistics &amp; Analytics
-              </span>
-            }
-            description="Comprehensive business insights and analytics"
-          />
-        </div>
-
-        
-        <StatisticsTab />
+              }
+              description="Volume, clients, onboarding, desk activity and costs for the selected period"
+              actions={actions}
+            />
+          )}
+        />
     </div>
     </PermissionGate>
   );

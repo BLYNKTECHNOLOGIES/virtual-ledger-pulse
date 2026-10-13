@@ -1,28 +1,49 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo, Fragment, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isOwnerStatExcluded } from "@/lib/ownerStatsExclusion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { usersDirectory } from "@/lib/usersDirectory";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Legend } from "recharts";
-import { 
-  TrendingUp, Users, DollarSign, ShoppingCart, Building, 
-  FileBarChart, UserCheck, Download, BarChart3, ArrowUp, ArrowDown, Briefcase,
-  Target, UserPlus, Clock, CheckCircle, XCircle, AlertCircle, Phone, Award, Star, Coins, ArrowRightLeft
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import {
+  TrendingUp, Users, DollarSign, Building,
+  FileBarChart, UserCheck, Download, BarChart3, Briefcase,
+  Target, UserPlus, Clock, CheckCircle, XCircle, AlertCircle, Phone, Award, Coins, ShoppingCart, MapPin, ChevronDown, ChevronRight, Receipt
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
-import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay, addMonths, addDays } from "date-fns";
-import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
+import { format, startOfMonth, endOfMonth, subDays, differenceInDays, startOfDay, endOfDay, addMonths, addDays } from "date-fns";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
 import { IncomeCategoryDrillDown } from "./IncomeCategoryDrillDown";
 import { isReversalTransaction } from "@/lib/isReversalTransaction";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { cn } from "@/lib/utils";
+import {
+  Panel,
+  KpiTile,
+  DeltaChip,
+  ShareBar,
+  StatusChip,
+  LegendKey,
+  TablePager,
+  UpdatingPill,
+  usePaged,
+  ChartTooltipBox,
+  axisProps,
+  gridProps,
+  axisInr,
+  useChartPalette,
+  downloadWorkbook,
+  formatExactINR,
+  formatCompactINR,
+  splitCategory,
+  count as fmtCount,
+} from "@/components/finance-ui";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 
@@ -34,72 +55,37 @@ const normalizeExpenseCategory = (category?: string | null, description?: string
   return category || 'Other';
 };
 
-// Restrained slate / blue / teal analytical ramp (no neon, no candy colours)
-const CHART_COLORS = [
-  "hsl(215, 40%, 34%)", // deep slate blue
-  "hsl(199, 60%, 44%)", // steel blue
-  "hsl(186, 45%, 42%)", // teal
-  "hsl(215, 16%, 55%)", // slate grey
-  "hsl(160, 34%, 42%)", // muted green
-  "hsl(224, 30%, 62%)", // soft indigo grey
-  "hsl(30, 30%, 52%)",  // muted clay
-];
+const TAB_TRIGGER =
+  "ds-subnav-item rounded-none bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none flex items-center gap-1.5";
 
-const TONE_ACCENT: Record<string, { icon: string; chip: string }> = {
-  success: { icon: "text-success", chip: "bg-success/10" },
-  info: { icon: "text-info", chip: "bg-info/10" },
-  primary: { icon: "text-primary", chip: "bg-primary/10" },
-  warning: { icon: "text-warning", chip: "bg-warning/10" },
-  destructive: { icon: "text-destructive", chip: "bg-destructive/10" },
-  muted: { icon: "text-muted-foreground", chip: "bg-muted" },
-};
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function StatTile({
-  tone = "primary",
-  label,
-  value,
-  sub,
-  icon: Icon,
-  size = "sm",
-}: {
-  tone?: keyof typeof TONE_ACCENT | string;
-  label: string;
-  value: React.ReactNode;
-  sub?: React.ReactNode;
-  icon?: React.ComponentType<{ className?: string }>;
-  size?: "sm" | "md";
-}) {
-  const accent = TONE_ACCENT[tone] || TONE_ACCENT.primary;
-  return (
-    <Card className="h-full bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate">{label}</p>
-            <p className={`${size === "md" ? "text-2xl" : "text-xl"} font-semibold text-foreground leading-tight mt-1 tabular-nums`}>
-              {value}
-            </p>
-            {sub && <div className={`text-xs mt-1 flex items-center ${accent.icon} tabular-nums`}>{sub}</div>}
-          </div>
-          {Icon && (
-            <div className={`shrink-0 rounded-md p-2 ${accent.chip}`}>
-              <Icon className={`h-4 w-4 ${accent.icon}`} />
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+/** IST weekday (0 = Mon) and hour for a timestamp, independent of the viewer's timezone. */
+function istSlot(iso?: string | null): { day: number; hour: number } | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (!isFinite(t)) return null;
+  const ist = new Date(t + 330 * 60 * 1000);
+  return { day: (ist.getUTCDay() + 6) % 7, hour: ist.getUTCHours() };
 }
 
+/** Fixed-height chart frame that dims while a new period loads. */
+function ChartBox({ children, height = "h-64", dim = false }: { children: ReactNode; height?: string; dim?: boolean }) {
+  return <div className={cn(height, "transition-opacity", dim && "opacity-60")}>{children}</div>;
+}
 
+interface StatisticsTabProps {
+  /** Renders the page header with this tab's controls on the same row. */
+  renderHeader?: (actions: ReactNode) => ReactNode;
+}
 
-export function StatisticsTab() {
+export function StatisticsTab({ renderHeader }: StatisticsTabProps = {}) {
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last30days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last30days"));
   const [activeTab, setActiveTab] = useState(tabFromUrl || "overview");
+  const palette = useChartPalette();
 
   const getDateRange = () => {
     if (dateRange?.from && dateRange?.to) {
@@ -110,8 +96,10 @@ export function StatisticsTab() {
   };
 
   // Fetch comprehensive statistics data
-  const { data: statsData, isLoading } = useQuery({
+  const { data: statsData, isLoading, isFetching, isPlaceholderData } = useQuery({
     queryKey: ['statistics_dashboard_enhanced', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    // Keep the previous period on screen (dimmed) while a new one loads.
+    placeholderData: (prev) => prev,
     queryFn: async () => {
       const { startDate, endDate } = getDateRange();
       const startStr = format(startDate, 'yyyy-MM-dd');
@@ -128,45 +116,122 @@ export function StatisticsTab() {
       const prevStartStr = format(prevPeriodStart, 'yyyy-MM-dd');
       const prevEndStr = format(prevPeriodEnd, 'yyyy-MM-dd');
 
-      // Fetch sales orders with client info (paginated — date ranges can exceed 1000 rows)
-      // NOTE: a stable .order('id') is REQUIRED. Without a deterministic sort,
-      // PostgREST .range() pagination returns duplicated/skipped rows across
-      // pages once the result exceeds 1000 rows, corrupting Revenue totals.
-      const salesOrders = await fetchAllPaginated<any>(() =>
+      // Every read below is independent, so they run in parallel. The queries
+      // themselves are unchanged (only extra display columns were added).
+      // NOTE: a stable .order('id') is REQUIRED on paginated reads. Without a
+      // deterministic sort, PostgREST .range() pagination returns duplicated/skipped
+      // rows across pages once the result exceeds 1000 rows, corrupting totals.
+      const [
+        salesOrders,
+        prevSalesOrders,
+        purchaseOrders,
+        allClients,
+        leads,
+        hrEmployees,
+        onboardingApprovals,
+        expensesRaw,
+        incomes,
+        usdtFees,
+        grossProfitRes,
+      ] = await Promise.all([
+        // Sales orders with client info (paginated — date ranges can exceed 1000 rows)
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('sales_orders')
+            .select('id, total_amount, order_date, status, payment_status, quantity, price_per_unit, client_name, client_id, client_phone, client_state, created_at, created_by')
+            .gte('order_date', startStr)
+            .lte('order_date', endStr)
+            .order('id', { ascending: true })),
+        // Previous period sales
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('sales_orders')
+            .select('id, total_amount')
+            .gte('order_date', prevStartStr)
+            .lte('order_date', prevEndStr)
+            .order('id', { ascending: true })),
+        // Purchase orders
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('purchase_orders')
+            .select('id, total_amount, order_date, status, supplier_name, created_by, created_at')
+            .gte('order_date', startStr)
+            .lte('order_date', endStr)
+            .order('id', { ascending: true })),
+        // ALL clients to track new additions
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('clients')
+            .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator')
+            .order('id', { ascending: true })),
+        // Leads
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('leads')
+            .select('id, status, created_at, name, lead_type, estimated_order_value, contact_channel')
+            .order('id', { ascending: true })),
+        // Employees from hr_employees (source of truth)
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('hr_employees')
+            .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id, job_role, departments(name))')
+            .order('id', { ascending: true })),
+        // Client onboarding approvals (paginated — exceeds 1000 rows)
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('client_onboarding_approvals')
+            .select('id, approval_status, created_at, reviewed_at, client_name, order_amount')
+            .order('id', { ascending: true })),
+        // Operating expenses (paginated to avoid the silent 1000-row cap,
+        // which previously made category totals and drill-downs disagree).
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('bank_transactions')
+            .select('id, amount, category, description, transaction_date, reference_number')
+            .eq('transaction_type', 'EXPENSE')
+            .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset")')
+            .gte('transaction_date', startStr)
+            .lte('transaction_date', endStr)
+            .order('id', { ascending: true })),
+        // Non-core incomes (same shape as expenses; settlement / adjustment
+        // buckets excluded so they don't inflate the breakdown)
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('bank_transactions')
+            .select('id, amount, category, description, transaction_date, reference_number')
+            .eq('transaction_type', 'INCOME')
+            .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset","Settlement","Payment Gateway Settlement")')
+            .gte('transaction_date', startStr)
+            .lte('transaction_date', endStr)
+            .order('id', { ascending: true })),
+        // USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
+        // Paginated + ordered: busy months exceed 1000 fee rows, and a silent cap
+        // here would undercount fees and overstate Net Profit.
+        fetchAllPaginated<any>(() =>
+          supabase
+            .from('wallet_transactions')
+            .select(`
+              id,
+              amount,
+              reference_type,
+              reference_id,
+              description,
+              created_at,
+              wallets:wallet_id (wallet_name, wallet_type)
+            `)
+            .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+            .eq('transaction_type', 'DEBIT')
+            .gte('created_at', startStr)
+            .lte('created_at', endStr + 'T23:59:59')
+            .order('id', { ascending: true })),
+        // Profit metrics from daily_gross_profit_history (source of truth for P&L)
         supabase
-          .from('sales_orders')
-          .select('id, total_amount, order_date, status, payment_status, quantity, price_per_unit, client_name')
-          .gte('order_date', startStr)
-          .lte('order_date', endStr)
-          .order('id', { ascending: true }));
-
-      // Fetch previous period sales
-      const prevSalesOrders = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('sales_orders')
-          .select('id, total_amount')
-          .gte('order_date', prevStartStr)
-          .lte('order_date', prevEndStr)
-          .order('id', { ascending: true }));
-
-      // Fetch purchase orders
-      const purchaseOrders = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('purchase_orders')
-          .select('id, total_amount, order_date, status, supplier_name, created_by')
-          .gte('order_date', startStr)
-          .lte('order_date', endStr)
-          .order('id', { ascending: true }));
-
-      // (purchase_order_items no longer needed — profit comes from daily_gross_profit_history)
-
-      // Fetch ALL clients to track new additions
-      const allClients = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('clients')
-          .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator')
-          .order('id', { ascending: true }));
-
+          .from('daily_gross_profit_history')
+          .select('gross_profit, effective_purchase_rate, total_sales_qty')
+          .gte('snapshot_date', startStr)
+          .lte('snapshot_date', endStr),
+      ]);
+      const grossProfitData = grossProfitRes.data;
 
       // Clients created in this period (new clients) - use normalized timestamps
       const newClientsInPeriod = allClients?.filter(c => {
@@ -180,13 +245,6 @@ export function StatisticsTab() {
         return createdDate >= prevPeriodStart && createdDate <= prevPeriodEnd;
       }) || [];
 
-      // Fetch leads
-      const leads = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('leads')
-          .select('id, status, created_at, name, lead_type, estimated_order_value, contact_channel')
-          .order('id', { ascending: true }));
-
       // Leads in current period
       const leadsInPeriod = leads?.filter(l => {
         const createdDate = new Date(l.created_at);
@@ -199,13 +257,6 @@ export function StatisticsTab() {
         return createdDate >= prevPeriodStart && createdDate <= prevPeriodEnd;
       }) || [];
 
-      // Fetch employees from hr_employees (source of truth)
-      const hrEmployees = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('hr_employees')
-          .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id, job_role, departments(name))')
-          .order('id', { ascending: true }));
-      
       // Map to compatible format. Owners/directors are left out of every
       // statistic on this tab (headcount, department mix, monthly payroll cost)
       // so the numbers match Reports & Analytics.
@@ -220,70 +271,15 @@ export function StatisticsTab() {
         email: e.email
       })) || [];
 
-      // Fetch client onboarding approvals (paginated — exceeds 1000 rows)
-      const onboardingApprovals = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('client_onboarding_approvals')
-          .select('id, approval_status, created_at, reviewed_at, client_name, order_amount')
-          .order('id', { ascending: true }));
-
-
       // Onboarding in period
       const onboardingInPeriod = onboardingApprovals?.filter(a => {
         const createdDate = new Date(a.created_at);
         return createdDate >= periodStart && createdDate <= periodEnd;
       }) || [];
 
-      // Fetch operating expenses (paginated to avoid the silent 1000-row cap,
-      // which previously made category totals and drill-downs disagree).
       // Reversal / contra entries (e.g. settlement reversals booked as EXPENSE)
       // are ledger corrections, never real expenses.
-      const expensesRaw = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('bank_transactions')
-          .select('id, amount, category, description, transaction_date, reference_number')
-          .eq('transaction_type', 'EXPENSE')
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset")')
-          .gte('transaction_date', startStr)
-          .lte('transaction_date', endStr)
-          .order('id', { ascending: true })
-      );
       const expenses = (expensesRaw || []).filter(e => !isReversalTransaction(e));
-
-
-      // Fetch non-core incomes (same shape as expenses; settlement / adjustment
-      // buckets excluded so they don't inflate the breakdown)
-      const incomes = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('bank_transactions')
-          .select('id, amount, category, description, transaction_date, reference_number')
-          .eq('transaction_type', 'INCOME')
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset","Settlement","Payment Gateway Settlement")')
-          .gte('transaction_date', startStr)
-          .lte('transaction_date', endStr)
-          .order('id', { ascending: true })
-      );
-
-      // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
-      // Paginated + ordered: busy months exceed 1000 fee rows, and a silent cap
-      // here would undercount fees and overstate Net Profit.
-      const usdtFees = await fetchAllPaginated<any>(() =>
-        supabase
-          .from('wallet_transactions')
-          .select(`
-            id,
-            amount,
-            reference_type,
-            reference_id,
-            description,
-            created_at,
-            wallets:wallet_id (wallet_name, wallet_type)
-          `)
-          .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-          .eq('transaction_type', 'DEBIT')
-          .gte('created_at', startStr)
-          .lte('created_at', endStr + 'T23:59:59')
-          .order('id', { ascending: true }));
 
       // Calculate core KPIs
       const currentRevenue = salesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
@@ -296,18 +292,11 @@ export function StatisticsTab() {
 
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount || 0), 0) || 0;
 
-      // Calculate profit metrics from daily_gross_profit_history (source of truth for P&L)
-      const { data: grossProfitData } = await supabase
-        .from('daily_gross_profit_history')
-        .select('gross_profit, effective_purchase_rate, total_sales_qty')
-        .gte('snapshot_date', startStr)
-        .lte('snapshot_date', endStr);
-
       const totalGrossProfit = grossProfitData?.reduce((sum, d) => sum + Number(d.gross_profit || 0), 0) || 0;
 
       // Calculate avg purchase rate (weighted by sales qty) for USDT fee INR conversion
       const totalSalesQtyPnl = grossProfitData?.reduce((sum, d) => sum + Number(d.total_sales_qty || 0), 0) || 0;
-      const weightedPurchaseRateSum = grossProfitData?.reduce((sum, d) => 
+      const weightedPurchaseRateSum = grossProfitData?.reduce((sum, d) =>
         sum + (Number(d.effective_purchase_rate || 0) * Number(d.total_sales_qty || 0)), 0) || 0;
       const avgPurchaseRate = totalSalesQtyPnl > 0 ? weightedPurchaseRateSum / totalSalesQtyPnl : 0;
 
@@ -321,12 +310,12 @@ export function StatisticsTab() {
       // ===== KYC & CLIENT STATISTICS (period-aware) =====
       // All-time totals (for verification rate denominator)
       const kycVerifiedAllTime = allClients?.filter(c => c.kyc_status === 'VERIFIED' || c.kyc_status === 'APPROVED')?.length || 0;
-      
+
       // Period-specific KYC counts (clients created in period by status)
       const kycVerified = newClientsInPeriod.filter(c => c.kyc_status === 'VERIFIED' || c.kyc_status === 'APPROVED').length;
       const kycPending = newClientsInPeriod.filter(c => c.kyc_status === 'PENDING').length;
       const kycRejected = newClientsInPeriod.filter(c => c.kyc_status === 'REJECTED').length;
-      
+
       // New KYC verified in period
       const newKycVerifiedInPeriod = kycVerified;
 
@@ -344,7 +333,7 @@ export function StatisticsTab() {
       const convertedLeads = leadsInPeriod.filter(l => l.status === 'CONVERTED').length;
       const openLeads = leadsInPeriod.filter(l => l.status === 'NEW' || l.status === 'CONTACTED' || l.status === 'FOLLOW_UP').length;
       const lostLeads = leadsInPeriod.filter(l => l.status === 'LOST').length;
-      
+
       const conversionRate = newLeads > 0 ? (convertedLeads / newLeads) * 100 : 0;
 
       // Lead sources breakdown
@@ -374,10 +363,10 @@ export function StatisticsTab() {
         .filter(a => a.approval_status === 'APPROVED')
         .reduce((sum, a) => sum + Number(a.order_amount || 0), 0);
 
-      // ===== EMPLOYEE PERFORMANCE (Prepared for future) =====
+      // ===== EMPLOYEE PERFORMANCE =====
       // Group by assigned_operator for client additions
       const operatorClientStats = new Map<string, { clientsAdded: number; ordersHandled: number; revenue: number }>();
-      
+
       newClientsInPeriod.forEach(client => {
         const operator = client.assigned_operator || 'Unassigned';
         if (!operatorClientStats.has(operator)) {
@@ -385,11 +374,6 @@ export function StatisticsTab() {
         }
         operatorClientStats.get(operator)!.clientsAdded++;
       });
-
-      // Track orders - future enhancement when created_by is linked to employees
-      // For now, we'll prepare the structure but not track by individual
-      const totalOrdersHandled = salesOrders?.length || 0;
-      const totalRevenueGenerated = salesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
 
       const employeePerformanceData = Array.from(operatorClientStats.entries())
         .filter(([name]) => name !== 'System' && name !== 'Unassigned')
@@ -400,6 +384,42 @@ export function StatisticsTab() {
           revenue: data.revenue
         }))
         .sort((a, b) => b.revenue - a.revenue);
+
+      // Desk performance — orders each staff member entered (sales + purchase created_by).
+      const deskMap = new Map<string, { sell: number; buy: number; sellValue: number; buyValue: number }>();
+      const addDesk = (userId: string | null | undefined, side: 'sell' | 'buy', value: number) => {
+        const key = userId || '__none';
+        const cur = deskMap.get(key) || { sell: 0, buy: 0, sellValue: 0, buyValue: 0 };
+        if (side === 'sell') { cur.sell++; cur.sellValue += value; } else { cur.buy++; cur.buyValue += value; }
+        deskMap.set(key, cur);
+      };
+      (salesOrders || []).forEach(o => addDesk(o.created_by, 'sell', Number(o.total_amount || 0)));
+      (purchaseOrders || []).forEach(o => addDesk(o.created_by, 'buy', Number(o.total_amount || 0)));
+      const deskIds = Array.from(deskMap.keys()).filter(k => k !== '__none');
+      let directory: any[] = [];
+      if (deskIds.length > 0) {
+        try {
+          const { data } = await usersDirectory()
+            .select('id, username, first_name, last_name')
+            .in('id', deskIds);
+          directory = data || [];
+        } catch { directory = []; }
+      }
+      const dirMap = new Map<string, any>(directory.map((u: any) => [u.id, u]));
+      const deskPerformance = Array.from(deskMap.entries())
+        .filter(([id]) => {
+          const u = dirMap.get(id);
+          // Owners/directors stay out of staff statistics, as everywhere on this page.
+          return !(u && isOwnerStatExcluded({ first_name: u.first_name, last_name: u.last_name }));
+        })
+        .map(([id, v]) => {
+          const u = dirMap.get(id);
+          const name = id === '__none'
+            ? 'Not recorded'
+            : u ? (u.first_name ? `${u.first_name} ${u.last_name || ''}`.trim() : (u.username || `User ${id.slice(0, 8)}`)) : `User ${id.slice(0, 8)}`;
+          return { id, name, ...v, volume: v.sellValue + v.buyValue, orders: v.sell + v.buy };
+        })
+        .sort((a, b) => b.volume - a.volume);
 
       // ===== PERIOD-AWARE TREND DATA =====
       const trendData: any[] = [];
@@ -419,6 +439,8 @@ export function StatisticsTab() {
           trendData.push({
             month: format(cursor, 'dd MMM'),
             trades: daySales.length + dayPurchases.length,
+            sales: daySales.length,
+            purchases: dayPurchases.length,
             revenue: dayRevenue,
             newClients: dayNewClients.length,
             newLeads: dayLeads.length,
@@ -433,7 +455,7 @@ export function StatisticsTab() {
         while (current <= lastMonth) {
           const mStart = format(current, 'yyyy-MM-dd');
           const mEnd = format(endOfMonth(current), 'yyyy-MM-dd');
-          
+
           const monthSales = salesOrders?.filter(o => o.order_date >= mStart && o.order_date <= mEnd) || [];
           const monthPurchases = purchaseOrders?.filter(o => o.order_date >= mStart && o.order_date <= mEnd) || [];
           const monthNewClients = allClients?.filter(c => {
@@ -449,6 +471,8 @@ export function StatisticsTab() {
           trendData.push({
             month: format(current, 'MMM yyyy'),
             trades: monthSales.length + monthPurchases.length,
+            sales: monthSales.length,
+            purchases: monthPurchases.length,
             revenue: monthRevenue,
             newClients: monthNewClients.length,
             newLeads: monthLeads.length,
@@ -457,6 +481,13 @@ export function StatisticsTab() {
           current = addMonths(current, 1);
         }
       }
+
+      // Busiest hours — orders by IST weekday × hour (sales + purchases, same rows as Trades).
+      const heat: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+      [...(salesOrders || []), ...(purchaseOrders || [])].forEach(o => {
+        const slot = istSlot(o.created_at);
+        if (slot) heat[slot.day][slot.hour] += 1;
+      });
 
       // Department distribution
       const departmentCounts = new Map<string, number>();
@@ -518,34 +549,61 @@ export function StatisticsTab() {
       const transferFees = usdtFees?.filter(f => f.reference_type === 'TRANSFER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
       const salesOrderFees = usdtFees?.filter(f => f.reference_type === 'SALES_ORDER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
       const purchaseOrderFees = usdtFees?.filter(f => f.reference_type === 'PURCHASE_ORDER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
-      
+
       // Combined order fees (sales + purchase) - this is shown as "Order Fees" in the UI
       // Platform fees are the legacy type, Order fees are the new type from process_platform_fee_deduction
       const combinedOrderFees = platformFees + salesOrderFees + purchaseOrderFees;
 
-      // Top clients by volume
-      const clientVolumes = new Map<string, { name: string; volume: number; trades: number }>();
+      // Top clients by volume — grouped by client record (falling back to phone,
+      // then the order's name) so two clients who share a name stay separate.
+      const clientVolumes = new Map<string, { key: string; name: string; volume: number; trades: number }>();
+      // Orders saved before the client record was linked carry only a phone: map
+      // that phone to the client_id seen on the client's linked orders.
+      const idByPhone = new Map<string, string>();
       salesOrders?.forEach(order => {
-        const clientName = order.client_name || 'Unknown';
-        if (!clientVolumes.has(clientName)) {
-          clientVolumes.set(clientName, { name: clientName, volume: 0, trades: 0 });
+        if (order.client_id && order.client_phone && !idByPhone.has(order.client_phone)) idByPhone.set(order.client_phone, order.client_id);
+      });
+      salesOrders?.forEach(order => {
+        const linkedId = order.client_id || (order.client_phone ? idByPhone.get(order.client_phone) : undefined);
+        const key = linkedId ? `id:${linkedId}` : order.client_phone ? `ph:${order.client_phone}` : `nm:${order.client_name || 'Unknown'}`;
+        if (!clientVolumes.has(key)) {
+          clientVolumes.set(key, { key, name: order.client_name || 'Unknown', volume: 0, trades: 0 });
         }
-        const stats = clientVolumes.get(clientName)!;
+        const stats = clientVolumes.get(key)!;
         stats.volume += Number(order.total_amount || 0);
         stats.trades++;
       });
-      const topClients = Array.from(clientVolumes.values())
-        .sort((a, b) => b.volume - a.volume)
-        .slice(0, 10);
+      const rankedClients = Array.from(clientVolumes.values()).sort((a, b) => b.volume - a.volume);
+      const topClients = rankedClients.slice(0, 10);
+      const top10Volume = topClients.reduce((s, c) => s + c.volume, 0);
+
+      // Revenue by client state (display only)
+      const stateMap = new Map<string, { state: string; revenue: number; orders: number }>();
+      let noStateRevenue = 0;
+      salesOrders?.forEach(o => {
+        const st = String(o.client_state || '').trim();
+        const amt = Number(o.total_amount || 0);
+        if (!st) { noStateRevenue += amt; return; }
+        const cur = stateMap.get(st) || { state: st, revenue: 0, orders: 0 };
+        cur.revenue += amt;
+        cur.orders += 1;
+        stateMap.set(st, cur);
+      });
+      const stateRevenue = Array.from(stateMap.values()).sort((a, b) => b.revenue - a.revenue);
 
       return {
         kpi: {
           revenue: currentRevenue,
           revenueChange,
+          prevRevenue,
           clients: newClientsInPeriod.length,
           trades: totalTrades,
           employees: totalEmployees,
-          profit: netProfit
+          profit: netProfit,
+          grossProfit: totalGrossProfit,
+          usdtFeesInr,
+          salesCount: salesOrders?.length || 0,
+          purchaseCount: purchaseOrders?.length || 0,
         },
         clientStats: {
           total: totalClients,
@@ -568,6 +626,7 @@ export function StatisticsTab() {
         leadStats: {
           total: leads?.length || 0,
           newInPeriod: newLeads,
+          prevNewLeads,
           converted: convertedLeads,
           open: openLeads,
           lost: lostLeads,
@@ -582,12 +641,18 @@ export function StatisticsTab() {
           totalValue: totalOnboardingValue
         },
         employeePerformance: employeePerformanceData,
+        deskPerformance,
         trendData,
+        heat,
         departmentData,
         expenseBreakdown,
         incomeBreakdown,
         totalIncome,
         topClients,
+        clientCount: rankedClients.length,
+        top10Volume,
+        stateRevenue,
+        noStateRevenue,
         totalExpenses,
         // hr_employees.total_salary is ANNUAL CTC (verified against razorpay-sourced
         // salary structures) — monthly payroll cost is the annual sum / 12.
@@ -604,17 +669,9 @@ export function StatisticsTab() {
     },
   });
 
-  const formatCurrency = (value: number) => {
-    if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)}Cr`;
-    if (value >= 100000) return `₹${(value / 100000).toFixed(2)}L`;
-    if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
-    return `₹${value.toFixed(2)}`;
-  };
-
-  const formatNumber = (value: number) => {
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-    return value.toString();
-  };
+  // Same compact ₹ format as P&L and Financials (₹11.67 Cr / ₹39.35 L / ₹61.80 K), sign-aware.
+  const formatCurrency = (value: number) => formatCompactINR(value);
+  const formatSigned = formatCurrency;
 
   const formatUSDT = (value: number) => {
     return `${value.toFixed(4)} USDT`;
@@ -626,775 +683,738 @@ export function StatisticsTab() {
   // State for expense category drill-down
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | null>(null);
   const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string | null>(null);
+  const [openHeads, setOpenHeads] = useState<Record<string, boolean>>({});
+  const [exporting, setExporting] = useState(false);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading statistics...</p>
-        </div>
-      </div>
-    );
-  }
+  const groupByHead = (rows: { category: string; amount: number }[]) => {
+    const map = new Map<string, { head: string; amount: number; items: { category: string; label: string; amount: number }[] }>();
+    rows.forEach((r) => {
+      const { head, sub } = splitCategory(r.category);
+      const cur = map.get(head) || { head, amount: 0, items: [] };
+      cur.amount += r.amount;
+      cur.items.push({ category: r.category, label: sub || r.category, amount: r.amount });
+      map.set(head, cur);
+    });
+    return Array.from(map.values())
+      .map((g) => ({ ...g, items: g.items.sort((a, b) => b.amount - a.amount) }))
+      .sort((a, b) => b.amount - a.amount);
+  };
+  const expenseHeads = useMemo(() => groupByHead(statsData?.expenseBreakdown || []), [statsData?.expenseBreakdown]);
+  const incomeHeads = useMemo(() => groupByHead(statsData?.incomeBreakdown || []), [statsData?.incomeBreakdown]);
+  const feePager = usePaged((statsData?.usdtFees?.transactions || []) as any[], 25, showFeeHistoryDialog);
 
-  const { 
-    kpi, clientStats, kycStats, leadStats, onboardingStats, 
-    employeePerformance, trendData, departmentData, expenseBreakdown, incomeBreakdown,
-    topClients, totalExpenses, totalIncome, totalSalary, usdtFees
+  const { kpi, clientStats, kycStats, leadStats, onboardingStats,
+    employeePerformance, deskPerformance, trendData, heat, departmentData,
+    topClients, clientCount, top10Volume, stateRevenue, noStateRevenue, totalExpenses, totalIncome, totalSalary, usdtFees
   } = statsData || {
-    kpi: { revenue: 0, revenueChange: 0, clients: 0, trades: 0, employees: 0, profit: 0 },
+    kpi: { revenue: 0, revenueChange: 0, prevRevenue: 0, clients: 0, trades: 0, employees: 0, profit: 0, grossProfit: 0, usdtFeesInr: 0, salesCount: 0, purchaseCount: 0 },
     clientStats: { total: 0, newInPeriod: 0, newInPrevPeriod: 0, buyers: 0, sellers: 0, newBuyers: 0, newSellers: 0 },
     kycStats: { verified: 0, pending: 0, rejected: 0, newVerifiedInPeriod: 0, verificationRate: 0, verifiedAllTime: 0, totalAllTime: 0 },
-    leadStats: { total: 0, newInPeriod: 0, converted: 0, open: 0, lost: 0, conversionRate: 0, leadsChange: 0, leadSourceData: [] },
+    leadStats: { total: 0, newInPeriod: 0, prevNewLeads: 0, converted: 0, open: 0, lost: 0, conversionRate: 0, leadsChange: 0, leadSourceData: [] },
     onboardingStats: { pending: 0, approved: 0, rejected: 0, totalValue: 0 },
     employeePerformance: [],
+    deskPerformance: [],
     trendData: [],
+    heat: Array.from({ length: 7 }, () => Array(24).fill(0)),
     departmentData: [],
     expenseBreakdown: [],
     incomeBreakdown: [],
     topClients: [],
+    clientCount: 0,
+    top10Volume: 0,
+    stateRevenue: [],
+    noStateRevenue: 0,
     totalExpenses: 0,
     totalIncome: 0,
     totalSalary: 0,
     usdtFees: { total: 0, platform: 0, transfer: 0, salesOrder: 0, purchaseOrder: 0, transactions: [] }
   };
 
-  const clientGrowthChange = clientStats.newInPrevPeriod > 0 
-    ? ((clientStats.newInPeriod - clientStats.newInPrevPeriod) / clientStats.newInPrevPeriod) * 100 
+  const clientGrowthChange = clientStats.newInPrevPeriod > 0
+    ? ((clientStats.newInPeriod - clientStats.newInPrevPeriod) / clientStats.newInPrevPeriod) * 100
     : 0;
+
+  const { startDate: rangeStart, endDate: rangeEnd } = getDateRange();
+  const periodLabel = `${format(rangeStart, 'dd MMM')} – ${format(rangeEnd, 'dd MMM yyyy')}`;
+  const updating = !!isPlaceholderData && isFetching;
+  const heatMax = Math.max(1, ...heat.flat());
+  const busiest = useMemo(() => {
+    let best = { day: 0, hour: 0, n: 0 };
+    heat.forEach((row, d) => row.forEach((n, h) => { if (n > best.n) best = { day: d, hour: h, n }; }));
+    return best;
+  }, [heat]);
+  const deskMax = (deskPerformance as any[]).reduce<number>((m, d) => Math.max(m, d.volume), 0);
+  const deskTotal = (deskPerformance as any[]).reduce<number>((s, d) => s + d.volume, 0);
+  const stateMax = (stateRevenue as any[]).reduce<number>((m, s) => Math.max(m, s.revenue), 0);
+  const expenseHeadMax = expenseHeads.reduce((m, h) => Math.max(m, h.amount), 0);
+  const incomeHeadMax = incomeHeads.reduce((m, h) => Math.max(m, h.amount), 0);
+  const kycTotal = kycStats.verified + kycStats.pending + kycStats.rejected;
+  const onboardingTotal = onboardingStats.approved + onboardingStats.pending + onboardingStats.rejected;
+
+  const handleExport = async () => {
+    if (!statsData) return;
+    try {
+      setExporting(true);
+      await downloadWorkbook(`statistics_${format(rangeStart, 'yyyy-MM-dd')}_to_${format(rangeEnd, 'yyyy-MM-dd')}`, [
+        {
+          name: 'Summary',
+          rows: [
+            { Figure: 'Period', Value: periodLabel },
+            { Figure: 'Revenue (₹)', Value: +kpi.revenue.toFixed(2) },
+            { Figure: 'Revenue change vs previous period (%)', Value: kpi.prevRevenue > 0 ? +kpi.revenueChange.toFixed(2) : null },
+            { Figure: 'Net profit (₹)', Value: +kpi.profit.toFixed(2) },
+            { Figure: 'Operating expenses (₹)', Value: +totalExpenses.toFixed(2) },
+            { Figure: 'Other income (₹)', Value: +totalIncome.toFixed(2) },
+            { Figure: 'Trades', Value: kpi.trades },
+            { Figure: 'New clients', Value: clientStats.newInPeriod },
+            { Figure: 'KYC verified (new clients)', Value: kycStats.verified },
+            { Figure: 'New leads', Value: leadStats.newInPeriod },
+            { Figure: 'Lead conversion (%)', Value: +leadStats.conversionRate.toFixed(1) },
+            { Figure: 'Monthly salary (active CTC / 12) (₹)', Value: +totalSalary.toFixed(2) },
+            { Figure: 'USDT fees', Value: +usdtFees.total.toFixed(4) },
+          ],
+        },
+        { name: 'Trend', rows: trendData.map((t: any) => ({ Period: t.month, 'Revenue (₹)': +Number(t.revenue).toFixed(2), Trades: t.trades, 'Sell orders': t.sales, 'Buy orders': t.purchases, 'New clients': t.newClients, 'New leads': t.newLeads, Converted: t.convertedLeads })) },
+        { name: 'Top clients', rows: topClients.map((c: any, i: number) => ({ Rank: i + 1, Client: c.name, Trades: c.trades, 'Volume (₹)': +c.volume.toFixed(2) })) },
+        { name: 'Desk performance', rows: deskPerformance.map((d: any) => ({ Staff: d.name, 'Sell orders': d.sell, 'Buy orders': d.buy, 'Sell volume (₹)': +d.sellValue.toFixed(2), 'Buy volume (₹)': +d.buyValue.toFixed(2) })) },
+        { name: 'Expenses', rows: (statsData.expenseBreakdown || []).map((e: any) => ({ Head: splitCategory(e.category).head, Category: e.category, 'Amount (₹)': +e.amount.toFixed(2), 'Share (%)': e.percentage })) },
+        { name: 'Income', rows: (statsData.incomeBreakdown || []).map((e: any) => ({ Head: splitCategory(e.category).head, Category: e.category, 'Amount (₹)': +e.amount.toFixed(2), 'Share (%)': e.percentage })) },
+        { name: 'States', rows: stateRevenue.map((s: any) => ({ State: s.state, Orders: s.orders, 'Revenue (₹)': +s.revenue.toFixed(2) })) },
+      ]);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const actions = (
+    <div className="flex flex-wrap items-center gap-2 print:hidden">
+      <UpdatingPill show={updating} />
+      <DateRangePicker
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        preset={datePreset}
+        onPresetChange={setDatePreset}
+        className="min-w-[200px]"
+      />
+      <Button variant="outline" size="sm" className="h-9" onClick={handleExport} disabled={exporting || !statsData || updating}>
+        <Download className="h-4 w-4 mr-2" />
+        {exporting ? 'Preparing…' : 'Export'}
+      </Button>
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {renderHeader ? renderHeader(actions) : null}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-lg border border-border bg-card" />)}
+        </div>
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+          Loading statistics...
+        </div>
+      </div>
+    );
+  }
+
+  const headList = (
+    heads: ReturnType<typeof groupByHead>,
+    max: number,
+    total: number,
+    tone: "negative" | "positive",
+    onPick: (category: string) => void,
+    kind: string,
+  ) => (
+    <div className="space-y-1">
+      {heads.map((h) => {
+        const open = !!openHeads[`${kind}:${h.head}`];
+        const single = h.items.length === 1 && h.items[0].category === h.head;
+        return (
+          <div key={h.head} className="rounded-md">
+            <button
+              type="button"
+              onClick={() => (single ? onPick(h.items[0].category) : setOpenHeads((s) => ({ ...s, [`${kind}:${h.head}`]: !open })))}
+              className="w-full rounded-md px-2.5 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-expanded={single ? undefined : open}
+            >
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="flex min-w-0 items-center gap-1.5 text-foreground">
+                  {single ? <span className="w-3.5" /> : open ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                  <span className={cn("truncate", single && "text-primary underline-offset-2 hover:underline")}>{h.head}</span>
+                </span>
+                <span className="shrink-0 font-mono text-[13px] font-medium tabular-nums text-foreground">{formatCurrency(h.amount)}</span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2 pl-5">
+                <ShareBar value={h.amount} max={max} tone={tone} />
+                <span className="w-10 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums">
+                  {total > 0 ? `${Math.round((h.amount / total) * 100)}%` : '—'}
+                </span>
+              </div>
+            </button>
+            {open && !single && (
+              <div className="mb-1 ml-7 space-y-0.5 border-l border-border pl-3">
+                {h.items.map((it) => (
+                  <button
+                    key={it.category}
+                    type="button"
+                    onClick={() => onPick(it.category)}
+                    className="flex w-full items-baseline justify-between gap-3 rounded px-2 py-1.5 text-left text-sm hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="min-w-0 truncate text-primary underline-offset-2 hover:underline">{it.label}</span>
+                    <span className="shrink-0 font-mono text-[13px] tabular-nums text-muted-foreground">{formatCurrency(it.amount)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      {/* Toolbar */}
-      <div className="flex items-center justify-end gap-3 flex-wrap">
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          preset={datePreset}
-          onPresetChange={setDatePreset}
-          className="min-w-[200px]"
-        />
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
-      </div>
+      {renderHeader ? renderHeader(actions) : <div className="flex justify-end">{actions}</div>}
 
       {/* Primary KPI Cards - Clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <ClickableCard to="/sales">
-          <StatTile
-            tone={kpi.revenueChange >= 0 ? "success" : "destructive"}
-            label="Revenue"
-            value={formatCurrency(kpi.revenue)}
-            icon={DollarSign}
-            sub={
-              <>
-                {kpi.revenueChange >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
-                {kpi.revenueChange >= 0 ? "+" : ""}{kpi.revenueChange.toFixed(1)}%
-              </>
-            }
-          />
-        </ClickableCard>
-
-        <ClickableCard to="/clients">
-          <StatTile
-            tone={clientGrowthChange >= 0 ? "success" : "destructive"}
-            label="New Clients"
-            value={clientStats.newInPeriod}
-            icon={UserPlus}
-            sub={
-              <>
-                {clientGrowthChange >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
-                {clientGrowthChange >= 0 ? "+" : ""}{clientGrowthChange.toFixed(0)}%
-              </>
-            }
-          />
-        </ClickableCard>
-
-        <ClickableCard to="/clients">
-          <StatTile
-            tone="muted"
-            label="KYC Verified"
-            value={kycStats.newVerifiedInPeriod}
-            icon={UserCheck}
-            sub={`${kycStats.verificationRate}% total rate`}
-          />
-        </ClickableCard>
-
-        <ClickableCard to="/leads">
-          <StatTile
-            tone={leadStats.leadsChange >= 0 ? "success" : "destructive"}
-            label="New Leads"
-            value={leadStats.newInPeriod}
-            icon={Target}
-            sub={
-              <>
-                {leadStats.leadsChange >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
-                {leadStats.leadsChange >= 0 ? "+" : ""}{leadStats.leadsChange.toFixed(0)}%
-              </>
-            }
-          />
-        </ClickableCard>
-
-        <ClickableCard to="/leads">
-          <StatTile
-            tone="muted"
-            label="Conversion Rate"
-            value={`${leadStats.conversionRate.toFixed(1)}%`}
-            icon={CheckCircle}
-            sub={`${leadStats.converted} converted`}
-          />
-        </ClickableCard>
-
-        <ClickableCard to="/profit-loss">
-          <StatTile
-            tone={kpi.profit >= 0 ? "success" : "destructive"}
-            label="Net Profit"
-            value={formatCurrency(Math.abs(kpi.profit))}
-            icon={TrendingUp}
-            sub={kpi.profit >= 0 ? "Profit" : "Loss"}
-          />
-        </ClickableCard>
-
+      <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6 transition-opacity", updating && "opacity-60")}>
+        <KpiTile
+          label="Net Profit"
+          value={formatSigned(kpi.profit)}
+          exact={formatExactINR(kpi.profit)}
+          tone={kpi.profit >= 0 ? "positive" : "negative"}
+          sub={kpi.profit >= 0 ? "Profit" : "Loss"}
+          info="Gross profit from the daily snapshots − operating expenses − USDT fees (valued at the period's average purchase rate)."
+          icon={TrendingUp}
+          to="/profit-loss"
+          cta="Open P&L"
+          emphasis
+        />
+        <KpiTile
+          label="Revenue"
+          value={formatCurrency(kpi.revenue)}
+          exact={formatExactINR(kpi.revenue)}
+          delta={<DeltaChip value={kpi.prevRevenue > 0 ? kpi.revenueChange : null} />}
+          sub="vs previous period"
+          icon={DollarSign}
+          to="/sales"
+          cta="View sales"
+        />
+        <KpiTile
+          label="New Clients"
+          value={fmtCount(clientStats.newInPeriod)}
+          delta={<DeltaChip value={clientStats.newInPrevPeriod > 0 ? clientGrowthChange : null} />}
+          sub="vs previous period"
+          icon={UserPlus}
+          to="/clients"
+          cta="View clients"
+        />
+        <KpiTile
+          label="KYC Verified"
+          value={fmtCount(kycStats.newVerifiedInPeriod)}
+          sub={`${kycStats.verificationRate}% of new clients`}
+          icon={UserCheck}
+          to="/clients"
+          cta="View clients"
+        />
+        <KpiTile
+          label="New Leads"
+          value={fmtCount(leadStats.newInPeriod)}
+          delta={<DeltaChip value={leadStats.prevNewLeads > 0 ? leadStats.leadsChange : null} />}
+          sub="vs previous period"
+          icon={Target}
+          to="/leads"
+          cta="View leads"
+        />
+        <KpiTile
+          label="Lead conversion"
+          value={`${leadStats.conversionRate.toFixed(1)}%`}
+          sub={`${leadStats.converted} converted`}
+          icon={CheckCircle}
+          to="/leads"
+          cta="View leads"
+        />
       </div>
 
       {/* Tabs for Different Views */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex w-full flex-wrap gap-1 mb-6">
-          <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
-          <TabsTrigger value="clients" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Clients & KYC</TabsTrigger>
-          <TabsTrigger value="leads" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Leads</TabsTrigger>
-          <TabsTrigger value="performance" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Performance</TabsTrigger>
-          <TabsTrigger value="financial" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Financial</TabsTrigger>
+        <TabsList className="ds-subnav mb-4 flex h-auto w-full justify-start rounded-none bg-transparent p-0">
+          <TabsTrigger value="overview" className={TAB_TRIGGER}><BarChart3 className="h-3.5 w-3.5" />Overview</TabsTrigger>
+          <TabsTrigger value="clients" className={TAB_TRIGGER}><Users className="h-3.5 w-3.5" />Clients & KYC</TabsTrigger>
+          <TabsTrigger value="leads" className={TAB_TRIGGER}><Target className="h-3.5 w-3.5" />Leads</TabsTrigger>
+          <TabsTrigger value="performance" className={TAB_TRIGGER}><Award className="h-3.5 w-3.5" />Performance</TabsTrigger>
+          <TabsTrigger value="financial" className={TAB_TRIGGER}><FileBarChart className="h-3.5 w-3.5" />Financial</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Growth Trends Chart */}
-            <Card className="border border-border shadow-none">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Growth Trends
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
-                    <Legend />
-                    <Line type="monotone" dataKey="newClients" stroke="hsl(var(--primary))" strokeWidth={2} name="New Clients" />
-                    <Line type="monotone" dataKey="newLeads" stroke="hsl(45, 93%, 47%)" strokeWidth={2} name="New Leads" />
-                    <Line type="monotone" dataKey="convertedLeads" stroke="hsl(142, 76%, 36%)" strokeWidth={2} name="Converted" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Revenue Chart */}
-            <Card className="border border-border shadow-none">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-success" />
-                  Revenue & Trades
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
-                    <Area type="monotone" dataKey="revenue" stroke="hsl(142, 76%, 36%)" fill="hsl(142, 76%, 36%)" fillOpacity={0.3} name="Revenue" />
+        <TabsContent value="overview" className="mt-0 space-y-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Panel icon={DollarSign} title="Revenue" description={`Sales value per ${trendData.length && String(trendData[0].month).length > 6 ? 'month' : 'day'} · ${periodLabel}`}>
+              <ChartBox dim={updating}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="month" {...axisProps} minTickGap={20} />
+                    <YAxis {...axisProps} width={60} tickFormatter={axisInr} />
+                    <Tooltip
+                      cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
+                      content={({ active, payload, label }) => active && payload?.length ? (
+                        <ChartTooltipBox title={label} rows={[{ key: 'r', label: 'Revenue', value: formatExactINR(Number(payload[0].value || 0)), color: palette.s1 }]} />
+                      ) : null}
+                    />
+                    <Area type="monotone" dataKey="revenue" stroke={palette.s1} fill={palette.s1} fillOpacity={0.1} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                   </AreaChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              </ChartBox>
+            </Panel>
+
+            <Panel
+              icon={ShoppingCart}
+              title="Trades"
+              description={`${fmtCount(kpi.trades)} orders · ${fmtCount(kpi.salesCount)} sells, ${fmtCount(kpi.purchaseCount)} buys`}
+              actions={<div className="flex gap-3"><LegendKey color={palette.s1} label="Sells" /><LegendKey color={palette.s2} label="Buys" /></div>}
+            >
+              <ChartBox dim={updating}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trendData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }} barCategoryGap="22%">
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="month" {...axisProps} minTickGap={20} />
+                    <YAxis {...axisProps} width={40} allowDecimals={false} />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
+                      content={({ active, payload, label }) => active && payload?.length ? (
+                        <ChartTooltipBox
+                          title={label}
+                          rows={[
+                            { key: 's', label: 'Sells', value: fmtCount(Number(payload.find((p: any) => p.dataKey === 'sales')?.value || 0)), color: palette.s1 },
+                            { key: 'b', label: 'Buys', value: fmtCount(Number(payload.find((p: any) => p.dataKey === 'purchases')?.value || 0)), color: palette.s2 },
+                          ]}
+                        />
+                      ) : null}
+                    />
+                    <Bar dataKey="sales" stackId="t" fill={palette.s1} maxBarSize={24} />
+                    <Bar dataKey="purchases" stackId="t" fill={palette.s2} maxBarSize={24} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartBox>
+            </Panel>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+            <Panel
+              className="xl:col-span-8"
+              icon={Clock}
+              title="Busiest hours"
+              description="Orders entered by weekday and hour (IST), sells and buys together"
+              footer={busiest.n > 0 ? <>Peak: <span className="font-medium text-foreground">{WEEKDAYS[busiest.day]} {String(busiest.hour).padStart(2, '0')}:00–{String((busiest.hour + 1) % 24).padStart(2, '0')}:00</span> with {fmtCount(busiest.n)} orders.</> : 'No orders in this period.'}
+            >
+              <div className={cn("overflow-hidden transition-opacity", updating && "opacity-60")}>
+                <div className="grid grid-cols-[2.25rem_repeat(24,minmax(0,1fr))] gap-[2px]">
+                  <span />
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <span key={h} className="text-center text-[9px] text-muted-foreground sm:text-[10px]">{h % 3 === 0 ? h : ''}</span>
+                  ))}
+                  {heat.map((row, d) => (
+                    <Fragment key={d}>
+                      <span className="pr-1 text-right text-[10px] leading-5 text-muted-foreground">{WEEKDAYS[d]}</span>
+                      {row.map((n, h) => (
+                        <span
+                          key={h}
+                          className="h-5 rounded-[3px] bg-muted"
+                          style={n > 0 ? { background: palette.s1, opacity: 0.12 + 0.88 * (n / heatMax) } : undefined}
+                          title={`${WEEKDAYS[d]} ${String(h).padStart(2, '0')}:00 — ${n} orders`}
+                          aria-label={`${WEEKDAYS[d]} ${h}:00, ${n} orders`}
+                        />
+                      ))}
+                    </Fragment>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
+                  Fewer
+                  {[0.12, 0.34, 0.56, 0.78, 1].map((o) => <span key={o} className="h-2.5 w-4 rounded-[2px]" style={{ background: palette.s1, opacity: o }} />)}
+                  More
+                </div>
+              </div>
+            </Panel>
+
+            <Panel className="xl:col-span-4" icon={UserPlus} title="New clients" description="Clients added per day / month">
+              <ChartBox height="h-48" dim={updating}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trendData} margin={{ top: 6, right: 4, left: 0, bottom: 0 }} barCategoryGap="22%">
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="month" {...axisProps} minTickGap={24} />
+                    <YAxis {...axisProps} width={32} allowDecimals={false} />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
+                      content={({ active, payload, label }) => active && payload?.length ? (
+                        <ChartTooltipBox title={label} rows={[{ key: 'c', label: 'New clients', value: fmtCount(Number(payload[0].value || 0)), color: palette.s1 }]} />
+                      ) : null}
+                    />
+                    <Bar dataKey="newClients" fill={palette.s1} maxBarSize={24} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartBox>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {fmtCount(clientStats.newInPeriod)} in this period · {fmtCount(clientStats.newInPrevPeriod)} in the previous one
+              </p>
+            </Panel>
           </div>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4 text-center">
-                <Users className="h-6 w-6 mx-auto text-primary mb-2" />
-                <p className="text-2xl font-bold">{clientStats.newInPeriod}</p>
-                <p className="text-xs text-muted-foreground">New Clients</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4 text-center">
-                <ShoppingCart className="h-6 w-6 mx-auto text-info mb-2" />
-                <p className="text-2xl font-bold">{kpi.trades}</p>
-                <p className="text-xs text-muted-foreground">Trades</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4 text-center">
-                <Target className="h-6 w-6 mx-auto text-warning mb-2" />
-                <p className="text-2xl font-bold">{leadStats.open}</p>
-                <p className="text-xs text-muted-foreground">Open Leads</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4 text-center">
-                <Clock className="h-6 w-6 mx-auto text-warning mb-2" />
-                <p className="text-2xl font-bold">{onboardingStats.pending}</p>
-                <p className="text-xs text-muted-foreground">Pending Approvals</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4 text-center">
-                <Briefcase className="h-6 w-6 mx-auto text-primary mb-2" />
-                <p className="text-2xl font-bold">{kpi.employees}</p>
-                <p className="text-xs text-muted-foreground">Employees</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4 text-center">
-                <Building className="h-6 w-6 mx-auto text-info mb-2" />
-                <p className="text-2xl font-bold">{departmentData.length}</p>
-                <p className="text-xs text-muted-foreground">Departments</p>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {[
+              { icon: ShoppingCart, value: fmtCount(kpi.trades), label: 'Trades' },
+              { icon: DollarSign, value: kpi.salesCount > 0 ? formatCurrency(kpi.revenue / kpi.salesCount) : '—', label: 'Avg sale ticket' },
+              { icon: Target, value: fmtCount(leadStats.open), label: 'Open Leads' },
+              { icon: Clock, value: fmtCount(onboardingStats.pending), label: 'Pending Approvals' },
+              { icon: Briefcase, value: fmtCount(kpi.employees), label: 'Employees' },
+              { icon: Building, value: fmtCount(departmentData.length), label: 'Departments' },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 shadow-[var(--shadow-xs)]">
+                <span className="rounded-md bg-muted p-2 text-muted-foreground"><s.icon className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <p className="font-display text-lg font-bold leading-tight text-foreground">{s.value}</p>
+                  <p className="truncate text-xs text-muted-foreground">{s.label}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </TabsContent>
 
         {/* Clients & KYC Tab */}
-        <TabsContent value="clients" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatTile size="md" tone="info" label="New Clients" value={clientStats.newInPeriod} sub="This period" icon={UserPlus} />
-            <StatTile size="md" tone="success" label="KYC Verified" value={kycStats.verified} sub={`In selected period (${kycStats.verifiedAllTime} all-time)`} icon={CheckCircle} />
-            <StatTile size="md" tone="warning" label="KYC Pending" value={kycStats.pending} sub="In selected period" icon={AlertCircle} />
-            <StatTile size="md" tone="destructive" label="KYC Rejected" value={kycStats.rejected} sub="In selected period" icon={XCircle} />
+        <TabsContent value="clients" className="mt-0 space-y-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <KpiTile label="New Clients" value={fmtCount(clientStats.newInPeriod)} sub="This period" icon={UserPlus} />
+            <KpiTile label="KYC Verified" value={fmtCount(kycStats.verified)} tone="positive" sub={`In selected period (${fmtCount(kycStats.verifiedAllTime)} all-time)`} icon={CheckCircle} />
+            <KpiTile label="KYC Pending" value={fmtCount(kycStats.pending)} tone="warning" sub="In selected period" icon={AlertCircle} />
+            <KpiTile label="KYC Rejected" value={fmtCount(kycStats.rejected)} tone="negative" sub="In selected period" icon={XCircle} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* KYC Status Pie Chart */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <UserCheck className="h-5 w-5 text-primary" />
-                  KYC Status Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={280}>
-                  <RechartsPieChart>
-                    <Pie
-                      data={[
-                        { name: "Verified", value: kycStats.verified },
-                        { name: "Pending", value: kycStats.pending },
-                        { name: "Rejected", value: kycStats.rejected }
-                      ].filter(d => d.value > 0)}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    >
-                      <Cell fill="hsl(142, 76%, 36%)" />
-                      <Cell fill="hsl(45, 93%, 47%)" />
-                      <Cell fill="hsl(0, 84%, 60%)" />
-                    </Pie>
-                    <Tooltip />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Panel icon={UserCheck} title="KYC status of new clients" description="Clients added in the selected period">
+              {kycTotal === 0 ? (
+                <EmptyState icon={UserCheck} title="No new clients in this period" className="py-8" />
+              ) : (
+                <>
+                  <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full bg-muted" role="img" aria-label="KYC status split">
+                    {[
+                      { k: 'v', n: kycStats.verified, c: 'bg-success' },
+                      { k: 'p', n: kycStats.pending, c: 'bg-warning' },
+                      { k: 'r', n: kycStats.rejected, c: 'bg-destructive' },
+                    ].filter((x) => x.n > 0).map((x) => <div key={x.k} className={x.c} style={{ width: `${(x.n / kycTotal) * 100}%` }} />)}
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Verified', n: kycStats.verified, tone: 'success' as const, icon: CheckCircle },
+                      { label: 'Pending', n: kycStats.pending, tone: 'warning' as const, icon: AlertCircle },
+                      { label: 'Rejected', n: kycStats.rejected, tone: 'danger' as const, icon: XCircle },
+                    ].map((x) => (
+                      <div key={x.label} className="rounded-md border border-border/70 p-3">
+                        <StatusChip tone={x.tone}><x.icon className="h-3 w-3" />{x.label}</StatusChip>
+                        <p className="mt-2 font-display text-xl font-bold text-foreground">{fmtCount(x.n)}</p>
+                        <p className="text-xs text-muted-foreground">{Math.round((x.n / kycTotal) * 100)}% of new clients</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 rounded-md bg-muted/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Verification Rate</span>
+                      <span className="font-display text-lg font-bold text-success">{kycStats.verificationRate}%</span>
+                    </div>
+                    <div className="mt-2 h-2 w-full rounded-full bg-success/15">
+                      <div className="h-2 rounded-full bg-success" style={{ width: `${kycStats.verificationRate}%` }} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </Panel>
 
-            {/* Client Type Breakdown */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Client Type Breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-muted/50 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">New Buyers</p>
-                    <p className="text-2xl font-bold text-foreground">{clientStats.buyers}</p>
-                    <p className="text-xs text-muted-foreground mt-1">In selected period</p>
+            <Panel icon={Users} title="Client Type Breakdown" description="Buyers and sellers added in the selected period">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'New Buyers', n: clientStats.buyers },
+                  { label: 'New Sellers', n: clientStats.sellers },
+                ].map((x) => (
+                  <div key={x.label} className="rounded-md border border-border/70 p-3">
+                    <p className="text-xs text-muted-foreground">{x.label}</p>
+                    <p className="mt-1 font-display text-2xl font-bold text-foreground">{fmtCount(x.n)}</p>
+                    <ShareBar className="mt-2" value={x.n} max={Math.max(clientStats.buyers, clientStats.sellers, 1)} />
                   </div>
-                  <div className="p-4 bg-muted/50 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">New Sellers</p>
-                    <p className="text-2xl font-bold text-foreground">{clientStats.sellers}</p>
-                    <p className="text-xs text-muted-foreground mt-1">In selected period</p>
+                ))}
+              </div>
+              <div className="mt-4 space-y-2 border-t border-border/70 pt-3 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">All clients on record</span><span className="font-mono text-[13px] tabular-nums">{fmtCount(clientStats.total)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">KYC verified, all time</span><span className="font-mono text-[13px] tabular-nums">{fmtCount(kycStats.verifiedAllTime)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Added in previous period</span><span className="font-mono text-[13px] tabular-nums">{fmtCount(clientStats.newInPrevPeriod)}</span></div>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Panel icon={Clock} title="Onboarding approvals" description="Approval requests raised in the selected period">
+              {onboardingTotal === 0 ? (
+                <EmptyState icon={Clock} title="No approval requests in this period" className="py-8" />
+              ) : (
+                <>
+                  <div className="space-y-2.5">
+                    {[
+                      { label: 'Approved', n: onboardingStats.approved, tone: 'positive' as const },
+                      { label: 'Pending', n: onboardingStats.pending, tone: 'warning' as const },
+                      { label: 'Rejected', n: onboardingStats.rejected, tone: 'negative' as const },
+                    ].map((x) => (
+                      <div key={x.label} className="grid grid-cols-[5.5rem_1fr_3.5rem] items-center gap-3 text-sm">
+                        <span className="text-muted-foreground">{x.label}</span>
+                        <ShareBar value={x.n} max={onboardingTotal} tone={x.tone} />
+                        <span className="text-right font-mono text-[13px] tabular-nums">{fmtCount(x.n)}</span>
+                      </div>
+                    ))}
                   </div>
+                  <p className="mt-4 border-t border-border/70 pt-3 text-sm text-muted-foreground">
+                    Approved order value <span className="font-mono font-semibold text-foreground">{formatCurrency(onboardingStats.totalValue)}</span>
+                  </p>
+                </>
+              )}
+            </Panel>
+
+            <Panel icon={MapPin} title="Revenue by client state" description="Sales value by the state recorded on the order">
+              {stateRevenue.length === 0 ? (
+                <EmptyState icon={MapPin} title="No client states recorded in this period" className="py-8" />
+              ) : (
+                <div className="space-y-2">
+                  {stateRevenue.slice(0, 8).map((s) => (
+                    <div key={s.state} className="grid grid-cols-[minmax(0,9rem)_1fr_5.5rem] items-center gap-3 text-sm">
+                      <span className="truncate text-foreground">{s.state}</span>
+                      <ShareBar value={s.revenue} max={stateMax} />
+                      <span className="text-right font-mono text-[13px] tabular-nums">{formatCurrency(s.revenue)}</span>
+                    </div>
+                  ))}
+                  <p className="pt-2 text-xs text-muted-foreground">
+                    {stateRevenue.length > 8 ? `${stateRevenue.length - 8} more states · ` : ''}
+                    {kpi.revenue > 0 ? `${Math.round((noStateRevenue / kpi.revenue) * 100)}% of revenue has no state recorded` : ''}
+                  </p>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Verification Rate</span>
-                    <span className="text-lg font-bold text-success">{kycStats.verificationRate}%</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-success h-2 rounded-full" 
-                      style={{ width: `${kycStats.verificationRate}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              )}
+            </Panel>
           </div>
         </TabsContent>
 
         {/* Leads Tab */}
-        <TabsContent value="leads" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">New Leads</p>
-                    <p className="text-2xl font-bold">{leadStats.newInPeriod}</p>
-                  </div>
-                  <Target className="h-8 w-8 text-warning" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Open Leads</p>
-                    <p className="text-2xl font-bold">{leadStats.open}</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-info" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Converted</p>
-                    <p className="text-2xl font-bold text-success">{leadStats.converted}</p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-success" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Lost</p>
-                    <p className="text-2xl font-bold text-destructive">{leadStats.lost}</p>
-                  </div>
-                  <XCircle className="h-8 w-8 text-destructive" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Conversion Rate</p>
-                    <p className="text-2xl font-bold text-foreground">{leadStats.conversionRate.toFixed(1)}%</p>
-                  </div>
-                  <div className="rounded-lg p-2 bg-info/10">
-                    <TrendingUp className="h-5 w-5 text-info" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="leads" className="mt-0 space-y-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <KpiTile label="New Leads" value={fmtCount(leadStats.newInPeriod)} icon={Target} />
+            <KpiTile label="Open Leads" value={fmtCount(leadStats.open)} icon={Clock} />
+            <KpiTile label="Converted" value={fmtCount(leadStats.converted)} tone="positive" icon={CheckCircle} />
+            <KpiTile label="Lost" value={fmtCount(leadStats.lost)} tone="negative" icon={XCircle} />
+            <KpiTile label="Conversion Rate" value={`${leadStats.conversionRate.toFixed(1)}%`} icon={TrendingUp} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Lead Sources */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Phone className="h-5 w-5 text-primary" />
-                  Lead Sources Performance
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {leadStats.leadSourceData.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Source</TableHead>
-                        <TableHead className="text-center">Leads</TableHead>
-                        <TableHead className="text-center">Converted</TableHead>
-                        <TableHead className="text-right">Conv. Rate</TableHead>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Panel icon={Phone} title="Lead Sources Performance" description={`${fmtCount(leadStats.total)} leads on record in total`}>
+              {leadStats.leadSourceData.length > 0 ? (
+                <Table density="compact">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Leads</TableHead>
+                      <TableHead className="text-right">Converted</TableHead>
+                      <TableHead className="w-[30%]">Conv. Rate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leadStats.leadSourceData.slice(0, 6).map((source) => (
+                      <TableRow key={source.name}>
+                        <TableCell className="font-medium">{source.name}</TableCell>
+                        <TableCell className="text-right font-mono text-[13px] tabular-nums">{source.leads}</TableCell>
+                        <TableCell className="text-right font-mono text-[13px] tabular-nums text-success">{source.converted}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <ShareBar value={source.rate} max={100} tone="positive" />
+                            <span className="w-9 shrink-0 text-right font-mono text-[12px] tabular-nums">{source.rate}%</span>
+                          </div>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {leadStats.leadSourceData.slice(0, 6).map((source) => (
-                        <TableRow key={source.name}>
-                          <TableCell className="font-medium">{source.name}</TableCell>
-                          <TableCell className="text-center">{source.leads}</TableCell>
-                          <TableCell className="text-center text-success">{source.converted}</TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant={source.rate >= 50 ? "default" : source.rate >= 25 ? "secondary" : "outline"}>
-                              {source.rate}%
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No lead data available
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <EmptyState icon={Phone} title="No lead data available" className="py-8" />
+              )}
+            </Panel>
 
-            {/* Lead Trend Chart */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Lead Conversion Trend
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
-                    <Legend />
-                    <Bar dataKey="newLeads" fill="hsl(45, 93%, 47%)" name="New Leads" />
-                    <Bar dataKey="convertedLeads" fill="hsl(142, 76%, 36%)" name="Converted" />
+            <Panel
+              icon={TrendingUp}
+              title="Lead Conversion Trend"
+              actions={<div className="flex gap-3"><LegendKey color={palette.s2} label="New leads" /><LegendKey color={palette.positive} label="Converted" /></div>}
+            >
+              <ChartBox dim={updating}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trendData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }} barGap={2} barCategoryGap="22%">
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="month" {...axisProps} minTickGap={20} />
+                    <YAxis {...axisProps} width={32} allowDecimals={false} />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
+                      content={({ active, payload, label }) => active && payload?.length ? (
+                        <ChartTooltipBox
+                          title={label}
+                          rows={[
+                            { key: 'n', label: 'New leads', value: fmtCount(Number(payload.find((p: any) => p.dataKey === 'newLeads')?.value || 0)), color: palette.s2 },
+                            { key: 'c', label: 'Converted', value: fmtCount(Number(payload.find((p: any) => p.dataKey === 'convertedLeads')?.value || 0)), color: palette.positive },
+                          ]}
+                        />
+                      ) : null}
+                    />
+                    <Bar dataKey="newLeads" fill={palette.s2} maxBarSize={18} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="convertedLeads" fill={palette.positive} maxBarSize={18} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              </ChartBox>
+            </Panel>
           </div>
         </TabsContent>
 
         {/* Performance Tab */}
-        <TabsContent value="performance" className="space-y-6">
-          <Card className="border border-border shadow-none">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Award className="h-5 w-5 text-primary" />
-                Employee Performance Tracking
-                <Badge variant="outline" className="ml-2">Coming Soon</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {employeePerformance.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead className="text-center">Clients Added</TableHead>
-                      <TableHead className="text-center">Orders Handled</TableHead>
-                      <TableHead className="text-right">Revenue Generated</TableHead>
+        <TabsContent value="performance" className="mt-0 space-y-4">
+          <Panel
+            icon={Award}
+            title="Desk performance"
+            description="Orders each staff member entered in the period (sales and purchases). Owners are left out, as in all staff statistics."
+            footer={employeePerformance.length > 0 ? (
+              <>Clients added by assigned operator: {employeePerformance.map((e) => `${e.name} ${e.clientsAdded}`).join(' · ')}</>
+            ) : undefined}
+          >
+            {deskPerformance.length === 0 ? (
+              <EmptyState icon={Briefcase} title="No orders in this period" description="Once orders are entered, the staff who handled them appear here." />
+            ) : (
+              <Table density="compact">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff</TableHead>
+                    <TableHead className="text-right">Sell orders</TableHead>
+                    <TableHead className="text-right">Buy orders</TableHead>
+                    <TableHead className="text-right">Volume handled</TableHead>
+                    <TableHead className="hidden w-[22%] md:table-cell">Share of volume</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deskPerformance.map((d, i) => (
+                    <TableRow key={d.id}>
+                      <TableCell className="font-medium">
+                        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground">{i + 1}</span>
+                        {d.name}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-[13px] tabular-nums">{fmtCount(d.sell)}</TableCell>
+                      <TableCell className="text-right font-mono text-[13px] tabular-nums">{fmtCount(d.buy)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right font-mono text-[13px] font-semibold tabular-nums">{formatCurrency(d.volume)}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <div className="flex items-center gap-2">
+                          <ShareBar value={d.volume} max={deskMax} />
+                          <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{deskTotal > 0 ? `${Math.round((d.volume / deskTotal) * 100)}%` : '—'}</span>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {employeePerformance.map((emp, index) => (
-                      <TableRow key={emp.name}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {index < 3 && <Star className="h-4 w-4 text-warning" />}
-                            {emp.name}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">{emp.clientsAdded}</TableCell>
-                        <TableCell className="text-center">{emp.ordersHandled}</TableCell>
-                        <TableCell className="text-right font-semibold text-success">
-                          {formatCurrency(emp.revenue)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="py-12 text-center space-y-4">
-                  <Briefcase className="h-16 w-16 mx-auto text-muted-foreground/50" />
-                  <div>
-                    <p className="font-medium text-muted-foreground">Employee Performance Tracking</p>
-                    <p className="text-sm text-muted-foreground">
-                      Once employees are linked to orders and client assignments, their performance metrics will appear here.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mt-6">
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <UserPlus className="h-6 w-6 mx-auto text-info mb-2" />
-                      <p className="text-sm font-medium">Clients Added</p>
-                      <p className="text-xs text-muted-foreground">Track new client acquisitions</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <ShoppingCart className="h-6 w-6 mx-auto text-primary mb-2" />
-                      <p className="text-sm font-medium">Orders Handled</p>
-                      <p className="text-xs text-muted-foreground">Monitor order processing</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <DollarSign className="h-6 w-6 mx-auto text-success mb-2" />
-                      <p className="text-sm font-medium">Revenue Generated</p>
-                      <p className="text-xs text-muted-foreground">Measure contribution</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Panel>
 
-          {/* Top Clients */}
-          <Card className="border border-border shadow-none">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                Top Clients by Volume
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {topClients.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Rank</TableHead>
-                      <TableHead>Client Name</TableHead>
-                      <TableHead className="text-center">Trades</TableHead>
-                      <TableHead className="text-right">Volume</TableHead>
+          <Panel
+            icon={Users}
+            title="Top Clients by Volume"
+            description={topClients.length > 0 && kpi.revenue > 0
+              ? `Top ${topClients.length} of ${fmtCount(clientCount)} clients = ${Math.round((top10Volume / kpi.revenue) * 100)}% of sales volume`
+              : 'Sales volume per client in the period'}
+          >
+            {topClients.length > 0 ? (
+              <Table density="compact">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16 whitespace-nowrap">Rank</TableHead>
+                    <TableHead>Client Name</TableHead>
+                    <TableHead className="text-right">Trades</TableHead>
+                    <TableHead className="text-right">Volume</TableHead>
+                    <TableHead className="hidden w-[22%] md:table-cell">Share of revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topClients.map((client, index) => (
+                    <TableRow key={client.key}>
+                      <TableCell>
+                        <span className={cn("inline-flex h-6 min-w-[1.75rem] items-center justify-center whitespace-nowrap rounded-full px-1.5 text-[11px] font-semibold", index < 3 ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>#{index + 1}</span>
+                      </TableCell>
+                      <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell className="text-right font-mono text-[13px] tabular-nums">{client.trades}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right font-mono text-[13px] font-semibold tabular-nums">{formatCurrency(client.volume)}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <div className="flex items-center gap-2">
+                          <ShareBar value={client.volume} max={topClients[0]?.volume || 1} />
+                          <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{kpi.revenue > 0 ? `${((client.volume / kpi.revenue) * 100).toFixed(1)}%` : '—'}</span>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topClients.map((client, index) => (
-                      <TableRow key={client.name}>
-                        <TableCell>
-                          <Badge variant={index < 3 ? "default" : "secondary"}>#{index + 1}</Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{client.name}</TableCell>
-                        <TableCell className="text-center">{client.trades}</TableCell>
-                        <TableCell className="text-right font-semibold">{formatCurrency(client.volume)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="py-8 text-center text-muted-foreground">
-                  No client data available for this period
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <EmptyState icon={Users} title="No client data available for this period" className="py-8" />
+            )}
+          </Panel>
         </TabsContent>
 
         {/* Financial Tab */}
-        <TabsContent value="financial" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-success">{formatCurrency(kpi.revenue)}</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Operating Expenses</p>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Net Profit</p>
-                <p className={`text-2xl font-bold ${kpi.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {formatCurrency(kpi.profit)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border border-border shadow-none">
-              <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Monthly Salary (active CTC / 12)</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalSalary)}</p>
-              </CardContent>
-            </Card>
+        <TabsContent value="financial" className="mt-0 space-y-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <KpiTile label="Total Revenue" value={formatCurrency(kpi.revenue)} exact={formatExactINR(kpi.revenue)} />
+            <KpiTile label="Operating Expenses" value={formatCurrency(totalExpenses)} exact={formatExactINR(totalExpenses)} tone="negative" />
+            <KpiTile
+              label="Net Profit"
+              value={formatSigned(kpi.profit)}
+              exact={formatExactINR(kpi.profit)}
+              tone={kpi.profit >= 0 ? 'positive' : 'negative'}
+              info="Gross profit from the daily snapshots − operating expenses − USDT fees (valued at the period's average purchase rate)."
+              sub={`Gross ${formatCurrency(kpi.grossProfit)} − expenses ${formatCurrency(totalExpenses)} − fees ${formatCurrency(kpi.usdtFeesInr)}`}
+            />
+            <KpiTile label="Monthly Salary" value={formatCurrency(totalSalary)} exact={formatExactINR(totalSalary)} sub="Active CTC / 12" />
+            <KpiTile
+              label="Total USDT Fees Collected"
+              value={formatUSDT(usdtFees.total)}
+              sub="Click to view complete history"
+              icon={Coins}
+              onClick={() => setShowFeeHistoryDialog(true)}
+              cta="Fee history"
+            />
           </div>
 
-          {/* USDT Fees Widget - Single Simple Card */}
-          <Card 
-            className="shadow-sm border cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setShowFeeHistoryDialog(true)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total USDT Fees Collected</p>
-                  <p className="text-2xl font-bold mt-1">{formatUSDT(usdtFees.total)} USDT</p>
-                  <p className="text-xs text-muted-foreground mt-1">Click to view complete history</p>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Panel
+              icon={Receipt}
+              title="Expense Breakdown"
+              description={`${formatCurrency(totalExpenses)} by head · open a head and click a category for its transactions`}
+            >
+              {expenseHeads.length > 0 ? (
+                <div className={cn(updating && "pointer-events-none opacity-60")} aria-busy={updating}>
+                  {headList(expenseHeads, expenseHeadMax, totalExpenses, "negative", setSelectedExpenseCategory, 'e')}
                 </div>
-                <Coins className="h-8 w-8 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
+              ) : (
+                <EmptyState icon={Receipt} title="No expenses in selected period" className="py-8" />
+              )}
+            </Panel>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Expense Breakdown */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileBarChart className="h-5 w-5 text-destructive" />
-                  Expense Breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {expenseBreakdown.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead className="text-right">%</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {expenseBreakdown.slice(0, 8).map((expense) => (
-                        <TableRow 
-                          key={expense.category} 
-                          className="cursor-pointer hover:bg-muted/80 transition-colors"
-                          onClick={() => setSelectedExpenseCategory(expense.category)}
-                        >
-                          <TableCell className="font-medium text-primary underline-offset-2 hover:underline">{expense.category}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
-                          <TableCell className="text-right">{expense.percentage}%</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No expenses in selected period
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Expense Breakdown Pie Chart */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-warning" />
-                  Expense Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {expenseBreakdown.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <RechartsPieChart>
-                      <Pie
-                        data={expenseBreakdown.slice(0, 8).map((e, i) => ({ name: e.category, value: e.amount, fill: CHART_COLORS[i % CHART_COLORS.length] }))}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={100}
-                        dataKey="value"
-                        label={({ name, percent }) => `${(name as string).split('>').pop()?.trim().slice(0, 15)} ${(percent * 100).toFixed(0)}%`}
-                        labelLine={false}
-                      >
-                        {expenseBreakdown.slice(0, 8).map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: any) => formatCurrency(Number(v))} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No expenses in selected period
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Income Breakdown */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileBarChart className="h-5 w-5 text-success" />
-                  Income Breakdown
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Total {formatCurrency(totalIncome)} (excludes settlements)
-                </p>
-              </CardHeader>
-              <CardContent>
-                {incomeBreakdown.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead className="text-right">%</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {incomeBreakdown.slice(0, 8).map((income) => (
-                        <TableRow
-                          key={income.category}
-                          className="cursor-pointer hover:bg-muted/80 transition-colors"
-                          onClick={() => setSelectedIncomeCategory(income.category)}
-                        >
-                          <TableCell className="font-medium text-primary underline-offset-2 hover:underline">{income.category}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(income.amount)}</TableCell>
-                          <TableCell className="text-right">{income.percentage}%</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No income in selected period
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Income Distribution */}
-            <Card className="border border-border shadow-none">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-success" />
-                  Income Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {incomeBreakdown.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <RechartsPieChart>
-                      <Pie
-                        data={incomeBreakdown.slice(0, 8).map((e, i) => ({ name: e.category, value: e.amount, fill: CHART_COLORS[i % CHART_COLORS.length] }))}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={100}
-                        dataKey="value"
-                        label={({ name, percent }) => `${(name as string).split('>').pop()?.trim().slice(0, 15)} ${(percent * 100).toFixed(0)}%`}
-                        labelLine={false}
-                      >
-                        {incomeBreakdown.slice(0, 8).map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: any) => formatCurrency(Number(v))} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No income in selected period
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <Panel
+              icon={FileBarChart}
+              title="Income Breakdown"
+              description={`Total ${formatCurrency(totalIncome)} (excludes settlements)`}
+            >
+              {incomeHeads.length > 0 ? (
+                <div className={cn(updating && "pointer-events-none opacity-60")} aria-busy={updating}>
+                  {headList(incomeHeads, incomeHeadMax, totalIncome, "positive", setSelectedIncomeCategory, 'i')}
+                </div>
+              ) : (
+                <EmptyState icon={FileBarChart} title="No income in selected period" className="py-8" />
+              )}
+            </Panel>
           </div>
         </TabsContent>
       </Tabs>
@@ -1408,82 +1428,74 @@ export function StatisticsTab() {
               USDT Fees History
             </DialogTitle>
           </DialogHeader>
-          
+
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Total Fees</p>
-              <p className="text-lg font-bold">{formatUSDT(usdtFees.total)}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Order Fees (Sales + Purchase)</p>
-              <p className="text-lg font-bold">{formatUSDT(usdtFees.platform)}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Transfer Fees</p>
-              <p className="text-lg font-bold">{formatUSDT(usdtFees.transfer)}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Sales vs Purchase</p>
-              <p className="text-lg font-bold">{formatUSDT(usdtFees.salesOrder)} / {formatUSDT(usdtFees.purchaseOrder)}</p>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {[
+              { label: 'Total Fees', value: formatUSDT(usdtFees.total) },
+              { label: 'Order Fees (Sales + Purchase)', value: formatUSDT(usdtFees.platform) },
+              { label: 'Transfer Fees', value: formatUSDT(usdtFees.transfer) },
+              { label: 'Sales vs Purchase', value: `${formatUSDT(usdtFees.salesOrder)} / ${formatUSDT(usdtFees.purchaseOrder)}` },
+            ].map((c) => (
+              <div key={c.label} className="rounded-md border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground font-medium">{c.label}</p>
+                <p className="mt-1 font-mono text-sm font-semibold tabular-nums">{c.value}</p>
+              </div>
+            ))}
           </div>
 
           {/* Transactions Table */}
-          <div className="border rounded-lg flex-1 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Wallet</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Fee (USDT)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {usdtFees.transactions.length > 0 ? (
-                  usdtFees.transactions.map((fee: any) => (
-                    <TableRow key={fee.id}>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm">{format(new Date(fee.created_at), 'MMM dd, yyyy')}</span>
-                          <span className="text-xs text-muted-foreground">{format(new Date(fee.created_at), 'HH:mm:ss')}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline"
-                        >
-                          {fee.reference_type === 'PLATFORM_FEE' ? 'Platform' :
-                           fee.reference_type === 'TRANSFER_FEE' ? 'Transfer' :
-                           fee.reference_type === 'SALES_ORDER_FEE' ? 'Sales Order' :
-                           fee.reference_type === 'PURCHASE_ORDER_FEE' ? 'Purchase Order' :
-                           fee.reference_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {fee.wallets?.wallet_name || 'N/A'}
-                      </TableCell>
-                      <TableCell className="max-w-[250px] truncate text-sm text-muted-foreground">
-                        {fee.description}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatUSDT(Number(fee.amount || 0))}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      <Coins className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>No fee transactions found in selected period</p>
+          <Table density="compact">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Wallet</TableHead>
+                <TableHead className="hidden md:table-cell">Description</TableHead>
+                <TableHead className="text-right">Fee (USDT)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {usdtFees.transactions.length > 0 ? (
+                feePager.slice.map((fee: any) => (
+                  <TableRow key={fee.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap text-sm">{format(new Date(fee.created_at), 'MMM dd, yyyy')}</span>
+                        <span className="text-xs text-muted-foreground">{format(new Date(fee.created_at), 'HH:mm:ss')}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusChip tone="neutral">
+                        {fee.reference_type === 'PLATFORM_FEE' ? 'Platform' :
+                         fee.reference_type === 'TRANSFER_FEE' ? 'Transfer' :
+                         fee.reference_type === 'SALES_ORDER_FEE' ? 'Sales Order' :
+                         fee.reference_type === 'PURCHASE_ORDER_FEE' ? 'Purchase Order' :
+                         fee.reference_type}
+                      </StatusChip>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {fee.wallets?.wallet_name || 'N/A'}
+                    </TableCell>
+                    <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
+                      {fee.description}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right font-mono text-[13px] font-medium tabular-nums">
+                      {formatUSDT(Number(fee.amount || 0))}
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <Coins className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No fee transactions found in selected period</p>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          <TablePager {...feePager} noun="fee transactions" />
         </DialogContent>
       </Dialog>
 

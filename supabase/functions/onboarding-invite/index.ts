@@ -52,7 +52,7 @@ function validate(payload: Record<string, any>): string[] {
     if (!payload[k] || String(payload[k]).trim() === '') errs.push(`${label} is required`);
   };
   req('first_name', 'First name');
-  req('last_name', 'Last name');
+  // Last name is optional (single-name candidates).
   req('date_of_birth', 'Date of birth');
   req('gender', 'Gender');
   req('marital_status', 'Marital status');
@@ -238,7 +238,7 @@ async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>)
 
   const update: Record<string, any> = {
     first_name: p.first_name || undefined,
-    last_name: p.last_name || undefined,
+    last_name: String(p.last_name ?? '').trim(),
     email: p.email || undefined,
     phone: p.phone || undefined,
     gender: p.gender || undefined,

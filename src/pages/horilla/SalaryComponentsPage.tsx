@@ -223,7 +223,7 @@ export default function SalaryComponentsPage({ componentType }: { componentType?
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Salary Components"
-        description="Allowances and deductions used to build salary structures"
+        description="Allowances and deductions for salary structures (the CTC breakdown). One-off monthly additions are picked in Payroll Inputs from the RazorpayX Salary Component Library."
         actions={
           <Button onClick={() => openCreate(tab)} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
             <Plus className="h-4 w-4 mr-2" /> Add {singular(tab)}

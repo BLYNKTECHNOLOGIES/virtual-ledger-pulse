@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePayrollMonths, monthLabel, statusColor, RUN_STATUS_LABEL } from "@/hooks/hrms/usePayrollMonths";
+import { useLatestIncompleteCockpitMonth } from "@/hooks/hrms/useLatestIncompleteCockpitMonth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useNavigate } from "react-router-dom";
@@ -93,13 +95,8 @@ export default function HorillaDashboard() {
     },
   });
 
-  const { data: payrollRuns } = useQuery({
-    queryKey: ["hr_dashboard_payroll"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hr_payroll_runs").select("id, status, total_net, total_gross, employee_count, title, pay_period_start, pay_period_end").order("run_date", { ascending: false }).limit(10);
-      return data || [];
-    },
-  });
+  const { months: payrollMonths } = usePayrollMonths();
+  const { data: openCockpitMonth } = useLatestIncompleteCockpitMonth();
 
   // M7: Today's absentees (employees with no attendance record today)
   const { data: todayAbsentees = [] } = useQuery({
@@ -147,8 +144,6 @@ export default function HorillaDashboard() {
   const pendingLeaves = (leaveRequests || []).filter((l: any) => l.status === "requested" || l.status === "manager_approved");
   const approvedLeaves = (leaveRequests || []).filter((l: any) => l.status === "approved").length;
 
-  const lastPayroll = (payrollRuns || [])[0];
-  const draftPayrolls = (payrollRuns || []).filter((r: any) => r.status === "draft");
 
   // Department distribution
   const deptCounts: Record<string, number> = {};
@@ -182,7 +177,7 @@ export default function HorillaDashboard() {
     { label: "Present Today", to: "/hrms/attendance", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Pending Leaves", to: "/hrms/leave/requests", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Onboarding", to: "/hrms/onboarding-pipeline", value: atsCounts?.onboarding ?? 0, sub: "in progress", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
-    { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Payroll Months", to: "/hrms/payroll", value: payrollMonths.length, sub: payrollMonths[0] ? `Last: ${monthLabel(payrollMonths[0].pay_period_start)}` : "No payroll months yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
   ];
 
   return (
@@ -269,20 +264,18 @@ export default function HorillaDashboard() {
             </Button>
           </div>
           <div className="space-y-2">
-            {draftPayrolls.length > 0 ? (
-              draftPayrolls.slice(0, 3).map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between py-2 px-3 bg-primary/10 dark:bg-primary/30 rounded-lg border border-primary/20 dark:border-primary">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">{r.title}</p>
-                    <p className="text-[10px] text-muted-foreground">{r.employee_count || 0} employees · draft</p>
-                  </div>
-                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate("/hrms/payroll")}>
-                    <Play className="h-3 w-3 mr-0.5" /> Open
-                  </Button>
+            {openCockpitMonth ? (
+              <div className="flex items-center justify-between py-2 px-3 bg-primary/10 rounded-lg border border-primary/20">
+                <div>
+                  <p className="text-xs font-medium text-foreground">{monthLabel(openCockpitMonth)}</p>
+                  <p className="text-[10px] text-muted-foreground">Cockpit not closed yet</p>
                 </div>
-              ))
+                <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate(`/hrms/payroll/cockpit?month=${openCockpitMonth.slice(0, 7)}`)}>
+                  <Play className="h-3 w-3 mr-0.5" /> Open cockpit
+                </Button>
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground py-2 text-center">No pending payroll runs</p>
+              <p className="text-sm text-muted-foreground py-2 text-center">No open payroll month</p>
             )}
             <ConfirmButton
               title={`Generate late penalties for ${lastMonthLabel}?`}
@@ -446,23 +439,19 @@ export default function HorillaDashboard() {
 
         <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Payroll Overview</h3>
-          {(payrollRuns || []).length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No payroll runs yet</p>
+          {payrollMonths.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No payroll months yet</p>
           ) : (
             <div className="space-y-3">
-              {(payrollRuns || []).slice(0, 4).map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{r.title}</p>
+              {payrollMonths.slice(0, 4).map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-2 py-2 border-b border-border last:border-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{monthLabel(r.pay_period_start)}</p>
                     <p className="text-xs text-muted-foreground">{r.employee_count || 0} employees</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold tabular-nums text-foreground">₹{(r.total_net || 0).toLocaleString('en-IN')}</p>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
-                      r.status === "completed" ? "bg-success/10 text-success border-success/20" :
-                      r.status === "processing" ? "bg-info/10 text-info border-info/20" :
-                      "bg-muted text-muted-foreground border-border"
-                    }`}>{r.status}</span>
+                    <p className="text-sm font-semibold tabular-nums text-foreground">₹{Math.round(r.total_net || 0).toLocaleString('en-IN')}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{RUN_STATUS_LABEL[r.status] ?? r.status.replace(/_/g, " ")}</span>
                   </div>
                 </div>
               ))}

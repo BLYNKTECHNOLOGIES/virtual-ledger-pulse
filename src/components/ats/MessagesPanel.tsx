@@ -476,7 +476,8 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
   );
 }
 
-function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread }: { m: AtsMessage; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void }) {
+function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread, onPickTime }: { m: AtsMessage; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void; onPickTime: (t: ProposedTime) => void }) {
+  const times = useMemo(() => (m.direction === "inbound" ? proposedTimes(m.intent_data) : []), [m.direction, m.intent_data]);
   const isAdmin = useIsHrAdmin().data === true;
   const out = m.direction === "outbound";
   const [showQuoted, setShowQuoted] = useState(false);
@@ -536,6 +537,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
           </div>
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
+          {!out && <IntentMenu m={m} onChanged={onChanged} />}
           {m.purpose && m.purpose !== "general" && <Badge variant="secondary" className="font-normal">{purposeLabel(m.purpose)}</Badge>}
           {m.calendar_ics && <Badge variant="outline" className="gap-1 font-normal"><CalendarDays className="h-3 w-3" /> Calendar invite</Badge>}
           {!out && m.is_automatic && <Badge variant="outline" className="font-normal">Automatic reply</Badge>}
@@ -549,6 +551,15 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
               {showQuoted ? "Hide quoted text" : "Show quoted text"}
             </button>
             {showQuoted && <p className="mt-1 whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-xs text-muted-foreground">{quoted}</p>}
+          </div>
+        )}
+        {!out && times.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {times.map((t) => (
+              <Button key={t.start} size="sm" variant="outline" className="h-7 gap-1 text-xs" title={t.text} onClick={() => onPickTime(t)}>
+                <CalendarPlus className="h-3.5 w-3.5" aria-hidden />{t.label}
+              </Button>
+            ))}
           </div>
         )}
         <Attachments list={atts} fileIds={fileIds} onOpenFile={onOpenFile} />

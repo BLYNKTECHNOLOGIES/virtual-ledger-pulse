@@ -73,3 +73,17 @@ describe("workforce rules", () => {
     expect(deriveStaffingRow({ ...base, open_requirement_hc: 1, replacement_cover_hc: 1 }).uncoveredHiringRequirement).toBe(1);
   });
 });
+
+import { shiftsOutsideLine } from "./workforce";
+describe("shiftsOutsideLine", () => {
+  const shifts = [
+    { id: "m", name: "Morning Shift" }, { id: "mx", name: "Morning Shift Exemption", planning_shift_id: "m" },
+    { id: "e", name: "Evening Shift" }, { id: "n", name: "Night Shift" },
+  ];
+  test("a Morning line covers Morning Exemption but not Evening/Night", () => {
+    expect(shiftsOutsideLine(shifts, ["m", "mx", "e", "n"], ["m"]).map((s) => s.id)).toEqual(["e", "n"]);
+  });
+  test("an any-shift line covers every shift", () => {
+    expect(shiftsOutsideLine(shifts, ["e", "n"], [])).toEqual([]);
+  });
+});

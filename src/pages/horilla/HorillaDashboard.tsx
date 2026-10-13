@@ -144,8 +144,6 @@ export default function HorillaDashboard() {
   const pendingLeaves = (leaveRequests || []).filter((l: any) => l.status === "requested" || l.status === "manager_approved");
   const approvedLeaves = (leaveRequests || []).filter((l: any) => l.status === "approved").length;
 
-  const lastPayroll = (payrollRuns || [])[0];
-  const draftPayrolls = (payrollRuns || []).filter((r: any) => r.status === "draft");
 
   // Department distribution
   const deptCounts: Record<string, number> = {};

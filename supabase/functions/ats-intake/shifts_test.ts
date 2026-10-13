@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { parsePreferredShifts } from "./index.ts";
+import { parsePreferredShifts } from "./shifts.ts";
 
 Deno.test("cleans, de-duplicates and caps preferred shifts", () => {
   assertEquals(parsePreferredShifts([" Night Shift ", "night shift", "", 5, "Evening Shift"]), ["Night Shift", "Evening Shift"]);

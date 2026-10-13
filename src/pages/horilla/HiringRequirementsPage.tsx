@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Plus, Search, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { HiringRequirementDetailDialog } from "@/components/horilla/workforce/HiringRequirementDetailDialog";
 import { useHiringRequirements } from "@/hooks/hrms/useWorkforcePlanning";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   PRIORITY_CLASS,
   PRIORITY_LABEL,
@@ -57,6 +57,17 @@ export default function HiringRequirementsPage() {
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<any | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: allForLink } = useHiringRequirements();
+  // Deep link from the staffing plan / overview: ?req=<requirement id>
+  useEffect(() => {
+    const id = searchParams.get("req");
+    if (!id || !allForLink) return;
+    const found = (allForLink as any[]).find((r) => r.id === id);
+    if (found) setDetail(found);
+    searchParams.delete("req");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, allForLink, setSearchParams]);
 
   const { data: requirements = [], isLoading } = useHiringRequirements();
   const navigate = useNavigate();

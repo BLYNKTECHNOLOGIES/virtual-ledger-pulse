@@ -4,6 +4,9 @@
 export const HR_BRAND = {
   icon: "https://erp.blynkex.com/__l5e/assets-v1/0ca9650d-d963-4f4a-aae9-a538302556f1/BlynkEx_icon.png",
   logo: "https://erp.blynkex.com/__l5e/assets-v1/042810b3-dfdf-4ae1-9f9e-e47ef2e18071/BlynkEx_black_with_logo.png",
+  // White variation: used on dark surfaces (the header strip plate) so the
+  // wordmark stays visible in mail clients that render dark backgrounds.
+  whiteLogo: "https://erp.blynkex.com/__l5e/assets-v1/6faea1af-3912-4ae5-99ab-0765270cedac/BlynkEx_white_with_logo.png",
   blue: "#00AEEF",
   ink: "#0B1524",
   hrName: "Honey Sewani",
@@ -17,12 +20,12 @@ export const HR_BRAND = {
 
 const B = HR_BRAND;
 
-/** Branded header strip used at the top of HR emails. */
+/** Branded header strip used at the top of HR emails (dark plate + white logo). */
 export function hrHeaderHtml(): string {
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-    <td class="gutter" style="padding:16px 24px;border-bottom:2px solid ${B.blue};">
+    <td class="gutter" style="padding:16px 24px;background:${B.ink};border-bottom:2px solid ${B.blue};">
       <table cellpadding="0" cellspacing="0" border="0"><tr>
-        <td valign="middle"><img src="${B.logo}" alt="BlynkEx" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;" /></td>
+        <td valign="middle"><img src="${B.whiteLogo}" alt="BlynkEx" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;" /></td>
       </tr></table>
     </td></tr></table>`;
 }

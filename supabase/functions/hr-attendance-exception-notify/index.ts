@@ -61,6 +61,7 @@ function esc(s: string) {
 
 const BRAND = {
   logo: "https://erp.blynkex.com/__l5e/assets-v1/042810b3-dfdf-4ae1-9f9e-e47ef2e18071/BlynkEx_black_with_logo.png",
+  whiteLogo: "https://erp.blynkex.com/__l5e/assets-v1/6faea1af-3912-4ae5-99ab-0765270cedac/BlynkEx_white_with_logo.png",
   icon: "https://erp.blynkex.com/__l5e/assets-v1/0ca9650d-d963-4f4a-aae9-a538302556f1/BlynkEx_icon.png",
   blue: "#00AEEF",
   ink: "#0B1524",

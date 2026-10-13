@@ -144,6 +144,7 @@ export default function HiringRequirementsPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map((r: any) => {
+            void 0;
             const filled = r.positions_filled ?? 0;
             const needed = r.number_required ?? 0;
             const pct = needed > 0 ? Math.min(100, (filled / needed) * 100) : 0;
@@ -181,6 +182,12 @@ export default function HiringRequirementsPage() {
                           <Badge variant="outline">Manual</Badge>
                         )}
                         {job && <JobStatusBadge status={job.status} />}
+                        {lineIssue.unlinked.has(r.id) && (
+                          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">Not linked to a staffing line</Badge>
+                        )}
+                        {lineIssue.inactive.has(r.id) && (
+                          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">Line removed — move it</Badge>
+                        )}
                         {line && line.over_requested_hc > 0 && (
                           <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning">
                             Line over-requested by {line.over_requested_hc}

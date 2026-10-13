@@ -17,6 +17,7 @@ import {
 import { sendQueued } from '../_shared/ats-mail-deliver.ts'
 import { imapHostAllowed, secretByName } from '../_shared/mailbox-secrets.ts'
 import { type CalendarReply, findCalendarReply, INTERVIEW_UID_RE } from '../_shared/ats-ics.ts'
+import { analyzeReply, type ReplyContext } from '../_shared/ats-intent.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,12 +61,13 @@ interface Stats {
   queued_retrying: number
   reminders_queued: number
   rsvps: number
+  intents: Record<string, number>
 }
 
 const newStats = (): Stats => ({
   scanned: 0, matched: 0, stored: 0, duplicates: 0, attachments_saved: 0, attachments_skipped: 0,
   bounces: 0, ignored_own: 0, ignored_internal: 0, gave_up: 0, pending: 0, queued_sent: 0, queued_failed: 0, queued_retrying: 0,
-  reminders_queued: 0, rsvps: 0,
+  reminders_queued: 0, rsvps: 0, intents: {},
 })
 
 export async function handleSync(req: Request): Promise<Response> {
@@ -508,6 +510,43 @@ async function storeOne(
     listed.push({ name: a.filename, mime: a.contentType, size: a.bytes.length, storage_path: path })
   }
 
+  // What the reply is about (never stops the email being stored).
+  const receivedAt = new Date(meta.internalDate ?? h.date ?? Date.now())
+  let intent = 'other'
+  let intentData: Record<string, unknown> = { confidence: 'low', signals: ['analysis_failed'] }
+  let handledAction: string | null = null
+  try {
+    let cal: CalendarReply | null = null
+    if (raw) {
+      try {
+        cal = findCalendarReply(raw)
+      } catch {
+        cal = null
+      }
+    }
+    const ps = String(cal?.partstat ?? '').toUpperCase()
+    if (cal && ['ACCEPTED', 'DECLINED', 'TENTATIVE'].includes(ps)) {
+      intent = ps === 'ACCEPTED' ? 'confirm' : ps === 'DECLINED' ? 'reschedule' : 'other'
+      if (ps === 'ACCEPTED') handledAction = 'calendar_accepted'
+      intentData = { confidence: 'high', lang: 'en', times: [], signals: ['calendar_reply'] }
+    } else if (text === UNREADABLE_NOTE) {
+      intent = 'other'
+      intentData = { confidence: 'low', signals: ['unreadable'] }
+    } else {
+      const ctx = await replyContext(admin, c.candidateId, receivedAt)
+      const a = analyzeReply({
+        text, subject: h.subject, attachmentCount: attachments.filter((x) => x.ext !== 'ics').length, automatic: h.automatic,
+      }, ctx)
+      intent = a.intent
+      intentData = { confidence: a.confidence, lang: a.lang, times: a.times, signals: a.signals }
+    }
+  } catch (e) {
+    console.error('ats-mail-sync intent failed', String((e as Error)?.message ?? e).slice(0, 200))
+    intent = 'other'
+    intentData = { confidence: 'low', signals: ['analysis_failed'] }
+    handledAction = null
+  }
+
   const { data, error } = await admin.rpc('ats_mail_store_inbound', {
     p: {
       candidate_id: c.candidateId,
@@ -529,6 +568,9 @@ async function storeOne(
       from_other_address: !!c.otherAddress,
       attachments: listed,
       files,
+      intent,
+      intent_data: intentData,
+      ...(handledAction ? { handled_action: handledAction } : {}),
     },
   })
   if (error || !data?.stored) {
@@ -541,6 +583,7 @@ async function storeOne(
     return 'skipped'
   }
   stats.stored++
+  stats.intents[intent] = (stats.intents[intent] ?? 0) + 1
   stats.attachments_saved += files.length
   if (raw) await recordCalendarReply(admin, raw, stats)
   return 'stored'
@@ -560,4 +603,21 @@ async function recordCalendarReply(admin: any, raw: string, stats: Stats): Promi
     p_interview_id: m[1].toLowerCase(), p_attendee: reply.attendee, p_partstat: reply.partstat,
   })
   if (ok) stats.rsvps++
+}
+
+/** What the candidate is replying to: the last email the ATS sent them, and whether an interview is coming up. */
+async function replyContext(admin: any, candidateId: string, receivedAt: Date): Promise<ReplyContext> {
+  try {
+    const [{ data: out }, { data: iv }] = await Promise.all([
+      admin.from('ats_messages').select('template_code, purpose')
+        .eq('candidate_id', candidateId).eq('direction', 'outbound').eq('status', 'sent')
+        .lte('sent_at', receivedAt.toISOString()).order('sent_at', { ascending: false }).limit(1).maybeSingle(),
+      admin.from('ats_interviews').select('id')
+        .eq('candidate_id', candidateId).eq('status', 'scheduled').gt('starts_at', receivedAt.toISOString())
+        .limit(1).maybeSingle(),
+    ])
+    return { receivedAt, lastOutboundTemplate: out?.template_code ?? null, lastOutboundPurpose: out?.purpose ?? null, hasUpcomingInterview: !!iv }
+  } catch {
+    return { receivedAt }
+  }
 }

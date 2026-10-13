@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,15 +19,26 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+/** Period of a payslip from its period_month: first day → month end (computed in UTC). */
+function payslipPeriod(periodMonth?: string | null): { pay_period_start: string; pay_period_end: string } | null {
+  if (!periodMonth) return null;
+  const start = String(periodMonth).slice(0, 10);
+  const d = new Date(start + "T00:00:00Z");
+  if (isNaN(d.getTime())) return null;
+  const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  return { pay_period_start: start, pay_period_end: end };
+}
+const monthName = (m: string) => new Date(String(m).slice(0, 10) + "T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+
 function generatePayslipPDF(detail: any) {
   const doc = new jsPDF();
   const emp = detail.hr_employees || {};
   const empName = `${emp.first_name || ""} ${emp.last_name || ""}`.trim();
   const badgeId = emp.badge_id || "";
-  const run = detail.hr_payroll_runs || {};
-  const period = `${run.pay_period_start || ""} to ${run.pay_period_end || ""}`;
+  const run = payslipPeriod(detail.period_month) || { pay_period_start: "", pay_period_end: "" };
+  const period = run.pay_period_start ? `${run.pay_period_start} to ${run.pay_period_end}` : "";
   const monthLabel = run.pay_period_start
-    ? new Date(run.pay_period_start + "T00:00:00").toLocaleDateString("en-IN", { month: "long", year: "numeric" })
+    ? new Date(run.pay_period_start + "T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })
     : "";
 
   const fmt = (n: number | null | undefined) => `₹${(n || 0).toLocaleString("en-IN")}`;
@@ -190,11 +202,13 @@ export default function PayslipsPage() {
   const [runFilter, setRunFilter] = useState("all");
   const [detail, setDetail] = useState<any>(null);
 
-  const { data: runs = [] } = useQuery({
-    queryKey: ["hr_payroll_runs_list"],
+  const { data: months = [] } = useQuery({
+    queryKey: ["hr_payslip_months"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_payroll_runs").select("id, title").order("run_date", { ascending: false });
-      return data || [];
+      const rows = await fetchAllPaginated<any>(() =>
+        (supabase as any).from("hr_payslips").select("id, period_month").not("period_month", "is", null).order("id", { ascending: true }),
+      );
+      return Array.from(new Set((rows || []).map((r: any) => String(r.period_month).slice(0, 10)))).sort().reverse() as string[];
     },
   });
 
@@ -205,9 +219,9 @@ export default function PayslipsPage() {
     placeholderData: keepPreviousData,
     queryFn: async () => {
       let query = (supabase as any).from("hr_payslips")
-        .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name, pan_number, uan_number, esi_number), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)")
+        .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name, pan_number, uan_number, esi_number)")
         .order("created_at", { ascending: false });
-      if (runFilter !== "all") query = query.eq("payroll_run_id", runFilter);
+      if (runFilter !== "all") query = query.eq("period_month", runFilter);
       const { data, error } = await query;
       if (error) throw error;
       return (data as any[]) || [];
@@ -235,7 +249,7 @@ export default function PayslipsPage() {
 
   // Fetch leave breakdown when detail is open
   const { data: leaveBreakdown = [] } = useQuery({
-    queryKey: ["hr_leave_breakdown", detail?.employee_id, detail?.hr_payroll_runs?.pay_period_start, detail?.hr_payroll_runs?.pay_period_end],
+    queryKey: ["hr_leave_breakdown", detail?.employee_id, detail?.period_month],
     queryFn: async () => {
       if (!detail) return [];
       const { data } = await (supabase as any)
@@ -243,27 +257,27 @@ export default function PayslipsPage() {
         .select("total_days, hr_leave_types!hr_leave_requests_leave_type_id_fkey(name)")
         .eq("employee_id", detail.employee_id)
         .eq("status", "approved")
-        .lte("start_date", detail.hr_payroll_runs?.pay_period_end)
-        .gte("end_date", detail.hr_payroll_runs?.pay_period_start);
+        .lte("start_date", payslipPeriod(detail.period_month)!.pay_period_end)
+        .gte("end_date", payslipPeriod(detail.period_month)!.pay_period_start);
       return data || [];
     },
-    enabled: !!detail,
+    enabled: !!payslipPeriod(detail?.period_month),
   });
 
   // Fetch attendance details for half-day count
   const { data: attendanceDetail = [] } = useQuery({
-    queryKey: ["hr_attendance_detail", detail?.employee_id, detail?.hr_payroll_runs?.pay_period_start, detail?.hr_payroll_runs?.pay_period_end],
+    queryKey: ["hr_attendance_detail", detail?.employee_id, detail?.period_month],
     queryFn: async () => {
       if (!detail) return [];
       const { data } = await (supabase as any)
         .from("hr_attendance")
         .select("attendance_status, attendance_date")
         .eq("employee_id", detail.employee_id)
-        .gte("attendance_date", detail.hr_payroll_runs?.pay_period_start)
-        .lte("attendance_date", detail.hr_payroll_runs?.pay_period_end);
+        .gte("attendance_date", payslipPeriod(detail.period_month)!.pay_period_start)
+        .lte("attendance_date", payslipPeriod(detail.period_month)!.pay_period_end);
       return data || [];
     },
-    enabled: !!detail,
+    enabled: !!payslipPeriod(detail?.period_month),
   });
 
   const filtered = payslips.filter((p: any) => {
@@ -301,10 +315,10 @@ export default function PayslipsPage() {
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={runFilter} onValueChange={setRunFilter}>
-          <SelectTrigger className="h-9 sm:w-56"><SelectValue placeholder="All Payroll Runs" /></SelectTrigger>
+          <SelectTrigger className="h-9 sm:w-56"><SelectValue placeholder="All months" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Payroll Runs</SelectItem>
-            {runs.map((r: any) => <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>)}
+            <SelectItem value="all">All months</SelectItem>
+            {months.map((m) => <SelectItem key={m} value={m}>{monthName(m)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -368,8 +382,7 @@ export default function PayslipsPage() {
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-muted-foreground">Payroll Run</span>
                   <span className="font-medium flex items-center gap-1.5">
-                    {detail.hr_payroll_runs?.title
-                      || (detail.source === 'razorpay_import'
+                    {(detail.source === 'razorpay_import'
                         ? `RazorpayX Import — ${detail.period_month ? new Date(detail.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
                         : '—')}
                     {detail.source === 'razorpay_import' && (
@@ -377,7 +390,7 @@ export default function PayslipsPage() {
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span>{detail.hr_payroll_runs?.pay_period_start ? `${detail.hr_payroll_runs.pay_period_start} — ${detail.hr_payroll_runs.pay_period_end}` : (detail.period_month || '—')}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span>{payslipPeriod(detail.period_month) ? `${payslipPeriod(detail.period_month)!.pay_period_start} — ${payslipPeriod(detail.period_month)!.pay_period_end}` : '—'}</span></div>
                 {detail.overtime_hours > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Overtime</span><span>{detail.overtime_hours}h</span></div>}
               </div>
 
@@ -547,8 +560,7 @@ function PayslipRunLabel({ payslip }: { payslip: any }) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap text-xs">
       <span>
-        {payslip.hr_payroll_runs?.title
-          || (payslip.source === 'razorpay_import'
+        {(payslip.source === 'razorpay_import'
             ? `RazorpayX Import — ${payslip.period_month ? new Date(payslip.period_month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}`
             : '—')}
       </span>

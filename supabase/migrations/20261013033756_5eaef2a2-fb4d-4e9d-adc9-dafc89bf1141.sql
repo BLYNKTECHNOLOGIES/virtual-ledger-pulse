@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.ats_interviews_close_offers() FROM PUBLIC, anon, authenticated;

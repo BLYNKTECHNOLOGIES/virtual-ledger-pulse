@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { JobStatusBadge } from "@/components/ats/AtsBits";
 import { useAtsStages } from "@/lib/ats/api";
+import { BUDGET_SOURCE_LABEL, formatInr, useWorkforceBudget } from "@/hooks/hrms/useWorkforceBudget";
 
 interface HiringRequirementDetailDialogProps {
   open: boolean;
@@ -86,6 +87,7 @@ export function HiringRequirementDetailDialog({
     },
   });
 
+  const budget = useWorkforceBudget(open && !!canManage);
   if (!requirement) return null;
   const r: any = live.data ?? requirement;
   const p = pipeline.data?.get(r.id);
@@ -126,6 +128,7 @@ export function HiringRequirementDetailDialog({
           {r.requirement_no}
           <Badge variant="outline" className={REQ_STATUS_CLASS[r.status]}>{REQ_STATUS_LABEL[r.status] ?? r.status}</Badge>
           <Badge variant="outline" className={PRIORITY_CLASS[r.priority]}>{PRIORITY_LABEL[r.priority] ?? r.priority}</Badge>
+          {r.source === "department_request" && <Badge variant="outline">Department request · {r.requested_by_name || "head of department"}</Badge>}
         </span>
       }
       description={`${r.positions?.title ?? "Position"} · ${r.departments?.name ?? "Department"}${r.shift_label ? ` · ${r.shift_label}` : ""}`}

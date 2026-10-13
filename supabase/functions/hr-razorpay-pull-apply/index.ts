@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
           case "full_name": {
             const parts = value.split(/\s+/);
             empPatch.first_name = parts[0] ?? value;
-            empPatch.last_name = parts.slice(1).join(" ") || null;
+            empPatch.last_name = parts.slice(1).join(" ");
             break;
           }
           case "email": empPatch.email = value; break;

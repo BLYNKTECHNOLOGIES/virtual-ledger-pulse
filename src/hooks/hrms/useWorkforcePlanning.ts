@@ -346,7 +346,7 @@ export function useHiringRequirements() {
 
 /** Fields an approved / recruiting requirement may still change (with a reason). */
 export const LIMITED_REQUIREMENT_FIELDS = [
-  "number_required", "target_joining_date", "salary_min", "salary_max", "required_skills", "notes",
+  "number_required", "target_joining_date", "salary_min", "salary_max", "required_skills", "notes", "staffing_plan_id",
 ] as const;
 const ALL_REQUIREMENT_FIELDS = [
   ...LIMITED_REQUIREMENT_FIELDS, "department_id", "position_id", "shift_id", "shift_label", "location", "employment_type",

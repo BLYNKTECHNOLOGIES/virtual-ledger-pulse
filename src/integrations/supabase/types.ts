@@ -35901,6 +35901,37 @@ export type Database = {
       }
       hr_wf_user_name: { Args: { p_uid: string }; Returns: string }
       hr_withdraw_holiday_credits: { Args: { p_date: string }; Returns: Json }
+      hr_workforce_attrition_history: {
+        Args: { p_department?: string; p_months?: number }
+        Returns: {
+          attrition_pct: number
+          closing_hc: number
+          exits: number
+          joiners: number
+          month_end: string
+          month_start: string
+          opening_hc: number
+        }[]
+      }
+      hr_workforce_forecast_events: {
+        Args: never
+        Returns: {
+          badge_id: string
+          department_id: string
+          event_date: string
+          kind: string
+          person_name: string
+          plan_id: string
+          position_id: string
+          qty: number
+          ref_id: string
+          related_requirement_no: string
+          requirement_no: string
+          requirement_status: string
+          role_title: string
+          shift_name: string
+        }[]
+      }
       hr_workforce_leaving_soon: {
         Args: never
         Returns: {

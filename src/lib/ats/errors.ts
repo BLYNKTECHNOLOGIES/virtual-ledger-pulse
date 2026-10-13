@@ -30,6 +30,8 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_IMPORT_INVALID", "Something in the file couldn't be read. Check it and try again."],
   ["ATS_REPORT_INVALID", "Check the dates: the end must be on or after the start, and the range can be at most 2 years."],
   ["ATS_STAGE_HAS_CANDIDATES", "Move the candidates out of this stage before turning it off."],
+  ["ATS_INVALID", "That didn't look right. Check the details and try again."],
+  ["ATS_NOT_FOUND", "This record no longer exists."],
 ];
 
 export function atsErrorMessage(error: unknown, inUseMessage?: string): string {

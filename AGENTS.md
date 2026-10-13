@@ -2,7 +2,7 @@
 
 - Ordinary tables wrap to available width; only wide grids set minimum widths, avoiding horizontal scroll.
 
-- ATS visual primitives stay in AtsUi.tsx and compose existing controls, isolating presentation from data contracts.
+- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/); read it before changing files there.
 
 - Frontend brand images resolve through BrandLogo and brandLogos, with Terminal passing its independent theme explicitly, because surface contrast must not depend on the ERP theme or on recreated artwork.
 

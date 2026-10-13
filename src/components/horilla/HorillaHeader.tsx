@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { useDebounce } from "@/hooks/useDebounce";
 import { requestDeepLinkFromNotification } from "@/lib/hrms/requestRegistry";
+import { useThemeMode } from "@/contexts/ThemeContext";
 
 /** Icon + colour tone per HR notification kind (presentation only). */
 function notificationTone(n: any) {
@@ -105,16 +106,8 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
     },
   });
 
-  const [isDark, setIsDark] = useState(() =>
-    typeof document !== "undefined" && document.documentElement.classList.contains("dark")
-  );
-
-  const toggleDarkMode = () => {
-    const next = !isDark;
-    document.documentElement.classList.toggle("dark", next);
-    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch {}
-    setIsDark(next);
-  };
+  const { theme, toggleTheme: toggleDarkMode } = useThemeMode();
+  const isDark = theme === "dark";
 
   // Fetch user's notification preferences
   const { data: preferences } = useQuery({

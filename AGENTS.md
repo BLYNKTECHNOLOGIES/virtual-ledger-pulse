@@ -4,7 +4,7 @@
 
 - Subdirectories may have their own AGENTS.md (e.g. src/components/ats/); read it before changing files there.
 
-- Frontend brand images resolve through BrandLogo and brandLogos, with Terminal passing its independent theme explicitly, because surface contrast must not depend on the ERP theme or on recreated artwork.
+- Frontend brand images resolve through BrandLogo and brandLogos; ERP/HRMS toggles use ThemeContext and Terminal passes its independent theme explicitly, because logo contrast must update with the actual surface rather than unsynchronized DOM theme mutations.
 
 - F&F approval stages payroll inputs only; RazorpayX writes and read-back verification belong to the cockpit Inputs Push step, so separation review and payroll execution remain distinct.
 - HRMS revocations share durable server-only ERP/Auth/Terminal deletion with read-back and retries after unlinking; preserve HR records and immutable ledger tombstones. LWD cutoff and biometrics remain independent of F&F; RazorpayX dismissal requires paid F&F plus final-salary proof for the later LWD/F&F month, because no payout API exists.

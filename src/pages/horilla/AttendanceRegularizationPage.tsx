@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { fetchAllPaginated } from '@/lib/fetchAllRows';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,15 +60,15 @@ export default function AttendanceRegularizationPage() {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['reg_requests_hr', status],
     queryFn: async () => {
-      let q = (supabase as any)
-        .from('hr_attendance_regularization_requests')
-        .select('*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(id, badge_id, first_name, last_name, email), manager:hr_employees!hr_attendance_regularization_requests_manager_id_fkey(id, first_name, last_name, email)')
-        .order('created_at', { ascending: false })
-        .limit(500);
-      if (status !== 'all') q = q.eq('status', status);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
+      return await fetchAllPaginated<any>(() => {
+        let q = (supabase as any)
+          .from('hr_attendance_regularization_requests')
+          .select('*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(id, badge_id, first_name, last_name, email), manager:hr_employees!hr_attendance_regularization_requests_manager_id_fkey(id, first_name, last_name, email)')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false });
+        if (status !== 'all') q = q.eq('status', status);
+        return q;
+      });
     },
   });
 

@@ -76,6 +76,22 @@ export function parseSkills(raw?: string | null): string[] {
   return out;
 }
 
+/** Website's selected shift names → clean list, or null when absent/invalid/empty (store nothing). */
+export function parsePreferredShifts(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== "string") continue;
+    const s = v.trim().slice(0, 60);
+    if (!s || seen.has(s.toLowerCase())) continue;
+    seen.add(s.toLowerCase());
+    out.push(s);
+    if (out.length >= 10) break;
+  }
+  return out.length ? out : null;
+}
+
 const normLinkedin = (v?: string | null) => {
   const t = v?.trim();
   if (!t) return null;
@@ -253,6 +269,19 @@ Deno.serve(async (req) => {
     });
     if (rErr) throw rErr;
     const r = res as { candidate_id: string; application_id: string; duplicate: boolean; job_matched: boolean | null };
+
+    // preferred shifts (optional; never fails the application)
+    const shifts = parsePreferredShifts(p.preferred_shifts);
+    if (shifts) {
+      try {
+        const { data: cur } = await db.from("ats_applications").select("preferred_shifts").eq("id", r.application_id).maybeSingle();
+        const prev = (cur?.preferred_shifts ?? []) as string[];
+        if (prev.length !== shifts.length || prev.some((s, i) => s !== shifts[i])) {
+          const { error: sErr } = await db.from("ats_applications").update({ preferred_shifts: shifts }).eq("id", r.application_id);
+          if (sErr) log({ code: "shifts_store_failed", application_id: r.application_id });
+        }
+      } catch { log({ code: "shifts_store_failed", application_id: r.application_id }); }
+    }
 
     // resume
     stage = "resume";

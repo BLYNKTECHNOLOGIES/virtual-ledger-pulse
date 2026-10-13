@@ -14,7 +14,10 @@ interface ViewData {
 type Booked = { start: string; place: string; moved: boolean };
 
 const IST = "Asia/Kolkata";
-const dayText = (iso: string) => new Intl.DateTimeFormat("en-IN", { timeZone: IST, weekday: "long", day: "numeric", month: "long" }).format(new Date(iso));
+const dayText = (iso: string) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-IN", { timeZone: IST, weekday: "long", day: "numeric", month: "long" }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p.weekday}, ${p.day} ${p.month}`;
+};
 const timeText = (iso: string) => new Intl.DateTimeFormat("en-IN", { timeZone: IST, hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(iso)).toUpperCase();
 const fullText = (iso: string) => `${dayText(iso)}, ${timeText(iso)} IST`;
 

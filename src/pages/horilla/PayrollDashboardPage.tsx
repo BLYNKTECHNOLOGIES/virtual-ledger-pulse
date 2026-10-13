@@ -191,6 +191,10 @@ export default function PayrollDashboardPage() {
           </div>
         </div>
       </div>
+      {!permsLoading && !canReadRuns && (
+        <p className="text-xs text-muted-foreground">Run status needs the RazorpayX Sync permission — months below are listed from imported payslips.</p>
+      )}
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[

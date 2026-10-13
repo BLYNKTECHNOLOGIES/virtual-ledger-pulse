@@ -34,19 +34,8 @@ export function AuthCheck({ children }: AuthCheckProps) {
     }
 
     const checkAuth = async () => {
-      // Fallback: Check legacy localStorage session only after AuthProvider has settled.
-      const isLoggedIn = localStorage.getItem('isLoggedIn');
-      const userSession = localStorage.getItem('userSession');
-      
-      if (isLoggedIn === 'true' && userSession) {
-        try {
-          const parsed = JSON.parse(userSession);
-          if (parsed?.user?.id) {
-            setIsAuthenticated(true);
-            return;
-          }
-        } catch { /* invalid session */ }
-      }
+      // Cached identity is never proof of a live, active ERP account.
+      setIsAuthenticated(false);
       
       if (location.pathname === '/terminal/register-device') {
         navigate(`/?next=${encodeURIComponent(location.pathname + location.search)}`);
@@ -58,7 +47,7 @@ export function AuthCheck({ children }: AuthCheckProps) {
     checkAuth();
   }, [isLoading, navigate, user, location.pathname, location.search]);
 
-  if (isLoading || isAuthenticated === null || standbyBlocked) {
+  if (isLoading || !user || isAuthenticated !== true || standbyBlocked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

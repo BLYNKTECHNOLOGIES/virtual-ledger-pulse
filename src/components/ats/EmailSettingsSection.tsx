@@ -68,6 +68,7 @@ export function EmailSettingsSection() {
 }
 
 function MailCard() {
+  const ro = useCanManageAtsSettings().data !== true;
   const qc = useQueryClient();
   const st = useMailStatus();
   const check = useCheckNow();
@@ -125,14 +126,14 @@ function MailCard() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Mailbox</Label>
-            <Select value={mailbox} onValueChange={(v) => { setMailbox(v); if (s.enabled) save({ mail_mailbox_id: v }); }} disabled={saving || !s.mailboxes.length}>
+            <Select value={mailbox} onValueChange={(v) => { setMailbox(v); if (s.enabled) save({ mail_mailbox_id: v }); }} disabled={ro || saving || !s.mailboxes.length}>
               <SelectTrigger className="text-foreground"><SelectValue placeholder="No active mailbox" /></SelectTrigger>
               <SelectContent>{s.mailboxes.map((m) => <SelectItem key={m.id} value={m.id}>{m.label ?? m.from_name ?? "Mailbox"} · {m.from_address}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Pick up candidate emails from the last…</Label>
-            <Select value={String(days)} onValueChange={(v) => { setDays(Number(v)); if (s.enabled) save({ mail_backfill_days: Number(v) }); }} disabled={saving || started}>
+            <Select value={String(days)} onValueChange={(v) => { setDays(Number(v)); if (s.enabled) save({ mail_backfill_days: Number(v) }); }} disabled={ro || saving || started}>
               <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
               <SelectContent>{LOOKBACK.map((o) => <SelectItem key={o.v} value={String(o.v)}>{o.l}</SelectItem>)}</SelectContent>
             </Select>
@@ -145,7 +146,7 @@ function MailCard() {
         )}
 
         <div className="flex items-center gap-3">
-          <Switch id="ats-mail-on" checked={s.enabled} disabled={saving || (!s.enabled && !mailbox)}
+          <Switch id="ats-mail-on" checked={s.enabled} disabled={ro || saving || (!s.enabled && !mailbox)}
             onCheckedChange={(v) => setConfirm(v ? "on" : "off")} />
           <Label htmlFor="ats-mail-on">Turn on candidate email</Label>
         </div>
@@ -171,12 +172,12 @@ function MailCard() {
 
         <div className="space-y-3 border-t border-border pt-3">
           <div className="flex items-start gap-3">
-            <Switch id="ats-rej-default" checked={s.reject_default} disabled={saving}
+            <Switch id="ats-rej-default" checked={s.reject_default} disabled={ro || saving}
               onCheckedChange={async (v) => { if (await save({ mail_reject_default: v })) toast.success("Saved"); }} />
             <Label htmlFor="ats-rej-default" className="leading-5">Tick 'Email the candidate' by default when rejecting</Label>
           </div>
           <div className="flex items-start gap-3">
-            <Switch id="ats-ack" checked={s.ack_enabled} disabled={saving || !s.enabled}
+            <Switch id="ats-ack" checked={s.ack_enabled} disabled={ro || saving || !s.enabled}
               onCheckedChange={(v) => (v ? setAckConfirm(true) : save({ mail_ack_enabled: false }).then((ok) => ok && toast.success("Automatic acknowledgements turned off")))} />
             <div className="space-y-1">
               <Label htmlFor="ats-ack" className="leading-5">Send 'Application received' to careers-page applicants</Label>
@@ -224,6 +225,7 @@ function MailCard() {
 }
 
 function TemplatesCard() {
+  const ro = useCanManageAtsSettings().data !== true;
   const qc = useQueryClient();
   const tpl = useEmailTemplates({ includeInactive: true });
   const ms = useMailStatus();
@@ -247,7 +249,7 @@ function TemplatesCard() {
   const maxSort = Math.max(0, ...(tpl.data ?? []).map((t) => t.sort_order));
 
   return (
-    <SectionCard title="Email templates" action={<Button size="sm" className="gap-1.5" onClick={() => setEdit("new")}><Plus className="h-4 w-4" /> New template</Button>}>
+    <SectionCard title="Email templates" action={<Button size="sm" className="gap-1.5" disabled={ro} onClick={() => setEdit("new")}><Plus className="h-4 w-4" /> New template</Button>}>
       {tpl.isLoading ? <RowsSkeleton rows={4} /> : tpl.isError ? <QueryError error={tpl.error} onRetry={() => tpl.refetch()} /> : (
         <ul className="divide-y divide-border">
           {(tpl.data ?? []).map((t) => (
@@ -262,12 +264,12 @@ function TemplatesCard() {
                 </div>
                 <p className="truncate text-xs text-muted-foreground">{t.subject}</p>
               </div>
-              <Switch checked={t.is_active} onCheckedChange={(v) => toggle(t, v)} aria-label="Active" />
-              <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit" onClick={() => setEdit(t)}><Pencil className="h-4 w-4" /></Button>
+              <Switch checked={t.is_active} onCheckedChange={(v) => toggle(t, v)} disabled={ro} aria-label="Active" />
+              <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Edit" disabled={ro} onClick={() => setEdit(t)}><Pencil className="h-4 w-4" /></Button>
               {t.is_system ? (
                 <TooltipProvider><Tooltip><TooltipTrigger asChild><span className="inline-flex h-8 w-8 items-center justify-center text-muted-foreground"><Lock className="h-4 w-4" /></span></TooltipTrigger><TooltipContent>Built-in</TooltipContent></Tooltip></TooltipProvider>
               ) : (
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => setDel(t)}><Trash2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Delete" disabled={ro} onClick={() => setDel(t)}><Trash2 className="h-4 w-4" /></Button>
               )}
             </li>
           ))}
@@ -288,6 +290,7 @@ function TemplatesCard() {
 const PLACEHOLDERS = ["first_name", "full_name", "job_title", "company_name", "ref_no"];
 
 function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmailTemplate | "new" | null; nextSort: number; onClose: () => void; onSaved: () => void }) {
+  const ro = useCanManageAtsSettings().data !== true;
   const t = value && value !== "new" ? value : null;
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("general");
@@ -326,7 +329,7 @@ function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmail
 
   return (
     <ResponsiveDialog open={!!value} onOpenChange={(o) => !o && onClose()} title={t ? "Edit template" : "New template"}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button disabled={!valid || busy} onClick={save}>{busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Save</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button disabled={ro || !valid || busy} onClick={save}>{busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Save</Button></>}>
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5"><Label htmlFor="tpl-name">Name</Label><Input id="tpl-name" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className="text-foreground" /></div>

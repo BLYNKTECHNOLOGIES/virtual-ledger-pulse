@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -52,6 +53,10 @@ import { useSearchParams } from "react-router-dom";
 import { Send, MailX, AlertTriangle, CalendarPlus, CalendarClock, CalendarX, CalendarCheck, UserX, Reply, ClipboardCheck } from "lucide-react";
 import { InterviewsCard } from "./InterviewsCard";
 import { ImportDetailsCard } from "./ImportDetailsCard";
+import { LogCallDialog } from "./LogCallDialog";
+import { PickTimeDialog } from "./ConversationBits";
+import { convKeys, setConversation, snoozeChoices, useConversationState } from "@/lib/ats/conversations";
+import { Clock } from "lucide-react";
 
 interface Props {
   candidateId: string;
@@ -60,6 +65,8 @@ interface Props {
   /** Called after a successful decision action (stage/status). */
   onActionDone?: () => void;
   className?: string;
+  /** Left-pane tab used when the URL has no `tab`. */
+  initialPaneTab?: "resume" | "messages";
 }
 
 const EVENT_ICON: Record<string, typeof Activity> = {
@@ -114,7 +121,7 @@ function ReferredBy({ employeeId }: { employeeId: string }) {
 const Chips = ({ items }: { items?: string[] | null }) =>
   items?.length ? <div className="flex flex-wrap gap-1">{items.map((s) => <Badge key={s} variant="secondary" className="font-normal">{s}</Badge>)}</div> : <>—</>;
 
-export function CandidateReviewPanel({ candidateId, appId, onAppChange, onActionDone, className }: Props) {
+export function CandidateReviewPanel({ candidateId, appId, onAppChange, onActionDone, className, initialPaneTab }: Props) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const cand = useCandidate(candidateId);
@@ -138,9 +145,10 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const [keysOpen, setKeysOpen] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+  const rToComposerRef = useRef(false);
   const shortcutRef = useRef<{ a?: () => void; h?: () => void; r?: () => void; i?: () => void }>({});
   const [sp, setSp] = useSearchParams();
-  const [paneTab, setPaneTabState] = useState<string>(sp.get("tab") === "messages" ? "messages" : "resume");
+  const [paneTab, setPaneTabState] = useState<string>(sp.get("tab") === "messages" ? "messages" : sp.get("tab") ? "resume" : initialPaneTab ?? "resume");
   const setPaneTab = (v: string) => {
     setPaneTabState(v);
     const next = new URLSearchParams(sp);
@@ -153,6 +161,17 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const mailOn = !!mailStatus.data?.enabled;
   const mailThread = useMailThread(candidateId);
   const unreadCount = (mailThread.data ?? []).filter((m) => m.direction === "inbound" && !m.read_at).length;
+  const convState = useConversationState(mailOn ? candidateId : null);
+  const [callOpen, setCallOpen] = useState(false);
+  const [snoozePick, setSnoozePick] = useState(false);
+  const afterStatusRef = useRef<null | (() => void)>(null);
+  const convAction = async (action: "done" | "reopen" | "snooze", until?: string) => {
+    try {
+      await setConversation(candidateId, action, until);
+      toast.success(action === "done" ? "Conversation marked done" : action === "reopen" ? "Conversation reopened" : "Conversation snoozed");
+      qc.invalidateQueries({ queryKey: convKeys.all });
+    } catch (e) { toast.error(atsErrorMessage(e)); }
+  };
   const openFileInResume = (id: string) => { setSelFile(id); setPaneTab("resume"); };
 
   const app: AtsAppRow | undefined = useMemo(() => {
@@ -215,7 +234,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       const k = e.key.toLowerCase();
       if (e.key === "?") { e.preventDefault(); setKeysOpen(true); return; }
       if (k === "n") { e.preventDefault(); noteRef.current?.focus(); return; }
-      const fn = k === "a" ? shortcutRef.current.a : k === "h" ? shortcutRef.current.h : k === "r" ? shortcutRef.current.r : k === "i" ? shortcutRef.current.i : undefined;
+      const fn = k === "a" ? shortcutRef.current.a : k === "h" ? shortcutRef.current.h : k === "r" && !rToComposerRef.current ? shortcutRef.current.r : k === "i" ? shortcutRef.current.i : undefined;
       if (fn) { e.preventDefault(); fn(); }
     };
     window.addEventListener("keydown", h);
@@ -283,6 +302,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     }
   };
 
+  rToComposerRef.current = paneTab === "messages" && mailOn;
   shortcutRef.current = {
     a: next && !stageLocked ? () => requestMove(next.id, next.name) : undefined,
     h: app && !closed && !hired && !busy ? () => (app.status === "on_hold" ? setStatus("active", "Application resumed") : setStatus("on_hold", "Put on hold")) : undefined,
@@ -323,13 +343,28 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           {mailOn
             ? <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => { setPaneTab("messages"); setComposeSignal((n) => n + 1); }}><Mail className="h-3.5 w-3.5" /> Email</Button>
             : c.email && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`mailto:${c.email}`}><Mail className="h-3.5 w-3.5" /> Email</a></Button>}
-          {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
+          {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`} onClick={() => toast("Log this call?", { duration: 8000, action: { label: "Log call", onClick: () => setCallOpen(true) } })}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
           {waPhone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`https://wa.me/91${waPhone}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a></Button>}
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="outline" className="h-8 w-8" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setKeysOpen(true)}><Keyboard className="mr-2 h-4 w-4" /> Keyboard shortcuts (?)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setCallOpen(true)}><Phone className="mr-2 h-4 w-4" /> Log a call…</DropdownMenuItem>
+              {mailOn && <>
+                <DropdownMenuSeparator />
+                {convState.data?.done_at
+                  ? <DropdownMenuItem onSelect={() => convAction("reopen")}><RotateCcw className="mr-2 h-4 w-4" /> Reopen conversation</DropdownMenuItem>
+                  : <DropdownMenuItem onSelect={() => convAction("done")}><CheckCircle2 className="mr-2 h-4 w-4" /> Mark conversation done</DropdownMenuItem>}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger><Clock className="mr-2 h-4 w-4" /> Snooze conversation</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {snoozeChoices().map((ch) => (
+                      <DropdownMenuItem key={ch.key} onSelect={() => (ch.until ? convAction("snooze", ch.until) : setSnoozePick(true))}>{ch.label}</DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </>}
               {isAdmin && <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDelOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete candidate…</DropdownMenuItem>
@@ -473,7 +508,8 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const msgBadge = unreadCount > 0 ? <Badge className="ml-1.5 h-5 min-w-5 justify-center px-1.5 text-[10px]">{unreadCount}</Badge> : null;
   const messages = (
     <MessagesPanel candidate={c} appId={app?.application_id ?? null} files={files.data ?? []} visible={paneTab === "messages"}
-      composeSignal={composeSignal} onOpenFile={openFileInResume} onEditProfile={() => setEditOpen(true)} />
+      composeSignal={composeSignal} onOpenFile={openFileInResume} onEditProfile={() => setEditOpen(true)} app={app ?? null}
+      onRequestStatus={(s, after) => { afterStatusRef.current = after ?? null; setStatusDlg(s); }} />
   );
 
   return (
@@ -514,11 +550,11 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       )}
 
       <ReasonDialog kind={statusDlg} reasons={(reasons.data ?? []).filter((r) => r.is_active && r.applies_to === statusDlg)} busy={busy}
-        onClose={() => setStatusDlg(null)}
+        onClose={() => { afterStatusRef.current = null; setStatusDlg(null); }}
         noEmailAddress={mailOn && !c.email}
         email={c.email ? { on: mailOn, defaultTicked: !!mailStatus.data?.reject_default, firstName: (c.full_name ?? "").trim().split(/\s+/)[0] || "the candidate", candidateId, appId: app?.application_id ?? null } : null}
         onSubmit={(rid, note, draft) => draft ? rejectWithEmail(rid, note, draft)
-          : setStatus(statusDlg!, statusDlg === "rejected" ? "Application rejected" : "Marked as withdrawn", rid, note, () => setStatusDlg(null))} />
+          : setStatus(statusDlg!, statusDlg === "rejected" ? "Application rejected" : "Marked as withdrawn", rid, note, () => { const a = afterStatusRef.current; afterStatusRef.current = null; setStatusDlg(null); if (statusDlg === "withdrawn") a?.(); })} />
       <StageNoteDialog stage={stageDlg} busy={busy} onClose={() => setStageDlg(null)}
         onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); requestMove(s.id, s.name, note); }} />
       <AlertDialog open={!!hireDlg} onOpenChange={(o) => !o && setHireDlg(null)}>
@@ -552,6 +588,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       <ShortcutsDialog open={keysOpen} onOpenChange={setKeysOpen} />
       {app && <ChangeJobDialog open={changeJob} onOpenChange={setChangeJob} app={app} />}
       <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} candidate={c} />
+      <LogCallDialog open={callOpen} onOpenChange={setCallOpen} candidateId={candidateId} applicationId={app?.application_id ?? null}
+        candidateName={c.full_name ?? ""} onEditProfile={() => setEditOpen(true)} />
+      <PickTimeDialog open={snoozePick} onOpenChange={setSnoozePick} title="Snooze until" confirmLabel="Snooze" onPick={(iso) => convAction("snooze", iso)} />
     </div>
   );
 }

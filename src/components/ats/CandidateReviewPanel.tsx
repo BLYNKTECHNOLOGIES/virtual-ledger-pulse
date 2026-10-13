@@ -218,6 +218,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     qc.invalidateQueries({ queryKey: candKeys.all });
     qc.invalidateQueries({ queryKey: atsKeys.overview });
     qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
+    // Hire hand-off changes onboarding and workforce figures.
+    qc.invalidateQueries({ queryKey: ["ats", "app-onboarding"] });
+    for (const k of ["workforce_staffing_matrix", "workforce_hiring_requirements", "workforce_line_people"]) qc.invalidateQueries({ queryKey: [k] });
   };
 
   const run = async (fn: () => PromiseLike<{ error: any }>, success: string, after?: () => void, action?: { label: string; onClick: () => void }, noAdvance = false) => {

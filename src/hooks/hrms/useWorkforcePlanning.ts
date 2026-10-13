@@ -348,6 +348,10 @@ export function useHiringRequirements() {
 export const LIMITED_REQUIREMENT_FIELDS = [
   "number_required", "target_joining_date", "salary_min", "salary_max", "required_skills", "notes",
 ] as const;
+const ALL_REQUIREMENT_FIELDS = [
+  ...LIMITED_REQUIREMENT_FIELDS, "department_id", "position_id", "shift_id", "shift_label", "location", "employment_type",
+  "reason", "reason_notes", "experience_required", "priority", "staffing_plan_id", "replacement_employee_id",
+] as const;
 
 export function useSaveHiringRequirement() {
   const qc = useQueryClient();
@@ -363,7 +367,8 @@ export function useSaveHiringRequirement() {
         const full = ["draft", "pending_approval"].includes(before?.status ?? "");
         const patch: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(rest)) {
-          if (full || (LIMITED_REQUIREMENT_FIELDS as readonly string[]).includes(k)) patch[k] = v;
+          const allowed: readonly string[] = full ? ALL_REQUIREMENT_FIELDS : LIMITED_REQUIREMENT_FIELDS;
+          if (allowed.includes(k)) patch[k] = v;
         }
         const { error } = await (supabase.rpc as any)("hr_update_requirement", {
           p_id: id, p_patch: patch, p_reason: editReason?.trim() || null,

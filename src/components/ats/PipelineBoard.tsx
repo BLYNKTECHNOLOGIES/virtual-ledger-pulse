@@ -30,6 +30,7 @@ import { QueryError, RowsSkeleton } from "./AtsBits";
 import { ResumeIcon, Stars, UnreviewedDot, isUnreviewed } from "./CandidateBits";
 import { CandidateAvatar, IdleDays, StatusPill, stageDotClass } from "./AtsUi";
 import { CheckCircle2, PauseCircle } from "lucide-react";
+import { HireShiftPicker, defaultHireShift, useJobShifts } from "./HireShiftPicker";
 
 type Pending = { row: AtsAppRow; stage: AtsStage } | null;
 
@@ -71,12 +72,14 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
     navigate(candidateHref(r), { state: { fromList: true } });
   };
 
-  const doMove = async (r: AtsAppRow, stage: AtsStage) => {
+  const jobShifts = useJobShifts(jobId);
+  const [hireShift, setHireShift] = useState<string | null>(null);
+  const doMove = async (r: AtsAppRow, stage: AtsStage, hiredShift?: string | null) => {
     const id = r.application_id!;
     if (busy.has(id)) return;
     setOverride((o) => ({ ...o, [id]: stage.id }));
     setBusy((b) => new Set(b).add(id));
-    const { error } = await supabase.rpc("ats_move_stage", { p_application_id: id, p_stage_id: stage.id, p_note: null });
+    const { error } = await (supabase.rpc as any)("ats_move_stage", { p_application_id: id, p_stage_id: stage.id, p_note: null, p_hired_shift: hiredShift ?? null });
     setBusy((b) => { const n = new Set(b); n.delete(id); return n; });
     if (error) {
       setOverride((o) => { const n = { ...o }; delete n[id]; return n; });
@@ -95,7 +98,7 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
     if (cur === stageId) return;
     const stage = stages.find((s) => s.id === stageId);
     if (!stage) return;
-    if (stage.kind === "hired" || stage.code === "hired") setConfirm({ row: r, stage });
+    if (stage.kind === "hired" || stage.code === "hired") { setHireShift(defaultHireShift(jobShifts.data ?? [], (r as any).preferred_shifts)); setConfirm({ row: r, stage }); }
     else doMove(r, stage);
   };
 
@@ -158,11 +161,13 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mark {confirm?.row.full_name} as hired?</AlertDialogTitle>
-            <AlertDialogDescription>The application moves to {confirm?.stage.name} and is marked hired.</AlertDialogDescription>
+            <AlertDialogDescription>The application moves to {confirm?.stage.name} and is marked hired. A draft onboarding is created (no email is sent).</AlertDialogDescription>
           </AlertDialogHeader>
+          <HireShiftPicker shifts={jobShifts.data ?? []} value={hireShift} onChange={setHireShift} />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const c = confirm!; setConfirm(null); doMove(c.row, c.stage); }}>Mark as hired</AlertDialogAction>
+            <AlertDialogAction disabled={(jobShifts.data?.length ?? 0) > 1 && !hireShift}
+              onClick={() => { const c = confirm!; setConfirm(null); doMove(c.row, c.stage, hireShift); }}>Mark as hired</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

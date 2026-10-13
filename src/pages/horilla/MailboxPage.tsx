@@ -23,6 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ThreadList } from "@/components/hrms/mail/ThreadList";
 import { ThreadReader } from "@/components/hrms/mail/ThreadReader";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 import {
   useHrMailboxes, useHrMailMessages, useHrMailCampaigns, useHrMailRecipients,
   useHrMailTemplates, useHrMailEmployees, useSendHrMail, useFetchHrMail,
@@ -469,17 +470,32 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
                 {files.map(f => (
                   <Badge key={f.name} variant="outline" className="text-[10px] gap-1">
                     {f.name}
-                    <button onClick={() => setFiles(prev => prev.filter(x => x !== f))}><X className="h-2.5 w-2.5" /></button>
+                    <button onClick={() => setFiles(prev => prev.filter(x => x !== f))} aria-label={`Remove ${f.name}`}><X className="h-2.5 w-2.5" /></button>
                   </Badge>
                 ))}
               </div>
             )}
           </div>
 
-          <Button onClick={handleSend} disabled={send.isPending || uploading} className="w-full gap-2 sm:w-auto">
-            {(send.isPending || uploading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {uploading ? "Uploading…" : send.isPending ? "Sending…" : `Send to ${recipientCount} recipient(s)`}
-          </Button>
+          {recipientCount > 5 ? (
+            <ConfirmButton
+              title={`Send this email to ${recipientCount} recipients?`}
+              description="It can't be recalled once sent."
+              confirmLabel="Send"
+              destructive={false}
+              onConfirm={() => handleSend()}
+            >
+              <Button disabled={send.isPending || uploading} className="w-full gap-2 sm:w-auto">
+                {(send.isPending || uploading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {uploading ? "Uploading…" : send.isPending ? "Sending…" : `Send to ${recipientCount} recipients`}
+              </Button>
+            </ConfirmButton>
+          ) : (
+            <Button onClick={handleSend} disabled={send.isPending || uploading} className="w-full gap-2 sm:w-auto">
+              {(send.isPending || uploading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {uploading ? "Uploading…" : send.isPending ? "Sending…" : `Send to ${recipientCount} recipient${recipientCount === 1 ? "" : "s"}`}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -601,9 +617,11 @@ function TemplatesTab() {
                   <div className="text-sm font-medium text-foreground truncate">{t.name}</div>
                   <div className="text-xs text-muted-foreground truncate">{t.subject}</div>
                 </button>
-                <Button size="sm" variant="ghost" onClick={() => remove.mutate(t.id)}>
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                </Button>
+                <ConfirmButton title={`Delete the “${t.name}” template?`} description="This can't be undone." confirmLabel="Delete template" onConfirm={() => remove.mutate(t.id)}>
+                  <Button size="sm" variant="ghost" aria-label={`Delete ${t.name}`} title="Delete template">
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </ConfirmButton>
               </div>
             ))}
           </div>

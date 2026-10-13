@@ -135,7 +135,6 @@ export default function StaffingPlanPage() {
                       <th className="px-3 py-2 text-right">Approved</th>
                       <th className="px-3 py-2 text-right">On roll</th>
                       <th className="px-3 py-2 text-right">Required</th>
-                      <th className="px-3 py-2 text-right">Available seats</th>
                       <th className="px-3 py-2 text-right">Vacancy</th>
                       <th className="px-3 py-2 text-right">Gap</th>
                       <th className="px-3 py-2 text-right">Pipeline</th>
@@ -160,7 +159,6 @@ export default function StaffingPlanPage() {
                         <td className="px-3 py-2 text-right tabular-nums">{r.approved_hc}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.current_hc}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.required_hc}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{r.availableSeats}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.availableSeats}</td>
                         <td
                           className={

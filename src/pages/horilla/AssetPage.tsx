@@ -12,6 +12,7 @@ import { Plus, Search, Laptop, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 export default function AssetPage() {
   const qc = useQueryClient();
@@ -54,6 +55,7 @@ export default function AssetPage() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => { const { error } = await (supabase as any).from("hr_assets").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["hr_assets"] }); toast.success("Deleted"); },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const filtered = assets.filter((a: any) => a.name?.toLowerCase().includes(search.toLowerCase()) || a.serial_number?.toLowerCase().includes(search.toLowerCase()));
@@ -112,7 +114,9 @@ export default function AssetPage() {
               </div>
               <div className="flex gap-2 pt-1">
                 <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setEditId(a.id); setForm({ name: a.name, asset_type: a.asset_type, serial_number: a.serial_number || "", status: a.status, purchase_cost: a.purchase_cost || 0, condition: a.condition || "good", notes: a.notes || "" }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
-                <Button size="sm" variant="outline" className="h-10 text-destructive" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                <ConfirmButton title={`Delete the asset “${a.name}”?`} description="This can't be undone." confirmLabel="Delete asset" onConfirm={() => deleteMutation.mutate(a.id)}>
+                  <Button size="sm" variant="outline" className="h-10 text-destructive" aria-label={`Delete ${a.name}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </ConfirmButton>
               </div>
             </CardContent>
           </Card>
@@ -148,7 +152,9 @@ export default function AssetPage() {
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
                       <Button size="sm" variant="ghost" onClick={() => { setEditId(a.id); setForm({ name: a.name, asset_type: a.asset_type, serial_number: a.serial_number || "", status: a.status, purchase_cost: a.purchase_cost || 0, condition: a.condition || "good", notes: a.notes || "" }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <ConfirmButton title={`Delete the asset “${a.name}”?`} description="This can't be undone." confirmLabel="Delete asset" onConfirm={() => deleteMutation.mutate(a.id)}>
+                        <Button size="sm" variant="ghost" className="text-destructive" aria-label={`Delete ${a.name}`} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </ConfirmButton>
                     </div>
                   </td>
                 </tr>

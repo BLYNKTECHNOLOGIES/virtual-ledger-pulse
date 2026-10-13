@@ -18,7 +18,7 @@ type Row = { employee_id: string; has_bank: boolean; has_salary: boolean; has_do
 export function HRDashboardCompletenessCard() {
   const navigate = useNavigate();
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["hr_dashboard_completeness"],
     queryFn: async () => {
       const { data } = await supabase
@@ -28,6 +28,10 @@ export function HRDashboardCompletenessCard() {
     },
     staleTime: 60_000,
   });
+
+  if (isLoading) {
+    return <div className="bg-card rounded-xl border border-border p-5"><div className="h-32 animate-pulse rounded bg-muted/40" /></div>;
+  }
 
   const total = data?.length ?? 0;
   const done = (k: keyof Row) => (data || []).filter(r => r[k]).length;

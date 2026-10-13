@@ -619,7 +619,7 @@ export default function DataHealthPage() {
   return (
     <div className="w-full min-w-0 px-3 sm:px-4 md:px-6 pb-6 space-y-4 page-mount">
       {/* Command bar — identity, scan, counters and filters in one block */}
-      <header className="sticky top-0 z-20 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 bg-background/95 backdrop-blur border-b border-border space-y-3">
+      <header className="md:sticky md:top-0 z-20 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 bg-background/95 backdrop-blur border-b border-border space-y-3">
         <div className="grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <h1 className="min-w-0 text-xl md:text-2xl font-semibold text-foreground flex flex-wrap items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-primary" />
@@ -729,8 +729,11 @@ export default function DataHealthPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-sm text-muted-foreground">
-              <CheckCircle2 className="h-8 w-8 text-success mx-auto mb-2" />
-              In sync
+              {kpis.total > 0 ? (
+                <>No issues match these filters — {kpis.total} still open.</>
+              ) : (
+                <><CheckCircle2 className="h-8 w-8 text-success mx-auto mb-2" />In sync</>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -1101,7 +1104,7 @@ function RailSection({
     <Collapsible open={open} onOpenChange={setOpen} className={`rounded-xl border ${RAIL_TONE[tone]}`}>
       <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
         {tone === "muted" ? (
-          <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span aria-hidden className="mx-1 h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
         ) : (
           <AlertTriangle className={`h-4 w-4 shrink-0 ${tone === "destructive" ? "text-destructive" : "text-warning"}`} />
         )}

@@ -139,7 +139,7 @@ export default function MPIPage() {
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie data={gradeDistribution.filter(d => d.value > 0)} dataKey="value" nameKey="name" outerRadius={90} label={({ name, value }: any) => `${name} (${value})`}>
-                        {gradeDistribution.map((d) => <Cell key={d.name} fill={GRADE_COLORS[d.name as Grade]} />)}
+                        {gradeDistribution.filter((d) => d.value > 0).map((d) => <Cell key={d.name} fill={GRADE_COLORS[d.name as Grade]} />)}
                       </Pie>
                       <Tooltip /><Legend />
                     </PieChart>
@@ -148,7 +148,7 @@ export default function MPIPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-sm font-semibold">Score Distribution</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm font-semibold">Employees per grade</CardTitle></CardHeader>
               <CardContent>
                 {results.length ? (
                   <ResponsiveContainer width="100%" height={260}>

@@ -16,6 +16,7 @@ import { HRDashboardCompletenessCard } from "@/components/hrms/HRDashboardComple
 import { HRSetupChecklistCard } from "@/components/hrms/HRSetupChecklistCard";
 import { AnnouncementsBanner } from "@/components/hrms/AnnouncementsBanner";
 import { UpcomingHolidaysCard } from "@/components/hrms/UpcomingHolidaysCard";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 
 const COLORS = [
@@ -137,6 +138,10 @@ export default function HorillaDashboard() {
   const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present" || a.attendance_status === "late").length;
   const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
   const lateToday = (todayAttendance || []).filter(a => a.attendance_status === "late").length;
+  // Display only: everyone active with no attendance row yet today (the list below shows the first few).
+  const punchedIds = new Set((todayAttendance || []).map((a: any) => a.employee_id));
+  const notPunchedCount = (employees || []).filter((e: any) => e.is_active && !punchedIds.has(e.id)).length;
+  const lastMonthLabel = format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), "MMM yyyy");
 
   const pendingLeaves = (leaveRequests || []).filter((l: any) => l.status === "requested" || l.status === "manager_approved");
   const approvedLeaves = (leaveRequests || []).filter((l: any) => l.status === "approved").length;
@@ -163,20 +168,20 @@ export default function HorillaDashboard() {
   const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
 
   const attendancePie = [
-    { name: "Present", value: presentToday, color: "hsl(var(--success))" },
+    { name: "On time", value: presentToday - lateToday, color: "hsl(var(--success))" },
     { name: "Absent", value: absentToday, color: "hsl(var(--destructive))" },
     { name: "Late", value: lateToday, color: "hsl(var(--warning))" },
   ].filter(d => d.value > 0);
 
   const stats = [
-    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
-    { label: "Active Employees", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
-    { label: "Open Positions", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
-    { label: "Candidates", value: atsCounts?.candidates ?? 0, sub: `${atsCounts?.hired ?? 0} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
-    { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
-    { label: "Pending Leaves", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
-    { label: "Onboarding", value: atsCounts?.onboarding ?? 0, sub: "in progress", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
-    { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Total Employees", to: "/hrms/employee", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Active Employees", to: "/hrms/employee", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
+    { label: "Open Positions", to: "/hrms/ats/jobs", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
+    { label: "Candidates", to: "/hrms/ats/candidates", value: atsCounts?.candidates ?? 0, sub: `${atsCounts?.hired ?? 0} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
+    { label: "Present Today", to: "/hrms/attendance", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
+    { label: "Pending Leaves", to: "/hrms/leave/requests", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
+    { label: "Onboarding", to: "/hrms/onboarding-pipeline", value: atsCounts?.onboarding ?? 0, sub: "in progress", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Payroll Runs", to: "/hrms/payroll", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
   ];
 
   return (
@@ -187,34 +192,6 @@ export default function HorillaDashboard() {
       />
 
       <AnnouncementsBanner />
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((c) => (
-          <div key={c.label} className="group bg-card rounded-lg border border-border p-5 flex items-start justify-between transition-colors duration-200 hover:border-primary/30">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{c.label}</p>
-              <p className="font-mono text-3xl font-bold text-foreground mt-2 tabular-nums first:text-primary">{c.value}</p>
-              <p className="text-[11px] mt-1 text-muted-foreground">{c.sub}</p>
-            </div>
-            <div className={`w-9 h-9 rounded-lg ${c.iconBg} flex items-center justify-center shrink-0`}>
-              <c.icon className={`h-5 w-5 ${c.iconColor}`} />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Data completeness — HR manager's daily "what next" home base */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
-        <div className="xl:col-span-2"><HRDashboardCompletenessCard /></div>
-        <HRSetupChecklistCard />
-      </div>
-
-      {/* Upcoming company holidays — read-only visibility for everyone */}
-      <UpcomingHolidaysCard />
-
-
-
       {/* M7: Actionable Widgets Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
@@ -242,7 +219,7 @@ export default function HorillaDashboard() {
                       {lr.hr_leave_types?.name} · {lr.total_days}d · {lr.start_date}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate("/hrms/leave/requests")}>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate(`/hrms/requests?type=leave&id=${lr.id}`)}>
                     Review
                   </Button>
                 </div>
@@ -255,14 +232,14 @@ export default function HorillaDashboard() {
         <div className="bg-card rounded-lg border border-border p-5 transition-colors hover:border-destructive/30">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <XCircle className="h-4 w-4 text-destructive" /> Today's Absentees
+              <XCircle className="h-4 w-4 text-destructive" /> Not punched in yet
             </h3>
             <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/attendance")}>
               View All <ArrowRight className="h-3 w-3" />
             </Button>
           </div>
           {todayAbsentees.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">All employees accounted for</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">Everyone has punched in today</p>
           ) : (
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
               {todayAbsentees.slice(0, 8).map((emp: any) => (
@@ -273,8 +250,8 @@ export default function HorillaDashboard() {
                   </p>
                 </div>
               ))}
-              {todayAbsentees.length > 8 && (
-                <p className="text-[10px] text-center text-muted-foreground">+{todayAbsentees.length - 8} more</p>
+              {notPunchedCount > 8 && (
+                <p className="text-[10px] text-center text-muted-foreground">+{notPunchedCount - 8} more</p>
               )}
             </div>
           )}
@@ -299,26 +276,66 @@ export default function HorillaDashboard() {
                     <p className="text-[10px] text-muted-foreground">{r.employee_count || 0} employees · draft</p>
                   </div>
                   <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate("/hrms/payroll")}>
-                    <Play className="h-3 w-3 mr-0.5" /> Process
+                    <Play className="h-3 w-3 mr-0.5" /> Open
                   </Button>
                 </div>
               ))
             ) : (
               <p className="text-sm text-muted-foreground py-2 text-center">No pending payroll runs</p>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full h-9 text-xs gap-1 mt-2"
-              onClick={() => autoGeneratePenalties.mutate()}
-              disabled={autoGeneratePenalties.isPending}
+            <ConfirmButton
+              title={`Generate late penalties for ${lastMonthLabel}?`}
+              description={`Creates penalties for everyone who crossed a late slab in ${lastMonthLabel}, using the penalty rules.`}
+              confirmLabel="Generate penalties"
+              destructive={false}
+              onConfirm={() => autoGeneratePenalties.mutate()}
             >
-              <FileText className="h-3 w-3" />
-              {autoGeneratePenalties.isPending ? "Generating..." : "Auto-Generate Last Month Penalties"}
-            </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-9 text-xs gap-1 mt-2"
+                disabled={autoGeneratePenalties.isPending}
+              >
+                <FileText className="h-3 w-3" />
+                {autoGeneratePenalties.isPending ? "Generating…" : `Generate late penalties for ${lastMonthLabel}`}
+              </Button>
+            </ConfirmButton>
           </div>
         </div>
       </div>
+
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {stats.map((c) => (
+          <button
+            type="button"
+            key={c.label}
+            onClick={() => navigate(c.to)}
+            className="group w-full text-left bg-card rounded-lg border border-border p-5 flex items-start justify-between transition-colors duration-200 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{c.label}</p>
+              <p className="font-mono text-3xl font-bold text-foreground mt-2 tabular-nums first:text-primary">{c.value}</p>
+              <p className="text-[11px] mt-1 text-muted-foreground">{c.sub}</p>
+            </div>
+            <div className={`w-9 h-9 rounded-lg ${c.iconBg} flex items-center justify-center shrink-0`}>
+              <c.icon className={`h-5 w-5 ${c.iconColor}`} />
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Data completeness — HR manager's daily "what next" home base */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+        <div className="xl:col-span-2"><HRDashboardCompletenessCard /></div>
+        <HRSetupChecklistCard />
+      </div>
+
+      {/* Upcoming company holidays — read-only visibility for everyone */}
+      <UpcomingHolidaysCard />
+
+
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

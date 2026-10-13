@@ -17,6 +17,7 @@ import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPan
 import { LeaveApprovalPanel } from "@/components/hrms/LeaveApprovalPanel";
 import { RegularizationApprovalPanel } from "@/components/hrms/RegularizationApprovalPanel";
 import { CurrentAttendanceSnapshot } from "@/components/hrms/CurrentAttendanceSnapshot";
+import { safeFormat } from "@/lib/safe-date";
 import {
   REQUEST_SOURCES,
   STAGE_LABEL,
@@ -35,13 +36,17 @@ const STAGE_STYLE: Record<RequestStage, string> = {
   other: "bg-muted text-muted-foreground border-border",
 };
 
-function StageBadge({ stage }: { stage: RequestStage }) {
+/** A label that differs from the stage name (e.g. "RazorpayX not confirmed") is a problem, so it is shown in red. */
+function StageBadge({ stage, label }: { stage: RequestStage; label?: string }) {
+  const failed = !!label && label !== STAGE_LABEL[stage];
   return (
-    <Badge variant="outline" className={cn("whitespace-normal text-center leading-snug [overflow-wrap:normal]", STAGE_STYLE[stage])}>
-      {STAGE_LABEL[stage]}
+    <Badge variant="outline" className={cn("whitespace-normal text-center leading-snug [overflow-wrap:normal]", failed ? STAGE_STYLE.rejected : STAGE_STYLE[stage])}>
+      {label || STAGE_LABEL[stage]}
     </Badge>
   );
 }
+
+const fmtDay = (d?: string | null) => (d ? safeFormat(d, "d MMM yyyy") : "—");
 
 function TypeIcon({ type }: { type: string }) {
   const Icon = type === "leave" ? CalendarDays : type === "bank_change" ? Landmark : Clock;
@@ -143,7 +148,7 @@ export default function RequestsPage() {
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Requests"
-        description="Every request that reaches HRMS — leave, attendance regularization and future request types — newest first."
+        description="Leave, attendance regularization and bank-detail change requests that reach HRMS, newest first."
         actions={
           <Button variant="outline" className="h-9" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={cn("h-4 w-4 mr-2", isFetching && "animate-spin")} /> Refresh
@@ -251,10 +256,10 @@ export default function RequestsPage() {
               </Button>
             </td>
             <td className="px-3 py-3 align-top tabular-nums text-sm">
-              <span className="block">{r.periodFrom || "—"}</span>
-              {r.periodFrom !== r.periodTo && <span className="block text-muted-foreground">→ {r.periodTo || "—"}</span>}
+              <span className="block whitespace-nowrap">{fmtDay(r.periodFrom)}</span>
+              {r.periodFrom !== r.periodTo && <span className="block whitespace-nowrap text-muted-foreground">→ {fmtDay(r.periodTo)}</span>}
             </td>
-            <td className="px-3 py-3 align-top"><StageBadge stage={r.stage} /></td>
+            <td className="px-3 py-3 align-top"><StageBadge stage={r.stage} label={r.statusLabel} /></td>
             <td className="px-3 py-3 align-top text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}
             </td>
@@ -262,21 +267,25 @@ export default function RequestsPage() {
         )}
         renderCard={(r: UnifiedRequest) => (
           <Card
-            className={cn("cursor-pointer", deepLinkId === r.id && "ring-2 ring-primary")}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${r.typeLabel} request for ${r.employeeName}`}
+            className={cn("cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", deepLinkId === r.id && "ring-2 ring-primary")}
             onClick={() => openDetail(r)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(r); } }}
           >
             <CardContent className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                   <TypeIcon type={r.type} /> {r.typeLabel}
                 </span>
-                <StageBadge stage={r.stage} />
+                <StageBadge stage={r.stage} label={r.statusLabel} />
               </div>
               <div>
                 <p className="font-medium text-sm">{r.employeeName}</p>
                 <p className="text-xs text-muted-foreground">{r.subject}</p>
                 <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                  {r.periodFrom === r.periodTo ? r.periodFrom || '—' : `${r.periodFrom || '—'} → ${r.periodTo || '—'}`}
+                  {r.periodFrom === r.periodTo ? fmtDay(r.periodFrom) : `${fmtDay(r.periodFrom)} → ${fmtDay(r.periodTo)}`}
                 </p>
               </div>
               <p className="text-[11px] text-muted-foreground">
@@ -301,14 +310,13 @@ export default function RequestsPage() {
         {selected && (
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-2">
-              <StageBadge stage={selected.stage} />
-              <span className="text-xs text-muted-foreground font-mono">{selected.rawStatus}</span>
+              <StageBadge stage={selected.stage} label={selected.statusLabel} />
             </div>
             <Row label="Subject" value={selected.subject} />
             {selected.type !== "bank_change" && (
               <Row
                 label="Period"
-                value={selected.periodFrom === selected.periodTo ? selected.periodFrom || "—" : `${selected.periodFrom} → ${selected.periodTo}`}
+                value={selected.periodFrom === selected.periodTo ? fmtDay(selected.periodFrom) : `${fmtDay(selected.periodFrom)} → ${fmtDay(selected.periodTo)}`}
               />
             )}
             {selected.type === "regularization" && (

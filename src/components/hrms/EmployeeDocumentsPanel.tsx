@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FileText, Plus, ExternalLink, CheckCircle, Trash2 } from "lucide-react";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 const DOC_TYPES = [
   { value: "aadhaar", label: "Aadhaar Card" },
@@ -153,7 +154,7 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
                   <p className="text-[11px] text-muted-foreground">
                     {DOC_TYPES.find(t => t.value === d.document_type)?.label
                       || (d.document_type || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
-                    {d.uploaded_at ? ` · ${new Date(d.uploaded_at).toLocaleDateString()}` : ""}
+                    {d.uploaded_at ? ` · ${new Date(d.uploaded_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}` : ""}
                     {d.is_verified ? " · Verified" : ""}
                   </p>
                 </div>
@@ -163,6 +164,8 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
                   <Button
                     size="sm"
                     variant="ghost"
+                    aria-label={`Open ${d.document_name}`}
+                    title="Open"
                     onClick={() => openStoredDocument(d.file_url).catch((e: any) => toast.error(e?.message || "Could not open"))}
                   >
                     <ExternalLink className="h-4 w-4" />
@@ -170,13 +173,20 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
                 )}
 
                 {!d.is_verified && (
-                  <Button size="sm" variant="ghost" onClick={() => verifyMutation.mutate(d.id)}>
+                  <Button size="sm" variant="ghost" aria-label={`Mark ${d.document_name} as verified`} title="Mark as verified" onClick={() => verifyMutation.mutate(d.id)}>
                     <CheckCircle className="h-4 w-4" />
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" onClick={() => deleteMutation.mutate(d.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <ConfirmButton
+                  title={`Delete “${d.document_name}”?`}
+                  description="It is removed from this employee's documents. This can't be undone."
+                  confirmLabel="Delete document"
+                  onConfirm={() => deleteMutation.mutate(d.id)}
+                >
+                  <Button size="sm" variant="ghost" aria-label={`Delete ${d.document_name}`} title="Delete">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </ConfirmButton>
               </div>
             </div>
             ))}

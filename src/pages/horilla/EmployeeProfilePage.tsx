@@ -26,6 +26,8 @@ import { DriftBadge } from "@/components/hrms/DriftBadge";
 import NewJoinerReadinessCard from "@/components/hrms/NewJoinerReadinessCard";
 import { EmployeeDocumentsPanel } from "@/components/hrms/EmployeeDocumentsPanel";
 import { EmployeeAttendanceCalendar } from "@/components/hrms/attendance/EmployeeAttendanceCalendar";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 
 // ─── Tabs matching Horilla ───
@@ -265,7 +267,7 @@ export default function EmployeeProfilePage() {
   const [showTrainingCtc, setShowTrainingCtc] = useState(false);
 
   // ─── Core employee data ───
-  const { data: emp } = useQuery({
+  const { data: emp, isError: empError } = useQuery({
     queryKey: ["hr_employee_detail", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("hr_employees").select("*").eq("id", id!).single();
@@ -851,6 +853,17 @@ export default function EmployeeProfilePage() {
   const getLeaveTypeCode = (typeId: string) => leaveTypes?.find(t => t.id === typeId)?.code || "??";
   const getLeaveTypeColor = (typeId: string) => leaveTypes?.find(t => t.id === typeId)?.color || "#666";
 
+  if (empError) {
+    return (
+      <EmptyState
+        icon={User}
+        title="Employee not found"
+        description="The record may have been removed, or you may not have access to it."
+        action={<Button variant="outline" onClick={() => navigate("/hrms/employee")}>Back to Employees</Button>}
+      />
+    );
+  }
+
   if (!emp) {
     return (
       <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -898,15 +911,13 @@ export default function EmployeeProfilePage() {
   return (
     <div className="hrms-page space-y-4 p-3 md:p-6">
       {/* ─── Breadcrumb ─── */}
-      <div className="hidden md:flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-        <button onClick={() => navigate("/hrms")} className="hover:text-foreground">Horilla</button>
-        <span>›</span>
-        <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employee</button>
-        <span>›</span>
+      <nav aria-label="Breadcrumb" className="hidden md:flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+        <button onClick={() => navigate("/hrms")} className="hover:text-foreground">HRMS</button>
+        <span aria-hidden="true">›</span>
         <button onClick={() => navigate("/hrms/employee")} className="hover:text-foreground">Employees</button>
-        <span>›</span>
-        <span className="text-[#00bcd4] font-medium break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
-      </div>
+        <span aria-hidden="true">›</span>
+        <span aria-current="page" className="text-[#00bcd4] font-medium break-words">{emp.first_name} {emp.last_name} ({emp.badge_id})</span>
+      </nav>
       <button onClick={() => navigate("/hrms/employee")} className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground md:hidden">
         <ArrowLeft className="h-4 w-4" /> Employees
       </button>
@@ -931,11 +942,11 @@ export default function EmployeeProfilePage() {
             </div>
             <div className="flex min-w-0 items-center gap-2 mt-1 text-sm text-muted-foreground">
               <Mail className="h-3.5 w-3.5" />
-              <span className="min-w-0 truncate">{emp.email || "No email"}</span>
+              {emp.email ? <a href={`mailto:${emp.email}`} className="min-w-0 truncate hover:underline">{emp.email}</a> : <span>No email</span>}
             </div>
             <div className="flex min-w-0 items-center gap-2 mt-0.5 text-sm text-muted-foreground">
               <Phone className="h-3.5 w-3.5" />
-              <span className="min-w-0 truncate">{emp.phone || "No phone"}</span>
+              {emp.phone ? <a href={`tel:${emp.phone}`} className="min-w-0 truncate hover:underline">{emp.phone}</a> : <span>No phone</span>}
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-sm text-muted-foreground">
               <User className="h-3.5 w-3.5" />
@@ -949,6 +960,8 @@ export default function EmployeeProfilePage() {
           <button
             onClick={() => prevId && navigate(`/hrms/employee/${prevId}`)}
             disabled={!prevId}
+            aria-label="Previous employee"
+            title="Previous employee"
             className="p-1.5 rounded-full bg-[#00bcd4] text-primary-foreground hover:bg-[#00a5bb] disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -956,6 +969,8 @@ export default function EmployeeProfilePage() {
           <button
             onClick={() => nextId && navigate(`/hrms/employee/${nextId}`)}
             disabled={!nextId}
+            aria-label="Next employee"
+            title="Next employee"
             className="p-1.5 rounded-full bg-[#00bcd4] text-primary-foreground hover:bg-[#00a5bb] disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronRight className="h-4 w-4" />
@@ -975,7 +990,7 @@ export default function EmployeeProfilePage() {
             <p className="text-xs text-muted-foreground mt-0.5">
               Employment ended{emp.last_working_day ? ` on ${new Date(emp.last_working_day).toLocaleDateString("en-IN")}` : ""}
               {emp.separation_reason ? ` · Reason: ${emp.separation_reason}` : ""}.
-              Record is retained read-only for audit, payroll history, statutory reports and re-hire lookup.
+              The record is kept for audit, payroll history, statutory reports and re-hire lookup.
               This employee is not counted in active headcount, payroll runs or Data Health checks.
             </p>
           </div>
@@ -984,11 +999,12 @@ export default function EmployeeProfilePage() {
 
 
       {/* ─── Tabs (Horilla pill style) ─── */}
-      <div className="hrms-chip-row flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+      <div className="hrms-chip-row flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible pb-2 scrollbar-hide -mx-1 px-1">
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => { setActiveTab(t); setEditing(false); }}
+            aria-pressed={activeTab === t}
             className={`shrink-0 px-4 py-1.5 text-sm font-medium rounded-full border transition-colors ${
               activeTab === t
                 ? "bg-[#00bcd4] text-primary-foreground border-[#00bcd4]"
@@ -1027,7 +1043,7 @@ export default function EmployeeProfilePage() {
                 <div className="border border-border rounded-lg p-3 md:p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Identity</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
-                    <InfoRow label="Badge ID" value={emp.badge_id != null ? String(emp.badge_id) : null} editKey="badge_id" />
+                    {InfoRow({ label: "Badge ID", value: emp.badge_id != null ? String(emp.badge_id) : null, editKey: "badge_id" })}
                     <div className="py-2">
                       <p className="text-xs text-muted-foreground">Status</p>
                        <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -1045,31 +1061,31 @@ export default function EmployeeProfilePage() {
                          )}
                        </div>
                     </div>
-                    <InfoRow label="First Name" value={emp.first_name} editKey="first_name" />
-                    <InfoRow label="Last Name" value={emp.last_name} editKey="last_name" />
+                    {InfoRow({ label: "First Name", value: emp.first_name, editKey: "first_name" })}
+                    {InfoRow({ label: "Last Name", value: emp.last_name, editKey: "last_name" })}
                   </div>
                 </div>
 
                 <div className="border border-border rounded-lg p-3 md:p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Contact</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
-                    <InfoRow label="Email" value={emp.email} editKey="email" inputType="email" />
-                    <InfoRow label="Phone" value={emp.phone} editKey="phone" inputType="tel" />
+                    {InfoRow({ label: "Email", value: emp.email, editKey: "email", inputType: "email" })}
+                    {InfoRow({ label: "Phone", value: emp.phone, editKey: "phone", inputType: "tel" })}
                     <div className="sm:col-span-2">
-                      <InfoRow label="Address" value={emp.address} editKey="address" />
+                      {InfoRow({ label: "Address", value: emp.address, editKey: "address" })}
                     </div>
-                    <InfoRow label="City" value={emp.city} editKey="city" />
-                    <InfoRow label="State" value={emp.state} editKey="state" />
-                    <InfoRow label="Country" value={emp.country} editKey="country" />
+                    {InfoRow({ label: "City", value: emp.city, editKey: "city" })}
+                    {InfoRow({ label: "State", value: emp.state, editKey: "state" })}
+                    {InfoRow({ label: "Country", value: emp.country, editKey: "country" })}
                   </div>
                 </div>
 
                 <div className="border border-border rounded-lg p-3 md:p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Personal</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
-                    <InfoRow label="Date of birth" value={emp.dob} editKey="dob" inputType="date" />
-                    <InfoRow label="Gender" value={emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
-                    <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" selectOptions={[{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }]} />
+                    {InfoRow({ label: "Date of birth", value: emp.dob, editKey: "dob", inputType: "date" })}
+                    {InfoRow({ label: "Gender", value: emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null, editKey: "gender", selectOptions: [{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }] })}
+                    {InfoRow({ label: "Marital Status", value: emp.marital_status, editKey: "marital_status", selectOptions: [{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }] })}
                   </div>
                 </div>
 
@@ -1077,10 +1093,10 @@ export default function EmployeeProfilePage() {
                 <div className="border border-border rounded-lg p-3 md:p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Statutory</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
-                    <InfoRow label="PAN Number" value={(emp as any).pan_number} editKey="pan_number" />
-                    <InfoRow label="PF Number" value={(emp as any).pf_number} editKey="pf_number" />
-                    <InfoRow label="UAN Number" value={(emp as any).uan_number} editKey="uan_number" />
-                    <InfoRow label="ESI Number" value={(emp as any).esi_number} editKey="esi_number" />
+                    {InfoRow({ label: "PAN Number", value: (emp as any).pan_number, editKey: "pan_number" })}
+                    {InfoRow({ label: "PF Number", value: (emp as any).pf_number, editKey: "pf_number" })}
+                    {InfoRow({ label: "UAN Number", value: (emp as any).uan_number, editKey: "uan_number" })}
+                    {InfoRow({ label: "ESI Number", value: (emp as any).esi_number, editKey: "esi_number" })}
                   </div>
                 </div>
 
@@ -1088,10 +1104,10 @@ export default function EmployeeProfilePage() {
                   <div className="border border-border rounded-lg p-3 md:p-4">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Separation</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
-                      <InfoRow label="Resignation Date" value={(emp as any).resignation_date} editKey="resignation_date" inputType="date" />
-                      <InfoRow label="Termination Date" value={(emp as any).termination_date} editKey="termination_date" inputType="date" />
-                      <InfoRow label="Last Working Day" value={(emp as any).last_working_day} editKey="last_working_day" inputType="date" />
-                      <InfoRow label="Separation Reason" value={(emp as any).separation_reason} editKey="separation_reason" />
+                      {InfoRow({ label: "Resignation Date", value: (emp as any).resignation_date, editKey: "resignation_date", inputType: "date" })}
+                      {InfoRow({ label: "Termination Date", value: (emp as any).termination_date, editKey: "termination_date", inputType: "date" })}
+                      {InfoRow({ label: "Last Working Day", value: (emp as any).last_working_day, editKey: "last_working_day", inputType: "date" })}
+                      {InfoRow({ label: "Separation Reason", value: (emp as any).separation_reason, editKey: "separation_reason" })}
                     </div>
                   </div>
                 )}
@@ -1105,7 +1121,6 @@ export default function EmployeeProfilePage() {
             <div>
               <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="bg-[#00bcd4] text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">1</span>
                   <h3 className="text-base font-semibold text-[#00bcd4]">Work Information</h3>
                   {razorpaySync.state !== "idle" && (
                     <span
@@ -1435,12 +1450,20 @@ export default function EmployeeProfilePage() {
                       <p className="text-sm text-foreground whitespace-pre-wrap">{note.description}</p>
                       <p className="text-xs text-muted-foreground mt-2">{new Date(note.created_at).toLocaleString('en-IN')}</p>
                     </div>
-                    <button
-                      onClick={() => deleteNoteMutation.mutate(note.id)}
-                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                    <ConfirmButton
+                      title="Delete this note?"
+                      description="This can't be undone."
+                      confirmLabel="Delete note"
+                      onConfirm={() => deleteNoteMutation.mutate(note.id)}
                     >
-                      <X className="h-4 w-4" />
-                    </button>
+                      <button
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                        aria-label="Delete note"
+                        title="Delete note"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </ConfirmButton>
                   </div>
                 ))}
               </div>
@@ -1469,7 +1492,7 @@ export default function EmployeeProfilePage() {
                 <div><p className="text-xs text-muted-foreground">Bank Name</p><p className="text-sm text-foreground">{bankInfo?.bank_name || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Account Number</p><p className="text-sm text-foreground">{bankInfo?.account_number || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">IFSC Code</p><p className="text-sm text-foreground">{bankInfo?.ifsc_code || "None"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Bank Code 2</p><p className="text-sm text-foreground">{bankInfo?.bank_code_2 || "None"}</p></div>
+                {bankInfo?.bank_code_2 && <div><p className="text-xs text-muted-foreground">Bank Code 2</p><p className="text-sm text-foreground">{bankInfo.bank_code_2}</p></div>}
                 <div><p className="text-xs text-muted-foreground">Branch</p><p className="text-sm text-foreground">{bankInfo?.branch || "None"}</p></div>
               </div>
             </div>

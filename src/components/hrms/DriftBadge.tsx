@@ -38,7 +38,7 @@ export function DriftBadge({ employeeId, variant = "chip" }: Props) {
       title={`${data} data mismatch${data === 1 ? "" : "es"} across HRMS / Razorpay / eSSL`}
     >
       <AlertTriangle className="h-2.5 w-2.5" />
-      {data} drift{data === 1 ? "" : "s"}
+      {data} data mismatch{data === 1 ? "" : "es"}
     </Link>
   );
 }

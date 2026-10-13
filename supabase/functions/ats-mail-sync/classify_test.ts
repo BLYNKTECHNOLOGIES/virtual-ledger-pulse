@@ -61,3 +61,10 @@ Deno.test('unknown address with no ATS thread -> none', () => {
 Deno.test('own mailbox -> self', () => {
   assertEquals(classifyMessage(header('hr@blynkex.com', [OUR]), ctx()), { kind: 'self' })
 })
+
+Deno.test('candidate found only through Reply-To -> match with otherAddress', () => {
+  const h = { ...header('someone@other.com'), replyTo: 'rahulsharma@gmail.com' }
+  assertEquals(classifyMessage(h, ctx()), { kind: 'match', candidateId: CAND, applicationId: null, via: 'sender', otherAddress: true })
+  assertEquals(classifyMessage({ ...h, inReplyTo: [OUR] }, ctx()),
+    { kind: 'match', candidateId: CAND, applicationId: APP, via: 'thread', otherAddress: true })
+})

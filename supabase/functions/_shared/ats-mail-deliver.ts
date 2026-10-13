@@ -202,8 +202,16 @@ export async function sendQueued(
       mailboxes.set(row.mailbox_id, mb?.is_active ? mb : null)
     }
     // Re-read the candidate: closed or without an email -> failed; a changed address -> send to the new one.
-    const { data: cand } = await admin.from('ats_candidates')
+    const { data: cand, error: candErr } = await admin.from('ats_candidates')
       .select('email, merged_into_id, anonymized_at').eq('id', row.candidate_id).maybeSingle()
+    if (candErr) {
+      // A failed read is not a closed candidate: put the email back in the queue for 5 minutes.
+      await admin.from('ats_messages').update({
+        status: 'queued', attempts: Number(d.attempts ?? 0), next_attempt_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+      }).eq('id', row.id)
+      out.retrying++
+      continue
+    }
     const to = String(cand?.email ?? '').trim().toLowerCase()
     const stop = !cand || cand.merged_into_id || cand.anonymized_at ? 'candidate_closed' : !isEmail(to) ? 'no_email' : null
     if (stop) {

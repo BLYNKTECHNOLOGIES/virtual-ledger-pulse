@@ -13416,7 +13416,7 @@ export type Database = {
           gender?: string | null
           id?: string
           is_active?: boolean
-          last_name: string
+          last_name?: string
           last_working_day?: string | null
           legacy_badge_id?: string | null
           marital_status?: string | null

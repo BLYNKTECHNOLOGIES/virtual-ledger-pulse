@@ -1,6 +1,7 @@
 # Workforce capacity integrity
 
 ## ATS job details formatting
+- [ ] Automatically bullet pasted multi-line points across all four job details fields and verify the supplied eight-point example.
 - [x] Add bullet and numbered-list controls with Enter continuation to all four job copy fields, preserving the existing plain-text careers feed.
 - [x] Verify bullet/number controls, Enter continuation and empty-item exit in browser; five formatting tests pass and preview build is OK; literal markers remain compatible with existing text displays.
 - [ ] Verify signed-in job save/read-back (blocked: external Supabase authentication unavailable to automated checks).

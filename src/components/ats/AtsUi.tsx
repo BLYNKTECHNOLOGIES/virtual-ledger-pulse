@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { continueJobList, formatJobList } from "./jobTextFormatting";
+import { continueJobList, formatJobList, pasteJobList } from "./jobTextFormatting";
 
 /** Literal list markers preserve formatting in both HRMS and the plain-text careers feed. */
 export const JobDetailsInput = forwardRef<HTMLTextAreaElement, {
@@ -39,6 +39,11 @@ export const JobDetailsInput = forwardRef<HTMLTextAreaElement, {
       ref={(el) => { ref.current = el; if (typeof forwardedRef === "function") forwardedRef(el); else if (forwardedRef) forwardedRef.current = el; }}
       className="rounded-none border-0 bg-transparent text-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
       onChange={(event) => onChange(event.target.value)}
+      onPaste={(event) => {
+        const el = event.currentTarget;
+        const edit = pasteJobList(value, el.selectionStart, el.selectionEnd, event.clipboardData.getData("text/plain"));
+        if (edit) { event.preventDefault(); apply(edit); }
+      }}
       onKeyDown={(event) => {
         if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
         const el = event.currentTarget;

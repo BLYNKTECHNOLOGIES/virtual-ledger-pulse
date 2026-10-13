@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import {
   deriveStaffingRow,
+  istToday,
   type StaffingDerived,
   type StaffingMatrixRow,
 } from "@/lib/hrms/workforce";

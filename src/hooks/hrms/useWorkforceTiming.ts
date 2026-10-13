@@ -2,6 +2,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invalidatePlanning } from "@/hooks/hrms/useWorkforcePlanning";
+import { istToday } from "@/lib/hrms/workforce";
+
+/** Shift schedule rows starting after today (IST), earliest per employee — a move already booked. */
+export function useUpcomingShiftMoves(employeeIds: string[]) {
+  const key = [...employeeIds].sort().join(",");
+  return useQuery({
+    queryKey: ["workforce_staffing_matrix", "upcoming_moves", key],
+    enabled: employeeIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_employee_shift_schedule")
+        .select("employee_id, shift_id, effective_from, hr_shifts:shift_id(name)")
+        .in("employee_id", employeeIds).gt("effective_from", istToday())
+        .order("effective_from", { ascending: true });
+      if (error) throw error;
+      const m = new Map<string, { shift_name: string | null; from: string }>();
+      for (const r of (data ?? []) as any[]) if (!m.has(r.employee_id)) m.set(r.employee_id, { shift_name: r.hr_shifts?.name ?? null, from: r.effective_from });
+      return m;
+    },
+    staleTime: 60_000,
+  });
+}
 
 export interface OverdueJoiner {
   onboarding_id: string; full_name: string | null; department_name: string | null; position_title: string | null;

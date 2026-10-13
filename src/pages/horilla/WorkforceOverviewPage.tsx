@@ -199,7 +199,7 @@ export default function WorkforceOverviewPage() {
               hint={`${pending.length} awaiting approval · ${t.uncovered} not yet requested`} />
             <WorkforceKpiCard label="Projected gap (90 days)" value={projectedGap ?? "—"} icon={CalendarClock}
               tone={(projectedGap ?? 0) > 0 ? "warning" : "default"}
-              hint={<Link className="text-primary hover:underline" to="/hrms/workforce-planning/forecast">Sum of line shortfalls · open forecast</Link> as any} />
+              hint={<Link className="text-primary hover:underline" to="/hrms/workforce-planning/forecast">Sum of line shortfalls · open forecast</Link>} />
             <WorkforceKpiCard label="Pipeline" value={t.pipeline} icon={CalendarClock} hint={`${t.selected} selected · ${t.joining} joining`} />
             <WorkforceKpiCard label="Approved" value={t.approved} icon={UserCheck} hint={`Vacant seats ${t.vacant} (approved − on roll per line)`} />
             <WorkforceKpiCard label="Leaving soon (on notice)" value={leaving.length} icon={UserMinus} tone={leaving.length > 0 ? "warning" : "default"}

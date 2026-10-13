@@ -627,26 +627,61 @@ function OriginalDialog({ open, onOpenChange, html, subject }: { open: boolean; 
 
 const stripRe = (s: string) => s.replace(/^\s*((re|fwd?)\s*:\s*)+/i, "").trim();
 
-function Composer({ candidate, appId, files, thread, onClose, onDone }: {
+const DRAFT_KEY = (candidateId: string) => `ats-draft:${candidateId}`;
+const FU_KEY = "ats-followup-choice";
+const readDraft = (cid: string): { subject: string; body: string } | null => {
+  try { const v = localStorage.getItem(DRAFT_KEY(cid)); return v ? JSON.parse(v) : null; } catch { return null; }
+};
+const clearDraft = (cid: string) => { try { localStorage.removeItem(DRAFT_KEY(cid)); } catch { /* storage unavailable */ } };
+const readFu = (): FollowUpChoice => {
+  try { const v = localStorage.getItem(FU_KEY); return FOLLOW_UP_CHOICES.some((c) => c.value === v) ? (v as FollowUpChoice) : "off"; } catch { return "off"; }
+};
+
+function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomingId, onClose, onDone }: {
   candidate: AtsCandidate; appId: string | null; files: AtsFile[]; thread: AtsMessage[]; onClose: () => void; onDone: () => void;
+  preset?: ComposerPreset | null; focusNonce?: number; upcomingId?: string | null;
 }) {
   const qc = useQueryClient();
   const templates = useEmailTemplates();
   // Continue this application's latest message; fall back to the latest overall when it has none.
   const appThread = thread.filter((m) => m.application_id === appId);
   const latest = appThread[appThread.length - 1] ?? thread[thread.length - 1];
-  const [subject, setSubject] = useState(() => (latest?.subject ? `Re: ${stripRe(latest.subject)}`.slice(0, 200) : ""));
+  const reSubject = latest?.subject ? `Re: ${stripRe(latest.subject)}`.slice(0, 200) : "";
+  const [subject, setSubject] = useState(reSubject);
   const [body, setBody] = useState("");
   const [reply, setReply] = useState(!!latest);
   const [tplMeta, setTplMeta] = useState<{ code: string | null; purpose: string }>({ code: null, purpose: "general" });
-  const [pendingTpl, setPendingTpl] = useState<string | null>(null);
+  const [pendingTpl, setPendingTpl] = useState<{ id: string; quick: boolean } | null>(null);
   const [sel, setSel] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [fuChoice, setFuChoice] = useState<FollowUpChoice>(readFu);
+  const [askDiscard, setAskDiscard] = useState(false);
   const idRef = useRef<string>(crypto.randomUUID());
   const attemptSig = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  // Draft safety: restore when the composer opens empty (no preset), save while writing.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    if (preset) return;
+    const d = readDraft(candidate.id);
+    if (d && (d.body?.trim() || d.subject?.trim())) { if (d.subject) setSubject(d.subject); setBody(d.body ?? ""); }
+  }, [candidate.id, preset]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        if (body.trim()) localStorage.setItem(DRAFT_KEY(candidate.id), JSON.stringify({ subject, body }));
+        else localStorage.removeItem(DRAFT_KEY(candidate.id));
+      } catch { /* storage unavailable */ }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [subject, body, candidate.id]);
+
+  useEffect(() => { if (focusNonce) setTimeout(() => bodyRef.current?.focus(), 0); }, [focusNonce]);
 
   // Autosize 8–20 rows.
   useEffect(() => {
@@ -662,17 +697,44 @@ function Composer({ candidate, appId, files, thread, onClose, onDone }: {
   const total = selFiles.reduce((s, f) => s + Number(f.size_bytes ?? 0), 0);
   const canSend = !sending && !!subject.trim() && !!body.trim() && !hasPlaceholders && sel.length <= 5 && total <= 15 * 1024 * 1024;
 
-  const applyTemplate = async (id: string) => {
+  const applyTemplate = async (id: string, quick = false) => {
     try {
-      const r = await renderTemplate(id, appId, candidate.id);
-      setSubject(r.subject.slice(0, 200));
+      const t = (templates.data ?? []).find((x) => x.id === id);
+      let r: { subject: string; body: string; template_code: string; purpose: string };
+      if (t && usesInterviewFields(t)) {
+        if (!upcomingId) throw new Error("ATS_INTERVIEW_CLOSED");
+        const { data, error } = await supabase.rpc("ats_render_interview_text", { p_interview_id: upcomingId, p_subject: t.subject, p_body: t.body });
+        if (error) throw error;
+        const d = (data ?? {}) as { subject?: string; body?: string };
+        r = { subject: d.subject ?? t.subject, body: d.body ?? t.body, template_code: t.code, purpose: t.purpose ?? "general" };
+      } else {
+        r = await renderTemplate(id, appId, candidate.id);
+      }
+      // Quick replies in a thread keep the "Re: …" subject.
+      if (!(quick && reply && latest)) setSubject(r.subject.slice(0, 200));
       setBody(r.body);
       setTplMeta({ code: r.template_code, purpose: r.purpose });
+      setTimeout(() => bodyRef.current?.focus(), 0);
     } catch (e) {
       toast.error(atsErrorMessage(e));
     }
   };
-  const pickTemplate = (id: string) => (body.trim() ? setPendingTpl(id) : applyTemplate(id));
+  const pickTemplate = (id: string, quick = false) => (body.trim() ? setPendingTpl({ id, quick }) : applyTemplate(id, quick));
+
+  const quickReplies = (templates.data ?? []).filter((t) => (t as AtsEmailTemplate).quick_reply && (!usesInterviewFields(t) || (!!upcomingId && t.code === "interview-confirmed")));
+
+  // Preset from the next-step bar: fill a template by code once per request.
+  const presetDone = useRef<number | null>(null);
+  useEffect(() => {
+    if (!preset?.code || presetDone.current === preset.nonce || !templates.data) return;
+    presetDone.current = preset.nonce;
+    const t = templates.data.find((x) => x.code === preset.code);
+    if (!t) { toast.error("That template is turned off. Turn it on in ATS → Settings → Email."); return; }
+    pickTemplate(t.id, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, templates.data]);
+
+  const cancel = () => (body.trim() ? setAskDiscard(true) : onClose());
 
   const toggleFile = (id: string, on: boolean) =>
     setSel((cur) => (on ? (cur.length >= 5 ? cur : [...cur, id]) : cur.filter((x) => x !== id)));

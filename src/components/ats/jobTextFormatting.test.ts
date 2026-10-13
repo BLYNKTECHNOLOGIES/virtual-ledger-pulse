@@ -1,3 +1,4 @@
+// @ts-expect-error Bun's test runtime is available independently of the browser TypeScript types.
 import { describe, expect, test } from "bun:test";
 import { continueJobList, formatJobList } from "./jobTextFormatting";
 

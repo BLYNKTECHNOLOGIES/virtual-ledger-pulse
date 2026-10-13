@@ -3,7 +3,7 @@ const marker = /^(\s*)(?:[•*-]|\d+[.)])\s+/;
 
 /** Keep job copy plain text so the careers feed and existing consumers need no new contract. */
 export function formatJobList(value: string, start: number, end: number, ordered: boolean): TextEdit {
-  const from = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+  const from = start === 0 ? 0 : value.lastIndexOf("\n", start - 1) + 1;
   const last = end > start && value[end - 1] === "\n" ? end - 1 : end;
   const nextBreak = value.indexOf("\n", last);
   const to = nextBreak < 0 ? value.length : nextBreak;
@@ -21,7 +21,7 @@ export function formatJobList(value: string, start: number, end: number, ordered
 
 export function continueJobList(value: string, start: number, end: number): TextEdit | null {
   if (start !== end) return null;
-  const from = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+  const from = start === 0 ? 0 : value.lastIndexOf("\n", start - 1) + 1;
   const line = value.slice(from, start);
   const match = line.match(/^(\s*)([•*-]|(\d+)[.)])\s+(.*)$/);
   if (!match) return null;

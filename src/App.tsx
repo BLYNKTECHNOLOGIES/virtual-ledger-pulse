@@ -146,15 +146,6 @@ const EmployeeOnboardingPipelinePage = lazy(() => import('./pages/horilla/Employ
 const DisciplinaryActionsPage = lazy(() => import('./pages/horilla/DisciplinaryActionsPage'));
 const WeeklyOffPage = lazy(() => import('./pages/horilla/WeeklyOffPage'));
 const LeaveAllocationRequestsPage = lazy(() => import('./pages/horilla/LeaveAllocationRequestsPage'));
-const RecruitmentDashboardPage = lazy(() => import('./pages/horilla/RecruitmentDashboardPage'));
-const RecruitmentPipelinePage = lazy(() => import('./pages/horilla/RecruitmentPipelinePage'));
-const CandidatesListPage = lazy(() => import('./pages/horilla/CandidatesListPage'));
-const CandidateProfilePage = lazy(() => import('./pages/horilla/CandidateProfilePage'));
-const InterviewListPage = lazy(() => import('./pages/horilla/InterviewListPage'));
-const StagesPage = lazy(() => import('./pages/horilla/StagesPage'));
-const SkillZonePage = lazy(() => import('./pages/horilla/SkillZonePage'));
-const RecruitmentSurveyPage = lazy(() => import('./pages/horilla/RecruitmentSurveyPage'));
-const RejectedCandidatesPage = lazy(() => import('./pages/horilla/RejectedCandidatesPage'));
 const AtsWorkspace = lazy(() => import('./pages/ats/AtsWorkspace'));
 const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
 const MailboxPage = lazy(() => import('./pages/horilla/MailboxPage'));
@@ -915,15 +906,13 @@ const router = createBrowserRouter([
         
         { path: "logs", element: hrmsGate(["hrms_view", "hrms_manage"], <HRLogsPage />) },
         { path: "mailbox", element: hrmsGate(["hrms_view", "hrms_manage"], <MailboxPage />) },
-        { path: "recruitment", element: hrmsGate(["hrms_view", "hrms_manage"], <RecruitmentDashboardPage />) },
-        { path: "recruitment/pipeline", element: hrmsGate(["hrms_view", "hrms_manage"], <RecruitmentPipelinePage />) },
-        { path: "recruitment/candidates", element: hrmsGate(["hrms_view", "hrms_manage"], <CandidatesListPage />) },
-        { path: "recruitment/candidates/:id", element: hrmsGate(["hrms_view", "hrms_manage"], <CandidateProfilePage />) },
-        { path: "recruitment/interviews", element: hrmsGate(["hrms_view", "hrms_manage"], <InterviewListPage />) },
-        { path: "recruitment/stages", element: hrmsGate(["hrms_view", "hrms_manage"], <StagesPage />) },
-        { path: "recruitment/skill-zones", element: hrmsGate(["hrms_view", "hrms_manage"], <SkillZonePage />) },
-        { path: "recruitment/surveys", element: hrmsGate(["hrms_view", "hrms_manage"], <RecruitmentSurveyPage />) },
-        { path: "recruitment/rejected", element: hrmsGate(["hrms_view", "hrms_manage"], <RejectedCandidatesPage />) },
+        { path: "recruitment", element: <Navigate to="/hrms/ats" replace /> },
+        { path: "recruitment/pipeline", element: <Navigate to="/hrms/ats/candidates" replace /> },
+        { path: "recruitment/candidates/*", element: <Navigate to="/hrms/ats/candidates" replace /> },
+        { path: "recruitment/rejected", element: <Navigate to="/hrms/ats/candidates" replace /> },
+        { path: "recruitment/interviews", element: <Navigate to="/hrms/ats/interviews" replace /> },
+        { path: "recruitment/stages", element: <Navigate to="/hrms/ats/settings" replace /> },
+        { path: "recruitment/*", element: <Navigate to="/hrms/ats" replace /> },
         { path: "ats/*", element: hrmsGate(["hrms_view", "hrms_manage"], <AtsWorkspace />) },
         { path: "workforce-planning", element: hrmsGate(["hrms_view", "hrms_manage"], <WorkforceOverviewPage />) },
         { path: "workforce-planning/overview", element: <Navigate to="/hrms/workforce-planning" replace /> },

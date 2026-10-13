@@ -56,7 +56,7 @@ export interface MyDepartmentLine {
   department_id: string; department_name: string; plan_id: string; position_title: string | null;
   shift_label: string | null; required_hc: number; on_roll_hc: number; short_hc: number; in_training_hc: number;
   requests: { id: string; requirement_no: string; status: string; number_required: number; source: string;
-    requested_by_name: string | null; target_joining_date: string | null }[];
+    requested_by_name: string | null; target_joining_date: string | null; adds_headcount?: number }[];
 }
 
 /** Lines of the departments the signed-in employee heads (empty when they head none). */

@@ -103,7 +103,7 @@ export default function PositionsPage() {
     (jobDescriptions || []).find((j) => j.position_id === positionId) || null;
 
   // People currently on roll against each position (active employees only).
-  const { data: occupancy } = useSeatOccupancy();
+  const { data: occupancy } = useSeatOccupancy(false);
   const headcountByPosition = (occupancy || []).reduce<Record<string, number>>((acc, row: any) => {
     if (row.job_position_id) acc[row.job_position_id] = (acc[row.job_position_id] || 0) + 1;
     return acc;

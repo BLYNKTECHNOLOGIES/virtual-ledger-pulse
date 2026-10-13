@@ -2,7 +2,8 @@
 
 ## ATS job details formatting
 - [x] Add bullet and numbered-list controls with Enter continuation to all four job copy fields, preserving the existing plain-text careers feed.
-- [ ] Verify list editing and existing display compatibility; signed-in save/read-back requires access to the external Supabase session.
+- [x] Verify bullet/number controls, Enter continuation and empty-item exit in browser; five formatting tests pass and preview build is OK; literal markers remain compatible with existing text displays.
+- [ ] Verify signed-in job save/read-back (blocked: external Supabase authentication unavailable to automated checks).
 
 ## HRMS permanent ERP access revocation
 - [x] Route manual and scheduled HRMS revocations through permanent ERP/Auth cleanup with retries and historical-record preservation.

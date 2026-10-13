@@ -2506,6 +2506,7 @@ export type Database = {
       }
       ats_settings: {
         Row: {
+          ai_drafts_enabled: boolean
           careers_base_url: string
           company_display_name: string
           default_location: string
@@ -2529,6 +2530,7 @@ export type Database = {
           updated_by_name: string | null
         }
         Insert: {
+          ai_drafts_enabled?: boolean
           careers_base_url?: string
           company_display_name?: string
           default_location?: string
@@ -2552,6 +2554,7 @@ export type Database = {
           updated_by_name?: string | null
         }
         Update: {
+          ai_drafts_enabled?: boolean
           careers_base_url?: string
           company_display_name?: string
           default_location?: string

@@ -137,12 +137,12 @@ export default function PayrollDashboardPage() {
 
   const actions = (r: MonthRow, mobile = false) => (
     <div className={`flex gap-1 ${mobile ? "flex-wrap pt-1" : ""}`} onClick={(e) => e.stopPropagation()}>
-      <Button size="sm" variant="outline" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 text-xs"} onClick={() => setDetailRun(r)}>
-        <FileText className="h-3 w-3 mr-1" /> Breakdown
+      <Button size="sm" variant="outline" aria-label="Breakdown" title="Breakdown" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 w-8 p-0"} onClick={() => setDetailRun(r)}>
+        <FileText className={mobile ? "h-3 w-3 mr-1" : "h-4 w-4"} />{mobile && " Breakdown"}
       </Button>
-      <Button asChild size="sm" variant="ghost" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 text-xs"}>
+      <Button asChild size="sm" variant="ghost" aria-label="Open in Cockpit" title="Open in Cockpit" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 w-8 p-0"}>
         <Link to={`/hrms/payroll/cockpit?month=${r.pay_period_start.slice(0, 7)}`}>
-          <Gauge className="h-3 w-3 mr-1" /> Open in Cockpit
+          <Gauge className={mobile ? "h-3 w-3 mr-1" : "h-4 w-4"} />{mobile && " Open in Cockpit"}
         </Link>
       </Button>
     </div>
@@ -195,7 +195,7 @@ export default function PayrollDashboardPage() {
         <CardHeader><CardTitle className="text-sm">Payroll Runs</CardTitle></CardHeader>
         <CardContent className="p-0">
           {/* Mobile cards */}
-          <div className="md:hidden divide-y">
+          <div className="lg:hidden divide-y">
             {isLoading ? (
               <div className="p-4"><TableSkeleton rows={5} columns={2} /></div>
             ) : runs.length === 0 ? (
@@ -222,25 +222,24 @@ export default function PayrollDashboardPage() {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">
                 <tr>
-                  {["Title", "Period", "Run Date (IST)", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
+                  {["Title", "Run Date (IST)", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
                     <th key={h} className={`px-3 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground ${["Employees", "Gross", "Deductions", "Net"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
+                  <tr><td colSpan={8} className="p-0"><TableSkeleton rows={5} columns={8} /></td></tr>
                 ) : runs.length === 0 ? (
-                  <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Runs appear once RazorpayX payroll is synced — work the month in the Monthly Cockpit." /></td></tr>
+                  <tr><td colSpan={8}><EmptyState icon={Wallet} title="No payroll runs yet" description="Runs appear once RazorpayX payroll is synced — work the month in the Monthly Cockpit." /></td></tr>
                 ) : (
                   runs.map((r) => (
                     <tr key={r.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => setDetailRun(r)}>
-                      <td className="px-3 py-3 font-medium">{r.title}<span className="block text-[11px] font-normal text-muted-foreground">Click for breakdown</span></td>
-                      <td className="px-3 py-3 text-xs text-muted-foreground">{r.pay_period_start} — {r.pay_period_end}</td>
+                      <td className="px-3 py-3 font-medium">{r.title}<span className="block text-[11px] font-normal text-muted-foreground">{r.pay_period_start} — {r.pay_period_end}</span></td>
                       <td className="px-3 py-3 tabular-nums whitespace-nowrap">{r.run_date}</td>
                       <td className="px-3 py-3 text-right tabular-nums">{r.employee_count || 0}</td>
                       <td className="px-3 py-3 text-right text-success font-medium tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>

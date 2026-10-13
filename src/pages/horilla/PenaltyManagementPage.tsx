@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 export default function PenaltyManagementPage() {
   const qc = useQueryClient();
@@ -448,9 +449,16 @@ export default function PenaltyManagementPage() {
                         </TableCell>
                         <TableCell>
                           {!p.is_applied && (
-                            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => deletePenaltyMutation.mutate(p.id)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                            <ConfirmButton
+                              title="Delete this penalty?"
+                              description="It hasn't been applied to payroll yet. This can't be undone."
+                              confirmLabel="Delete penalty"
+                              onConfirm={() => deletePenaltyMutation.mutate(p.id)}
+                            >
+                              <Button size="sm" variant="ghost" className="h-7 text-destructive" aria-label="Delete penalty" title="Delete penalty">
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </ConfirmButton>
                           )}
                         </TableCell>
                       </TableRow>
@@ -520,9 +528,16 @@ export default function PenaltyManagementPage() {
                             }}>
                               <Edit2 className="h-3 w-3" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => deleteRuleMutation.mutate(r.id)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                            <ConfirmButton
+                              title="Delete this penalty rule?"
+                              description="This can't be undone. A rule that existing penalties use can't be deleted — turn it off instead."
+                              confirmLabel="Delete rule"
+                              onConfirm={() => deleteRuleMutation.mutate(r.id)}
+                            >
+                              <Button size="sm" variant="ghost" className="h-7 text-destructive" aria-label="Delete rule" title="Delete rule">
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </ConfirmButton>
                           </div>
                         </TableCell>
                       </TableRow>

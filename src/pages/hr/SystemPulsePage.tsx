@@ -294,7 +294,7 @@ export default function SystemPulsePage() {
               ? coverageMissing > 0
                 ? `Missing: ${coverage.missing_names.slice(0, 3).join(", ")}${coverageMissing > 3 ? ` +${coverageMissing - 3} more` : ""}`
                 : `All expected employees present · ${coverage.excluded_count} excluded (dismissed/pre-join)`
-              : "Pull payslips from Cockpit Step 6 to populate"
+              : "Pull payslips in the Cockpit’s “Import payslips” step to populate"
           }
           actionHref="/hrms/payroll/cockpit"
           actionLabel="Cockpit"

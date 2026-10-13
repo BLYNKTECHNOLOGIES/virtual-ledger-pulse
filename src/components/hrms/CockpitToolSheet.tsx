@@ -99,7 +99,7 @@ export function CockpitToolSheet({
             {stepLabel || entry.title}
           </h2>
         </div>
-        <Button variant="outline" size="sm" className="ml-auto gap-1.5 shrink-0" onClick={onClose}>
+        <Button variant="outline" size="sm" className="ml-auto gap-1.5 shrink-0" onClick={onClose} aria-label="Back to cockpit">
           <X className="h-4 w-4" /> <span className="hidden sm:inline">Back to cockpit</span>
         </Button>
       </div>

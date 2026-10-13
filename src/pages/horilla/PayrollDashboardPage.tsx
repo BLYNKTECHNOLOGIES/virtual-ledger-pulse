@@ -16,6 +16,17 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+/** Display labels for RazorpayX run statuses (the stored values are unchanged). */
+const RUN_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  computed: "Computed",
+  dry_run_ok: "Dry run OK",
+  pilot_applied: "Pilot sent",
+  bulk_applied: "Sent to RazorpayX",
+  locked: "Locked",
+  recalled: "Recalled",
+};
+
 export default function PayrollDashboardPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -53,9 +64,10 @@ export default function PayrollDashboardPage() {
         agg.set(key, cur);
       }
 
+      // Display only: last day of the month, computed in UTC so IST browsers don't show the 29th/30th.
       const monthEnd = (m: string) => {
         const d = new Date(m);
-        return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+        return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
       };
       const monthLabel = (m: string) =>
         new Date(m).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
@@ -197,6 +209,9 @@ export default function PayrollDashboardPage() {
       case "completed": return "bg-success/10 text-success";
       case "paid": return "bg-success/10 text-success";
       case "cancelled": return "bg-destructive/10 text-destructive";
+      case "bulk_applied": return "bg-success/10 text-success";
+      case "pilot_applied": case "dry_run_ok": case "computed": return "bg-info/10 text-info";
+      case "recalled": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-foreground";
     }
   };
@@ -220,7 +235,7 @@ export default function PayrollDashboardPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Payroll Dashboard"
-        description="Manage payroll runs, generate payslips and process payments"
+        description="Payroll runs mirrored from RazorpayX. Work each month in the Monthly Cockpit."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline" className="h-9">
@@ -247,9 +262,9 @@ export default function PayrollDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[
           { label: "Total Runs", value: runs.length, icon: Wallet, color: "text-info", bg: "bg-info/10" },
-          { label: "Total Gross", value: `₹${totalGross.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
-          { label: "Total Deductions", value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
-          { label: "Total Net Pay", value: `₹${totalNet.toLocaleString('en-IN')}`, icon: Users, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Gross · all runs", value: `₹${totalGross.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
+          { label: "Deductions · all runs", value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Net pay · all runs", value: `₹${totalNet.toLocaleString('en-IN')}`, icon: Users, color: "text-primary", bg: "bg-primary/10" },
         ].map((s) => (
           <Card key={s.label} className="h-full transition-shadow hover:shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
@@ -268,7 +283,7 @@ export default function PayrollDashboardPage() {
             {isLoading ? (
               <div className="p-4"><TableSkeleton rows={5} columns={2} /></div>
             ) : runs.length === 0 ? (
-              <EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" />
+              <EmptyState icon={Wallet} title="No payroll runs yet" description="Runs appear once RazorpayX payroll is synced — work the month in the Monthly Cockpit." />
             ) : (
               runs.map((r: any) => (
                 <div key={r.id} className="p-4 space-y-2 cursor-pointer active:bg-muted/40" onClick={() => setDetailRun(r)}>
@@ -283,7 +298,7 @@ export default function PayrollDashboardPage() {
                           <Lock className="h-3 w-3" /> Locked
                         </span>
                       )}
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor(r.status)}`}>{r.status}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor(r.status)}`}>{RUN_STATUS_LABEL[r.status] ?? String(r.status || "").replace(/_/g, " ")}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
@@ -337,7 +352,7 @@ export default function PayrollDashboardPage() {
               {isLoading ? (
                 <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
               ) : runs.length === 0 ? (
-                <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" /></td></tr>
+                <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Runs appear once RazorpayX payroll is synced — work the month in the Monthly Cockpit." /></td></tr>
               ) : (
                 runs.map((r: any) => (
                   <tr key={r.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => setDetailRun(r)}>
@@ -355,7 +370,7 @@ export default function PayrollDashboardPage() {
                             <Lock className="h-3 w-3" /> Locked
                           </span>
                         )}
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>{r.status}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>{RUN_STATUS_LABEL[r.status] ?? String(r.status || "").replace(/_/g, " ")}</span>
                         {r.rerun_count > 0 && (
                           <span className="text-xs text-muted-foreground" title={r.rerun_reason || ""}>
                             (Re-run #{r.rerun_count})

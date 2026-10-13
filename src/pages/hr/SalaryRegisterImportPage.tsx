@@ -642,6 +642,7 @@ export default function SalaryRegisterImportPage({
                 onChange={e => setPeriodMonth(e.target.value)}
                 placeholder="Auto-detected from filename"
               />
+              <p className="text-[11px] text-muted-foreground mt-1">Pick the 1st of the month — rows only match payslips dated YYYY-MM-01.</p>
             </div>
           </div>
 

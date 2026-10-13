@@ -2331,7 +2331,7 @@ export default function RazorpaySyncPage() {
   );
 }
 
-function GapChip({ label, value, tone }: { label: string; value: number; tone: "ok" | "warn" | "neutral" }) {
+function GapChip({ label, value, tone }: { label: string; value: number | string; tone: "ok" | "warn" | "neutral" }) {
   const cls =
     tone === "ok" ? "border-success/40 bg-success/10 text-success"
     : tone === "warn" ? "border-warning/40 bg-warning/10 text-warning"
@@ -3341,10 +3341,10 @@ function LedgerReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
         </div>
 
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <GapChip label="Paid" value={Number(period?.total_paid || 0)} tone="neutral" />
-          <GapChip label="Matched" value={Number(period?.total_matched || 0)} tone="ok" />
-          <GapChip label="Unmatched" value={Number(period?.total_unmatched || 0)} tone={Number(period?.total_unmatched || 0) > 0 ? "warn" : "ok"} />
-          <GapChip label="Waived" value={Number(period?.total_waived || 0)} tone="neutral" />
+          <GapChip label="Paid" value={`₹${money(Number(period?.total_paid || 0))}`} tone="neutral" />
+          <GapChip label="Matched" value={`₹${money(Number(period?.total_matched || 0))}`} tone="ok" />
+          <GapChip label="Unmatched" value={`₹${money(Number(period?.total_unmatched || 0))}`} tone={Number(period?.total_unmatched || 0) > 0 ? "warn" : "ok"} />
+          <GapChip label="Waived" value={`₹${money(Number(period?.total_waived || 0))}`} tone="neutral" />
         </div>
 
         {locked && (

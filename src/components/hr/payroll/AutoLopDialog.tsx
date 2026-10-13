@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, Calculator, RefreshCw, ChevronDown, ChevronRight, Download } from "lucide-react";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 /**
  * Auto-LOP generator.
@@ -570,17 +571,23 @@ export function AutoLopDialog({
                                   On the run: {inr(r.pushed_amount ?? 0)}
                                   {r.pushed_lop_days != null ? ` (${num(r.pushed_lop_days)} day(s))` : ""} · should be {inr(r.amount)} ({num(r.lop_days)} day(s))
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs"
-                                  disabled={correctPushed.isPending || !r.razorpay_employee_id}
-                                  onClick={() => correctPushed.mutate(r)}
-                                  title="Clears this employee's month on RazorpayX and restages LOP at the current figure. Nothing is re-sent until you press Push in Payroll Inputs."
+                                <ConfirmButton
+                                  title="Correct this employee on RazorpayX?"
+                                  description="Clears this employee's month on RazorpayX and restages LOP at the current figure. Nothing is re-sent until you press Push in Payroll Inputs."
+                                  confirmLabel="Clear and restage"
+                                  onConfirm={() => correctPushed.mutate(r)}
                                 >
-                                  {correctPushed.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                                  Correct on RazorpayX
-                                </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={correctPushed.isPending || !r.razorpay_employee_id}
+                                    title="Clears this employee's month on RazorpayX and restages LOP at the current figure. Nothing is re-sent until you press Push in Payroll Inputs."
+                                  >
+                                    {correctPushed.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                                    Correct on RazorpayX
+                                  </Button>
+                                </ConfirmButton>
                               </div>
                             )}
                           </td>

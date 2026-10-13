@@ -18,6 +18,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { NewSalaryAdvanceDialog } from "@/components/hrms/salary/NewSalaryAdvanceDialog";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 export default function LoansPage() {
   const qc = useQueryClient();
@@ -447,12 +448,27 @@ export default function LoansPage() {
                     <td className="px-4 py-3">
                       {l.status === "pending" && (
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-success" onClick={() => approveMutation.mutate({ id: l.id, action: "approved" })}>
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => approveMutation.mutate({ id: l.id, action: "rejected" })}>
-                            <XCircle className="h-4 w-4" />
-                          </Button>
+                          <ConfirmButton
+                            title="Approve this loan?"
+                            description={`It becomes active and its EMI schedule is built (₹${Number(l.emi_amount).toLocaleString("en-IN")} a month for ${l.tenure_months} months). If it is paid out through payroll, the payout is added to that month's payroll inputs.`}
+                            confirmLabel="Approve loan"
+                            destructive={false}
+                            onConfirm={() => approveMutation.mutate({ id: l.id, action: "approved" })}
+                          >
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-success" aria-label="Approve loan" title="Approve loan">
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </ConfirmButton>
+                          <ConfirmButton
+                            title="Reject this loan?"
+                            description="A rejected loan can't be approved later."
+                            confirmLabel="Reject loan"
+                            onConfirm={() => approveMutation.mutate({ id: l.id, action: "rejected" })}
+                          >
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" aria-label="Reject loan" title="Reject loan">
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </ConfirmButton>
                         </div>
                       )}
                     </td>

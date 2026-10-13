@@ -167,8 +167,8 @@ export default function SalaryComponentsPage({ componentType }: { componentType?
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(c)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(c)} aria-label="Edit component" title="Edit component"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(c)} aria-label="Delete component" title="Delete component"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </div>
                       </td>
                     </tr>

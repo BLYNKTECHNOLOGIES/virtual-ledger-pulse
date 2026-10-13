@@ -12,7 +12,9 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { HiringRequirementDetailDialog } from "@/components/horilla/workforce/HiringRequirementDetailDialog";
-import { useHiringRequirements } from "@/hooks/hrms/useWorkforcePlanning";
+import { useHiringRequirements, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
+import { useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
+import { JobStatusBadge } from "@/components/ats/AtsBits";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   PRIORITY_CLASS,
@@ -71,6 +73,11 @@ export default function HiringRequirementsPage() {
 
   const { data: requirements = [], isLoading } = useHiringRequirements();
   const navigate = useNavigate();
+  const pipeline = useRequirementPipeline();
+  const reqJobs = useRequirementJobs();
+  const matrix = useStaffingMatrix();
+  const lineById = useMemo(() => new Map(matrix.rows.map((l) => [l.plan_id, l])), [matrix.rows]);
+  const pendingCount = requirements.filter((r: any) => r.status === "pending_approval").length;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -108,6 +115,9 @@ export default function HiringRequirementsPage() {
             {TABS.map((t) => (
               <TabsTrigger key={t.value} value={t.value}>
                 {t.label}
+                {t.value === "pending" && pendingCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">{pendingCount}</Badge>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -137,6 +147,11 @@ export default function HiringRequirementsPage() {
             const filled = r.positions_filled ?? 0;
             const needed = r.number_required ?? 0;
             const pct = needed > 0 ? Math.min(100, (filled / needed) * 100) : 0;
+            const pp = pipeline.data?.get(r.id);
+            const line = r.staffing_plan_id ? lineById.get(r.staffing_plan_id) : undefined;
+            const jobs = reqJobs.data?.get(r.id) ?? [];
+            const job = jobs.find((j: any) => ["open", "paused"].includes(j.status)) ?? jobs[jobs.length - 1];
+            const repName = r.replacement ? [r.replacement.first_name, r.replacement.last_name].filter(Boolean).join(" ") : "";
             return (
               <Card
                 key={r.id}
@@ -156,21 +171,31 @@ export default function HiringRequirementsPage() {
                         <Badge variant="outline" className={PRIORITY_CLASS[r.priority]}>
                           {PRIORITY_LABEL[r.priority] ?? r.priority}
                         </Badge>
-                        {r.replacement_employee_id && (
-                          <Badge variant="outline">Replacement</Badge>
-                        )}
-                        {r.source === "capacity_occupancy" && (
+                        {r.replacement_employee_id || r.source === "employee_separation" ? (
+                          <Badge variant="outline">Replacement for {repName || "employee"}</Badge>
+                        ) : r.source === "capacity_occupancy" ? (
                           <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                             Capacity gap
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Manual</Badge>
+                        )}
+                        {job && <JobStatusBadge status={job.status} />}
+                        {line && line.over_requested_hc > 0 && (
+                          <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning">
+                            Line over-requested by {line.over_requested_hc}
                           </Badge>
                         )}
                       </div>
                       <p className="truncate font-medium text-foreground">
                         {r.positions?.title ?? "Position"} · {r.departments?.name ?? "Department"}
-                        {r.shift_label ? ` · ${r.shift_label} shift` : ""}
+                        {line ? ` · ${line.shiftLabel}` : r.shift_label ? ` · ${r.shift_label}` : ""}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {needed} required · target {formatIstDate(r.target_joining_date)}
+                        {needed} requested
+                        {line ? ` · line needs ${line.netHiringRequirement} now` : ""}
+                        {pp ? ` · ${pp.applied} applications · ${pp.hired} hired · ${pp.joining} joining` : ""}
+                        {` · target ${formatIstDate(r.target_joining_date)}`}
                       </p>
                     </div>
 
@@ -184,7 +209,7 @@ export default function HiringRequirementsPage() {
                         </div>
                         <Progress value={pct} />
                       </div>
-                      {canManage && r.status === "approved" && (
+                      {canManage && ["approved", "recruitment_active", "partially_fulfilled"].includes(r.status) && !jobs.some((j: any) => ["open", "paused"].includes(j.status)) && (
                         <Button
                           size="sm"
                           onClick={(e) => {

@@ -132,7 +132,7 @@ export default function PositionsPage() {
       if (error) throw error;
     },
     onSuccess: (_d, v) => {
-      queryClient.invalidateQueries({ queryKey: ["positions"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
       invalidatePlanning(queryClient);
       toast.success(v.value ? "Position is now part of workforce planning" : "Position left out of workforce planning");
     },

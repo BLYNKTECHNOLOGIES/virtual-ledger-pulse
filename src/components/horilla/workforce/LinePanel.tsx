@@ -222,7 +222,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                       <p className="text-xs text-muted-foreground">
                         {form.seat === "none" ? "This line has no desk group."
                           : seatInactive ? "The desk group is inactive, so this line follows 0 desks until it is reactivated or you pick another group."
-                          : `Numbers stay equal to the desk group (${deskCount}).`}
+                          : `Numbers stay equal to the desk group (${chosenDesks}).`}
                       </p>
                     </div>
                     <Switch checked={form.follow && form.seat !== "none"} disabled={form.seat === "none"} onCheckedChange={(v) => setForm((f) => ({ ...f, follow: v }))} />
@@ -272,12 +272,12 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Required</Label>
-                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? deskCount : form.required}
+                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? chosenDesks : form.required}
                         onChange={(e) => editNumber("required", Math.max(0, Number(e.target.value) || 0))} />
                     </div>
                     <div className="space-y-1">
                       <Label>Approved</Label>
-                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? deskCount : form.approved}
+                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? chosenDesks : form.approved}
                         onChange={(e) => editNumber("approved", Math.max(0, Number(e.target.value) || 0))} />
                     </div>
                     <div className="space-y-1">
@@ -413,7 +413,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
               <AlertDialogAction
                 onClick={() => {
                   if (pendingUnfollow)
-                    setForm((f) => ({ ...f, follow: false, required: deskCount, approved: deskCount, [pendingUnfollow.key]: pendingUnfollow.value }));
+                    setForm((f) => ({ ...f, follow: false, required: chosenDesks, approved: chosenDesks, [pendingUnfollow.key]: pendingUnfollow.value }));
                   setPendingUnfollow(null);
                 }}
               >

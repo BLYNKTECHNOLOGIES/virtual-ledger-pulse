@@ -176,21 +176,28 @@ export const useEmployeesLookup = () =>
     },
   });
 
+/** Requirements an ATS job may be opened for: approved or recruiting only, with what is still to be found. */
 export const useRequirementsLookup = () =>
   useQuery({
     queryKey: atsKeys.lookup("requirements"),
     staleTime: 60_000,
     queryFn: async () => {
-      const rows = unwrap(
-        await supabase
+      const [rows, pipe] = await Promise.all([
+        supabase
           .from("hr_hiring_requirements")
-          .select("id,requirement_no,department_id,position_id,shift_id,location,employment_type,number_required,positions_filled,required_skills,experience_required,salary_min,salary_max,status")
-          .not("status", "in", "(cancelled,rejected,closed,filled)")
+          .select("id,requirement_no,department_id,position_id,shift_id,shift_label,location,employment_type,number_required,positions_filled,required_skills,experience_required,salary_min,salary_max,status")
+          .in("status", REQUIREMENT_PICKER_STATUSES as unknown as string[])
           .order("requirement_no"),
-      ) as any[];
-      return rows;
+        (supabase.rpc as any)("hr_requirement_pipeline", { p_requirement: null }),
+      ]);
+      const list = unwrap(rows) as any[];
+      if (pipe.error) throw pipe.error;
+      const need = new Map<string, number>(((pipe.data ?? []) as any[]).map((p) => [p.requirement_id, p.still_needed]));
+      return list.map((r) => ({ ...r, still_needed: need.get(r.id) ?? Math.max((r.number_required ?? 0) - (r.positions_filled ?? 0), 0) }));
     },
   });
+
+export const REQUIREMENT_PICKER_STATUSES = ["approved", "recruitment_active", "partially_fulfilled"] as const;
 
 /* ---------- mutations ---------- */
 export function useAtsMutation<TVars>(

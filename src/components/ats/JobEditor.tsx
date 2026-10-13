@@ -169,7 +169,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     () =>
       (reqs.data ?? []).map((r: any) => {
         const pos = positions.data?.find((p) => p.id === r.position_id)?.label;
-        return { id: r.id, raw: r, label: [r.requirement_no, pos, `${r.number_required ?? 0} needed`].filter(Boolean).join(" · "), status: humanize(String(r.status ?? "")) };
+        return { id: r.id, raw: r, label: [r.requirement_no, pos, r.shift_label, `still needed ${r.still_needed ?? 0}`].filter(Boolean).join(" · "), status: humanize(String(r.status ?? "")) };
       }),
     [reqs.data, positions.data],
   );
@@ -189,8 +189,8 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     setIfEmpty("location", r.location ?? "");
     const et = String(r.employment_type ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
     if (EMPLOYMENT_TYPES.some((t) => t.value === et) && !formState.dirtyFields.employment_type && !isEdit) setValue("employment_type", et as any, { shouldDirty: true });
-    if (getValues("openings") === "1" || getValues("openings") === "") {
-      setValue("openings", String(Math.max((r.number_required ?? 0) - (r.positions_filled ?? 0), 1)), { shouldDirty: true });
+    if (!isEdit || getValues("openings") === "1" || getValues("openings") === "") {
+      setValue("openings", String(Math.max(r.still_needed ?? 0, 1)), { shouldDirty: true });
     }
     setIfEmpty("salary_min", r.salary_min != null ? String(r.salary_min) : "");
     setIfEmpty("salary_max", r.salary_max != null ? String(r.salary_max) : "");

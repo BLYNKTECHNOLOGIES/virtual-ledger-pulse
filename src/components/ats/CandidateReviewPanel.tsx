@@ -73,6 +73,8 @@ interface Props {
   initialPaneTab?: "resume" | "messages";
   /** Called after Done / Reopen / Snooze / Unsnooze from the ⋮ menu succeeds (Inbox uses it to advance). */
   onConversationChanged?: () => void;
+  /** One-key shortcuts (a, h, r, i, n, ?). The Inbox turns them off: it uses j/k to move. */
+  shortcuts?: boolean;
 }
 
 const EVENT_ICON: Record<string, typeof Activity> = {
@@ -129,7 +131,7 @@ function ReferredBy({ employeeId }: { employeeId: string }) {
 const Chips = ({ items }: { items?: string[] | null }) =>
   items?.length ? <div className="flex flex-wrap gap-1">{items.map((s) => <Badge key={s} variant="secondary" className="font-normal">{s}</Badge>)}</div> : <>—</>;
 
-export function CandidateReviewPanel({ candidateId, appId, onAppChange, onActionDone, className, initialPaneTab, onConversationChanged }: Props) {
+export function CandidateReviewPanel({ candidateId, appId, onAppChange, onActionDone, className, initialPaneTab, onConversationChanged, shortcuts = true }: Props) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const cand = useCandidate(candidateId);
@@ -237,6 +239,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
 
   // E. keyboard shortcuts (ignored while typing or when a dialog/menu is open)
   useEffect(() => {
+    if (!shortcuts) return;
     const h = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement;
@@ -250,7 +253,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, []);
+  }, [shortcuts]);
 
   if (cand.isLoading || apps.isLoading) return <div className={cn("p-4", className)}><RowsSkeleton rows={8} /></div>;
   if (cand.isError) return <div className={cn("p-4", className)}><QueryError error={cand.error} onRetry={() => cand.refetch()} /></div>;

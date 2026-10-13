@@ -57,4 +57,19 @@ describe("workforce forecast", () => {
     expect(r.exits).toBe(8);
     expect(r.pct).toBe(13.1); // 8 / 61 = 13.1%
   });
+
+  test("leavers on no planned line get their own count, not netted into closing", () => {
+    const ev = [{ kind: "exit", plan_id: null, event_date: "2026-10-20", qty: 1, ref_id: "x" }];
+    const f = buildForecast({ today: "2026-10-14", end: "2026-10-31", lines, events: ev, includePending: false, attritionPct: 0 });
+    expect(f.totals.outsideExits).toBe(1);
+    expect(f.totals.exits).toBe(0);
+    expect(f.totals.closing).toBe(14);
+  });
+
+  test("small scopes: attrition rounds the running total, so 3 people at 5.9% shows 1 by the third month", () => {
+    const small = [{ plan_id: "s", required_hc: 3, current_hc: 3 }];
+    const f = buildForecast({ today: "2026-11-01", end: "2027-01-31", lines: small, events: [], includePending: false, attritionPct: 5.9 });
+    expect(f.months.map((m) => m.attrition)).toEqual([0, 0, 1]);
+    expect(f.totals.estimatedExtraNeed).toBe(1);
+  });
 });

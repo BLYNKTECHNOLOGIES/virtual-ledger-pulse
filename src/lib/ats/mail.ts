@@ -72,16 +72,37 @@ export const useMailThread = (candidateId: string | undefined, opts: { poll?: bo
     },
   });
 
-export const useEmailTemplates = (opts: { includeInactive?: boolean } = {}) =>
+export type TemplateChannel = "email" | "whatsapp" | "all";
+export const useEmailTemplates = (opts: { includeInactive?: boolean; channel?: TemplateChannel } = {}) =>
   useQuery({
-    queryKey: [...mailKeys.templates, !!opts.includeInactive],
+    queryKey: [...mailKeys.templates, !!opts.includeInactive, opts.channel ?? "email"],
     queryFn: async () => {
       let q = supabase.from("ats_email_templates").select("*");
+      if ((opts.channel ?? "email") !== "all") q = (q as any).eq("channel", opts.channel ?? "email");
       if (!opts.includeInactive) q = q.eq("is_active", true);
       const { data, error } = await q.order("sort_order").order("name");
       if (error) throw error;
       return data ?? [];
     },
+  });
+
+/** WhatsApp templates (active only), for the WhatsApp batch. Never shown in email screens. */
+export const useWhatsAppTemplates = () => useEmailTemplates({ channel: "whatsapp" });
+
+/** Placeholder values exactly as the server fills them (ats_template_values). */
+export async function templateValues(args: { applicationId?: string | null; candidateId?: string | null; interviewId?: string | null }) {
+  const { data, error } = await (supabase.rpc as any)("ats_template_values", {
+    p_application_id: args.applicationId ?? null, p_candidate_id: args.candidateId ?? null, p_interview_id: args.interviewId ?? null,
+  });
+  if (error) throw error;
+  return (data ?? {}) as Record<string, string>;
+}
+export const useTemplateValues = (applicationId: string | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: ["ats", "tpl-values", applicationId ?? ""],
+    enabled: !!applicationId && enabled,
+    staleTime: 60_000,
+    queryFn: () => templateValues({ applicationId }),
   });
 
 export async function renderTemplate(templateId: string, applicationId: string | null, candidateId: string) {
@@ -121,6 +142,8 @@ export interface SendPayload {
 export interface SendResult { id: string; status: string; error?: string }
 
 export const sendCandidateEmail = (payload: SendPayload) => invokeMail<SendResult>("ats-mail-send", payload);
+export const sendTestEmail = (subject: string, body: string) =>
+  invokeMail<{ status: "sent" | "failed"; to?: string; error?: string }>("ats-mail-send", { test: { subject, body } });
 export const retryCandidateEmail = (id: string) => invokeMail<SendResult>("ats-mail-send", { retryId: id });
 export const checkCandidateMail = () =>
   invokeMail<{ ok: boolean; error?: string | null; skipped?: string; stored?: number; bounces?: number; pending?: number; [k: string]: unknown }>(
@@ -192,6 +215,8 @@ export const PLACEHOLDER_RE = /\{\{\s*[\w.]+\s*\}\}/;
 export const SAMPLE_VALUES: Record<string, string> = {
   first_name: "Rahul", full_name: "Rahul Sharma", job_title: "Customer Support Executive",
   company_name: "Blynk Virtual Technologies", ref_no: "BX-1001",
+  applied_date: "12 October 2026", stage_name: "Screening", job_location: "Bhopal, Madhya Pradesh",
+  office_address: "Our office address", hr_phone: "+91 98765 43210", careers_link: "https://blynkex.com/careers",
   interview_title: "Technical round", interview_date: "Wednesday, 21 October 2026", interview_time: "11:30 AM IST",
   interview_duration: "30 minutes", interview_mode: "Video call",
   interview_where: "Video call: https://meet.google.com/abc-defg-hij", interview_note: "Please keep a government ID proof handy.",
@@ -200,7 +225,53 @@ export const SAMPLE_VALUES: Record<string, string> = {
 /** Templates that need an interview to fill (offered only by the interview dialogs). */
 export const usesInterviewFields = (t: { subject?: string | null; body?: string | null }) =>
   /\{\{\s*interview_\w+\s*\}\}/.test(`${t.subject ?? ""}\n${t.body ?? ""}`);
-export const fillSample = (s: string) => s.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => SAMPLE_VALUES[k] ?? m);
+export const fillSample = (s: string, values: Record<string, string> = SAMPLE_VALUES) =>
+  s.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => values[k] ?? m);
+
+/** Sample values with the company details from ATS settings when loaded. */
+export function sampleValuesFrom(settings?: Record<string, any> | null): Record<string, string> {
+  if (!settings) return SAMPLE_VALUES;
+  const pick = (v: unknown, d: string) => (typeof v === "string" && v.trim() ? v.trim() : d);
+  return {
+    ...SAMPLE_VALUES,
+    company_name: pick(settings.company_display_name, SAMPLE_VALUES.company_name),
+    office_address: pick(settings.interview_address, SAMPLE_VALUES.office_address),
+    hr_phone: pick(settings.hr_contact_phone, SAMPLE_VALUES.hr_phone),
+    careers_link: pick(settings.careers_base_url, SAMPLE_VALUES.careers_link),
+    job_location: pick(settings.default_location, SAMPLE_VALUES.job_location),
+  };
+}
+
+/** Placeholder chips in the template editor. */
+export const PLACEHOLDER_GROUPS: { label: string; keys: string[]; interview?: boolean }[] = [
+  { label: "Candidate & job", keys: ["first_name", "full_name", "job_title", "ref_no", "applied_date", "stage_name", "job_location"] },
+  { label: "Company", keys: ["company_name", "office_address", "hr_phone", "careers_link"] },
+  { label: "Interview", interview: true, keys: ["interview_title", "interview_date", "interview_time", "interview_duration", "interview_mode", "interview_where", "interview_note"] },
+];
+export const ALL_PLACEHOLDERS = PLACEHOLDER_GROUPS.flatMap((g) => g.keys);
+
+function editDistance(a: string, b: string) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+
+/** Problems that the database would refuse on save (same rules as ats_email_templates_guard). */
+export function templateProblems(subject: string, body: string, purpose: string): string[] {
+  const keys = [...new Set([...`${subject}\n${body}`.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]))];
+  const out: string[] = [];
+  for (const k of keys) {
+    if (ALL_PLACEHOLDERS.includes(k)) continue;
+    let best: string | null = null, bd = 3;
+    for (const c of ALL_PLACEHOLDERS) { const e = editDistance(k.toLowerCase(), c); if (e < bd) { bd = e; best = c; } }
+    out.push(`Unknown placeholder {{${k}}}.${best ? ` Did you mean {{${best}}}?` : ""}`);
+  }
+  if (purpose !== "interview" && keys.some((k) => k.startsWith("interview_")))
+    out.push("Interview details can only be used in templates with the purpose Interview.");
+  return out;
+}
 
 /** Splits a received body into the new text and quoted history (or null). */
 export function splitQuoted(text: string): [string, string | null] {

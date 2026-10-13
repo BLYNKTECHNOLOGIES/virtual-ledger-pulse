@@ -26,7 +26,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ACTIONS = ['invite', 'update', 'cancel']
 const RUN_MS = 100_000 // interviewers not reached by then are reported as "skipped" and can be sent again
 const RESUME_MAX_BYTES = 10 * 1024 * 1024
-const COMPANY = 'Blynk Virtual Technologies'
+const DEFAULT_COMPANY = 'Blynk Virtual Technologies'
 const IST = 'Asia/Kolkata'
 
 export interface NotifyOptions {
@@ -58,6 +58,7 @@ export async function handleNotify(req: Request, opts: NotifyOptions = {}): Prom
 
 interface Ctx {
   iv: any
+  company: string
   app: any
   cand: any
   jobTitle: string
@@ -78,7 +79,7 @@ export async function notifyInterview(
   const action = String(body?.action ?? '')
   if (!ACTIONS.includes(action)) return { status: 400, body: { error: 'invalid', field: 'action' } }
 
-  const { data: settings } = await admin.from('ats_settings').select('mail_enabled, mail_mailbox_id').eq('id', true).maybeSingle()
+  const { data: settings } = await admin.from('ats_settings').select('mail_enabled, mail_mailbox_id, company_display_name').eq('id', true).maybeSingle()
   if (!settings?.mail_enabled || !settings.mail_mailbox_id) return { status: 409, body: { error: 'mail_disabled' } }
   const { data: mailbox } = await admin.from('hr_mailboxes')
     .select('id, from_address, from_name, smtp_host_secret, smtp_user_secret, smtp_pass_secret, is_active')
@@ -106,7 +107,8 @@ export async function notifyInterview(
   }
   const origin = typeof opts.origin === 'string' && /^https:\/\/[a-z0-9.-]+(:\d{1,5})?$/i.test(opts.origin) ? opts.origin : null
   const ctx: Ctx = {
-    iv, app, cand, jobTitle, mailbox, fromAddress, domain: fromAddress.split('@')[1], origin, start, end,
+    iv, app, cand, jobTitle, mailbox, fromAddress,
+    company: String(settings.company_display_name ?? '').trim() || DEFAULT_COMPANY, domain: fromAddress.split('@')[1], origin, start, end,
   }
 
   const out: { candidate: Record<string, unknown> | null; panel: Record<string, unknown>[] } = { candidate: null, panel: [] }
@@ -163,9 +165,9 @@ async function notifyCandidate(
     sequence: icsSequence(),
     start: ctx.start,
     end: ctx.end,
-    summary: `Interview: ${ctx.jobTitle} - ${COMPANY}`,
+    summary: `Interview: ${ctx.jobTitle} - ${ctx.company}`,
     description: [
-      `Interview for ${ctx.jobTitle} at ${COMPANY}.`,
+      `Interview for ${ctx.jobTitle} at ${ctx.company}.`,
       cancel ? 'This interview has been cancelled.' : candidateWhere(ctx),
       ...(!cancel && ctx.iv.candidate_note ? [String(ctx.iv.candidate_note)] : []),
       'To change the time, reply to the invitation email.',

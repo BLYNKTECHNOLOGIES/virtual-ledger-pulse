@@ -8,7 +8,7 @@
 import { requireAuth } from '../_shared/require-auth.ts'
 import { tidyMailSubject } from '../_shared/mailBody.ts'
 import { extractIds, isEmail, ourMessageId } from '../_shared/ats-mail.ts'
-import { deliver } from '../_shared/ats-mail-deliver.ts'
+import { deliver, sendMail } from '../_shared/ats-mail-deliver.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,6 +46,28 @@ export async function handleSend(req: Request): Promise<Response> {
     .select('id, from_address, from_name, smtp_host_secret, smtp_user_secret, smtp_pass_secret, is_active')
     .eq('id', settings.mail_mailbox_id).maybeSingle()
   if (!mailbox?.is_active || !isEmail(String(mailbox.from_address || '').trim())) return json({ error: 'mailbox_unavailable' }, 409)
+
+  if (body?.test) {
+    // ---- "Send me a test": only to the signed-in user's own address; nothing is filed in ats_messages.
+    const subject = tidyMailSubject(String(body.test?.subject ?? ''), 200)
+    const text = String(body.test?.body ?? '').replace(/\r\n?/g, '\n').trim()
+    if (!subject) return json({ error: 'invalid', field: 'subject' }, 400)
+    if (!text || text.length > 20_000) return json({ error: 'invalid', field: 'body' }, 400)
+    if (/\{\{\s*[\w.]+\s*\}\}/.test(`${subject}\n${text}`)) return json({ error: 'invalid', field: 'placeholders' }, 400)
+    const { data: u } = await admin.auth.admin.getUserById(gate.userId)
+    const to = String(u?.user?.email ?? '').trim().toLowerCase()
+    if (!isEmail(to)) return json({ error: 'no_email' }, 400)
+    const fromAddress = String(mailbox.from_address).trim().toLowerCase()
+    const code = await sendMail(mailbox, {
+      fromAddress,
+      to,
+      subject: tidyMailSubject(`[Test] ${subject}`, 200),
+      text,
+      messageId: `<ats-test.${crypto.randomUUID()}@${fromAddress.split('@')[1]}>`,
+    })
+    console.log('ats-mail-send test', JSON.stringify({ ok: !code, error: code ?? null }))
+    return json(code ? { status: 'failed', error: code } : { status: 'sent', to })
+  }
 
   let row: any
   if (body?.retryId) {

@@ -16,6 +16,8 @@ import {
   cancelInterview, cancelTemplates, interviewValues, ivKeys, ivWhen, minutesBetween, useInterviewEmails,
   type InterviewRow, type IvMode, type IvTarget,
 } from "@/lib/ats/interviews";
+import { useTemplateValues } from "@/lib/ats/mail";
+import { withServerValues } from "@/lib/ats/interviews";
 import { InterviewEmailFields, emailLeftovers, pickTemplate, summarizeNotify } from "./InterviewBits";
 
 export function CancelInterviewDialog({ open, onOpenChange, iv, target }: { open: boolean; onOpenChange: (o: boolean) => void; iv: InterviewRow; target: IvTarget }) {
@@ -52,11 +54,12 @@ export function CancelInterviewDialog({ open, onOpenChange, iv, target }: { open
     setTemplateId(t?.id ?? null); setSubject(t?.subject ?? ""); setBody(t?.body ?? "");
   }, [open, emails.isLoading, emails.data, list, target.email]);
 
-  const vals = interviewValues({
+  const serverVals = useTemplateValues(target.applicationId, open);
+  const vals = withServerValues(interviewValues({
     fullName: target.fullName, refNo: target.refNo, jobTitle: target.jobTitle, phone: target.phone,
     title: iv.title, mode: iv.mode as IvMode, startsAt: iv.starts_at, minutes: minutesBetween(iv.starts_at, iv.ends_at),
     location: iv.location, meetingUrl: iv.meeting_url, candidateNote: iv.candidate_note,
-  });
+  }), serverVals.data);
   const wantCand = mailOn && cand && !!target.email;
   const wantPanel = mailOn && hasPanelInvites && panel;
   const valid = reason.length <= 500 && (!wantCand || (subject.trim().length >= 1 && subject.trim().length <= 200
@@ -124,7 +127,7 @@ export function CancelInterviewDialog({ open, onOpenChange, iv, target }: { open
             {!target.email && <p className="pl-6 text-xs text-muted-foreground">No email address. Add one with Edit profile.</p>}
           </div>
           {wantCand && (
-            <InterviewEmailFields templates={list} templateId={templateId}
+            <InterviewEmailFields required={{ code: "interview-cancelled", name: "Interview cancelled" }} templates={list} templateId={templateId}
               onTemplateChange={(t) => { setTemplateId(t.id); setSubject(t.subject); setBody(t.body); }}
               subject={subject} onSubjectChange={setSubject} body={body} onBodyChange={setBody} vals={vals} />
           )}

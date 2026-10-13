@@ -1100,15 +1100,19 @@ export type Database = {
       ats_email_templates: {
         Row: {
           body: string
+          channel: string
           code: string
           created_at: string
           created_by: string | null
           created_by_name: string | null
+          default_body: string | null
+          default_subject: string | null
           id: string
           is_active: boolean
           is_system: boolean
           name: string
           purpose: string
+          quick_reply: boolean
           sort_order: number
           subject: string
           updated_at: string
@@ -1117,15 +1121,19 @@ export type Database = {
         }
         Insert: {
           body: string
+          channel?: string
           code: string
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
+          default_body?: string | null
+          default_subject?: string | null
           id?: string
           is_active?: boolean
           is_system?: boolean
           name: string
           purpose?: string
+          quick_reply?: boolean
           sort_order?: number
           subject: string
           updated_at?: string
@@ -1134,15 +1142,19 @@ export type Database = {
         }
         Update: {
           body?: string
+          channel?: string
           code?: string
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
+          default_body?: string | null
+          default_subject?: string | null
           id?: string
           is_active?: boolean
           is_system?: boolean
           name?: string
           purpose?: string
+          quick_reply?: boolean
           sort_order?: number
           subject?: string
           updated_at?: string
@@ -2310,7 +2322,9 @@ export type Database = {
       ats_settings: {
         Row: {
           careers_base_url: string
+          company_display_name: string
           default_location: string
+          hr_contact_phone: string | null
           id: boolean
           idle_alert_days: number
           interview_address: string | null
@@ -2328,7 +2342,9 @@ export type Database = {
         }
         Insert: {
           careers_base_url?: string
+          company_display_name?: string
           default_location?: string
+          hr_contact_phone?: string | null
           id?: boolean
           idle_alert_days?: number
           interview_address?: string | null
@@ -2346,7 +2362,9 @@ export type Database = {
         }
         Update: {
           careers_base_url?: string
+          company_display_name?: string
           default_location?: string
+          hr_contact_phone?: string | null
           id?: boolean
           idle_alert_days?: number
           interview_address?: string | null
@@ -32291,6 +32309,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      ats_fill_placeholders: {
+        Args: { p_is_body: boolean; p_text: string; p_values: Json }
+        Returns: string
+      }
       ats_find_duplicates: {
         Args: { p_email?: string; p_exclude?: string; p_phone?: string }
         Returns: {
@@ -32305,6 +32327,7 @@ export type Database = {
           ref_no: string
         }[]
       }
+      ats_first_name: { Args: { p_full_name: string }; Returns: string }
       ats_import_add_rows: {
         Args: { p_import_id: string; p_rows: Json }
         Returns: Json
@@ -32347,6 +32370,7 @@ export type Database = {
         Args: { p_application_id: string; p_note?: string; p_stage_id: string }
         Returns: undefined
       }
+      ats_name_case: { Args: { p: string }; Returns: string }
       ats_norm_title: { Args: { p: string }; Returns: string }
       ats_normalize_phone: { Args: { p: string }; Returns: string }
       ats_overview_stats: { Args: never; Returns: Json }
@@ -32393,6 +32417,15 @@ export type Database = {
         Returns: undefined
       }
       ats_slugify: { Args: { p: string }; Returns: string }
+      ats_template_placeholders: { Args: never; Returns: string[] }
+      ats_template_values: {
+        Args: {
+          p_application_id?: string
+          p_candidate_id?: string
+          p_interview_id?: string
+        }
+        Returns: Json
+      }
       ats_text_array: { Args: { p: Json }; Returns: string[] }
       ats_try_numeric: { Args: { p: string }; Returns: number }
       ats_try_timestamptz: { Args: { p: string }; Returns: string }

@@ -1,5 +1,8 @@
 /** Maps database / network errors to short user-facing messages for ATS toasts. */
 const CODE_MESSAGES: [string, string][] = [
+  ["ATS_TEMPLATE_UNKNOWN_PLACEHOLDER", "This template uses a placeholder the ATS doesn't know. Remove it or pick one from the list."],
+  ["ATS_TEMPLATE_INTERVIEW_FIELDS", "Interview details can only be used in templates with the purpose Interview."],
+  ["ATS_TEMPLATE_REQUIRED", "This built-in template is needed for interview emails. You can edit its text, but not turn it off."],
   ["ATS_SYSTEM_STAGE_LOCKED", "Built-in stages can be renamed but not deleted."],
   ["ATS_AMBIGUOUS_DUPLICATE", "This email belongs to one candidate and this phone number to another. Open both records before adding."],
   ["ATS_NAME_REQUIRED", "Enter the candidate's name."],

@@ -80,9 +80,13 @@ export function useSeatOccupancy(planningOnly = true) {
           .eq("employee.is_active", true),
         supabase
           .from("hr_employee_shift_schedule")
-          .select("employee_id, shift_id, effective_from")
-          .eq("is_current", true)
-          .order("effective_from", { ascending: false }),
+          // Same date rule as hr_wf_people: the row in effect today (IST), not the is_current flag,
+          // so a future-dated move shows on its move date on every screen.
+          .select("employee_id, shift_id, effective_from, effective_to, created_at")
+          .lte("effective_from", istToday())
+          .or(`effective_to.is.null,effective_to.gte.${istToday()}`)
+          .order("effective_from", { ascending: false })
+          .order("created_at", { ascending: false }),
         supabase.from("hr_shifts").select("id, planning_shift_id, is_training_shift"),
         supabase.from("positions").select("id, is_active, in_workforce_planning"),
       ]);

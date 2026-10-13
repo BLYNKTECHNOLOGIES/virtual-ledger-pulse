@@ -15,11 +15,11 @@ import {
   formatIstDate,
   formatIstDateTime,
 } from "@/lib/hrms/workforce";
-import {
-  useRequirementProgress,
-  useSendToRecruitment,
-  useSetRequirementStatus,
-} from "@/hooks/hrms/useWorkforcePlanning";
+import { useSetRequirementStatus } from "@/hooks/hrms/useWorkforcePlanning";
+import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { JobStatusBadge } from "@/components/ats/AtsBits";
 
 interface HiringRequirementDetailDialogProps {
   open: boolean;
@@ -45,9 +45,30 @@ export function HiringRequirementDetailDialog({
   canApprove,
   canManage,
 }: HiringRequirementDetailDialogProps) {
-  const { data: progress } = useRequirementProgress(open ? requirement?.id ?? null : null);
+  const reqId = open ? requirement?.id ?? null : null;
+  const atsJobs = useQuery({
+    queryKey: ["workforce_requirement_ats_jobs", reqId],
+    enabled: !!reqId,
+    queryFn: async () => {
+      const { data: jobs, error } = await supabase.from("ats_jobs")
+        .select("id, job_code, title, status").eq("requisition_id", reqId!).order("created_at");
+      if (error) throw error;
+      const ids = (jobs ?? []).map((j) => j.id);
+      const counts = new Map<string, { apps: number; hired: number }>();
+      if (ids.length) {
+        const { data: apps, error: aErr } = await supabase.from("ats_applications").select("job_id, status").in("job_id", ids);
+        if (aErr) throw aErr;
+        for (const a of apps ?? []) {
+          const c = counts.get(a.job_id as string) ?? { apps: 0, hired: 0 };
+          c.apps++; if (a.status === "hired") c.hired++;
+          counts.set(a.job_id as string, c);
+        }
+      }
+      return (jobs ?? []).map((j) => ({ ...j, ...(counts.get(j.id) ?? { apps: 0, hired: 0 }) }));
+    },
+  });
+  const navigate = useNavigate();
   const setStatus = useSetRequirementStatus();
-  const sendToRecruitment = useSendToRecruitment();
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
 
@@ -62,7 +83,7 @@ export function HiringRequirementDetailDialog({
   const replacement = requirement.replacement;
 
   const canSendToRecruitment =
-    canManage && requirement.status === "approved" && !requirement.recruitment_id;
+    canManage && requirement.status === "approved";
 
   return (
     <ResponsiveDialog
@@ -108,12 +129,9 @@ export function HiringRequirementDetailDialog({
             </>
           )}
           {canSendToRecruitment && (
-            <Button
-              onClick={() => sendToRecruitment.mutate(requirement.id)}
-              disabled={sendToRecruitment.isPending}
-            >
+            <Button onClick={() => navigate(`/hrms/ats/jobs?new=1&requirement=${requirement.id}`)}>
               <Send className="h-4 w-4" />
-              {sendToRecruitment.isPending ? "Sending..." : "Send to recruitment"}
+              Create ATS job
             </Button>
           )}
         </div>
@@ -138,20 +156,26 @@ export function HiringRequirementDetailDialog({
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-semibold text-foreground">Recruitment pipeline</p>
-          {requirement.recruitment_id ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <Stat label="Applied" value={progress?.applied ?? 0} />
-              <Stat label="Screened" value={progress?.screened ?? 0} />
-              <Stat label="Interview" value={progress?.interview ?? 0} />
-              <Stat label="Selected" value={progress?.selected ?? 0} />
-              <Stat label="Joining pending" value={progress?.joining_pending ?? 0} />
-              <Stat label="Joined" value={progress?.joined ?? 0} />
-            </div>
+          <p className="mb-2 text-sm font-semibold text-foreground">ATS jobs for this requirement</p>
+          {atsJobs.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : atsJobs.isError ? (
+            <p className="text-sm text-destructive">Couldn't load ATS jobs.</p>
+          ) : !atsJobs.data?.length ? (
+            <p className="text-sm text-muted-foreground">No ATS job yet.</p>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Recruitment has not started for this requirement yet.
-            </p>
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {atsJobs.data.map((j) => (
+                <li key={j.id}>
+                  <Link to={`/hrms/ats/jobs/${j.id}`} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm hover:bg-muted/40">
+                    <span className="font-mono text-xs text-muted-foreground">{j.job_code}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">{j.title}</span>
+                    <JobStatusBadge status={j.status} />
+                    <span className="text-xs text-muted-foreground">{j.apps} applications · {j.hired} hired</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 

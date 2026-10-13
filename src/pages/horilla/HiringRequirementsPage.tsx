@@ -12,7 +12,8 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { HiringRequirementDetailDialog } from "@/components/horilla/workforce/HiringRequirementDetailDialog";
-import { useHiringRequirements, useSendToRecruitment } from "@/hooks/hrms/useWorkforcePlanning";
+import { useHiringRequirements } from "@/hooks/hrms/useWorkforcePlanning";
+import { useNavigate } from "react-router-dom";
 import {
   PRIORITY_CLASS,
   PRIORITY_LABEL,
@@ -58,7 +59,7 @@ export default function HiringRequirementsPage() {
   const [detail, setDetail] = useState<any | null>(null);
 
   const { data: requirements = [], isLoading } = useHiringRequirements();
-  const sendToRecruitment = useSendToRecruitment();
+  const navigate = useNavigate();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -80,7 +81,7 @@ export default function HiringRequirementsPage() {
     <div className="space-y-4 p-3 md:p-6">
       <PageHeader
         title="Hiring requirements"
-        description="The bridge between planning and recruitment: who we need to hire, how many, for which shift and by when. Approved requirements can be opened as recruitment postings."
+        description="The bridge between planning and recruitment: who we need to hire, how many, for which shift and by when. Approved requirements can be opened as ATS jobs."
         actions={
           canManage && (
             <Button onClick={() => setCreateOpen(true)}>
@@ -172,16 +173,15 @@ export default function HiringRequirementsPage() {
                         </div>
                         <Progress value={pct} />
                       </div>
-                      {canManage && r.status === "approved" && !r.recruitment_id && (
+                      {canManage && r.status === "approved" && (
                         <Button
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            sendToRecruitment.mutate(r.id);
+                            navigate(`/hrms/ats/jobs?new=1&requirement=${r.id}`);
                           }}
-                          disabled={sendToRecruitment.isPending}
                         >
-                          <Send className="h-3.5 w-3.5" /> Recruit
+                          <Send className="h-3.5 w-3.5" /> Create ATS job
                         </Button>
                       )}
                     </div>

@@ -214,7 +214,11 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
               value={searchQ}
               onChange={(e) => { setSearchQ(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
-              placeholder={isMobile ? "Search HRMS…" : "Search employees, email, ID…"}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { setSearchQ(""); setSearchOpen(false); e.currentTarget.blur(); }
+              }}
+              aria-label="Search employees by name, email or ID"
+              placeholder={isMobile ? "Search employees…" : "Search employees, email, ID…"}
               className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full min-w-0"
             />
             {searchQ && (

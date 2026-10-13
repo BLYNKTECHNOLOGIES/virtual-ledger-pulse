@@ -90,16 +90,14 @@ export function useAtsMailRealtime(enabled: boolean) {
   }, [enabled, qc]);
 }
 
-/** Prefixes the tab title with "(n) " while inside the ATS and replies are waiting. */
+/** Tab title inside the ATS: "(n) ATS · HRMS · BlynkEx" while replies are waiting. The HRMS shell titles every other page. */
 export function useNeedsReplyTitle(n: number) {
   const { pathname } = useLocation();
-  const original = useRef<string | null>(null);
   useEffect(() => {
-    if (original.current === null) original.current = document.title.replace(/^\(\d+\)\s/, "");
-    const base = original.current;
-    document.title = pathname.startsWith("/hrms/ats") && n > 0 ? `(${n}) ${base}` : base;
+    if (!pathname.startsWith("/hrms/ats")) return;
+    const base = "ATS · HRMS · BlynkEx";
+    document.title = n > 0 ? `(${n}) ${base}` : base;
   }, [n, pathname]);
-  useEffect(() => () => { if (original.current !== null) document.title = original.current; }, []);
 }
 
 export { useConversationCounts };

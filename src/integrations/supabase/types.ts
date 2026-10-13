@@ -12510,6 +12510,7 @@ export type Database = {
           essl_badge_id: string | null
           first_name: string | null
           gender: string | null
+          hiring_requirement_declined: boolean
           hiring_requirement_id: string | null
           id: string
           job_role: string | null
@@ -12562,6 +12563,7 @@ export type Database = {
           essl_badge_id?: string | null
           first_name?: string | null
           gender?: string | null
+          hiring_requirement_declined?: boolean
           hiring_requirement_id?: string | null
           id?: string
           job_role?: string | null
@@ -12614,6 +12616,7 @@ export type Database = {
           essl_badge_id?: string | null
           first_name?: string | null
           gender?: string | null
+          hiring_requirement_declined?: boolean
           hiring_requirement_id?: string | null
           id?: string
           job_role?: string | null
@@ -14468,6 +14471,7 @@ export type Database = {
       }
       hr_hiring_requirements: {
         Row: {
+          adds_headcount: number
           approved_at: string | null
           approver_id: string | null
           approver_name: string | null
@@ -14503,6 +14507,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          adds_headcount?: number
           approved_at?: string | null
           approver_id?: string | null
           approver_name?: string | null
@@ -14538,6 +14543,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          adds_headcount?: number
           approved_at?: string | null
           approver_id?: string | null
           approver_name?: string | null
@@ -35035,6 +35041,7 @@ export type Database = {
       }
       hr_department_request_hiring: {
         Args: {
+          p_adds?: boolean
           p_number: number
           p_plan_id: string
           p_reason: string

@@ -109,6 +109,10 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
 
   const scopeChanged = !!plan && (form.shift !== lineShift(plan) || form.seat !== (plan.seat_capacity_id ?? "none")
     || [...form.roles].sort().join() !== [...lineRoles(plan)].sort().join());
+  // Desks of the desk group picked in the form (the database count for the current one; operational ?? physical otherwise).
+  const chosenSeat: any = form.seat === "none" ? null : (seats as any[]).find((x) => x.id === form.seat);
+  const chosenDesks = form.seat === (plan?.seat_capacity_id ?? "none") ? deskCount
+    : chosenSeat ? (chosenSeat.is_active === false ? 0 : Number(chosenSeat.max_operational_capacity ?? chosenSeat.physical_seats ?? 0)) : 0;
   const deptSeats = (seats as any[]).filter((s) => s.department_id === plan?.department_id && !s.is_training_only);
   const deptRoles = ((lookups?.positions || []) as any[]).filter((p) => p.department_id === plan?.department_id && p.in_workforce_planning !== false);
   const openLineReqs = (requirements as any[]).filter((r) => r.staffing_plan_id === line?.plan_id && OPEN_REQ_STATUSES.includes(r.status));
@@ -138,14 +142,17 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
         id: plan.id,
         department_id: plan.department_id,
         position_id: primary,
-        eligible_position_ids: form.roles.length > 1 ? [primary, ...form.roles.filter((r) => r !== primary)] : [],
+        // Keep the stored role list when the roles didn't change (a single-role list stays as stored — no empty rewrite).
+        eligible_position_ids: [...form.roles].sort().join() === [...lineRoles(plan)].sort().join()
+          ? (plan.eligible_position_ids ?? [])
+          : form.roles.length > 1 ? [primary, ...form.roles.filter((r) => r !== primary)] : [],
         shift_id: shiftSame ? plan.shift_id : form.shift === "any" ? null : form.shift,
         eligible_shift_ids: shiftSame ? plan.eligible_shift_ids || [] : [],
         shift_label: shiftSame ? plan.shift_label : (shifts as any[]).find((x) => x.id === form.shift)?.name ?? null,
         location: plan.location,
         employment_type: plan.employment_type,
-        approved_hc: following ? deskCount : form.approved,
-        required_hc: following ? deskCount : form.required,
+        approved_hc: following ? chosenDesks : form.approved,
+        required_hc: following ? chosenDesks : form.required,
         target_date: form.target || null,
         priority: form.priority,
         notes: form.reason.trim(),
@@ -215,7 +222,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                       <p className="text-xs text-muted-foreground">
                         {form.seat === "none" ? "This line has no desk group."
                           : seatInactive ? "The desk group is inactive, so this line follows 0 desks until it is reactivated or you pick another group."
-                          : `Numbers stay equal to the desk group (${deskCount}).`}
+                          : `Numbers stay equal to the desk group (${chosenDesks}).`}
                       </p>
                     </div>
                     <Switch checked={form.follow && form.seat !== "none"} disabled={form.seat === "none"} onCheckedChange={(v) => setForm((f) => ({ ...f, follow: v }))} />
@@ -265,12 +272,12 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Required</Label>
-                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? deskCount : form.required}
+                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? chosenDesks : form.required}
                         onChange={(e) => editNumber("required", Math.max(0, Number(e.target.value) || 0))} />
                     </div>
                     <div className="space-y-1">
                       <Label>Approved</Label>
-                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? deskCount : form.approved}
+                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? chosenDesks : form.approved}
                         onChange={(e) => editNumber("approved", Math.max(0, Number(e.target.value) || 0))} />
                     </div>
                     <div className="space-y-1">
@@ -406,7 +413,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
               <AlertDialogAction
                 onClick={() => {
                   if (pendingUnfollow)
-                    setForm((f) => ({ ...f, follow: false, required: deskCount, approved: deskCount, [pendingUnfollow.key]: pendingUnfollow.value }));
+                    setForm((f) => ({ ...f, follow: false, required: chosenDesks, approved: chosenDesks, [pendingUnfollow.key]: pendingUnfollow.value }));
                   setPendingUnfollow(null);
                 }}
               >

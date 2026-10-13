@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { AlertTriangle, Armchair, GraduationCap, Link2Off, PauseCircle, UserX, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useWorkforceAlerts } from "@/hooks/hrms/useWorkforceAlerts";
+import { useWorkforceAlerts, type AlertScope } from "@/hooks/hrms/useWorkforceAlerts";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
 import { pauseText, type StaffingDerived } from "@/lib/hrms/workforce";
 
@@ -11,11 +11,16 @@ interface Props {
   canManage: boolean;
   onPlanDesks?: (seat: any) => void;
   onOpenLine?: (planId: string) => void;
+  /** Department / role filter for alerts that sit on no line; rows carry the page's line filters. */
+  scope?: AlertScope;
+  /** A shift filter is set: alerts that sit on no line can't follow it and say so. */
+  shiftFiltered?: boolean;
 }
 
 /** Desks with no line, people with no line, trainees with no after-training shift, over-requested lines. */
-export function WorkforceAlertsStrip({ rows, positionTitle, canManage, onPlanDesks, onOpenLine }: Props) {
-  const a = useWorkforceAlerts(rows);
+export function WorkforceAlertsStrip({ rows, positionTitle, canManage, onPlanDesks, onOpenLine, scope, shiftFiltered }: Props) {
+  const a = useWorkforceAlerts(rows, scope);
+  const cw = shiftFiltered ? <span className="ml-1 text-[11px] font-normal text-muted-foreground">(all shifts)</span> : null;
   if (a.count === 0) return null;
   const seatName = (s: any) => seatRoleIds(s).map(positionTitle).filter(Boolean).join(" / ") || "Whole department";
 
@@ -24,7 +29,7 @@ export function WorkforceAlertsStrip({ rows, positionTitle, canManage, onPlanDes
       {a.desksWithoutLine.length > 0 && (
         <div className="rounded-lg border border-warning/40 bg-warning/5 p-3">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Armchair className="h-4 w-4 shrink-0 text-warning" /> {a.desksWithoutLine.length} desk group{a.desksWithoutLine.length > 1 ? "s" : ""} with no staffing line
+            <Armchair className="h-4 w-4 shrink-0 text-warning" /> {a.desksWithoutLine.length} desk group{a.desksWithoutLine.length > 1 ? "s" : ""} with no staffing line{cw}
           </p>
           <ul className="mt-1.5 space-y-1">
             {a.desksWithoutLine.map((s) => (
@@ -41,7 +46,7 @@ export function WorkforceAlertsStrip({ rows, positionTitle, canManage, onPlanDes
       {a.unplanned.length > 0 && (
         <div className="rounded-lg border border-warning/40 bg-warning/5 p-3">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <UserX className="h-4 w-4 shrink-0 text-warning" /> People with no staffing line
+            <UserX className="h-4 w-4 shrink-0 text-warning" /> People with no staffing line{cw}
           </p>
           <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
             {a.unplanned.map((u, i) => (
@@ -50,10 +55,25 @@ export function WorkforceAlertsStrip({ rows, positionTitle, canManage, onPlanDes
           </ul>
         </div>
       )}
+      {a.seatFull.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <Armchair className="h-4 w-4 shrink-0 text-primary" /> Seat capacity reached
+          </p>
+          <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+            {a.seatFull.map((r) => (
+              <li key={r.plan_id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate">{r.position_title} · {r.shiftLabel}: {r.current_hc} on roll = {r.operational_capacity} desks — more people need more desks</span>
+                {onOpenLine && <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => onOpenLine(r.plan_id)}>Open</Button>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {a.traineesWithoutShift.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <GraduationCap className="h-4 w-4 shrink-0 text-primary" /> Trainees without an after-training shift
+            <GraduationCap className="h-4 w-4 shrink-0 text-primary" /> Trainees without an after-training shift{cw}
           </p>
           <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
             {a.traineesWithoutShift.map((t) => (
@@ -100,7 +120,7 @@ export function WorkforceAlertsStrip({ rows, positionTitle, canManage, onPlanDes
       {(a.unlinked.length > 0 || a.onInactiveLine.length > 0) && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Link2Off className="h-4 w-4 shrink-0 text-destructive" /> Requirements that need a staffing line
+            <Link2Off className="h-4 w-4 shrink-0 text-destructive" /> Requirements that need a staffing line{cw}
           </p>
           <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
             {a.onInactiveLine.map((r: any) => (

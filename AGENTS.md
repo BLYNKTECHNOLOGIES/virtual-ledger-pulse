@@ -24,3 +24,4 @@
 - Reports & Analytics treats `hr_payslips_v` as payroll truth, employer payroll cost as gross plus employer contributions, approved leave as day totals rather than request counts, and canonical evidence-backed attendance only as workforce availability; owner exclusions must apply to every metric, drill-down and export.
 - The salary-register importer sums two header names for one figure only if they resolve to different columns, because an alias ("Loan Repayment" for "Loan Emi") can resolve both to one column and double the deduction.
 - Comp-off leave is funded only by same-calendar-month credits (hr_leave_available, CO branch), because older unsettled credits are encashed by payroll and must not also pay for leave.
+- Unit tests run with `bun run test` (vitest, vitest.config.ts); test files import from "vitest", never bun:test, so one command runs every test.

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 interface WorkforceKpiCardProps {
   label: string;
   value: React.ReactNode;
-  hint?: string;
+  hint?: React.ReactNode;
   icon?: LucideIcon;
   tone?: "default" | "warning" | "danger" | "success";
   onClick?: () => void;

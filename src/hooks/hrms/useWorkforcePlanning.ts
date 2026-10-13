@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import {
   deriveStaffingRow,
   type StaffingDerived,
@@ -321,7 +322,6 @@ export interface HiringRequirementInput {
   salary_min: number | null;
   salary_max: number | null;
   replacement_employee_id: string | null;
-  approver_name: string | null;
   priority: string;
   status: string;
   notes: string | null;
@@ -358,7 +358,7 @@ export function useSaveHiringRequirement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: HiringRequirementInput & { editReason?: string | null }) => {
-      const { id, editReason, approver_name: _ignored, ...payload } = input;
+      const { id, editReason, ...payload } = input;
       if (id) {
         // Edits go through hr_update_requirement (audited, status-aware); status only via the transition RPC.
         const { status, ...rest } = payload;
@@ -366,17 +366,17 @@ export function useSaveHiringRequirement() {
           .from("hr_hiring_requirements").select("status").eq("id", id).single();
         if (readError) throw readError;
         const full = ["draft", "pending_approval"].includes(before?.status ?? "");
-        const patch: Record<string, unknown> = {};
+        const patch: Record<string, Json> = {};
         for (const [k, v] of Object.entries(rest)) {
           const allowed: readonly string[] = full ? ALL_REQUIREMENT_FIELDS : LIMITED_REQUIREMENT_FIELDS;
-          if (allowed.includes(k)) patch[k] = v;
+          if (allowed.includes(k)) patch[k] = v as Json;
         }
-        const { error } = await (supabase.rpc as any)("hr_update_requirement", {
+        const { error } = await supabase.rpc("hr_update_requirement", {
           p_id: id, p_patch: patch, p_reason: editReason?.trim() || null,
         });
         if (error) throw error;
         if (before?.status === "draft" && status === "pending_approval") {
-          const { error: tErr } = await (supabase.rpc as any)("hr_requirement_transition", {
+          const { error: tErr } = await supabase.rpc("hr_requirement_transition", {
             p_id: id, p_action: "submit", p_reason: null,
           });
           if (tErr) throw tErr;
@@ -421,7 +421,7 @@ export function useRequirementTransition() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, action, reason }: { id: string; action: RequirementAction; reason?: string | null }) => {
-      const { data, error } = await (supabase.rpc as any)("hr_requirement_transition", {
+      const { data, error } = await supabase.rpc("hr_requirement_transition", {
         p_id: id, p_action: action, p_reason: reason?.trim() || null,
       });
       if (error) throw error;
@@ -436,21 +436,6 @@ export function useRequirementTransition() {
     },
     onError: (e: any) => toast.error(e?.message || "Could not update the requirement"),
   });
-}
-
-/** Back-compat wrapper used by the requirement detail dialog. */
-export function useSetRequirementStatus() {
-  const t = useRequirementTransition();
-  const map: Record<string, RequirementAction> = {
-    approved: "approve", rejected: "reject", cancelled: "cancel", pending_approval: "submit", draft: "reopen",
-  };
-  return {
-    ...t,
-    mutate: (
-      { id, status, rejectionReason }: { id: string; status: string; rejectionReason?: string },
-      opts?: Parameters<typeof t.mutate>[1],
-    ) => t.mutate({ id, action: map[status] ?? (status as RequirementAction), reason: rejectionReason }, opts),
-  };
 }
 
 export interface LinePerson {
@@ -471,7 +456,7 @@ export function useLinePeople(planId?: string | null) {
     queryKey: ["workforce_line_people", planId],
     enabled: !!planId,
     queryFn: async (): Promise<LinePerson[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_line_people", { p_plan_id: planId });
+      const { data, error } = await supabase.rpc("hr_workforce_line_people", { p_plan_id: planId });
       if (error) throw error;
       return (data || []) as LinePerson[];
     },
@@ -498,7 +483,7 @@ export function useWorkforceTrainees() {
   return useQuery({
     queryKey: ["workforce_trainees"],
     queryFn: async (): Promise<TraineeRow[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_trainees");
+      const { data, error } = await supabase.rpc("hr_workforce_trainees");
       if (error) throw error;
       return (data || []) as TraineeRow[];
     },
@@ -510,7 +495,7 @@ export function useSetPostTrainingShift() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ employeeId, shiftId }: { employeeId: string; shiftId: string | null }) => {
-      const { error } = await (supabase.rpc as any)("hr_set_post_training_shift", {
+      const { error } = await supabase.rpc("hr_set_post_training_shift", {
         p_employee: employeeId, p_shift: shiftId,
       });
       if (error) throw error;
@@ -588,7 +573,7 @@ export function useForecastEvents(enabled = true) {
     queryKey: ["workforce_staffing_matrix", "forecast_events"],
     enabled,
     queryFn: async (): Promise<ForecastEvent[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_forecast_events");
+      const { data, error } = await supabase.rpc("hr_workforce_forecast_events");
       if (error) throw error;
       return (data || []) as ForecastEvent[];
     },
@@ -601,27 +586,11 @@ export function useAttritionHistory(departmentId: string | null, months = 12) {
   return useQuery({
     queryKey: ["workforce_staffing_matrix", "attrition_history", departmentId, months],
     queryFn: async (): Promise<AttritionMonth[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_attrition_history", {
+      const { data, error } = await supabase.rpc("hr_workforce_attrition_history", {
         p_department: departmentId, p_months: months,
       });
       if (error) throw error;
       return (data || []) as AttritionMonth[];
-    },
-    staleTime: STALE,
-  });
-}
-
-export function useWorkforceAudit(limit = 100) {
-  return useQuery({
-    queryKey: ["workforce_audit", limit],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hr_workforce_plan_audit")
-        .select("*")
-        .order("changed_at", { ascending: false })
-        .limit(limit);
-      if (error) throw error;
-      return data || [];
     },
     staleTime: STALE,
   });

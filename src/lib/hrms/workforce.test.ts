@@ -1,6 +1,6 @@
-// @ts-nocheck — run with `bun test src/lib/hrms/workforce.test.ts`
-import { describe, expect, test } from "bun:test";
-import { deriveStaffingRow, findRebalances, pauseText, seatCountsInShift, sortByOperatingOrder, sumLines } from "./workforce";
+// @ts-nocheck — run with `bun run test` (vitest)
+import { describe, expect, test } from "vitest";
+import { deriveStaffingRow, quickRange, requirementMatchesFilters, EMPTY_FILTERS, findRebalances, pauseText, seatCountsInShift, sortByOperatingOrder, sumLines } from "./workforce";
 
 const base = {
   plan_id: "p", department_id: "d", department_name: "Operations", position_id: "oa",
@@ -98,5 +98,30 @@ describe("timing helpers", () => {
   });
   test("overdue joiners grouped per line", () => {
     expect(overdueByLine([{ plan_id: "a" }, { plan_id: "a" }, { plan_id: null }]).get("a")).toBe(2);
+  });
+});
+
+describe("WF4 filters and alerts", () => {
+  test("quick ranges in IST calendar terms", () => {
+    expect(quickRange("this_month", "2026-10-14")).toEqual({ fromDate: "2026-10-01", toDate: "2026-10-31" });
+    expect(quickRange("next_month", "2026-10-14")).toEqual({ fromDate: "2026-11-01", toDate: "2026-11-30" });
+    expect(quickRange("this_quarter", "2026-10-14")).toEqual({ fromDate: "2026-10-01", toDate: "2026-12-31" });
+    expect(quickRange("next_90", "2026-10-14")).toEqual({ fromDate: "2026-10-14", toDate: "2027-01-12" });
+  });
+
+  test("a requirement follows the department filter through its line", () => {
+    const line = deriveStaffingRow({ ...base, plan_id: "p1", department_id: "ops" } as any);
+    const lines = new Map([["p1", line]]);
+    const f = { ...EMPTY_FILTERS, departmentId: "compliance" };
+    expect(requirementMatchesFilters({ staffing_plan_id: "p1", department_id: "ops" }, lines, f)).toBe(false);
+    expect(requirementMatchesFilters({ staffing_plan_id: "p1", department_id: "ops" }, lines, { ...EMPTY_FILTERS, departmentId: "ops" })).toBe(true);
+    expect(requirementMatchesFilters({ target_joining_date: "2026-11-12" }, lines, { ...EMPTY_FILTERS, ...quickRange("next_90", "2026-10-14") })).toBe(true);
+  });
+
+  test("seat capacity reached when a desk-following line has on roll = desks", () => {
+    const r = deriveStaffingRow({ ...base, follow_desks: true, operational_capacity: 4, current_hc: 4, required_hc: 4 } as any);
+    expect(r.alerts).toContain("Seat capacity reached");
+    const r2 = deriveStaffingRow({ ...base, follow_desks: true, operational_capacity: 4, current_hc: 3, required_hc: 4 } as any);
+    expect(r2.alerts).not.toContain("Seat capacity reached");
   });
 });

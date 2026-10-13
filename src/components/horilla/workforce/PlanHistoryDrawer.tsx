@@ -39,12 +39,21 @@ export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpe
     queryKey: ["workforce_audit", "labels"],
     enabled: open,
     queryFn: async () => {
-      const [plans, seats, reqs, positions] = await Promise.all([
-        supabase.from("hr_headcount_plans").select("id, position_id, shift_label, eligible_position_ids"),
+      const [plans, seats, reqs, positions, shiftRows] = await Promise.all([
+        supabase.from("hr_headcount_plans").select("id, position_id, shift_id, eligible_shift_ids, shift_label, eligible_position_ids"),
         supabase.from("hr_seat_capacity").select("id, position_id, eligible_position_ids, physical_seats, is_training_only"),
         supabase.from("hr_hiring_requirements").select("id, requirement_no"),
         supabase.from("positions").select("id, title"),
+        supabase.from("hr_shifts").select("id, name, start_time, planning_shift_id"),
       ]);
+      // Label from the line's shift(s) as the matrix does (counts-as group), never only the stored text.
+      const shiftById = new Map((shiftRows.data || []).map((x: any) => [x.id, x]));
+      const groupName = (id: string) => { const sh: any = shiftById.get(id); const g: any = sh?.planning_shift_id ? shiftById.get(sh.planning_shift_id) : sh; return g?.name as string | undefined; };
+      const shiftText = (p: any) => {
+        const ids: string[] = p.eligible_shift_ids?.length ? p.eligible_shift_ids : p.shift_id ? [p.shift_id] : [];
+        const names = Array.from(new Set(ids.map(groupName).filter(Boolean)));
+        return names.length ? names.join(" + ") : p.shift_label || "Any shift";
+      };
       const title = new Map((positions.data || []).map((p) => [p.id, p.title]));
       const roles = (r: any) =>
         ((r.eligible_position_ids?.length ? r.eligible_position_ids : [r.position_id]) as string[])
@@ -52,7 +61,7 @@ export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpe
           .filter(Boolean)
           .join(" / ");
       const m = new Map<string, string>();
-      (plans.data || []).forEach((p: any) => m.set(p.id, `${roles(p) || "Role"} · ${p.shift_label || "Any shift"}`));
+      (plans.data || []).forEach((p: any) => m.set(p.id, `${roles(p) || "Role"} · ${shiftText(p)}`));
       (seats.data || []).forEach((s: any) => m.set(s.id, s.is_training_only ? "Training desks" : `${roles(s) || "Department"} desks`));
       (reqs.data || []).forEach((r: any) => m.set(r.id, r.requirement_no));
       return m;

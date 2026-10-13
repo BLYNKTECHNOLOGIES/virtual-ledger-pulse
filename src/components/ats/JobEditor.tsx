@@ -220,7 +220,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
       return createJob({ ...payload, status: mode.current === "open" ? "open" : "draft" });
     },
     {
-      invalidate: () => jobKeys(job?.id),
+      invalidate: () => [...jobKeys(job?.id), ["workforce_hiring_requirements"], ["workforce_staffing_matrix"], ["workforce_audit"]],
       success: isEdit ? "Job updated" : () => (mode.current === "open" ? "Job created and opened" : "Draft saved"),
       onSuccess: (data) => {
         reset(getValues());

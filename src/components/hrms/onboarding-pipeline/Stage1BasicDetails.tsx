@@ -40,6 +40,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     job_role: "",
     shift_id: "",
     hiring_requirement_id: "",
+    hiring_requirement_declined: false,
     employee_type: "",
     probation_end_date: "",
   });
@@ -74,6 +75,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         job_role: data.job_role || "",
         shift_id: data.shift_id || "",
         hiring_requirement_id: data.hiring_requirement_id || "",
+        hiring_requirement_declined: !!data.hiring_requirement_declined,
         employee_type: normalizedType,
         probation_end_date: data.probation_end_date || "",
       });
@@ -144,17 +146,23 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
       // finalization / RazorpayX push keep resolving a title.
       if (field === "position_id") {
         next.job_role = positions?.find((p: any) => p.id === value)?.title || "";
-        if (value !== prev.position_id) next.hiring_requirement_id = "";
+        if (value !== prev.position_id) { next.hiring_requirement_id = ""; next.hiring_requirement_declined = false; }
       }
       if (field === "department_id") {
         next.position_id = "";
         next.job_role = "";
         next.hiring_requirement_id = "";
+        next.hiring_requirement_declined = false;
       }
+      if (field === "hiring_requirement_id") next.hiring_requirement_declined = false;
       return next;
     });
   };
   const setRequirement = useCallback((v: string) => update("hiring_requirement_id", v), [positions]); // eslint-disable-line react-hooks/exhaustive-deps
+  const declineRequirement = useCallback(() => {
+    dirtyRef.current = true;
+    setForm((prev: any) => ({ ...prev, hiring_requirement_id: "", hiring_requirement_declined: true }));
+  }, []);
 
   // One input, structured storage: parse the typed line into
   // address / city / state / zip / country on every keystroke.
@@ -304,7 +312,8 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             </Select>
           </div>
           <FillsRequirementPicker departmentId={form.department_id} positionId={form.position_id} shiftId={form.shift_id}
-            value={form.hiring_requirement_id} onChange={setRequirement} disabled={readOnly || data?.status === "completed"} />
+            value={form.hiring_requirement_id} onChange={setRequirement}
+            declined={!!form.hiring_requirement_declined} onDecline={declineRequirement} disabled={readOnly || data?.status === "completed"} />
           <div>
             <Label>Probation End Date <span className="text-muted-foreground font-normal">(optional)</span></Label>
             <Input

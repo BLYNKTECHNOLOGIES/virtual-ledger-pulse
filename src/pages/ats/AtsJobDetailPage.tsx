@@ -69,7 +69,7 @@ export default function AtsJobDetailPage() {
   const setStatus = useAtsMutation(
     (v: { status: string; closed_reason?: string | null }) => updateJob({ id: jobId!, patch: v }),
     {
-      invalidate: () => jobKeys(jobId),
+      invalidate: () => [...jobKeys(jobId), ["workforce_hiring_requirements"], ["workforce_staffing_matrix"]],
       success: (v) => ({ open: "Job is open", paused: "Job paused", closed: "Job closed" } as Record<string, string>)[v.status] ?? "Saved",
       onSuccess: () => { setCloseOpen(false); setReason(""); setNote(""); },
     },
@@ -183,7 +183,7 @@ export default function AtsJobDetailPage() {
           </SectionCard>
 
           <CareersJobCard job={j} />
-          {j.requisition_id && <WorkforceJobCard requirementId={j.requisition_id} />}
+          {j.requisition_id && <WorkforceJobCard requirementId={j.requisition_id} jobStatus={j.status} pausing={busy} onPause={() => setStatus.mutate({ status: "paused" })} />}
           {j.requisition_id && <JobLineShiftNotice requirementId={j.requisition_id} jobShiftIds={(j.shift_ids ?? []) as string[]} />}
 
           <SectionCard title="Key facts">

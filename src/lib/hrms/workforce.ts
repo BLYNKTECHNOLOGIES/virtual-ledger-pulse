@@ -61,8 +61,7 @@ export function seatCountsInShift(line: Pick<StaffingMatrixRow, "required_hc">):
 export type StaffingStatus =
   | "understaffed"
   | "fully_staffed"
-  | "overstaffed"
-  | "hiring";
+  | "overstaffed";
 
 export interface StaffingDerived extends StaffingMatrixRow {
   /** Approved − on roll (can be negative). */
@@ -73,9 +72,6 @@ export interface StaffingDerived extends StaffingMatrixRow {
   netHiringRequirement: number;
   /** max(0, net need − open requirement people). */
   uncoveredHiringRequirement: number;
-  /** Physical seats still free. */
-  availablePhysicalSeats: number;
-  seatUtilisationPct: number | null;
   status: StaffingStatus;
   /** Gap as a share of required headcount (used for the critical alert). */
   gapPct: number;
@@ -112,8 +108,6 @@ export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
   // Replacements for people still on notice cover only those future exits, not today's empty desks.
   const coveringToday = Math.max(0, row.open_requirement_hc - n(raw.replacement_cover_hc));
   const uncoveredHiringRequirement = Math.max(0, netHiringRequirement - coveringToday);
-  const availablePhysicalSeats = row.physical_seats ? row.physical_seats - row.current_hc : 0;
-  const seatUtilisationPct = row.physical_seats ? (row.current_hc / row.physical_seats) * 100 : null;
 
   // A requisition does not make a vacant seat staffed: status follows the gap only.
   const status: StaffingStatus =
@@ -127,6 +121,8 @@ export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
   if (staffingGap < 0) alerts.push("Overstaffed");
   if (row.physical_seats > 0 && row.current_hc > row.physical_seats)
     alerts.push("People without a desk");
+  const desks = raw.operational_capacity == null ? null : n(raw.operational_capacity);
+  if (row.follow_desks && desks != null && desks > 0 && row.current_hc === desks) alerts.push("Seat capacity reached");
   if (row.over_requested_hc > 0) alerts.push(`Over-requested by ${row.over_requested_hc}`);
   if (row.target_date && netHiringRequirement > 0 && daysUntil(row.target_date) <= 15)
     alerts.push("Hiring deadline approaching");
@@ -138,8 +134,6 @@ export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
     staffingGap,
     netHiringRequirement,
     uncoveredHiringRequirement,
-    availablePhysicalSeats,
-    seatUtilisationPct,
     status,
     gapPct,
     shiftLabel,
@@ -301,26 +295,12 @@ export function gapLabel(gap: number): string {
   return gap > 0 ? `short ${gap}` : gap < 0 ? `over ${-gap}` : "met";
 }
 
-export const STATUS_LABEL: Record<StaffingStatus, string> = {
-  understaffed: "Understaffed",
-  fully_staffed: "Adequately staffed",
-  overstaffed: "Overstaffed",
-  hiring: "Hiring",
-};
-
-/** Status filter options (hiring is not a staffing state). */
+/** Status filter options. */
 export const STATUS_FILTER_OPTIONS: { value: StaffingStatus; label: string }[] = [
   { value: "understaffed", label: "Short" },
   { value: "fully_staffed", label: "Met" },
   { value: "overstaffed", label: "Over" },
 ];
-
-export const STATUS_CLASS: Record<StaffingStatus, string> = {
-  understaffed: "bg-destructive/15 text-destructive border-destructive/30",
-  fully_staffed: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
-  overstaffed: "bg-amber-500/15 text-amber-600 border-amber-500/30",
-  hiring: "bg-primary/15 text-primary border-primary/30",
-};
 
 export const PRIORITIES = ["critical", "high", "medium", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
@@ -430,9 +410,14 @@ export const EMPTY_FILTERS: WorkforceFilterState = {
   toDate: "",
 };
 
+/**
+ * A line matches the filters. Target dates: the line's own date or any of its open requirements'
+ * target joining dates (reqDates, keyed by plan id) must fall in the range.
+ */
 export function matchesFilters(
   row: StaffingDerived,
   f: WorkforceFilterState,
+  reqDates?: Map<string, (string | null)[]>,
 ): boolean {
   if (f.departmentId !== "all" && row.department_id !== f.departmentId) return false;
   if (f.positionId !== "all" && row.position_id !== f.positionId) return false;
@@ -444,9 +429,57 @@ export function matchesFilters(
     return false;
   if (f.status !== "all" && row.status !== f.status) return false;
   if (f.priority !== "all" && row.priority !== f.priority) return false;
-  if (f.fromDate && (!row.target_date || row.target_date < f.fromDate)) return false;
-  if (f.toDate && (!row.target_date || row.target_date > f.toDate)) return false;
+  if (f.fromDate || f.toDate) {
+    const dates = [row.target_date, ...(reqDates?.get(row.plan_id) ?? [])].filter((d): d is string => !!d);
+    if (!dates.some((d) => inDateRange(d, f))) return false;
+  }
   return true;
+}
+
+export function inDateRange(date: string | null | undefined, f: Pick<WorkforceFilterState, "fromDate" | "toDate">): boolean {
+  if (!f.fromDate && !f.toDate) return true;
+  if (!date) return false;
+  const d = date.slice(0, 10);
+  return (!f.fromDate || d >= f.fromDate) && (!f.toDate || d <= f.toDate);
+}
+
+/** A requirement matches through its line when it has one, else through its own department / role / shift label. */
+export function requirementMatchesFilters(
+  req: { staffing_plan_id?: string | null; department_id?: string | null; position_id?: string | null; shift_label?: string | null;
+    employment_type?: string | null; priority?: string | null; target_joining_date?: string | null },
+  lineById: Map<string, StaffingDerived>,
+  f: WorkforceFilterState,
+): boolean {
+  const line = req.staffing_plan_id ? lineById.get(req.staffing_plan_id) : undefined;
+  if (f.departmentId !== "all" && (line?.department_id ?? req.department_id) !== f.departmentId) return false;
+  if (f.positionId !== "all" && req.position_id !== f.positionId) return false;
+  if (f.shift !== "all" && (line?.shiftLabel ?? req.shift_label ?? "Any shift") !== f.shift) return false;
+  if (f.employmentType !== "all" && normEmploymentType(req.employment_type ?? line?.employment_type) !== normEmploymentType(f.employmentType)) return false;
+  if (f.status !== "all" && line && line.status !== f.status) return false;
+  if (f.priority !== "all" && req.priority !== f.priority) return false;
+  return inDateRange(req.target_joining_date, f);
+}
+
+export type QuickRange = "this_month" | "next_month" | "this_quarter" | "next_90";
+export const QUICK_RANGES: { value: QuickRange; label: string }[] = [
+  { value: "this_month", label: "This month" },
+  { value: "next_month", label: "Next month" },
+  { value: "this_quarter", label: "This quarter" },
+  { value: "next_90", label: "Next 90 days" },
+];
+
+/** From / to (YYYY-MM-DD, IST calendar) for a quick range. */
+export function quickRange(r: QuickRange, today: string = istToday()): { fromDate: string; toDate: string } {
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7)) - 1;
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const first = (yy: number, mm: number) => new Date(Date.UTC(yy, mm, 1));
+  const last = (yy: number, mm: number) => new Date(Date.UTC(yy, mm + 1, 0));
+  if (r === "this_month") return { fromDate: iso(first(y, m)), toDate: iso(last(y, m)) };
+  if (r === "next_month") return { fromDate: iso(first(y, m + 1)), toDate: iso(last(y, m + 1)) };
+  if (r === "this_quarter") { const q = Math.floor(m / 3) * 3; return { fromDate: iso(first(y, q)), toDate: iso(last(y, q + 2)) }; }
+  const end = new Date(`${today}T00:00:00Z`); end.setUTCDate(end.getUTCDate() + 90);
+  return { fromDate: today, toDate: iso(end) };
 }
 
 /** IST date helpers — all planning dates are read and written in IST. */

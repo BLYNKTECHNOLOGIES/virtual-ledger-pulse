@@ -1,7 +1,7 @@
-// @ts-nocheck — run with `bun test src/lib/ats/bulk.test.ts`
-import { describe, expect, test, mock } from "bun:test";
-mock.module("@/integrations/supabase/client", () => ({ supabase: {} }));
-mock.module("./mail", () => ({ MailError: class {}, PLACEHOLDER_RE: /x/, mailErrorMessage: () => "", renderTemplate: () => "", sendCandidateEmail: () => null }));
+// @ts-nocheck — run with `bun run test` (vitest)
+import { describe, expect, test, vi } from "vitest";
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
+vi.mock("./mail", () => ({ MailError: class {}, PLACEHOLDER_RE: /x/, mailErrorMessage: () => "", renderTemplate: () => "", sendCandidateEmail: () => null }));
 const { bulkHireShift } = await import("./bulk");
 
 describe("bulk hire shift", () => {

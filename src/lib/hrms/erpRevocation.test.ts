@@ -1,5 +1,5 @@
-// @ts-nocheck — run with bun test src/lib/hrms/erpRevocation.test.ts
-import { expect, test } from "bun:test";
+// @ts-nocheck — run with `bun run test` (vitest)
+import { expect, test } from "vitest";
 import { completeErpRevocation } from "../../../supabase/functions/_shared/hr-erp-revocation";
 
 function fixture(authFailure = false) {

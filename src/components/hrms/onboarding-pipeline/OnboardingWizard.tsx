@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
 import { OnboardingAtsOrigin } from "./OnboardingAtsOrigin";
+import { invalidatePlanning } from "@/hooks/hrms/useWorkforcePlanning";
 import { Stage1BasicDetails } from "./Stage1BasicDetails";
 import { Stage2SalaryConfig } from "./Stage2SalaryConfig";
 import { Stage3Documents } from "./Stage3Documents";
@@ -138,6 +139,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       "job_role",
       "shift_id",
       "hiring_requirement_id",
+      "hiring_requirement_declined",
       "employee_type",
       "probation_end_date",
       "ctc",
@@ -354,6 +356,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         await updateRecord(stageData);
       }
       await refetch();
+      invalidatePlanning(queryClient); // joiners, trainees' after-training shift and requirement links feed the staffing plan
       if (!options?.silent) toast.success("Draft saved");
     } catch (err: any) {
       if (!options?.silent) toast.error(err.message);
@@ -389,6 +392,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+      invalidatePlanning(queryClient);
       setActiveStage(nextStage);
       toast.success(`Stage ${stage} completed`);
     } catch (err: any) {
@@ -698,6 +702,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       if (failures.length > 0) {
         await refetch();
         queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+      invalidatePlanning(queryClient);
         setActiveStage(5);
         const summary = failures.map(f => `• ${f.system}: ${f.message}`).join("\n");
         const successNote = successes.length ? `\n\nAlready created: ${successes.join(", ")}.` : "";
@@ -792,6 +797,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       if (failures.length > 0) {
         await refetch();
         queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+      invalidatePlanning(queryClient);
         setActiveStage(5);
         const summary = failures.map(f => `• ${f.system}: ${f.message}`).join("\n");
         const successNote = successes.length ? `\n\nAlready created: ${successes.join(", ")}.` : "";
@@ -834,6 +840,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
+      invalidatePlanning(queryClient);
       toast.success("Employee created successfully");
     } catch (err: any) {
       console.error("Finalize onboarding failed:", err);

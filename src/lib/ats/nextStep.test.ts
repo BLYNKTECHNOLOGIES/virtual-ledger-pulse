@@ -1,5 +1,5 @@
-// @ts-nocheck — run with `bun test src/lib/ats/nextStep.test.ts`
-import { describe, expect, test } from "bun:test";
+// @ts-nocheck — run with `bun run test` (vitest)
+import { describe, expect, test } from "vitest";
 import { nextSteps, ADDRESS_RE, type NextStepCtx } from "./nextStep";
 
 const t1 = { start: "2026-10-15T05:30:00.000Z", label: "Thu 15 Oct, 11:00 AM", dateOnly: false, text: "thursday 11 am" };

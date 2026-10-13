@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Check, X, ArrowUpDown, Pencil, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditLeaveBalancesDialog } from "./EditLeaveBalancesDialog";
+import { leaveStatusLabel } from "./LeaveStatusPill";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 interface LeaveTabProps {
   employeeId: string;
@@ -141,9 +143,9 @@ export function LeaveTab({
     rejected: "text-destructive",
     cancelled: "text-muted-foreground",
     requested: "text-warning",
+    manager_approved: "text-info",
   };
-  const statusLabel = (s: string) =>
-    s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+  const statusLabel = (s: string) => (s ? leaveStatusLabel(s) : "");
 
   const SortHeader = ({ field, label }: { field: string; label: string }) => (
     <th
@@ -335,13 +337,19 @@ export function LeaveTab({
                       </td>
                       <td className="py-3 px-4 text-center">
                         {isCancellable ? (
-                          <button
-                            onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "cancelled" })}
-                            disabled={updateStatusMutation.isPending}
-                            className="bg-muted hover:bg-muted/80 text-foreground text-xs font-medium px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                          <ConfirmButton
+                            title="Cancel this leave?"
+                            description="It moves to Cancelled."
+                            confirmLabel="Cancel leave"
+                            onConfirm={() => updateStatusMutation.mutate({ requestId: req.id, status: "cancelled" })}
                           >
-                            Cancel
-                          </button>
+                            <button
+                              disabled={updateStatusMutation.isPending}
+                              className="bg-muted hover:bg-muted/80 text-foreground text-xs font-medium px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              Cancel leave
+                            </button>
+                          </ConfirmButton>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
@@ -352,26 +360,30 @@ export function LeaveTab({
                             <button
                               onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "approved" })}
                               disabled={updateStatusMutation.isPending}
-                              className="bg-warning hover:bg-warning text-primary-foreground px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
+                              className="bg-success hover:bg-success/90 text-white px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
                               title="Approve"
+                              aria-label="Approve leave"
                             >
                               <Check className="h-4 w-4" />
                             </button>
-                            <button
-                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "rejected" })}
-                              disabled={updateStatusMutation.isPending}
-                              className="bg-destructive hover:bg-destructive text-primary-foreground px-3 py-1.5 rounded-r-lg transition-colors disabled:opacity-50"
-                              title="Reject"
+                            <ConfirmButton
+                              title="Reject this leave request?"
+                              description="It moves to Rejected."
+                              confirmLabel="Reject leave"
+                              onConfirm={() => updateStatusMutation.mutate({ requestId: req.id, status: "rejected" })}
                             >
-                              <X className="h-4 w-4" />
-                            </button>
+                              <button
+                                disabled={updateStatusMutation.isPending}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground px-3 py-1.5 rounded-r-lg transition-colors disabled:opacity-50"
+                                title="Reject"
+                                aria-label="Reject leave"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </ConfirmButton>
                           </div>
                         ) : req.status === "cancelled" ? (
-                          <div className="flex items-center justify-center">
-                            <span className="bg-warning/80 text-primary-foreground px-3 py-1.5 rounded-lg">
-                              <Check className="h-4 w-4" />
-                            </span>
-                          </div>
+                          <span className="text-xs text-muted-foreground text-center block">Cancelled</span>
                         ) : (
                           <span className="text-xs text-muted-foreground text-center block">—</span>
                         )}

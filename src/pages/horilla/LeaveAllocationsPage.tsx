@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Plus, Search, Users, CalendarDays, BarChart3, Download, History } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ErrorState } from "@/components/shared/ErrorState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { useProbationStatus, isSickLeaveType } from "@/hooks/useProbationStatus";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
@@ -56,7 +57,7 @@ export default function LeaveAllocationsPage() {
   const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
   const monthEnd = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
-  const { data: allAllocations = [], isLoading } = useQuery({
+  const { data: allAllocations = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["hr_leave_allocations_all"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -339,6 +340,8 @@ export default function LeaveAllocationsPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4"><CardSkeleton /><CardSkeleton /><CardSkeleton /></div>
+      ) : isError ? (
+        <Card><CardContent className="p-0"><ErrorState title="Couldn't load leave balances" description="Nothing was changed. Retry before allocating." error={error} onRetry={() => refetch()} /></CardContent></Card>
       ) : groupedArr.length === 0 ? (
         <Card>
           <CardContent className="p-0">
@@ -369,7 +372,7 @@ export default function LeaveAllocationsPage() {
                         <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: lt.color || "#E8604C" }} />
                         {lt.name}
                       </span>
-                      <span className="block text-[9px] normal-case tracking-normal">{getMonthShort(month)} credited · Balance</span>
+                      <span className="block text-[10px] normal-case tracking-normal">Balance · {getMonthShort(month)} credit</span>
                     </TableHead>
                   ))}
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium text-right">Total Bal</TableHead>
@@ -413,10 +416,10 @@ export default function LeaveAllocationsPage() {
                             <span className="text-warning text-[11px]">Not allocated</span>
                           ) : (
                             <span className="inline-flex flex-col items-end leading-tight">
-                              <span className={c.credited ? "text-success font-semibold" : "text-muted-foreground"}>
-                                {c.credited ? `+${c.credited}` : "0"}
+                              <span className="font-semibold text-foreground">{c.bal}</span>
+                              <span className={`text-[11px] ${c.credited ? "text-success" : "text-muted-foreground"}`}>
+                                {c.credited ? `+${c.credited} in ${getMonthShort(month)}` : `no ${getMonthShort(month)} credit`}
                               </span>
-                              <span className="text-[10px] text-muted-foreground">Bal: {c.bal}</span>
                             </span>
                           )}
                         </TableCell>
@@ -543,16 +546,17 @@ export default function LeaveAllocationsPage() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              This will allocate default leave days (from leave type settings) to <strong>all {employees.length} active employees</strong> for <strong>{getMonthLabel(month)} {year}</strong>.
+              This sets the <strong>Q{quarterOfMonth} {year} ({getMonthShort((quarterOfMonth - 1) * 3 + 1)}–{getMonthShort(quarterOfMonth * 3)})</strong> allocation for <strong>all {employees.length} active employees</strong>, using the default days from each leave type.
             </p>
             <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
               {allocatableLeaveTypes.map((lt: any) => (
                 <div key={lt.id} className="flex justify-between">
                   <span className="text-muted-foreground">{lt.name}</span>
-                  <span className="font-medium tabular-nums">{lt.max_days_per_year} days (one-time)</span>
+                  <span className="font-medium tabular-nums">{lt.max_days_per_year ?? 12} days</span>
                 </div>
               ))}
             </div>
+            <p className="text-xs text-destructive">Anyone who already has a Q{quarterOfMonth} {year} allocation for a type has it replaced, and its used days reset to 0.</p>
             <p className="text-xs text-warning">Note: Sick / Medical leave is automatically skipped for employees currently on probation.</p>
             <p className="text-xs text-muted-foreground">Compensatory Off is excluded because it is generated only by verified weekly-off or holiday attendance and settles monthly.</p>
             {allocatableLeaveTypes.length === 0 && <p className="text-xs text-warning">Create an allocatable leave type first.</p>}
@@ -560,7 +564,7 @@ export default function LeaveAllocationsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBulk(false)} className="h-9">Cancel</Button>
             <Button onClick={() => bulkAllocateMutation.mutate()} disabled={allocatableLeaveTypes.length === 0 || employees.length === 0 || bulkAllocateMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
-              {bulkAllocateMutation.isPending ? "Allocating..." : `Allocate for ${employees.length} Employees`}
+              {bulkAllocateMutation.isPending ? "Allocating…" : `Allocate for ${employees.length} employee${employees.length === 1 ? "" : "s"}`}
             </Button>
           </DialogFooter>
         </DialogContent>

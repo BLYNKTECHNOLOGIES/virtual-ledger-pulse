@@ -15,7 +15,7 @@ import { format } from "date-fns";
 export function LeaveClashCard({ defaultThreshold = 3, horizonDays = 60 }: { defaultThreshold?: number; horizonDays?: number }) {
   const [threshold, setThreshold] = useState(defaultThreshold);
 
-  const { data: leaves = [] } = useQuery({
+  const { data: leaves = [], isLoading, isError } = useQuery({
     queryKey: ["hr_leave_clash_source", horizonDays],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
@@ -59,10 +59,10 @@ export function LeaveClashCard({ defaultThreshold = 3, horizonDays = 60 }: { def
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-warning" />
-          Leave Clash Radar (next {horizonDays} days)
+          Busy days — next {horizonDays} days (approved leave, all departments)
         </CardTitle>
         <div className="flex items-center gap-2">
-          <Label htmlFor="clash-threshold" className="text-xs text-muted-foreground">Threshold</Label>
+          <Label htmlFor="clash-threshold" className="text-xs text-muted-foreground">Flag at</Label>
           <Input
             id="clash-threshold"
             type="number"
@@ -74,7 +74,11 @@ export function LeaveClashCard({ defaultThreshold = 3, horizonDays = 60 }: { def
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {clashes.length === 0 ? (
+        {isLoading || isError ? (
+          <div className="p-4 text-xs text-muted-foreground">
+            {isLoading ? "Checking upcoming leave…" : "Couldn't load upcoming leave — refresh to retry."}
+          </div>
+        ) : clashes.length === 0 ? (
           <div className="p-4 text-xs text-muted-foreground">
             No clashes with {threshold}+ approved leaves in the window.
           </div>
@@ -84,7 +88,7 @@ export function LeaveClashCard({ defaultThreshold = 3, horizonDays = 60 }: { def
               <div key={date} className="px-4 py-2 flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium tabular-nums">{format(new Date(date), "EEE, dd MMM yyyy")}</p>
-                  <p className="text-xs text-muted-foreground truncate max-w-[420px]">
+                  <p className="text-xs text-muted-foreground truncate max-w-[420px]" title={list.map((p) => p.name).join(", ")}>
                     {list.map((p) => p.name).join(", ")}
                   </p>
                 </div>

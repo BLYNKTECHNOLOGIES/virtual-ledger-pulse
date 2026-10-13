@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 export default function HolidaysPage() {
   const qc = useQueryClient();
@@ -144,9 +145,16 @@ export default function HolidaysPage() {
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <ConfirmButton
+                            title={`Delete the holiday “${h.name}”?`}
+                            description="Comp-off credits earned for working on that holiday are withdrawn. This can't be undone."
+                            confirmLabel="Delete holiday"
+                            onConfirm={() => deleteMutation.mutate(h.id)}
+                          >
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" aria-label={`Delete ${h.name}`} title="Delete holiday">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </ConfirmButton>
                         </div>
                       </td>
                     </tr>
@@ -181,9 +189,16 @@ export default function HolidaysPage() {
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditId(h.id); setForm({ name: h.name, date: h.date, recurring: h.recurring }); setShowDialog(true); }}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => deleteMutation.mutate(h.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <ConfirmButton
+                        title={`Delete the holiday “${h.name}”?`}
+                        description="Comp-off credits earned for working on that holiday are withdrawn. This can't be undone."
+                        confirmLabel="Delete holiday"
+                        onConfirm={() => deleteMutation.mutate(h.id)}
+                      >
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" aria-label={`Delete ${h.name}`} title="Delete holiday">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </ConfirmButton>
                     </div>
                   </div>
                 </CardContent>

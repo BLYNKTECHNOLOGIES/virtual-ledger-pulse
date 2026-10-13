@@ -6,10 +6,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LeaveClashCard } from "@/components/hrms/LeaveClashCard";
+import { LeaveStatusPill } from "@/components/hrms/LeaveStatusPill";
+import { safeFormat } from "@/lib/safe-date";
+import { Link } from "react-router-dom";
 
 
 export default function LeaveDashboardPage() {
-  const { data: requests = [] } = useQuery({
+  const { data: requests = [], isLoading } = useQuery({
     queryKey: ["hr_leave_requests_all"],
     queryFn: async () => {
       const { data } = await supabase
@@ -31,7 +34,8 @@ export default function LeaveDashboardPage() {
   const stats = {
     total: requests.length,
     approved: requests.filter((r: any) => r.status === "approved").length,
-    pending: requests.filter((r: any) => r.status === "requested" || r.status === "manager_approved").length,
+    awaitingHr: requests.filter((r: any) => r.status === "manager_approved").length,
+    awaitingManager: requests.filter((r: any) => r.status === "requested").length,
     rejected: requests.filter((r: any) => r.status === "rejected").length,
   };
 
@@ -47,14 +51,15 @@ export default function LeaveDashboardPage() {
         description="Overview of leave requests and allocations"
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: "Total Requests", value: stats.total, icon: CalendarDays, color: "text-info", bg: "bg-info/10" },
+          { label: "Awaiting HR", value: stats.awaitingHr, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Awaiting manager", value: stats.awaitingManager, icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
           { label: "Approved", value: stats.approved, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-          { label: "Pending", value: stats.pending, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
           { label: "Rejected", value: stats.rejected, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
         ].map((s) => (
-          <Card key={s.label}>
+          <Card key={s.label} className={s.label === "Total Requests" ? "col-span-2 md:col-span-1" : undefined}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
               <div><p className="text-2xl font-bold tabular-nums">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
@@ -74,7 +79,7 @@ export default function LeaveDashboardPage() {
                   <XAxis dataKey="name" fontSize={12} />
                   <YAxis fontSize={12} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#E8604C" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -84,23 +89,24 @@ export default function LeaveDashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-sm font-semibold">Recent Leave Requests</CardTitle></CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm font-semibold">Recent Leave Requests</CardTitle>
+            <Link to="/hrms/leave/requests" className="text-xs font-medium text-primary hover:underline">View all →</Link>
+          </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y max-h-[280px] overflow-y-auto">
               {requests.slice(0, 10).map((r: any) => (
                 <div key={r.id} className="px-4 py-3 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{r.hr_leave_types?.name} • {r.start_date} to {r.end_date}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{r.hr_leave_types?.name || "Type not set"} • {safeFormat(r.start_date, "dd MMM")} – {safeFormat(r.end_date, "dd MMM yyyy")}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                    r.status === "approved" ? "bg-success/10 text-success border-success/20" :
-                    r.status === "rejected" ? "bg-destructive/10 text-destructive border-destructive/20" :
-                    "bg-warning/10 text-warning border-warning/20"
-                  }`}>{r.status}</span>
+                  <LeaveStatusPill status={r.status} />
                 </div>
               ))}
-              {requests.length === 0 && (
+              {isLoading ? (
+                <p className="px-4 py-6 text-xs text-muted-foreground">Loading requests…</p>
+              ) : requests.length === 0 && (
                 <EmptyState icon={CalendarDays} title="No leave requests" description="Submitted requests will appear here." />
               )}
             </div>

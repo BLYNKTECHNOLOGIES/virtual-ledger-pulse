@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 export default function LeaveAllocationRequestsPage() {
   const qc = useQueryClient();
@@ -102,7 +103,7 @@ export default function LeaveAllocationRequestsPage() {
       : status === "rejected"
       ? "bg-destructive/10 text-destructive border-destructive/20"
       : "bg-warning/10 text-warning border-warning/20";
-    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${cls} capitalize`}>{status}</span>;
+    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${cls} capitalize`}>{status === "requested" ? "Pending" : status}</span>;
   };
 
   const filtered = requests.filter((r: any) => {
@@ -183,12 +184,27 @@ export default function LeaveAllocationRequestsPage() {
                     <TableCell>
                       {r.status === "requested" && (
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="text-success h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "approved" })}>
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-destructive h-7 px-2" onClick={() => approveMutation.mutate({ id: r.id, action: "rejected" })}>
-                            <XCircle className="h-4 w-4" />
-                          </Button>
+                          <ConfirmButton
+                            title={`Approve ${r.requested_days} extra day${Number(r.requested_days) === 1 ? "" : "s"}?`}
+                            description={`${r.hr_employees ? `${r.hr_employees.first_name} ${r.hr_employees.last_name}` : "The employee"} gets ${r.requested_days} more ${r.hr_leave_types?.name ?? "leave"} day${Number(r.requested_days) === 1 ? "" : "s"}, added to the balance straight away.`}
+                            confirmLabel="Approve"
+                            destructive={false}
+                            onConfirm={() => approveMutation.mutate({ id: r.id, action: "approved" })}
+                          >
+                            <Button size="sm" variant="ghost" className="text-success h-7 px-2" aria-label="Approve request" title="Approve">
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </ConfirmButton>
+                          <ConfirmButton
+                            title="Reject this request?"
+                            description="No days are added."
+                            confirmLabel="Reject"
+                            onConfirm={() => approveMutation.mutate({ id: r.id, action: "rejected" })}
+                          >
+                            <Button size="sm" variant="ghost" className="text-destructive h-7 px-2" aria-label="Reject request" title="Reject">
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </ConfirmButton>
                         </div>
                       )}
                     </TableCell>

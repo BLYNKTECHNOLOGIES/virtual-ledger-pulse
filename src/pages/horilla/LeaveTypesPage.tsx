@@ -111,7 +111,11 @@ export default function LeaveTypesPage() {
       const { error } = await supabase.from("hr_leave_types").update({ is_active }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_leave_types"] }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["hr_leave_types"] });
+      toast.success(v.is_active ? "Leave type turned on" : "Leave type turned off — hidden from leave-type pickers");
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
@@ -142,7 +146,7 @@ export default function LeaveTypesPage() {
   const getCarryForwardLabel = (t: any) => {
     if (t.carryforward_type === "no carryforward") return "None";
     if (t.carryforward_type === "carryforward expire") return `${t.carryforward_expire_in || "?"} ${t.carryforward_expire_period || "?"}`;
-    return "Unlimited";
+    return t.max_carry_forward_days != null ? `Up to ${t.max_carry_forward_days} days` : "No cap";
   };
 
   const getTags = (t: any) => {
@@ -253,6 +257,7 @@ export default function LeaveTypesPage() {
                   <td className="px-4 py-3.5 text-center">
                     <Switch
                       checked={t.is_active}
+                      aria-label={`${t.name}: ${t.is_active ? "on" : "off"}`}
                       onCheckedChange={(v) => toggleMutation.mutate({ id: t.id, is_active: v })}
                     />
                   </td>
@@ -261,7 +266,7 @@ export default function LeaveTypesPage() {
                   <td className="px-4 py-3.5 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Actions for ${t.name}`}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>

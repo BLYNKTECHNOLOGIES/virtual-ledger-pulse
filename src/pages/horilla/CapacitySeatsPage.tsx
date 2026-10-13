@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ErrorState } from "@/components/shared/ErrorState";
 import { WorkforceFilters } from "@/components/horilla/workforce/WorkforceFilters";
 import { WorkforceKpiCard } from "@/components/horilla/workforce/WorkforceKpiCard";
 import { SeatCapacityDialog } from "@/components/horilla/workforce/SeatCapacityDialog";
@@ -108,9 +109,9 @@ export default function CapacitySeatsPage() {
   const [dialog, setDialog] = useState<{ open: boolean; initial?: any }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
-  const { data: seats = [], isLoading } = useSeatCapacity();
+  const { data: seats = [], isLoading, isError: seatsError, error: seatsErr, refetch: refetchSeats } = useSeatCapacity();
   const { data: lookups } = useWorkforceLookups();
-  const { data: people = [] } = useSeatOccupancy();
+  const { data: people = [], isError: occupancyError, refetch: refetchOccupancy } = useSeatOccupancy();
   const { data: headcountPlans = [] } = useHeadcountPlans();
   const navigate = useNavigate();
 
@@ -190,26 +191,6 @@ export default function CapacitySeatsPage() {
     [seats, people, lookups?.positions, allShifts, seatShift, seatMatchesPerson],
   );
 
-  const filtered = useMemo(
-    () =>
-      enriched.filter((s) => {
-        if (filters.departmentId !== "all" && s.department_id !== filters.departmentId)
-          return false;
-        if (filters.positionId !== "all" && !seatAllowsPosition(s, filters.positionId)) return false;
-        if (filters.shift !== "all" && (s.shiftName || "—") !== filters.shift) return false;
-        return true;
-      }),
-    [enriched, filters],
-  );
-
-  const filteredPeople = useMemo(() => {
-    const unique = new Map<string, SeatPerson>();
-    (people as SeatPerson[]).forEach((person) => {
-      if (filtered.some((seat) => seatMatchesPerson(seat, person))) unique.set(person.employee_id, person);
-    });
-    return Array.from(unique.values());
-  }, [filtered, people, seatMatchesPerson]);
-
   /**
    * Planned desks per shift come from the staffing lines linked to each desk
    * group (seat_capacity_id). "any" = a line with no shift of its own.
@@ -227,6 +208,34 @@ export default function CapacitySeatsPage() {
     });
     return map;
   }, [headcountPlans, allShifts]);
+
+  const filtered = useMemo(
+    () =>
+      enriched.filter((s) => {
+        if (filters.departmentId !== "all" && s.department_id !== filters.departmentId)
+          return false;
+        if (filters.positionId !== "all" && !seatAllowsPosition(s, filters.positionId)) return false;
+        if (filters.shift !== "all") {
+          // Same rule as the seat map: a desk group belongs to a shift when a line plans it there or people sit in it then.
+          const sid = allShifts.find((x) => !x.planning_shift_id && x.name === filters.shift)?.id;
+          const planned = plannedSeatShifts.get(s.id);
+          const own = seatShift(s);
+          const occupied = !!sid && (people as SeatPerson[]).some((p) => p.shift_id === sid && seatMatchesPerson(s, p));
+          const inShift = !!sid && (own === sid || !!planned?.has(sid) || !!planned?.has("any") || occupied);
+          if (!inShift) return false;
+        }
+        return true;
+      }),
+    [enriched, filters, allShifts, plannedSeatShifts, seatShift, people, seatMatchesPerson],
+  );
+
+  const filteredPeople = useMemo(() => {
+    const unique = new Map<string, SeatPerson>();
+    (people as SeatPerson[]).forEach((person) => {
+      if (filtered.some((seat) => seatMatchesPerson(seat, person))) unique.set(person.employee_id, person);
+    });
+    return Array.from(unique.values());
+  }, [filtered, people, seatMatchesPerson]);
 
   const shiftBreakdown = useMemo(() => {
     // One entry per planning shift; shifts that "count as" another are folded in.
@@ -456,7 +465,14 @@ export default function CapacitySeatsPage() {
         showStatus={false}
         showPriority={false}
         showDates={false}
+        showEmploymentType={false}
       />
+      {occupancyError && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          Couldn't load who sits where, so occupancy below is not shown as real.{" "}
+          <button type="button" className="underline" onClick={() => refetchOccupancy()}>Try again</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <WorkforceKpiCard label="Physical seats" value={totals.physical} icon={Armchair} />
@@ -680,11 +696,13 @@ export default function CapacitySeatsPage() {
 
       {isLoading ? (
         <TableSkeleton />
+      ) : seatsError ? (
+        <ErrorState title="Couldn't load seat capacity" error={seatsErr} onRetry={() => refetchSeats()} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={LayoutGrid}
-          title="No seat capacity recorded"
-          description="Add the number of desks per department and shift to see how full the floor is."
+          title={seats.length ? "No desk groups match these filters" : "No seat capacity recorded"}
+          description={seats.length ? "Change the filters to see other desk groups." : "Add the number of desks per department and shift to see how full the floor is."}
         />
       ) : (
         <>

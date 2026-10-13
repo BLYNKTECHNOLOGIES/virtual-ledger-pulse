@@ -1369,10 +1369,11 @@ html {
   }
 
   /* 4. Dense metric strips: never more than 2 columns on a phone */
-  .horilla-root [class*="grid-cols-3"],
-  .horilla-root [class*="grid-cols-4"],
-  .horilla-root [class*="grid-cols-5"],
-  .horilla-root [class*="grid-cols-6"] {
+  /* Whole-class match only: "lg:grid-cols-3" etc. must not turn a one-column phone layout into two. */
+  .horilla-root [class~="grid-cols-3"],
+  .horilla-root [class~="grid-cols-4"],
+  .horilla-root [class~="grid-cols-5"],
+  .horilla-root [class~="grid-cols-6"] {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
@@ -1395,8 +1396,8 @@ html {
   /* 7. Centered dialogs fit the viewport and scroll.
      Edge sheets (mobile sidebars, bottom sheets) are excluded — they must
      stay flush to their edge and manage their own internal scrolling. */
-  .horilla-root ~ [role="dialog"]:not([data-sheet]),
-  [role="dialog"][data-state="open"]:not([data-sheet]) {
+  .horilla-root ~ [role="dialog"]:not([data-sheet]):not([data-vaul-drawer]),
+  [role="dialog"][data-state="open"]:not([data-sheet]):not([data-vaul-drawer]) {
     max-width: calc(100vw - 1.5rem) !important;
     max-height: 88vh !important;
     overflow-y: auto !important;
@@ -2530,3 +2531,38 @@ html {
   margin-right: 0 !important;
   width: 100%;
 }
+
+/* ── HRMS shell: one page padding ──────────────────────────────────────────
+   The HRMS work area (<main class="hrms-work-area"> in HorillaLayout) already pads every page,
+   so page roots don't add a second layer (that cost up to 112px of width on laptops).
+   Pages opened inside the payroll cockpit's tool sheet are not inside <main> and keep their padding. */
+.horilla-root main.hrms-work-area > * {
+  padding: 0 !important;
+}
+
+/* ── HRMS legacy accent colours follow the theme ───────────────────────────
+   Older HRMS screens hard-code the Horilla coral (#E8604C), cyan (#00bcd4) and amber (#ff9800).
+   Mapping them to the theme's primary colour gives every page the same accent (and readable
+   button text in light and dark mode) without editing each screen. */
+.bg-\[\#E8604C\], .bg-\[\#00bcd4\], .bg-\[\#ff9800\] {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+.hover\:bg-\[\#d4553f\]:hover, .hover\:bg-\[\#d04e3c\]:hover, .hover\:bg-\[\#00a5bb\]:hover {
+  background-color: hsl(var(--primary) / 0.9) !important;
+}
+.text-\[\#E8604C\], .text-\[\#00bcd4\], .hover\:text-\[\#00bcd4\]:hover, .group:hover .group-hover\:text-\[\#00bcd4\] {
+  color: hsl(var(--primary)) !important;
+}
+.bg-\[\#E8604C\]\/5 { background-color: hsl(var(--primary) / 0.05) !important; }
+.bg-\[\#E8604C\]\/10 { background-color: hsl(var(--primary) / 0.1) !important; }
+.border-\[\#00bcd4\], .focus\:border-\[\#00bcd4\]:focus, .focus\:border-\[\#E8604C\]:focus {
+  border-color: hsl(var(--primary)) !important;
+}
+.border-\[\#E8604C\]\/20 { border-color: hsl(var(--primary) / 0.2) !important; }
+.border-\[\#E8604C\]\/30 { border-color: hsl(var(--primary) / 0.3) !important; }
+.hover\:border-\[\#00bcd4\]\/50:hover { border-color: hsl(var(--primary) / 0.5) !important; }
+.focus\:ring-\[\#00bcd4\]:focus { --tw-ring-color: hsl(var(--primary)) !important; }
+.focus\:ring-\[\#E8604C\]\/20:focus { --tw-ring-color: hsl(var(--primary) / 0.2) !important; }
+.accent-\[\#E8604C\] { accent-color: hsl(var(--primary)) !important; }
+.from-\[\#E8604C\]\/5 { --tw-gradient-from: hsl(var(--primary) / 0.05) var(--tw-gradient-from-position) !important; }

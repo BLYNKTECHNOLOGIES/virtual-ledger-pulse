@@ -1,6 +1,6 @@
-import { Suspense, useRef, useState } from "react";
-import { Outlet } from "react-router-dom";
-import { HorillaSidebar } from "./HorillaSidebar";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import { HorillaSidebar, hrmsNavLabel } from "./HorillaSidebar";
 import { HorillaHeader } from "./HorillaHeader";
 import { HrmsRouteFallback } from "./HrmsRouteFallback";
 import { RouteProgressBar } from "./RouteProgressBar";
@@ -25,6 +25,20 @@ export function HorillaLayout() {
     sidebarCollapsed,
     setSidebarCollapsed,
   );
+  const { pathname, search } = useLocation();
+
+  // Each page opens at the top (the work area is the scroll container and is reused between pages).
+  useEffect(() => {
+    workAreaRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
+
+  // Browser tab shows the page name. The ATS sets its own title (it adds a "replies waiting" count).
+  useEffect(() => {
+    if (pathname.startsWith("/hrms/ats")) return;
+    const label = hrmsNavLabel(pathname, search);
+    document.title = label ? `${label} · HRMS · BlynkEx` : "HRMS · BlynkEx";
+  }, [pathname, search]);
+  useEffect(() => () => { document.title = "BlynkEx"; }, []);
 
   const handleToggleSidebar = () => {
     if (isMobile) {
@@ -98,7 +112,7 @@ export function HorillaLayout() {
             region, so the sidebar and header never unmount on navigation. */}
         <main
           ref={workAreaRef}
-          className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-background p-3 sm:p-4 md:p-6 lg:p-8"
+          className="hrms-work-area flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-background p-3 sm:p-4 md:p-6 lg:p-8"
         >
           <Suspense fallback={<HrmsRouteFallback />}>
             <Outlet />

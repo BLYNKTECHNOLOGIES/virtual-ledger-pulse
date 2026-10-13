@@ -39,20 +39,43 @@ export default function HRLogsPage() {
   const emailCount = emailRes?.count ?? 0;
   const emailPages = Math.max(1, Math.ceil(emailCount / PAGE));
 
-  const { data: notifLogs = [], isLoading: notifLoading } = useQuery({
-    queryKey: ["hr_notification_log"],
+  // In-app notices live in hr_notifications (hr_notification_log is unused).
+  const [notifType, setNotifType] = useState("all");
+  const [notifPage, setNotifPage] = useState(0);
+  const { data: notifTypes = [] } = useQuery({
+    queryKey: ["hr_notification_type_counts"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_notification_log").select("*").order("created_at", { ascending: false }).limit(200);
-      return data || [];
+      const { data, error } = await (supabase as any).rpc("hr_notification_type_counts");
+      if (error) throw error;
+      return (data || []) as { type: string; n: number }[];
     },
   });
-
-  const filteredEmails = emailLogs;
-
-  const filteredNotifs = notifLogs.filter((n: any) =>
-    !search || n.title?.toLowerCase().includes(search.toLowerCase()) ||
-    n.message?.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: notifRes, isLoading: notifLoading, error: notifError } = useQuery({
+    queryKey: ["hr_notifications_log", term, notifType, notifPage],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      let q = (supabase as any).from("hr_notifications")
+        .select("id, created_at, user_id, employee_id, type, title, message, is_read, hr_employees(first_name, last_name)", { count: "exact" })
+        .order("created_at", { ascending: false }).order("id", { ascending: false });
+      if (notifType !== "all") q = q.eq("type", notifType);
+      if (term) q = q.or(`title.ilike.%${term}%,message.ilike.%${term}%,type.ilike.%${term}%`);
+      const { data, error, count } = await q.range(notifPage * PAGE, notifPage * PAGE + PAGE - 1);
+      if (error) throw error;
+      const rows: any[] = data || [];
+      const ids = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean)));
+      const names: Record<string, string> = {};
+      if (ids.length) {
+        const { data: users } = await usersDirectory().select("id, first_name, last_name, username").in("id", ids);
+        (users || []).forEach((u: any) => {
+          names[u.id] = `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username || "—";
+        });
+      }
+      return { rows: rows.map(r => ({ ...r, recipient_name: names[r.user_id] || "—" })), count: count ?? 0 };
+    },
+  });
+  const filteredNotifs: any[] = notifRes?.rows ?? [];
+  const notifCount = notifRes?.count ?? 0;
+  const notifPages = Math.max(1, Math.ceil(notifCount / PAGE));
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">

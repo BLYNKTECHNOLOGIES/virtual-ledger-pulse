@@ -200,7 +200,7 @@ export default function AtsJobDetailPage() {
 
           {(["summary", "description", "requirements", "benefits"] as const).map((k) =>
             j[k] ? (
-              <SectionCard key={k} title={k[0].toUpperCase() + k.slice(1)}>
+              <SectionCard key={k} title={k === "benefits" ? "Notes" : k[0].toUpperCase() + k.slice(1)}>
                 <p className="max-w-prose whitespace-pre-wrap text-sm leading-6 text-foreground">{j[k]}</p>
               </SectionCard>
             ) : null,

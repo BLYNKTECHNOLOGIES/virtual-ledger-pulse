@@ -86,7 +86,7 @@ const FIELD_LABELS: Record<string, string> = {
   shift_ids: "Shifts", employment_type: "Employment type", location: "Location", openings: "Openings",
   salary_min: "Salary", salary_max: "Salary", salary_period: "Salary period", show_salary: "Salary visibility",
   experience_min_years: "Experience", experience_max_years: "Experience", summary: "Summary",
-  description: "Description", requirements: "Requirements", benefits: "Benefits", aliases: "Alternative titles",
+  description: "Description", requirements: "Requirements", benefits: "Notes", aliases: "Alternative titles",
   hiring_manager_employee_id: "Hiring manager", target_close_date: "Target date", slug: "Link",
   owner_user_id: "Owner", owner_name: "Owner",
 };

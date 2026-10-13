@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { WEEKLY_OFF_PATTERNS_KEY, fetchAllWeeklyOffPatterns, weeklyOffPatternCode } from "@/lib/hrms/weeklyOffPatterns";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,18 +21,17 @@ export function WeeklyOffManager() {
   const [showDialog, setShowDialog] = useState(false);
   const [form, setForm] = useState({ name: "", weekly_offs: [0] as number[], is_alternating: false, alternate_week_offs: [] as number[] });
 
-  const { data: patterns = [] } = useQuery({
-    queryKey: ["hr_weekly_off_patterns"],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_weekly_off_patterns").select("*").eq("is_active", true).order("name");
-      return data || [];
-    },
+  const { data: allPatterns = [] } = useQuery({
+    queryKey: WEEKLY_OFF_PATTERNS_KEY,
+    queryFn: fetchAllWeeklyOffPatterns,
   });
+  const patterns = useMemo(() => allPatterns.filter((p: any) => p.is_active), [allPatterns]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).from("hr_weekly_off_patterns").insert({
         name: form.name,
+        code: weeklyOffPatternCode(form.name),
         weekly_offs: form.weekly_offs,
         is_alternating: form.is_alternating,
         alternate_week_offs: form.is_alternating ? form.alternate_week_offs : null,

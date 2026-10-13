@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,8 +80,7 @@ export default function AttendanceCalendarPage() {
       return (data as any[])?.length ?? rows.length;
     },
     onSuccess: (count: number) => {
-      qc.invalidateQueries({ queryKey: ["hr_attendance_month"] });
-      qc.invalidateQueries({ queryKey: ["hr_attendance"] });
+      invalidateAttendanceCaches(qc);
       toast.success(`Attendance marked for ${count} employee${count === 1 ? "" : "s"}`);
       setShowBulk(false);
       setSelectedEmps([]);

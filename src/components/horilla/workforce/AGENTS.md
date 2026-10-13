@@ -9,3 +9,4 @@
 - A department head's "adds headcount" request carries adds_headcount; approving it raises the line's required number in the same transaction (refused on desk-following lines), because an approved addition that never changes the line just shows as over-requested.
 - Overview figures follow the filters through each requirement's or person's line (date filters use open requirements' target joining dates); blocks that sit on no line say "all shifts", because lines carry no target date and unfiltered blocks contradicted the page.
 
+- Workforce RLS policies call private.hr_wf_is_current_manager() (signed-in user only); hr_wf_is_manager(uuid) stays internal (no authenticated grant), because a uuid-taking check lets any user ask about anyone.

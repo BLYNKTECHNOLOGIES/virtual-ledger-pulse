@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.hr_wf_is_manager(uuid) FROM PUBLIC, anon, authenticated;

@@ -2520,7 +2520,10 @@ export type Database = {
           mail_enabled: boolean
           mail_mailbox_id: string | null
           mail_reject_default: boolean
+          public_app_url: string
           retention_months: number
+          self_schedule_enabled: boolean
+          self_schedule_hours: number
           updated_at: string
           updated_by: string | null
           updated_by_name: string | null
@@ -2540,7 +2543,10 @@ export type Database = {
           mail_enabled?: boolean
           mail_mailbox_id?: string | null
           mail_reject_default?: boolean
+          public_app_url?: string
           retention_months?: number
+          self_schedule_enabled?: boolean
+          self_schedule_hours?: number
           updated_at?: string
           updated_by?: string | null
           updated_by_name?: string | null
@@ -2560,12 +2566,160 @@ export type Database = {
           mail_enabled?: boolean
           mail_mailbox_id?: string | null
           mail_reject_default?: boolean
+          public_app_url?: string
           retention_months?: number
+          self_schedule_enabled?: boolean
+          self_schedule_hours?: number
           updated_at?: string
           updated_by?: string | null
           updated_by_name?: string | null
         }
         Relationships: []
+      }
+      ats_slot_offers: {
+        Row: {
+          application_id: string
+          booked_at: string | null
+          booked_start: string | null
+          cancelled_at: string | null
+          cancelled_by_name: string | null
+          candidate_id: string
+          candidate_note: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          duration_minutes: number
+          expires_at: string
+          id: string
+          interview_id: string | null
+          location: string | null
+          meeting_url: string | null
+          mode: string
+          move_interview_id: string | null
+          move_stage: boolean
+          panel: string[]
+          slots: string[]
+          status: string
+          title: string
+          token_hash: string
+        }
+        Insert: {
+          application_id: string
+          booked_at?: string | null
+          booked_start?: string | null
+          cancelled_at?: string | null
+          cancelled_by_name?: string | null
+          candidate_id: string
+          candidate_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          duration_minutes: number
+          expires_at: string
+          id?: string
+          interview_id?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          mode: string
+          move_interview_id?: string | null
+          move_stage?: boolean
+          panel?: string[]
+          slots: string[]
+          status?: string
+          title?: string
+          token_hash: string
+        }
+        Update: {
+          application_id?: string
+          booked_at?: string | null
+          booked_start?: string | null
+          cancelled_at?: string | null
+          cancelled_by_name?: string | null
+          candidate_id?: string
+          candidate_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          duration_minutes?: number
+          expires_at?: string
+          id?: string
+          interview_id?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          mode?: string
+          move_interview_id?: string | null
+          move_stage?: boolean
+          panel?: string[]
+          slots?: string[]
+          status?: string
+          title?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_slot_offers_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["next_interview_id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "ats_interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_move_interview_id_fkey"
+            columns: ["move_interview_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["next_interview_id"]
+          },
+          {
+            foreignKeyName: "ats_slot_offers_move_interview_id_fkey"
+            columns: ["move_interview_id"]
+            isOneToOne: false
+            referencedRelation: "ats_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ats_sources: {
         Row: {
@@ -32503,10 +32657,18 @@ export type Database = {
         Returns: undefined
       }
       ats_actor_name: { Args: { p_uid?: string }; Returns: string }
+      ats_book_slot: {
+        Args: { p_start: string; p_token_hash: string }
+        Returns: Json
+      }
       ats_can_manage_settings: { Args: never; Returns: boolean }
       ats_cancel_interview: {
         Args: { p_interview_id: string; p_reason?: string }
         Returns: Json
+      }
+      ats_cancel_slot_offer: {
+        Args: { p_offer_id: string }
+        Returns: undefined
       }
       ats_conversation_counts: { Args: never; Returns: Json }
       ats_conversations: {
@@ -32571,6 +32733,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ats_create_slot_offer: { Args: { p: Json }; Returns: Json }
       ats_duration_text: { Args: { p_minutes: number }; Returns: string }
       ats_email_key: { Args: { p: string }; Returns: string }
       ats_employee_contacts: {
@@ -32723,6 +32886,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      ats_slot_free: {
+        Args: {
+          p_offer: Database["public"]["Tables"]["ats_slot_offers"]["Row"]
+          p_start: string
+        }
+        Returns: boolean
+      }
+      ats_slot_offer_view: { Args: { p_token_hash: string }; Returns: Json }
       ats_slugify: { Args: { p: string }; Returns: string }
       ats_template_placeholders: { Args: never; Returns: string[] }
       ats_template_values: {

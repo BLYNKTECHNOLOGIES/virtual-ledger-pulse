@@ -630,3 +630,16 @@ export function useWorkforceAudit(limit = 100) {
     staleTime: STALE,
   });
 }
+
+/** Active employees company-wide (incl. leadership outside planning) — context only. */
+export function useCompanyActiveCount() {
+  return useQuery({
+    queryKey: ["workforce_staffing_matrix", "company_active_count"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("hr_employees").select("id", { count: "exact", head: true }).eq("is_active", true);
+      if (error) throw error;
+      return count || 0;
+    },
+    staleTime: STALE,
+  });
+}

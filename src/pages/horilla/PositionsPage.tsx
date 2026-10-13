@@ -14,6 +14,7 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { useJobDescriptions, type JobDescriptionRow } from "@/hooks/useJobDescriptions";
 import { invalidatePlanning, useHeadcountPlans, useSeatOccupancy, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
+import { usePermissions } from "@/hooks/usePermissions";
 import { JobDescriptionViewer } from "@/components/horilla/positions/JobDescriptionViewer";
 import { JobDescriptionLibraryDialog } from "@/components/horilla/positions/JobDescriptionLibraryDialog";
 
@@ -28,6 +29,9 @@ export default function PositionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [viewingJd, setViewingJd] = useState<JobDescriptionRow | null>(null);
+  const { hasPermission } = usePermissions();
+  const canManagePlanning = hasPermission("hrms_manage");
+  const [confirmSwitch, setConfirmSwitch] = useState<null | { p: any; kind: "planning" | "active"; value: boolean }>(null);
 
 
   const { data: positions, isLoading } = useQuery({
@@ -90,8 +94,10 @@ export default function PositionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
+      invalidatePlanning(queryClient);
       toast.success("Position status updated");
     },
+    onError: (e: any) => toast.error(e?.message || "Could not update the position"),
   });
 
   const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", is_active: true }); };
@@ -146,8 +152,8 @@ export default function PositionsPage() {
         <div className="flex items-center gap-2" title="Leadership and contract roles without a desk are left out of staffing.">
           <Switch
             checked={inPlan}
-            disabled={planningMutation.isPending}
-            onCheckedChange={(v) => planningMutation.mutate({ id: p.id, value: v })}
+            disabled={planningMutation.isPending || !canManagePlanning}
+            onCheckedChange={(v) => setConfirmSwitch({ p, kind: "planning", value: v })}
             aria-label="In workforce planning"
           />
           <span className="text-[10px] text-muted-foreground">In workforce planning</span>
@@ -160,6 +166,13 @@ export default function PositionsPage() {
       </div>
     );
   };
+
+  const linesOf = (positionId: string) => {
+    const planRoles = new Map((planRows as any[]).map((pl) => [pl.id, pl.eligible_position_ids?.length ? pl.eligible_position_ids : [pl.position_id]]));
+    return matrixRows.filter((r) => (planRoles.get(r.plan_id) || []).includes(positionId));
+  };
+  const confirmLines = confirmSwitch ? linesOf(confirmSwitch.p.id) : [];
+  const leaving = !!confirmSwitch && !confirmSwitch.value;
 
   const blockIfOccupied = (p: any, action: "tentative" | "delete") => {
     const count = hiredCount(p.id);
@@ -327,10 +340,10 @@ export default function PositionsPage() {
                 >
                   <Switch
                     checked={p.is_active !== false}
-                    disabled={toggleActiveMutation.isPending || (p.is_active !== false && hiredCount(p.id) > 0)}
+                    disabled={toggleActiveMutation.isPending || !canManagePlanning || !occupancy || (p.is_active !== false && hiredCount(p.id) > 0)}
                     onCheckedChange={() => {
                       if (p.is_active !== false && blockIfOccupied(p, "tentative")) return;
-                      toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active });
+                      setConfirmSwitch({ p, kind: "active", value: p.is_active === false });
                     }}
                   />
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
@@ -472,6 +485,38 @@ export default function PositionsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
             <AlertDialogAction className="h-9 bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!confirmSwitch} onOpenChange={(o) => !o && setConfirmSwitch(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmSwitch?.kind === "planning"
+                ? (confirmSwitch.value ? `Put ${confirmSwitch.p.title} into workforce planning?` : `Take ${confirmSwitch?.p.title} out of workforce planning?`)
+                : (confirmSwitch?.value ? `Mark ${confirmSwitch?.p.title} active?` : `Mark ${confirmSwitch?.p.title} tentative?`)}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {leaving
+                ? confirmLines.length
+                  ? "These staffing lines stop counting (lines shared with other roles keep the other roles), and their pending automatic hiring requests are cancelled:"
+                  : "No staffing line uses this position."
+                : "Its earlier staffing lines stay removed. After this, add its lines again from the Staffing Plan (Add line, or Plan these desks on its desk group)."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {leaving && confirmLines.length > 0 && (
+            <ul className="space-y-0.5 text-sm text-foreground">
+              {confirmLines.map((r) => <li key={r.plan_id}>{r.position_title} · {r.shiftLabel} — required {r.required_hc}, on roll {r.current_hc}</li>)}
+            </ul>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              const c = confirmSwitch; setConfirmSwitch(null);
+              if (!c) return;
+              if (c.kind === "planning") planningMutation.mutate({ id: c.p.id, value: c.value });
+              else toggleActiveMutation.mutate({ id: c.p.id, isActive: !c.value });
+            }}>Confirm</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

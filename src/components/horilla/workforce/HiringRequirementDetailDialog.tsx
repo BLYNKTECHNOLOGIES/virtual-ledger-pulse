@@ -14,7 +14,11 @@ import {
   HIRING_REASONS, PRIORITY_CLASS, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL,
   employmentTypeLabel, formatIstDate, formatIstDateTime,
 } from "@/lib/hrms/workforce";
-import { useRequirementTransition, useStaffingMatrix, type RequirementAction } from "@/hooks/hrms/useWorkforcePlanning";
+import { useHeadcountPlans, useRequirementTransition, useStaffingMatrix, type RequirementAction } from "@/hooks/hrms/useWorkforcePlanning";
+import { linesForRole, useMoveRequirement } from "@/hooks/hrms/useWorkforceRepair";
+import { useQueryClient } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRequirementAudit, useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
 import { RequirementReasonDialog, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
@@ -63,6 +67,11 @@ export function HiringRequirementDetailDialog({
   const [note, setNote] = useState("");
   const [confirmAction, setConfirmAction] = useState<RequirementAction | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const qc = useQueryClient();
+  const { data: activePlans = [] } = useHeadcountPlans();
+  const move = useMoveRequirement();
+  const [moveTo, setMoveTo] = useState("");
+  const [moveReason, setMoveReason] = useState("");
 
   // Live row (the list snapshot may be stale after an action)
   const live = useQuery({
@@ -97,7 +106,16 @@ export function HiringRequirementDetailDialog({
   const candLink = (extra: string) => (firstJob && jobs.length === 1 ? `/hrms/ats/candidates?job=${firstJob}${extra}` : undefined);
 
   const run = (action: RequirementAction, reason?: string | null) =>
-    transition.mutate({ id: r.id, action, reason }, { onSuccess: () => { setNote(""); live.refetch(); audit.refetch(); } });
+    transition.mutate({ id: r.id, action, reason }, {
+      onSuccess: (status) => {
+        // Show the new status at once — the list snapshot and the live row may still be refetching.
+        qc.setQueryData(["workforce_hiring_requirements", "one", reqId], (old: any) => ({ ...(old ?? r), status }));
+        setNote(""); live.refetch(); audit.refetch();
+      },
+    });
+  const lineChoices = linesForRole(activePlans as any[], r.department_id, r.position_id).filter((pl: any) => pl.id !== r.staffing_plan_id);
+  const lineName = (id: string) => matrix.rows.find((l) => l.plan_id === id)?.shiftLabel ?? "line";
+  const canMove = canManage && OPEN.includes(r.status) && lineChoices.length > 0;
 
   return (
     <ResponsiveDialog
@@ -208,7 +226,7 @@ export function HiringRequirementDetailDialog({
           <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
             <p className="font-semibold text-foreground">Replacement</p>
             <p className="text-muted-foreground">
-              For <span className="text-foreground">{[rep.first_name, rep.last_name].filter(Boolean).join(" ")}</span>
+              For <span className="text-foreground">{[rep.first_name, rep.last_name].filter(Boolean).join(" ") || "an employee"}</span>
               {rep.badge_id ? ` (badge ${rep.badge_id})` : ""} · last working day {formatIstDate(rep.last_working_day ?? rep.notice_period_end_date)}
               {" · "}<Link className="text-primary underline-offset-2 hover:underline" to="/hrms/employee/separation">Separation</Link>
             </p>
@@ -225,8 +243,23 @@ export function HiringRequirementDetailDialog({
               {line.over_requested_hc > 0 && <span className="text-warning"> · {line.over_requested_hc} over-requested</span>}
               {" · "}<Link className="text-primary underline-offset-2 hover:underline" to={`/hrms/workforce-planning/staffing-plan?line=${line.plan_id}`}>Open in Staffing Plan</Link>
             </p>
+          ) : r.staffing_plan_id && OPEN.includes(r.status) ? (
+            <p className="text-destructive">Its staffing line was removed, so this requirement counts nowhere until it is moved to an active line.</p>
           ) : (
-            <p className="text-muted-foreground">Not linked to a staffing line{OPEN.slice(0, 2).includes(r.status) && canManage ? " — use Edit to choose one." : "."}</p>
+            <p className="text-muted-foreground">Not linked to a staffing line.</p>
+          )}
+          {canMove && (
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select value={moveTo} onValueChange={setMoveTo}>
+                <SelectTrigger className="h-8 text-foreground sm:w-44"><SelectValue placeholder={line ? "Move to line" : "Link to line"} /></SelectTrigger>
+                <SelectContent>{lineChoices.map((pl: any) => <SelectItem key={pl.id} value={pl.id}>{lineName(pl.id)}</SelectItem>)}</SelectContent>
+              </Select>
+              <Input className="h-8 text-foreground" placeholder="Reason (recorded in history)" value={moveReason} onChange={(e) => setMoveReason(e.target.value)} />
+              <Button size="sm" disabled={!moveTo || !moveReason.trim() || move.isPending}
+                onClick={() => move.mutate({ id: r.id, planId: moveTo, reason: moveReason }, { onSuccess: () => { setMoveTo(""); setMoveReason(""); live.refetch(); audit.refetch(); } })}>
+                {line ? "Move" : "Link to line"}
+              </Button>
+            </div>
           )}
         </div>
 

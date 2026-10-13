@@ -24,6 +24,7 @@ import {
   EMPTY_FILTERS, PRIORITY_CLASS, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL, daysUntil, findRebalances,
   formatIstDate, matchesFilters, planningShifts, sortByOperatingOrder, sumLines, type StaffingDerived, type WorkforceFilterState,
 } from "@/lib/hrms/workforce";
+import { useLeavingSoon } from "@/hooks/hrms/useWorkforceRepair";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 const OPEN = new Set(["pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
@@ -60,10 +61,13 @@ export default function WorkforceOverviewPage() {
   const lineIds = new Set(filtered.map((r) => r.plan_id));
   const openReqs = requirements.filter((r) => OPEN.has(r.status) && (!r.staffing_plan_id || lineIds.has(r.staffing_plan_id)));
 
-  const nextLeaving = useMemo(() => {
-    const dates = (flows?.notice || []).map((n: any) => n.exit_date).filter(Boolean).sort();
-    return dates[0] ?? null;
-  }, [flows]);
+  // People on notice in planned roles — including those who sit on no staffing line.
+  const leavingQ = useLeavingSoon();
+  const leaving = useMemo(() => (leavingQ.data || []).filter((p) =>
+    (filters.departmentId === "all" || p.department_id === filters.departmentId) &&
+    (filters.positionId === "all" || p.position_id === filters.positionId)), [leavingQ.data, filters.departmentId, filters.positionId]);
+  const offLine = leaving.filter((p) => !p.plan_id).length;
+  const nextLeaving = useMemo(() => leaving.map((n) => n.last_working_day).filter(Boolean).sort()[0] ?? null, [leaving]);
 
   const actionRows = useMemo(
     () =>
@@ -162,8 +166,9 @@ export default function WorkforceOverviewPage() {
               hint={`${pending.length} awaiting approval · ${t.uncovered} not yet requested`} />
             <WorkforceKpiCard label="Pipeline" value={t.pipeline} icon={CalendarClock} hint={`${t.selected} selected · ${t.joining} joining`} />
             <WorkforceKpiCard label="Approved" value={t.approved} icon={UserCheck} hint={`Vacant seats ${t.vacant} (approved − on roll per line)`} />
-            <WorkforceKpiCard label="Leaving soon" value={t.notice} icon={UserMinus} tone={t.notice > 0 ? "warning" : "default"}
-              hint={nextLeaving ? `Next last day ${formatIstDate(nextLeaving)}` : "Nobody on notice"} />
+            <WorkforceKpiCard label="Leaving soon" value={leaving.length} icon={UserMinus} tone={leaving.length > 0 ? "warning" : "default"}
+              hint={leaving.length === 0 ? "Nobody on notice"
+                : `${offLine ? `${offLine} on no line · ` : ""}${nextLeaving ? `next last day ${formatIstDate(nextLeaving)}` : "last day not set"}`} />
           </div>
 
           <Card>

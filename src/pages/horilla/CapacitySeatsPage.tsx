@@ -30,6 +30,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { WorkforceFilters } from "@/components/horilla/workforce/WorkforceFilters";
 import { WorkforceKpiCard } from "@/components/horilla/workforce/WorkforceKpiCard";
 import { SeatCapacityDialog } from "@/components/horilla/workforce/SeatCapacityDialog";
+import { seatCountsInShift } from "@/lib/hrms/workforce";
 import { OfficeSeatMap } from "@/components/horilla/workforce/OfficeSeatMap";
 import {
   useDeleteSeatCapacity,
@@ -216,7 +217,8 @@ export default function CapacitySeatsPage() {
   const plannedSeatShifts = useMemo(() => {
     const map = new Map<string, Set<string>>();
     (headcountPlans as any[]).forEach((plan) => {
-      if (!plan.seat_capacity_id) return;
+      // A desk group belongs to a shift only when its line there requires more than 0.
+      if (!plan.seat_capacity_id || !seatCountsInShift(plan)) return;
       const ids = [plan.shift_id, ...(plan.eligible_shift_ids || [])].filter(Boolean) as string[];
       const set = map.get(plan.seat_capacity_id) || new Set<string>();
       if (ids.length === 0) set.add("any");

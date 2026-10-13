@@ -26,8 +26,10 @@ import {
   useSaveHiringRequirement,
   useWorkforceLookups,
   useStaffingMatrix,
+  useHeadcountPlans,
   type HiringRequirementInput,
 } from "@/hooks/hrms/useWorkforcePlanning";
+import { linesForRole } from "@/hooks/hrms/useWorkforceRepair";
 
 interface HiringRequirementDialogProps {
   open: boolean;
@@ -69,6 +71,7 @@ export function HiringRequirementDialog({
   const { data: lookups } = useWorkforceLookups();
   const save = useSaveHiringRequirement();
   const matrix = useStaffingMatrix();
+  const { data: activePlans = [] } = useHeadcountPlans();
   const [editReason, setEditReason] = useState("");
   const [form, setForm] = useState<HiringRequirementInput & { id?: string }>(BLANK);
   const limited = !!form.id && !!initial?.status && !["draft", "pending_approval"].includes(initial.status);
@@ -84,6 +87,23 @@ export function HiringRequirementDialog({
     (p) => !form.department_id || !p.department_id || p.department_id === form.department_id,
   );
 
+  // Lines this department + role may sit on. When any exist, the requirement must name one.
+  const roleLineIds = new Set(linesForRole(activePlans as any[], form.department_id, form.position_id).map((p: any) => p.id));
+  const roleLines = matrix.rows.filter((r) => roleLineIds.has(r.plan_id));
+  const needsLine = roleLines.length > 0;
+  const lineChoices = form.department_id && form.position_id ? roleLines : matrix.rows;
+  const lineMoved = !!form.id && !!initial?.staffing_plan_id && form.staffing_plan_id !== initial.staffing_plan_id;
+  const becomesManual = !!form.id && (initial as any)?.source === "capacity_occupancy" && ["draft", "pending_approval"].includes(initial?.status ?? "")
+    && (Number(form.number_required) !== Number(initial?.number_required) || lineMoved);
+  const askReason = limited || lineMoved;
+
+  useEffect(() => {
+    // A role change drops a line that no longer fits.
+    if (form.staffing_plan_id && form.department_id && form.position_id && matrix.rows.length && !roleLineIds.has(form.staffing_plan_id))
+      setForm((f) => ({ ...f, staffing_plan_id: null }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.department_id, form.position_id, matrix.rows.length, activePlans]);
+
   const pickLine = (v: string) => {
     if (v === "none") return set({ staffing_plan_id: null });
     const l = matrix.rows.find((r) => r.plan_id === v);
@@ -92,7 +112,7 @@ export function HiringRequirementDialog({
     set({
       staffing_plan_id: l.plan_id,
       department_id: l.department_id ?? form.department_id,
-      position_id: l.position_id ?? form.position_id,
+      position_id: form.position_id && roleLineIds.has(l.plan_id) ? form.position_id : l.position_id ?? form.position_id,
       shift_id: l.shift_id ?? null,
       shift_label: shift?.name ?? null,
       employment_type: l.employment_type ?? form.employment_type,
@@ -112,7 +132,8 @@ export function HiringRequirementDialog({
     );
   };
 
-  const canSave = form.department_id && form.position_id && form.number_required > 0 && (!limited || editReason.trim());
+  const canSave = form.department_id && form.position_id && form.number_required > 0 && (!askReason || editReason.trim())
+    && (!needsLine || !!form.staffing_plan_id);
 
   return (
     <ResponsiveDialog
@@ -153,17 +174,25 @@ export function HiringRequirementDialog({
         )}
         <div className="space-y-1">
           <Label>For staffing line</Label>
-          <Select value={form.staffing_plan_id ?? "none"} disabled={limited} onValueChange={pickLine}>
-            <SelectTrigger className="text-foreground"><SelectValue placeholder="Not linked to a line" /></SelectTrigger>
+          <Select value={form.staffing_plan_id ?? (needsLine ? "" : "none")} onValueChange={pickLine}>
+            <SelectTrigger className="text-foreground"><SelectValue placeholder="Pick the staffing line" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Not linked to a line</SelectItem>
-              {matrix.rows.map((l) => (
+              {!needsLine && !limited && <SelectItem value="none">Not part of a staffing line</SelectItem>}
+              {lineChoices.map((l) => (
                 <SelectItem key={l.plan_id} value={l.plan_id}>
                   {l.department_name ?? "Department"} · {l.position_title ?? "Role"} · {l.shiftLabel} — {l.required_hc} required, {l.current_hc} on roll
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {needsLine && !form.staffing_plan_id && (
+            <p className="text-xs text-destructive">This role has staffing lines — pick the one this requirement is for. The shift comes from the line.</p>
+          )}
+          {becomesManual && (
+            <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
+              This is an automatic request. Saving this change turns it into a manual request, so the system stops resizing it.
+            </p>
+          )}
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold text-foreground">Basic details</p>
@@ -209,7 +238,7 @@ export function HiringRequirementDialog({
             <div className="space-y-1">
               <Label>Shift</Label>
               <Select
-                disabled={limited} value={form.shift_id ?? "none"}
+                disabled={limited || !!form.staffing_plan_id} value={form.shift_id ?? "none"}
                 onValueChange={(v) => set({ shift_id: v === "none" ? null : v })}
               >
                 <SelectTrigger className="text-foreground">
@@ -390,7 +419,7 @@ export function HiringRequirementDialog({
           <p className="mb-2 text-sm font-semibold text-foreground">Approval</p>
           <p className="mb-2 text-xs text-muted-foreground">Any HRMS manager can approve. "Raised by" is recorded automatically.</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {limited && (
+            {askReason && (
               <div className="space-y-1 sm:col-span-2">
                 <Label>Reason for this change (required)</Label>
                 <Input className="text-foreground" value={editReason} onChange={(e) => setEditReason(e.target.value)}

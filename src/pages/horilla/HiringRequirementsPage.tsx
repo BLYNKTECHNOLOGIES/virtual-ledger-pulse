@@ -12,7 +12,8 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { HiringRequirementDetailDialog } from "@/components/horilla/workforce/HiringRequirementDetailDialog";
-import { useHiringRequirements, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
+import { useHeadcountPlans, useHiringRequirements, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
+import { requirementLineIssues } from "@/hooks/hrms/useWorkforceAlerts";
 import { useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
 import { JobStatusBadge } from "@/components/ats/AtsBits";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -73,6 +74,11 @@ export default function HiringRequirementsPage() {
 
   const { data: requirements = [], isLoading } = useHiringRequirements();
   const navigate = useNavigate();
+  const { data: activePlans = [] } = useHeadcountPlans();
+  const lineIssue = useMemo(() => {
+    const x = requirementLineIssues(requirements as any[], activePlans as any[]);
+    return { unlinked: new Set(x.unlinked.map((r: any) => r.id)), inactive: new Set(x.onInactiveLine.map((r: any) => r.id)) };
+  }, [requirements, activePlans]);
   const pipeline = useRequirementPipeline();
   const reqJobs = useRequirementJobs();
   const matrix = useStaffingMatrix();
@@ -181,6 +187,12 @@ export default function HiringRequirementsPage() {
                           <Badge variant="outline">Manual</Badge>
                         )}
                         {job && <JobStatusBadge status={job.status} />}
+                        {lineIssue.unlinked.has(r.id) && (
+                          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">Not linked to a staffing line</Badge>
+                        )}
+                        {lineIssue.inactive.has(r.id) && (
+                          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">Line removed — move it</Badge>
+                        )}
                         {line && line.over_requested_hc > 0 && (
                           <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning">
                             Line over-requested by {line.over_requested_hc}

@@ -34,6 +34,25 @@ export interface StaffingMatrixRow {
   in_training_hc: number;
   training_ready_date: string | null;
   over_requested_hc: number;
+  /** Desks the database uses for this line (operational capacity; 0 when the desk group is inactive). */
+  operational_capacity?: number | null;
+  seat_active?: boolean | null;
+  /** Set when a person declined this line's automatic request. */
+  auto_paused_at?: string | null;
+  auto_paused_by_name?: string | null;
+  auto_paused_reason?: string | null;
+  auto_paused_need?: number | null;
+}
+
+/** "Automatic hiring paused — declined by <name> on <date>: <reason>" (null when not paused). */
+export function pauseText(r: Pick<StaffingMatrixRow, "auto_paused_at" | "auto_paused_by_name" | "auto_paused_reason">): string | null {
+  if (!r.auto_paused_at) return null;
+  return `Automatic hiring paused — declined by ${r.auto_paused_by_name || "a manager"} on ${formatIstDate(r.auto_paused_at)}${r.auto_paused_reason ? `: ${r.auto_paused_reason}` : ""}`;
+}
+
+/** A desk group belongs to a shift only when its line there requires more than 0. */
+export function seatCountsInShift(line: Pick<StaffingMatrixRow, "required_hc">): boolean {
+  return (Number(line.required_hc) || 0) > 0;
 }
 
 export type StaffingStatus =

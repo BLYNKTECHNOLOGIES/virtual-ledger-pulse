@@ -19,6 +19,7 @@ import { HRSetupChecklistCard } from "@/components/hrms/HRSetupChecklistCard";
 import { AnnouncementsBanner } from "@/components/hrms/AnnouncementsBanner";
 import { UpcomingHolidaysCard } from "@/components/hrms/UpcomingHolidaysCard";
 import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
+import { WorkforceHomeCard } from "@/components/horilla/workforce/WorkforceHomeCard";
 
 
 const COLORS = [
@@ -345,6 +346,8 @@ export default function HorillaDashboard() {
           );
         })}
       </div>
+
+      <WorkforceHomeCard />
 
       {/* Data completeness — HR manager's daily "what next" home base */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">

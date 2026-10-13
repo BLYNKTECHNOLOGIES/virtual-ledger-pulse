@@ -101,8 +101,8 @@ export default function WorkforceForecastPage() {
     queryKey: ["workforce_user_name", override?.updated_by],
     enabled: !!override?.updated_by,
     queryFn: async () => {
-      const { data } = await (supabase.rpc as any)("hr_wf_user_name", { p_uid: override.updated_by });
-      return (data as string) || null;
+      const { data } = await supabase.from("users").select("first_name, last_name, username").eq("id", override.updated_by).maybeSingle();
+      return data ? [data.first_name, data.last_name].filter(Boolean).join(" ") || data.username || null : null;
     },
   });
 

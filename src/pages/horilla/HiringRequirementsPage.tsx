@@ -56,7 +56,7 @@ export default function HiringRequirementsPage() {
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("hrms_manage");
 
-  const [tab, setTab] = useState<Tab>("open");
+  const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).get("tab") === "pending" ? "pending" : "open") as Tab);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<any | null>(null);

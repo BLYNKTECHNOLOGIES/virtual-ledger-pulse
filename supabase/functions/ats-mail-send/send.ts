@@ -77,6 +77,8 @@ export async function handleSend(req: Request): Promise<Response> {
     const { data: prev } = await admin.from('ats_messages').select('*').eq('id', retryId).eq('direction', 'outbound').maybeSingle()
     if (!prev) return json({ error: 'not_found' }, 404)
     if (prev.status !== 'failed') return json({ id: prev.id, status: prev.status })
+    // A pick-a-time email's link may have been replaced by a newer one: never resend it.
+    if (prev.template_code === 'interview-pick-a-slot') return json({ error: 'outdated' }, 409)
     if (await interviewEmailOutdated(admin, prev)) return json({ error: 'outdated' }, 409)
     // The resend goes to the candidate's CURRENT address.
     const { data: cand } = await admin.from('ats_candidates')

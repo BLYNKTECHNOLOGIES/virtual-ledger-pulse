@@ -11,7 +11,7 @@ interface ViewData {
   first_name?: string; job_title?: string; company_name?: string; title?: string; mode?: string; place?: string;
   duration_minutes?: number; expires_at?: string; booked_start?: string | null; slots?: string[];
 }
-type Booked = { start: string; place: string; moved: boolean };
+type Booked = { start: string; place: string; moved: boolean; emailed: boolean };
 
 const IST = "Asia/Kolkata";
 const dayText = (iso: string) => {
@@ -64,7 +64,7 @@ export default function InterviewPickPage() {
     setBusy(true); setNotice(null);
     const r = await call({ action: "book", token, start: picked });
     setBusy(false);
-    if (r.status === "booked") { setBooked({ start: r.start, place: r.place, moved: !!r.moved }); return; }
+    if (r.status === "booked") { setBooked({ start: r.start, place: r.place, moved: !!r.moved, emailed: r.emailed !== false }); return; }
     if (r.status === "gone") { setNotice("That time was just taken. Please choose another."); void load(); return; }
     setView({ status: r.status ?? "error" });
   };
@@ -83,7 +83,11 @@ export default function InterviewPickPage() {
       <div className="space-y-3 text-center">
         <CalendarCheck className="mx-auto h-10 w-10 text-primary" />
         <p className="text-lg font-semibold text-foreground">
-          {booked.moved
+          {!booked.emailed
+            ? (booked.moved
+              ? `Your interview is moved to ${fullText(booked.start)}. HR will contact you with the details.`
+              : `You're booked for ${fullText(booked.start)}. HR will contact you with the details.`)
+            : booked.moved
             ? `Your interview is moved to ${fullText(booked.start)}. We've emailed you the details.`
             : `You're booked for ${fullText(booked.start)}. We've emailed you the details and a calendar invite.`}
         </p>

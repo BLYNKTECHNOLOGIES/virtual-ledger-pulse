@@ -10,11 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  EMPLOYMENT_TYPES,
+  EMPLOYMENT_TYPE_OPTIONS,
   EMPTY_FILTERS,
   PRIORITIES,
   PRIORITY_LABEL,
-  STATUS_LABEL,
+  STATUS_FILTER_OPTIONS,
   type WorkforceFilterState,
 } from "@/lib/hrms/workforce";
 
@@ -24,6 +24,7 @@ interface WorkforceFiltersProps {
   departments: { id: string; name: string }[];
   positions: { id: string; title: string }[];
   shifts: { id: string; name: string }[];
+  /** Pass planning shifts only (shifts that count as themselves, no training shifts). */
   /** Hide the staffing-status filter on pages where it has no meaning. */
   showStatus?: boolean;
   showPriority?: boolean;
@@ -108,9 +109,9 @@ export function WorkforceFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All types</SelectItem>
-              {EMPLOYMENT_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
+              {EMPLOYMENT_TYPE_OPTIONS.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -126,9 +127,9 @@ export function WorkforceFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                {Object.entries(STATUS_LABEL).map(([k, label]) => (
-                  <SelectItem key={k} value={k}>
-                    {label}
+                {STATUS_FILTER_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -383,22 +383,15 @@ export function useSaveHiringRequirement() {
         }
         return id;
       }
-      // The requirement number is assigned by the database on insert.
+      // The requirement number and "Raised by" name are set by the database on insert.
       const { data: user } = await supabase.auth.getUser();
       const uid = user?.user?.id ?? null;
-      let byName: string | null = user?.user?.email ?? null;
-      if (uid) {
-        const { data: u } = await supabase.from("users").select("first_name, last_name, username").eq("id", uid).maybeSingle();
-        const n = [u?.first_name, u?.last_name].filter(Boolean).join(" ").trim();
-        byName = n || u?.username || byName;
-      }
       const { data, error } = await supabase
         .from("hr_hiring_requirements")
         .insert({
           ...payload,
           source: "manual",
           requested_by: uid,
-          requested_by_name: byName,
         } as any)
         .select("id")
         .single();

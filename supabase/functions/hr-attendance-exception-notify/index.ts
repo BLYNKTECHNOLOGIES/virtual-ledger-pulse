@@ -61,6 +61,7 @@ function esc(s: string) {
 
 const BRAND = {
   logo: "https://erp.blynkex.com/__l5e/assets-v1/042810b3-dfdf-4ae1-9f9e-e47ef2e18071/BlynkEx_black_with_logo.png",
+  whiteLogo: "https://erp.blynkex.com/__l5e/assets-v1/6faea1af-3912-4ae5-99ab-0765270cedac/BlynkEx_white_with_logo.png",
   icon: "https://erp.blynkex.com/__l5e/assets-v1/0ca9650d-d963-4f4a-aae9-a538302556f1/BlynkEx_icon.png",
   blue: "#00AEEF",
   ink: "#0B1524",
@@ -109,9 +110,9 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
   <div style="max-width:560px;margin:0 auto;padding:24px 14px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e6ecf3;border-radius:12px;border-collapse:separate;">
       <tr>
-        <td style="padding:16px 22px;border-bottom:2px solid ${BRAND.blue};">
+        <td style="padding:16px 22px;background:${BRAND.ink};border-bottom:2px solid ${BRAND.blue};">
           <table cellpadding="0" cellspacing="0" border="0"><tr>
-            <td valign="middle"><img src="${BRAND.logo}" alt="BlynkEx" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;" /></td>
+            <td valign="middle"><img src="${BRAND.whiteLogo}" alt="BlynkEx" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;" /></td>
           </tr></table>
         </td>
       </tr>

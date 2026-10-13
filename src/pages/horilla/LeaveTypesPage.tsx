@@ -32,6 +32,12 @@ const defaultForm = {
   require_attachment: false,
 };
 
+/** Company policy: every leave type carries forward without limit or expiry;
+ *  Comp-Off (carry_forward = false) is settled monthly through payroll. */
+function carryForwardPolicyLabel(settledMonthly: boolean) {
+  return settledMonthly ? "Settled monthly through payroll" : "Unlimited, no expiry (company policy)";
+}
+
 const RESET_PERIODS = [
   { value: "yearly", label: "Yearly" },
   { value: "monthly", label: "Monthly" },
@@ -63,6 +69,7 @@ export default function LeaveTypesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editSettled, setEditSettled] = useState(false);
 
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["hr_leave_types"],
@@ -78,16 +85,11 @@ export default function LeaveTypesPage() {
       const payload: any = {
         name: form.name, code: form.code, max_days_per_year: form.max_days_per_year,
         is_paid: form.is_paid, requires_approval: form.requires_approval, color: form.color,
-        reset: form.reset, reset_based: form.reset ? form.reset_based || null : null,
-        reset_month: form.reset && form.reset_based === "yearly" ? form.reset_month || null : null,
-        reset_day: form.reset ? form.reset_day || null : null,
         is_encashable: form.is_encashable, exclude_company_leave: form.exclude_company_leave,
         exclude_holiday: form.exclude_holiday, is_compensatory_leave: form.is_compensatory_leave,
-        carryforward_type: form.carryforward_type,
-        carry_forward: form.carryforward_type !== "no carryforward",
-        carryforward_expire_in: form.carryforward_type === "carryforward expire" ? form.carryforward_expire_in : null,
-        carryforward_expire_period: form.carryforward_type === "carryforward expire" ? form.carryforward_expire_period || null : null,
-        max_carry_forward_days: form.carryforward_type === "carryforward" ? form.max_days_per_year : null,
+        // Carry-forward expiry/cap and reset columns are intentionally not
+        // written: company policy is unlimited, non-expiring carry forward
+        // (year-end reset removed); only Comp-Off is settled via payroll.
         require_attachment: form.require_attachment,
       };
       if (editId) {
@@ -143,11 +145,7 @@ export default function LeaveTypesPage() {
     setShowDialog(true);
   };
 
-  const getCarryForwardLabel = (t: any) => {
-    if (t.carryforward_type === "no carryforward") return "None";
-    if (t.carryforward_type === "carryforward expire") return `${t.carryforward_expire_in || "?"} ${t.carryforward_expire_period || "?"}`;
-    return t.max_carry_forward_days != null ? `Up to ${t.max_carry_forward_days} days` : "No cap";
-  };
+  const getCarryForwardLabel = (t: any) => carryForwardPolicyLabel(t?.carry_forward === false);
 
   const getTags = (t: any) => {
     const tags: { label: string; icon: React.ElementType; variant: "default" | "secondary" | "outline" }[] = [];
@@ -235,7 +233,7 @@ export default function LeaveTypesPage() {
                   <td className="px-4 py-3.5 text-center hidden md:table-cell">
                     <div className="inline-flex items-center gap-1.5">
                       <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className={`text-xs ${t.carryforward_type === "no carryforward" ? "text-muted-foreground" : "text-foreground font-medium"}`}>
+                      <span className={`text-xs ${t.carry_forward === false ? "text-muted-foreground" : "text-foreground font-medium"}`}>
                         {getCarryForwardLabel(t)}
                       </span>
                     </div>
@@ -368,71 +366,10 @@ export default function LeaveTypesPage() {
             {/* Carry Forward */}
             <div className="space-y-3 border-t border-border pt-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Carry Forward</p>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Type</Label>
-                <Select value={form.carryforward_type} onValueChange={(v) => setForm({ ...form, carryforward_type: v })}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CARRYFORWARD_TYPES.map((cf) => <SelectItem key={cf.value} value={cf.value}>{cf.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {form.carryforward_type === "carryforward expire" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Expire In</Label>
-                    <Input className="h-9" type="number" value={form.carryforward_expire_in ?? ""} onChange={(e) => setForm({ ...form, carryforward_expire_in: parseInt(e.target.value) || null })} placeholder="e.g. 3" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Period</Label>
-                    <Select value={form.carryforward_expire_period} onValueChange={(v) => setForm({ ...form, carryforward_expire_period: v })}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {EXPIRE_PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Reset */}
-            <div className="space-y-3 border-t border-border pt-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reset Configuration</p>
-              <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                <span className="text-sm text-foreground">Enable Reset</span>
-                <Switch checked={form.reset} onCheckedChange={(v) => setForm({ ...form, reset: v })} />
-              </label>
-              {form.reset && (
-                <div className="space-y-3 pl-1">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Reset Period</Label>
-                    <Select value={form.reset_based} onValueChange={(v) => setForm({ ...form, reset_based: v })}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Select period" /></SelectTrigger>
-                      <SelectContent>
-                        {RESET_PERIODS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {form.reset_based === "yearly" && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Reset Month</Label>
-                      <Select value={form.reset_month} onValueChange={(v) => setForm({ ...form, reset_month: v })}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Select month" /></SelectTrigger>
-                        <SelectContent>
-                          {MONTHS_LIST.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {(form.reset_based === "yearly" || form.reset_based === "monthly") && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Reset Day</Label>
-                      <Input className="h-9" value={form.reset_day} onChange={(e) => setForm({ ...form, reset_day: e.target.value })} placeholder="e.g. 1, 15, or 'last day'" />
-                    </div>
-                  )}
-                </div>
-              )}
+              <p className="text-sm text-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
+                {carryForwardPolicyLabel(editSettled)}
+              </p>
+              <p className="text-[11px] text-muted-foreground">Set by company policy — there is no expiry, cap or year-end reset.</p>
             </div>
 
             {/* Special Options */}

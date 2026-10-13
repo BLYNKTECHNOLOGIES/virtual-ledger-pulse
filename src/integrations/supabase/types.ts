@@ -12510,6 +12510,7 @@ export type Database = {
           essl_badge_id: string | null
           first_name: string | null
           gender: string | null
+          hiring_requirement_declined: boolean
           hiring_requirement_id: string | null
           id: string
           job_role: string | null
@@ -12562,6 +12563,7 @@ export type Database = {
           essl_badge_id?: string | null
           first_name?: string | null
           gender?: string | null
+          hiring_requirement_declined?: boolean
           hiring_requirement_id?: string | null
           id?: string
           job_role?: string | null
@@ -12614,6 +12616,7 @@ export type Database = {
           essl_badge_id?: string | null
           first_name?: string | null
           gender?: string | null
+          hiring_requirement_declined?: boolean
           hiring_requirement_id?: string | null
           id?: string
           job_role?: string | null

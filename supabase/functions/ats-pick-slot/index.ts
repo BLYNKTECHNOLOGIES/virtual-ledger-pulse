@@ -5,6 +5,13 @@
 import { admin, corsHeaders, ipHash, json, rateLimit, sha256Hex } from '../_shared/cbt.ts'
 import { notifyInterview } from '../_shared/ats-interview-notify.ts'
 
+const REASONS: Record<string, string> = {
+  mail_disabled: 'candidate email is off',
+  mailbox_unavailable: "the HR mailbox isn't available",
+  no_email: 'the candidate has no email address',
+  candidate_closed: 'the candidate record is closed',
+}
+
 const TOKEN_RE = /^[A-Za-z0-9_-]{40,60}$/
 
 Deno.serve(async (req) => {
@@ -49,27 +56,65 @@ Deno.serve(async (req) => {
       return done({ status: 'error' }, 500)
     }
 
-    // Confirmation email exactly like the Schedule interview dialog. A failure never undoes the booking:
-    // the email shows as Not delivered in the ATS with Retry.
+    // Confirmation email exactly like the Schedule interview dialog, to the candidate only (awaited, so the page
+    // never claims an email that wasn't sent). A failure never undoes the booking.
+    const action2 = r.moved ? 'update' : 'invite'
+    let emailed = false
+    let reason = 'sending failed (see Messages)'
+    let opts: Record<string, unknown> = { actorName: 'ATS (automatic)', automatic: true, origin: null }
     try {
       const code = r.moved ? 'interview-rescheduled' : 'interview-scheduled'
       const [{ data: tpl }, { data: settings }] = await Promise.all([
         db.from('ats_email_templates').select('subject, body').eq('code', code).maybeSingle(),
         db.from('ats_settings').select('public_app_url').eq('id', true).maybeSingle(),
       ])
-      if (tpl) {
-        await notifyInterview(db, null, {
-          interviewId: r.interview_id,
-          action: r.moved ? 'update' : 'invite',
+      opts = { ...opts, origin: settings?.public_app_url ?? null }
+      if (!tpl) {
+        reason = 'the confirmation template is missing'
+      } else {
+        const res = await notifyInterview(db, null, {
+          interviewId: r.interview_id, action: action2,
           candidate: { id: crypto.randomUUID(), subject: tpl.subject, body: tpl.body, templateCode: code },
-          notifyPanel: !!r.notify_panel,
-          attachResume: false,
-        }, { actorName: 'ATS (automatic)', automatic: true, origin: settings?.public_app_url ?? null })
+          notifyPanel: false, attachResume: false,
+        }, opts)
+        const c = (res.body as any)?.candidate
+        emailed = res.status === 200 && c?.status === 'sent'
+        const err = String((res.body as any)?.error ?? c?.error ?? c?.status ?? '')
+        reason = REASONS[err] ?? reason
       }
     } catch (_e) {
       console.log(JSON.stringify({ action, outcome: 'email_failed' }))
     }
-    return done({ status: 'booked', start: r.start, place: r.place, moved: !!r.moved })
+
+    if (!emailed) {
+      try {
+        const { data: iv } = await db.from('ats_interviews').select('candidate_id, application_id').eq('id', r.interview_id).maybeSingle()
+        if (iv) {
+          const { data: app } = await db.from('ats_applications').select('job_id').eq('id', iv.application_id).maybeSingle()
+          await db.from('ats_events').insert({
+            candidate_id: iv.candidate_id, application_id: iv.application_id, job_id: app?.job_id ?? null,
+            event_type: 'email_failed', actor_name: 'ATS (automatic)',
+            summary: `Confirmation of the picked time was not emailed: ${reason}`,
+            data: { interview_id: r.interview_id, reason },
+          })
+          await db.from('ats_conversation_state').upsert({
+            candidate_id: iv.candidate_id, follow_up_at: new Date().toISOString(), done_at: null, snoozed_until: null,
+            updated_at: new Date().toISOString(), updated_by: null, updated_by_name: 'Candidate picked a time',
+          }, { onConflict: 'candidate_id' })
+        }
+      } catch (_e) {
+        console.log(JSON.stringify({ action, outcome: 'flag_failed' }))
+      }
+    }
+
+    // Interviewer invites go out after the reply, so the candidate doesn't wait.
+    if (r.notify_panel) {
+      // deno-lint-ignore no-explicit-any
+      ;(globalThis as any).EdgeRuntime?.waitUntil(
+        notifyInterview(db, null, { interviewId: r.interview_id, action: action2, candidate: null, notifyPanel: true, attachResume: false }, opts).catch(() => {}),
+      )
+    }
+    return done({ status: 'booked', start: r.start, place: r.place, moved: !!r.moved, emailed })
   } catch (_e) {
     return done({ status: 'error' }, 500)
   }

@@ -131,6 +131,7 @@ export default function LeaveTypesPage() {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
+    setEditSettled(t.carry_forward === false);
     setForm({
       name: t.name, code: t.code, max_days_per_year: t.max_days_per_year || 12,
       is_paid: t.is_paid ?? true, requires_approval: t.requires_approval ?? true, color: t.color || "#00CCFF",
@@ -162,9 +163,9 @@ export default function LeaveTypesPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Leave Types"
-        description="Configure leave policies, carry-forward rules & entitlements"
+        description="Configure leave policies & entitlements. Carry forward follows company policy."
         actions={
-          <Button className="h-9" onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} size="sm">
+          <Button className="h-9" onClick={() => { setEditId(null); setEditSettled(false); setForm(defaultForm); setShowDialog(true); }} size="sm">
             <Plus className="h-4 w-4 mr-1.5" /> New Leave Type
           </Button>
         }
@@ -182,7 +183,7 @@ export default function LeaveTypesPage() {
             title="No leave types configured"
             description='Click "New Leave Type" to get started.'
             action={
-              <Button className="h-9" onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} size="sm">
+              <Button className="h-9" onClick={() => { setEditId(null); setEditSettled(false); setForm(defaultForm); setShowDialog(true); }} size="sm">
                 <Plus className="h-4 w-4 mr-1.5" /> New Leave Type
               </Button>
             }

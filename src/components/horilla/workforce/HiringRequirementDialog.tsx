@@ -25,6 +25,7 @@ import {
 import {
   useSaveHiringRequirement,
   useWorkforceLookups,
+  useStaffingMatrix,
   type HiringRequirementInput,
 } from "@/hooks/hrms/useWorkforcePlanning";
 
@@ -53,6 +54,7 @@ const BLANK: HiringRequirementInput = {
   salary_max: null,
   replacement_employee_id: null,
   approver_name: null,
+  staffing_plan_id: null,
   priority: "medium",
   status: "draft",
   notes: null,
@@ -66,10 +68,13 @@ export function HiringRequirementDialog({
 }: HiringRequirementDialogProps) {
   const { data: lookups } = useWorkforceLookups();
   const save = useSaveHiringRequirement();
+  const matrix = useStaffingMatrix();
+  const [editReason, setEditReason] = useState("");
+  const limited = !!form.id && !!initial?.status && !["draft", "pending_approval"].includes(initial.status);
   const [form, setForm] = useState<HiringRequirementInput & { id?: string }>(BLANK);
 
   useEffect(() => {
-    if (open) setForm({ ...BLANK, ...initial } as HiringRequirementInput & { id?: string });
+    if (open) { setForm({ ...BLANK, ...initial } as HiringRequirementInput & { id?: string }); setEditReason(""); }
   }, [open, initial]);
 
   const set = (patch: Partial<HiringRequirementInput>) =>
@@ -79,6 +84,21 @@ export function HiringRequirementDialog({
     (p) => !form.department_id || !p.department_id || p.department_id === form.department_id,
   );
 
+  const pickLine = (v: string) => {
+    if (v === "none") return set({ staffing_plan_id: null });
+    const l = matrix.rows.find((r) => r.plan_id === v);
+    if (!l) return;
+    const shift = lookups?.shifts.find((s) => s.id === l.shift_id);
+    set({
+      staffing_plan_id: l.plan_id,
+      department_id: l.department_id ?? form.department_id,
+      position_id: l.position_id ?? form.position_id,
+      shift_id: l.shift_id ?? null,
+      shift_label: shift?.name ?? null,
+      employment_type: l.employment_type ?? form.employment_type,
+    });
+  };
+
   const submit = (status: string) => {
     const shift = lookups?.shifts.find((s) => s.id === form.shift_id);
     save.mutate(
@@ -86,12 +106,13 @@ export function HiringRequirementDialog({
         ...form,
         status,
         shift_label: shift?.name ?? form.shift_label ?? null,
-      },
+        editReason,
+      } as any,
       { onSuccess: () => onOpenChange(false) },
     );
   };
 
-  const canSave = form.department_id && form.position_id && form.number_required > 0;
+  const canSave = form.department_id && form.position_id && form.number_required > 0 && (!limited || editReason.trim());
 
   return (
     <ResponsiveDialog
@@ -107,12 +128,12 @@ export function HiringRequirementDialog({
           </Button>
           <Button
             variant="secondary"
-            onClick={() => submit("draft")}
+            onClick={() => submit(form.id ? (initial?.status ?? "draft") : "draft")}
             disabled={!canSave || save.isPending}
           >
-            Save as draft
+            {form.id ? "Save changes" : "Save as draft"}
           </Button>
-          {defaultSubmitForApproval && (
+          {defaultSubmitForApproval && (!form.id || initial?.status === "draft") && (
             <Button
               onClick={() => submit("pending_approval")}
               disabled={!canSave || save.isPending}
@@ -144,13 +165,13 @@ export function HiringRequirementDialog({
             </SelectContent>
           </Select>
         </div>
-        <fieldset disabled={limited} className="contents">
         <div>
           <p className="mb-2 text-sm font-semibold text-foreground">Basic details</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
               <Label>Department</Label>
               <Select
-                value={form.department_id}
+                disabled={limited} value={form.department_id}
                 onValueChange={(v) => set({ department_id: v, position_id: "" })}
               >
                 <SelectTrigger className="text-foreground">
@@ -169,7 +190,7 @@ export function HiringRequirementDialog({
             <div className="space-y-1">
               <Label>Position</Label>
               <Select
-                value={form.position_id}
+                disabled={limited} value={form.position_id}
                 onValueChange={(v) => set({ position_id: v })}
               >
                 <SelectTrigger className="text-foreground">
@@ -188,7 +209,7 @@ export function HiringRequirementDialog({
             <div className="space-y-1">
               <Label>Shift</Label>
               <Select
-                value={form.shift_id ?? "none"}
+                disabled={limited} value={form.shift_id ?? "none"}
                 onValueChange={(v) => set({ shift_id: v === "none" ? null : v })}
               >
                 <SelectTrigger className="text-foreground">
@@ -208,7 +229,7 @@ export function HiringRequirementDialog({
             <div className="space-y-1">
               <Label>Employment type</Label>
               <Select
-                value={form.employment_type ? normEmploymentType(form.employment_type) : "none"}
+                disabled={limited} value={form.employment_type ? normEmploymentType(form.employment_type) : "none"}
                 onValueChange={(v) => set({ employment_type: v === "none" ? null : v })}
               >
                 <SelectTrigger className="text-foreground">
@@ -260,7 +281,7 @@ export function HiringRequirementDialog({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>Reason</Label>
-              <Select value={form.reason} onValueChange={(v) => set({ reason: v })}>
+              <Select disabled={limited} value={form.reason} onValueChange={(v) => set({ reason: v })}>
                 <SelectTrigger className="text-foreground">
                   <SelectValue />
                 </SelectTrigger>
@@ -277,7 +298,7 @@ export function HiringRequirementDialog({
             <div className="space-y-1">
               <Label>Replacement for employee</Label>
               <Select
-                value={form.replacement_employee_id ?? "none"}
+                disabled={limited} value={form.replacement_employee_id ?? "none"}
                 onValueChange={(v) =>
                   set({
                     replacement_employee_id: v === "none" ? null : v,
@@ -314,7 +335,7 @@ export function HiringRequirementDialog({
               <Label>Experience required</Label>
               <Input
                 className="text-foreground"
-                value={form.experience_required ?? ""}
+                disabled={limited} value={form.experience_required ?? ""}
                 onChange={(e) =>
                   set({ experience_required: e.target.value || null })
                 }
@@ -356,7 +377,7 @@ export function HiringRequirementDialog({
               <Textarea
                 className="text-foreground"
                 rows={2}
-                value={form.reason_notes ?? ""}
+                disabled={limited} value={form.reason_notes ?? ""}
                 onChange={(e) => set({ reason_notes: e.target.value || null })}
               />
             </div>
@@ -378,7 +399,7 @@ export function HiringRequirementDialog({
             )}
             <div className="space-y-1">
               <Label>Priority</Label>
-              <Select value={form.priority} onValueChange={(v) => set({ priority: v })}>
+              <Select disabled={limited} value={form.priority} onValueChange={(v) => set({ priority: v })}>
                 <SelectTrigger className="text-foreground">
                   <SelectValue />
                 </SelectTrigger>

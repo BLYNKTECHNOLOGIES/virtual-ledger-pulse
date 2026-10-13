@@ -153,16 +153,16 @@ export function useTotalAssetValue() {
   });
 }
 
+const fmt = (amount: number) =>
+  `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const fmtUnits = (units: number) =>
+  units.toLocaleString(undefined, { maximumFractionDigits: 4 });
+
 export function TotalAssetValueWidget() {
   const { data } = useTotalAssetValue();
   const [showBreakdown, setShowBreakdown] = useState(false);
   const total = data?.total || 0;
-
-  const fmt = (amount: number) =>
-    `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  const fmtUnits = (units: number) =>
-    units.toLocaleString(undefined, { maximumFractionDigits: 4 });
 
   return (
     <>
@@ -177,10 +177,18 @@ export function TotalAssetValueWidget() {
           interactive
         />
       </div>
+      <TotalAssetValueDialog open={showBreakdown} onOpenChange={setShowBreakdown} />
+    </>
+  );
+}
 
+/** The Total Asset Value breakdown, controllable from any tile. */
+export function TotalAssetValueDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { data } = useTotalAssetValue();
 
-
-      <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="md:max-w-2xl w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Total Asset Value — Breakdown</DialogTitle>

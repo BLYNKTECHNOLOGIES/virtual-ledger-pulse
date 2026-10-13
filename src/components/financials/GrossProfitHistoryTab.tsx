@@ -1,21 +1,37 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, TrendingUp, RefreshCw } from "lucide-react";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { ChartSkeleton } from "@/components/shared/skeletons";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { BarChart3, TrendingUp, RefreshCw, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { resolveCarriedPurchaseRate } from "@/lib/carryForwardPurchaseRate";
-import { format } from "date-fns";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from "recharts";
+import { format, subDays } from "date-fns";
+import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart, ReferenceLine } from "recharts";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  Panel,
+  TablePager,
+  usePaged,
+  ChartTooltipBox,
+  axisProps,
+  gridProps,
+  axisInr,
+  useChartPalette,
+  formatCompactINR,
+  formatExactINR,
+} from "@/components/finance-ui";
 
 type ViewMode = "day" | "month";
 
 export function GrossProfitHistoryTab() {
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const queryClient = useQueryClient();
+  const palette = useChartPalette();
 
   const { data: historyData, isLoading } = useQuery({
     queryKey: ["daily_gross_profit_history"],
@@ -191,8 +207,6 @@ export function GrossProfitHistoryTab() {
     ? (((latestValue - previousValue) / Math.abs(previousValue)) * 100).toFixed(2)
     : "0.00";
 
-  const isPositive = latestValue >= 0;
-
   const latestDate = mergedData?.length
     ? format(new Date(mergedData[mergedData.length - 1].snapshot_date), "dd MMM yyyy")
     : "No data yet";
@@ -205,223 +219,215 @@ export function GrossProfitHistoryTab() {
     return lastSnapshot < yesterday;
   }, [historyData]);
 
+  // Display-only rollups for the summary strip.
+  const last30 = useMemo(() => {
+    const cutoff = format(subDays(new Date(), 29), "yyyy-MM-dd");
+    const rows = (mergedData || []).filter((r) => r.snapshot_date >= cutoff);
+    const total = rows.reduce((s, r) => s + Number(r.gross_profit || 0), 0);
+    const qty = rows.reduce((s, r) => s + Number(r.total_sales_qty || 0), 0);
+    return { total, perUnit: qty > 0 ? total / qty : null, days: rows.length };
+  }, [mergedData]);
+
+  const tableRows = useMemo(() => {
+    if (viewMode === "day") {
+      return [...(mergedData || [])].reverse().map((item: any) => ({
+        key: item.snapshot_date,
+        date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
+        carried: !!item.purchase_rate_carried,
+        source: item.purchase_rate_source_date as string | null,
+        live: item.snapshot_date === todayStr && todayLive && item === todayLive,
+        qty: Number(item.total_sales_qty),
+        npm: Number(item.avg_sales_rate) - Number(item.effective_purchase_rate),
+        gp: Number(item.gross_profit),
+      }));
+    }
+    return [...chartData].reverse().map((item: any) => ({
+      key: item.date, date: item.date, carried: false, source: null, live: false,
+      qty: null as number | null, npm: item.npm as number | null, gp: Number(item.value),
+    }));
+  }, [viewMode, mergedData, chartData, todayStr, todayLive]);
+  const pager = usePaged(tableRows, 15, viewMode);
+
+  const changeNum = Number(changePercent);
+
   return (
-    <div className="space-y-6">
+    <Panel
+      icon={BarChart3}
+      title="Gross profit history"
+      description="Daily snapshots, with today's figure computed live"
+      actions={
+        <SegmentedControl
+          size="sm"
+          aria-label="History granularity"
+          value={viewMode}
+          onValueChange={(v) => setViewMode(v as ViewMode)}
+          options={[{ value: "day", label: "Day" }, { value: "month", label: "Month" }]}
+        />
+      }
+    >
       {/* Sync bar if gap detected */}
       {hasGap && (
-        <Card className="border-warning/20 bg-warning/10">
-          <CardContent className="p-3 flex items-center justify-between">
-            <span className="text-sm text-warning">
-              Missing snapshots detected. Click sync to backfill missing dates.
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending}
-              className="gap-1.5"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncMutation.isPending ? "Syncing..." : "Sync Now"}
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2">
+          <span className="flex items-center gap-2 text-sm text-foreground">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            Missing snapshots detected. Click sync to backfill missing dates.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+          </Button>
+        </div>
       )}
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className={`${isPositive ? 'bg-gradient-to-br from-success to-success' : 'bg-gradient-to-br from-destructive to-destructive'} text-primary-foreground border-0`}>
-          <CardContent className="p-6">
-            <p className="text-primary-foreground/80 text-sm font-medium">Latest Day's Gross Profit</p>
-            <p className="text-2xl font-bold mt-2">{formatCurrency(latestValue)}</p>
-            <p className="text-sm mt-1 text-primary-foreground/80">{latestDate}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-info to-primary text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <p className="text-primary-foreground/80 text-sm font-medium">Change</p>
-            <p className="text-2xl font-bold mt-2">
-              {Number(changePercent) >= 0 ? "+" : ""}{changePercent}%
-            </p>
-            <p className="text-sm mt-1 text-primary-foreground/80">vs previous snapshot</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-muted border-0">
-          <CardContent className="p-6">
-            <p className="text-muted-foreground text-sm font-medium">Total Snapshots</p>
-            <p className="text-2xl font-bold mt-2 text-foreground">{mergedData?.length || 0}</p>
-            <p className="text-sm mt-1 text-muted-foreground">Daily records</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="rounded-md border border-border/70 p-3">
+          <p className="t-label">Latest day</p>
+          <p className={cn("mt-1 text-xl font-semibold tracking-tight", latestValue >= 0 ? "text-success" : "text-destructive")} title={formatExactINR(latestValue)}>
+            {formatCurrency(latestValue)}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{latestDate}</p>
+        </div>
+        <div className="rounded-md border border-border/70 p-3">
+          <p className="t-label">Change</p>
+          <p className={cn("mt-1 text-xl font-semibold tracking-tight", changeNum > 0 ? "text-success" : changeNum < 0 ? "text-destructive" : "text-foreground")}>
+            {changeNum >= 0 ? "+" : ""}{changePercent}%
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">vs previous snapshot</p>
+        </div>
+        <div className="rounded-md border border-border/70 p-3">
+          <p className="t-label">Last 30 days</p>
+          <p className={cn("mt-1 text-xl font-semibold tracking-tight", last30.total >= 0 ? "text-foreground" : "text-destructive")} title={formatExactINR(last30.total)}>
+            {formatCompactINR(last30.total)}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {last30.perUnit != null ? `₹${last30.perUnit.toFixed(2)} per unit sold` : "No sales"} · {last30.days} days
+          </p>
+        </div>
+        <div className="rounded-md border border-border/70 p-3">
+          <p className="t-label">Total snapshots</p>
+          <p className="mt-1 text-xl font-semibold tracking-tight text-foreground">{mergedData?.length || 0}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Daily records</p>
+        </div>
       </div>
 
-      {/* Chart */}
-      <Card className="bg-card dark:bg-card border border-border dark:border-border shadow-sm">
-        <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3 text-xl text-primary-foreground">
-              <div className="p-2 bg-success rounded-lg shadow-md">
-                <BarChart3 className="h-6 w-6" />
+      {/* Charts — gross profit and NPM on separate scales */}
+      <div className="mt-5">
+        {isLoading ? (
+          <ChartSkeleton height={300} />
+        ) : chartData.length === 0 ? (
+          <EmptyState icon={TrendingUp} title="No historical data yet" description="Daily snapshots will appear here starting from tomorrow at 12:00 AM" />
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Gross profit {viewMode === "day" ? "per day" : "per month"}</p>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  {viewMode === "day" ? (
+                    <AreaChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid {...gridProps} />
+                      <XAxis dataKey="date" {...axisProps} minTickGap={36} tickFormatter={(d: string) => d.slice(0, 6)} />
+                      <YAxis {...axisProps} width={56} tickFormatter={axisInr} />
+                      <ReferenceLine y={0} stroke="hsl(var(--border))" />
+                      <Tooltip
+                        cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
+                        content={({ active, payload, label }) => active && payload?.length ? (
+                          <ChartTooltipBox title={label} rows={[{ key: "gp", label: "Gross profit", value: payload[0].value == null ? "Outlier hidden" : formatCurrency(Number(payload[0].value)), color: palette.positive }]} />
+                        ) : null}
+                      />
+                      <Area type="monotone" dataKey="value" stroke={palette.positive} fill={palette.positive} fillOpacity={0.1} strokeWidth={2} connectNulls dot={false} activeDot={{ r: 4 }} />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid {...gridProps} />
+                      <XAxis dataKey="date" {...axisProps} />
+                      <YAxis {...axisProps} width={56} tickFormatter={axisInr} />
+                      <ReferenceLine y={0} stroke="hsl(var(--border))" />
+                      <Tooltip
+                        cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
+                        content={({ active, payload, label }) => active && payload?.length ? (
+                          <ChartTooltipBox title={label} rows={[{ key: "gp", label: "Gross profit", value: formatCurrency(Number(payload[0].value)), color: palette.positive }]} />
+                        ) : null}
+                      />
+                      <Bar dataKey="value" maxBarSize={24} radius={[4, 4, 0, 0]}>
+                        {chartData.map((d: any, i: number) => (
+                          <Cell key={i} fill={Number(d.value) >= 0 ? palette.positive : palette.negative} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
               </div>
-              Gross Profit Trend
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant={viewMode === "day" ? "secondary" : "ghost"}
-                className={viewMode === "day" ? "bg-card text-success" : "text-primary-foreground hover:bg-success"}
-                onClick={() => setViewMode("day")}
-              >
-                Day
-              </Button>
-              <Button
-                size="sm"
-                variant={viewMode === "month" ? "secondary" : "ghost"}
-                className={viewMode === "month" ? "bg-card text-success" : "text-primary-foreground hover:bg-success"}
-                onClick={() => setViewMode("month")}
-              >
-                Month
-              </Button>
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">NPM (₹ per unit) {viewMode === "month" ? "— average of trading days" : ""}</p>
+              <div className="h-36">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="date" {...axisProps} minTickGap={36} tickFormatter={(d: string) => (viewMode === "day" ? d.slice(0, 6) : d)} />
+                    <YAxis {...axisProps} width={56} tickFormatter={(v) => `₹${Number(v).toFixed(1)}`} domain={["auto", "auto"]} />
+                    <Tooltip
+                      cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
+                      content={({ active, payload, label }) => active && payload?.length ? (
+                        <ChartTooltipBox title={label} rows={[{ key: "npm", label: "NPM (per unit)", value: payload[0].value == null ? "—" : `₹${Number(payload[0].value).toFixed(2)}`, color: palette.s1 }]} />
+                      ) : null}
+                    />
+                    <Line type="monotone" dataKey="npm" stroke={palette.s1} strokeWidth={2} dot={viewMode === "month" ? { r: 4, fill: palette.s1, stroke: "hsl(var(--card))", strokeWidth: 2 } : false} activeDot={{ r: 4 }} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          {isLoading ? (
-            <div className="h-72 flex items-center justify-center text-muted-foreground">
-              Loading chart data...
-            </div>
-          ) : chartData.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground">
-              <TrendingUp className="h-12 w-12 mb-4 opacity-50" />
-              <p className="font-medium">No historical data yet</p>
-              <p className="text-sm">Daily snapshots will appear here starting from tomorrow at 12:00 AM</p>
-            </div>
-          ) : (
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 11 }}
-                    angle={-30}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    tickFormatter={(v) => `₹${(v / 1000).toFixed(1)}K`}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tickFormatter={(v) => `₹${Number(v).toFixed(1)}`}
-                    tick={{ fontSize: 11 }}
-                    label={{ value: "NPM (₹/unit)", angle: 90, position: "insideRight", style: { fontSize: 10, fill: "#6366f1" } }}
-                  />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      name === "npm" ? `₹${Number(value).toFixed(2)}` : formatCurrency(value),
-                      name === "npm" ? "NPM (per unit)" : "Gross Profit"
-                    ]}
-                    labelStyle={{ fontWeight: "bold" }}
-                  />
-                  <Legend
-                    formatter={(value) => value === "npm" ? "NPM (per unit)" : "Gross Profit"}
-                  />
-                  <Area
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="value"
-                    name="value"
-                    stroke="#059669"
-                    fill="#059669"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                    connectNulls
-                  />
-
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="npm"
-                    name="npm"
-                    stroke="#6366f1"
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: "#6366f1" }}
-                    activeDot={{ r: 6 }}
-                    connectNulls
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       {/* Tabular Data */}
       {chartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {viewMode === "day" ? "Daily" : "Monthly"} Breakdown
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Total Sales Qty (USDT equiv.)</TableHead>
-                    <TableHead className="text-right">Margin (₹/unit)</TableHead>
-                    <TableHead className="text-right">Gross Profit</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(viewMode === "day" ? mergedData || [] : []).map((item: any) => {
-                    const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
-                    return (
-                      <TableRow key={item.snapshot_date}>
-                        <TableCell className="text-sm">
-                          {format(new Date(item.snapshot_date), "dd MMM yyyy")}
-                          {item.purchase_rate_carried && (
-                            <span
-                              className="ml-2 text-xs text-muted-foreground"
-                              title={`No purchases that day — cost basis carried forward from ${item.purchase_rate_source_date}`}
-                            >
-                              carried fwd
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">{Number(item.total_sales_qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right font-mono text-sm">₹{npm.toFixed(2)}</TableCell>
-                        <TableCell className={`text-right font-mono text-sm font-semibold ${Number(item.gross_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          ₹{Number(item.gross_profit).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {viewMode === "month" && chartData.map((item: any) => (
-                    <TableRow key={item.date}>
-                      <TableCell className="text-sm">{item.date}</TableCell>
-                      <TableCell className="text-right font-mono text-sm">—</TableCell>
-                      <TableCell className="text-right font-mono text-sm">₹{Number(item.npm).toFixed(2)}</TableCell>
-                      <TableCell className={`text-right font-mono text-sm font-semibold ${item.value >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        ₹{Number(item.value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mt-5">
+          <p className="t-label mb-2">{viewMode === "day" ? "Daily" : "Monthly"} breakdown · newest first</p>
+          <Table density="compact">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Total Sales Qty (USDT equiv.)</TableHead>
+                <TableHead className="text-right">Margin (₹/unit)</TableHead>
+                <TableHead className="text-right">Gross Profit</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pager.slice.map((row) => (
+                <TableRow key={row.key}>
+                  <TableCell className="text-sm">
+                    {row.date}
+                    {row.live && <span className="ml-2 ds-status ds-status-info">Live</span>}
+                    {row.carried && (
+                      <span
+                        className="ml-2 text-xs text-muted-foreground"
+                        title={`No purchases that day — cost basis carried forward from ${row.source}`}
+                      >
+                        carried fwd
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right text-sm font-mono text-[13px] tabular-nums">{row.qty == null ? "—" : row.qty.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right text-sm font-mono text-[13px] tabular-nums">{row.npm == null ? "—" : `₹${Number(row.npm).toFixed(2)}`}</TableCell>
+                  <TableCell className={`text-right text-sm font-semibold tabular-nums ${row.gp >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    ₹{row.gp.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePager {...pager} noun={viewMode === "day" ? "days" : "months"} />
+        </div>
       )}
-    </div>
+    </Panel>
   );
 }

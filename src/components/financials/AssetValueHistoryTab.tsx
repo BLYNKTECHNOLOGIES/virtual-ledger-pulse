@@ -1,19 +1,34 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { ChartSkeleton } from "@/components/shared/skeletons";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { BarChart3, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { cn } from "@/lib/utils";
+import {
+  Panel,
+  DeltaChip,
+  TablePager,
+  usePaged,
+  ChartTooltipBox,
+  axisProps,
+  gridProps,
+  axisInr,
+  useChartPalette,
+  formatCompactINR,
+  formatExactINR,
+} from "@/components/finance-ui";
 
 type ViewMode = "day" | "month";
+type AssetSnapshot = { snapshot_date: string; total_asset_value: number };
 
-export function AssetValueHistoryTab() {
-  const [viewMode, setViewMode] = useState<ViewMode>("day");
-
-  const { data: historyData, isLoading } = useQuery({
+/** Daily total-asset-value snapshots (shared by this tab and the Financials header). */
+export function useAssetValueHistory() {
+  return useQuery({
     queryKey: ["asset_value_history"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -25,28 +40,39 @@ export function AssetValueHistoryTab() {
       return data || [];
     },
   });
+}
 
-  // Drop single-day spikes >50% vs the last accepted point — almost always
-  // snapshot errors that wreck the chart scale. Table data stays untouched.
-  const { cleanedHistory, excludedCount } = useMemo(() => {
-    if (!historyData?.length) return { cleanedHistory: [], excludedCount: 0 };
-    const kept: typeof historyData = [];
-    let lastAccepted: number | null = null;
-    let excluded = 0;
-    for (const item of historyData) {
-      const value = Number(item.total_asset_value);
-      if (lastAccepted !== null && lastAccepted > 0) {
-        const change = Math.abs(value - lastAccepted) / lastAccepted;
-        if (change > 0.5) {
-          excluded += 1;
-          continue;
-        }
+/**
+ * Drop single-day spikes >50% vs the last accepted point — almost always
+ * snapshot errors that wreck the chart scale. Table data stays untouched.
+ */
+export function cleanAssetHistory<T extends AssetSnapshot>(historyData?: T[] | null) {
+  if (!historyData?.length) return { cleanedHistory: [] as T[], excludedCount: 0 };
+  const kept: T[] = [];
+  let lastAccepted: number | null = null;
+  let excluded = 0;
+  for (const item of historyData) {
+    const value = Number(item.total_asset_value);
+    if (lastAccepted !== null && lastAccepted > 0) {
+      const change = Math.abs(value - lastAccepted) / lastAccepted;
+      if (change > 0.5) {
+        excluded += 1;
+        continue;
       }
-      kept.push(item);
-      lastAccepted = value;
     }
-    return { cleanedHistory: kept, excludedCount: excluded };
-  }, [historyData]);
+    kept.push(item);
+    lastAccepted = value;
+  }
+  return { cleanedHistory: kept, excludedCount: excluded };
+}
+
+export function AssetValueHistoryTab() {
+  const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const palette = useChartPalette();
+
+  const { data: historyData, isLoading } = useAssetValueHistory();
+
+  const { cleanedHistory, excludedCount } = useMemo(() => cleanAssetHistory(historyData), [historyData]);
 
   const chartData = useMemo(() => {
     if (!cleanedHistory.length) return [];
@@ -99,154 +125,124 @@ export function AssetValueHistoryTab() {
     ? (((latestValue - previousValue) / previousValue) * 100).toFixed(2)
     : "0.00";
 
+  // Display-only: change against the snapshot on or before 7 / 30 days ago (outliers excluded).
+  const changeVs = useMemo(() => {
+    const out: { d7: number | null; d30: number | null; v7: number | null; v30: number | null } = { d7: null, d30: null, v7: null, v30: null };
+    if (!cleanedHistory.length || !historyData?.length) return out;
+    const lastDate = historyData[historyData.length - 1].snapshot_date;
+    const pickOnOrBefore = (days: number) => {
+      const cutoff = format(subDays(new Date(lastDate), days), "yyyy-MM-dd");
+      let found: number | null = null;
+      for (const r of cleanedHistory) { if (r.snapshot_date <= cutoff) found = Number(r.total_asset_value); else break; }
+      return found;
+    };
+    out.v7 = pickOnOrBefore(7);
+    out.v30 = pickOnOrBefore(30);
+    if (out.v7) out.d7 = ((latestValue - out.v7) / out.v7) * 100;
+    if (out.v30) out.d30 = ((latestValue - out.v30) / out.v30) * 100;
+    return out;
+  }, [cleanedHistory, historyData, latestValue]);
+
+  const tableRows = useMemo(() => [...chartData].reverse(), [chartData]);
+  const pager = usePaged(tableRows, 15, viewMode);
+  const changeNum = Number(changePercent);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-primary to-primary text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <p className="text-primary-foreground/80 text-sm font-medium">Latest Asset Value</p>
-            <p className="text-2xl font-bold mt-2">{formatCurrency(latestValue)}</p>
-            <p className="text-sm mt-1 text-primary-foreground/75">
-              {historyData?.length
-                ? format(new Date(historyData[historyData.length - 1].snapshot_date), "dd MMM yyyy")
-                : "No data yet"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-success to-success text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <p className="text-primary-foreground/80 text-sm font-medium">Change</p>
-            <p className="text-2xl font-bold mt-2">
-              {Number(changePercent) >= 0 ? "+" : ""}{changePercent}%
-            </p>
-            <p className="text-sm mt-1 text-primary-foreground/75">vs previous snapshot</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-muted text-foreground border-0">
-          <CardContent className="p-6">
-            <p className="text-muted-foreground text-sm font-medium">Total Snapshots</p>
-            <p className="text-2xl font-bold mt-2">{historyData?.length || 0}</p>
-            <p className="text-sm mt-1 text-muted-foreground">Daily records</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-xs)]">
+          <p className="t-label">Latest Asset Value</p>
+          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground" title={formatExactINR(latestValue)}>{formatCompactINR(latestValue)}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+            {formatCurrency(latestValue)} · {historyData?.length
+              ? format(new Date(historyData[historyData.length - 1].snapshot_date), "dd MMM yyyy")
+              : "No data yet"}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-xs)]">
+          <p className="t-label">Change</p>
+          <p className={cn("mt-1.5 text-2xl font-semibold tracking-tight", changeNum > 0 ? "text-success" : changeNum < 0 ? "text-destructive" : "text-foreground")}>
+            {changeNum >= 0 ? "+" : ""}{changePercent}%
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">vs previous snapshot</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-xs)]">
+          <p className="t-label">Last 7 days</p>
+          <div className="mt-2"><DeltaChip value={changeVs.d7} /></div>
+          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{changeVs.v7 ? `from ${formatCompactINR(changeVs.v7)}` : "Not enough history"}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-xs)]">
+          <p className="t-label">Last 30 days</p>
+          <div className="mt-2"><DeltaChip value={changeVs.d30} /></div>
+          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{changeVs.v30 ? `from ${formatCompactINR(changeVs.v30)}` : "Not enough history"} · {historyData?.length || 0} daily records</p>
+        </div>
       </div>
 
       {/* Chart */}
-      <Card className="bg-card border border-border shadow-sm">
-        <CardHeader className="border-b border-border">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <span className="p-2 bg-muted rounded-lg">
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </span>
-                Asset Value Trend
-              </CardTitle>
-              {excludedCount > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  {excludedCount} outlier {excludedCount === 1 ? "point" : "points"} hidden (&gt;50% single-day swing)
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant={viewMode === "day" ? "default" : "outline"}
-                onClick={() => setViewMode("day")}
-              >
-                Day
-              </Button>
-              <Button
-                size="sm"
-                variant={viewMode === "month" ? "default" : "outline"}
-                onClick={() => setViewMode("month")}
-              >
-                Month
-              </Button>
-            </div>
+      <Panel
+        icon={BarChart3}
+        title="Asset Value Trend"
+        description={excludedCount > 0
+          ? `${excludedCount} outlier ${excludedCount === 1 ? "point" : "points"} hidden (>50% single-day swing)`
+          : "Total asset value from the daily snapshots"}
+        actions={
+          <SegmentedControl
+            size="sm"
+            aria-label="Granularity"
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as ViewMode)}
+            options={[{ value: "day", label: "Day" }, { value: "month", label: "Month" }]}
+          />
+        }
+      >
+        {isLoading ? (
+          <ChartSkeleton height={260} />
+        ) : chartData.length === 0 ? (
+          <EmptyState icon={TrendingUp} title="No historical data yet" description="Daily snapshots will appear here starting from tomorrow at 12:00 AM" />
+        ) : (
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis dataKey="date" {...axisProps} minTickGap={36} tickFormatter={(d: string) => (viewMode === "day" ? d.slice(0, 6) : d)} />
+                <YAxis {...axisProps} width={60} tickFormatter={axisInr} />
+                <Tooltip
+                  cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
+                  content={({ active, payload, label }) => active && payload?.length ? (
+                    <ChartTooltipBox title={label} rows={[{ key: "v", label: "Asset Value", value: formatCurrency(Number(payload[0].value)), color: palette.s1 }]} />
+                  ) : null}
+                />
+                <Area type="monotone" dataKey="value" stroke={palette.s1} fill={palette.s1} fillOpacity={0.1} strokeWidth={2} dot={viewMode === "month" ? { r: 4, fill: palette.s1, stroke: "hsl(var(--card))", strokeWidth: 2 } : false} activeDot={{ r: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-        </CardHeader>
-
-        <CardContent className="p-6">
-          {isLoading ? (
-            <div className="h-72 flex items-center justify-center text-muted-foreground">
-              Loading chart data...
-            </div>
-          ) : chartData.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground">
-              <TrendingUp className="h-12 w-12 mb-4 opacity-50" />
-              <p className="font-medium">No historical data yet</p>
-              <p className="text-sm">Daily snapshots will appear here starting from tomorrow at 12:00 AM</p>
-            </div>
-          ) : (
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 11 }}
-                    angle={-30}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), "Asset Value"]}
-                    labelStyle={{ fontWeight: "bold" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#4f46e5"
-                    fill="#4f46e5"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </Panel>
 
       {/* Tabular Data */}
       {chartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {viewMode === "day" ? "Daily" : "Monthly"} Asset Value Breakdown
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Total Asset Value</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {chartData.map((item) => (
-                    <TableRow key={item.date}>
-                      <TableCell className="text-sm">{item.date}</TableCell>
-                      <TableCell className="text-right font-mono text-sm font-semibold">
-                        {formatCurrency(item.value)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <Panel title={`${viewMode === "day" ? "Daily" : "Monthly"} Asset Value Breakdown`} description="Newest first">
+          <Table density="compact">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Total Asset Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pager.slice.map((item) => (
+                <TableRow key={item.date}>
+                  <TableCell className="text-sm">{item.date}</TableCell>
+                  <TableCell className="text-right text-sm font-semibold font-mono text-[13px] tabular-nums">
+                    {formatCurrency(item.value)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePager {...pager} noun={viewMode === "day" ? "days" : "months"} />
+        </Panel>
       )}
     </div>
   );

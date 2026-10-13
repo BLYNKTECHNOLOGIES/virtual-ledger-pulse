@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Clock, Loader2, Mail, MessageSquare, Paperclip, RefreshCw, RotateCcw, Search } from "lucide-react";
+import { BellRing, Check, Clock, Loader2, Mail, MessageSquare, Paperclip, RefreshCw, RotateCcw, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -118,7 +118,7 @@ export default function AtsInboxPage() {
 
   // Desktop: select the first row once loaded.
   useEffect(() => {
-    if (isLg && isConv && !sel && rows.length) setParams({ c: rows[0].candidate_id! }, true);
+    if (isLg && isConv && !sel && rows.length) setParams({ c: rows[0].candidate_id!, app: null, tab: null }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLg, isConv, sel, rows]);
 
@@ -128,13 +128,23 @@ export default function AtsInboxPage() {
   const [pickFor, setPickFor] = useState<string | null>(null);
 
   const openRow = (r: ConversationRow) => {
-    if (isLg) setParams({ c: r.candidate_id! }, true);
+    if (isLg) setParams({ c: r.candidate_id!, app: null, tab: null }, true);
     else nav(`/hrms/ats/candidates/${r.candidate_id}?${r.application_id ? `app=${r.application_id}&` : ""}tab=messages`);
   };
-  const act = async (candidateId: string, action: "done" | "reopen" | "snooze", until?: string) => {
+  // After an action on the selected row (any tab except All), move to the next row, else the previous, else clear.
+  const advanceFrom = (candidateId: string, snapshot: ConversationRow[]) => {
+    if (view === "all" || sp.get("c") !== candidateId) return;
+    const i = snapshot.findIndex((r) => r.candidate_id === candidateId);
+    if (i < 0) return;
+    const next = snapshot[i + 1] ?? snapshot[i - 1] ?? null;
+    setParams({ c: next?.candidate_id ?? null, app: null, tab: null }, true);
+  };
+  const act = async (candidateId: string, action: "done" | "reopen" | "snooze" | "unsnooze", until?: string) => {
+    const snapshot = rows;
     try {
-      await setConversation(candidateId, action, until);
-      toast.success(action === "done" ? "Conversation marked done" : action === "reopen" ? "Conversation reopened" : "Conversation snoozed");
+      await setConversation(candidateId, action === "unsnooze" ? "reopen" : action, until);
+      toast.success(action === "done" ? "Conversation marked done" : action === "reopen" ? "Conversation reopened" : action === "unsnooze" ? "Conversation unsnoozed" : "Conversation snoozed");
+      advanceFrom(candidateId, snapshot);
       qc.invalidateQueries({ queryKey: convKeys.all });
     } catch (e) { toast.error(atsErrorMessage(e)); }
   };
@@ -155,7 +165,7 @@ export default function AtsInboxPage() {
         e.preventDefault();
         const d = k === "j" || k === "ArrowDown" ? 1 : -1;
         const n = Math.min(rs.length - 1, Math.max(0, (i < 0 ? 0 : i + d)));
-        setParams({ c: rs[n].candidate_id! }, true);
+        setParams({ c: rs[n].candidate_id!, app: null, tab: null }, true);
         document.getElementById(`conv-${rs[n].candidate_id}`)?.scrollIntoView({ block: "nearest" });
         return;
       }
@@ -266,7 +276,8 @@ export default function AtsInboxPage() {
               <div className="flex min-h-0 flex-col border-r border-border">{convList}</div>
               <div className="min-h-0 min-w-0 overflow-hidden">
                 {sel ? (
-                  <CandidateReviewPanel key={sel} candidateId={sel} appId={selRow?.application_id ?? null} initialPaneTab="messages" className="h-full" />
+                  <CandidateReviewPanel key={sel} candidateId={sel} appId={sp.get("app") ?? selRow?.application_id ?? null} initialPaneTab="messages" className="h-full"
+                    onAppChange={(id) => setParams({ app: id }, true)} onConversationChanged={() => advanceFrom(sel, rows)} />
                 ) : !conv.isLoading && !rows.length ? null : <div className="p-4"><RowsSkeleton rows={6} /></div>}
               </div>
             </div>
@@ -283,7 +294,7 @@ export default function AtsInboxPage() {
 
 function ConversationListItem({ r, view, selected, onOpen, onAct, snoozeOpen, onSnoozeOpenChange, onPick }: {
   r: ConversationRow; view: ConvView; selected: boolean; onOpen: () => void;
-  onAct: (candidateId: string, action: "done" | "reopen" | "snooze", until?: string) => void;
+  onAct: (candidateId: string, action: "done" | "reopen" | "snooze" | "unsnooze", until?: string) => void;
   snoozeOpen: boolean; onSnoozeOpenChange: (o: boolean) => void; onPick: () => void;
 }) {
   const unread = Number(r.unread ?? 0) > 0;
@@ -340,6 +351,11 @@ function ConversationListItem({ r, view, selected, onOpen, onAct, snoozeOpen, on
             {view === "done" ? <RotateCcw className="h-4 w-4" /> : <Check className="h-4 w-4" />}
           </Button>
         </TooltipTrigger><TooltipContent>{view === "done" ? "Reopen" : "Done"} (e)</TooltipContent></Tooltip></TooltipProvider>
+        {view === "snoozed" && (
+          <TooltipProvider delayDuration={150}><Tooltip><TooltipTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Unsnooze" onClick={() => onAct(id, "unsnooze")}><BellRing className="h-4 w-4" /></Button>
+          </TooltipTrigger><TooltipContent>Unsnooze</TooltipContent></Tooltip></TooltipProvider>
+        )}
         <DropdownMenu open={snoozeOpen} onOpenChange={onSnoozeOpenChange}>
           <DropdownMenuTrigger asChild>
             <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Snooze"><Clock className="h-4 w-4" /></Button>

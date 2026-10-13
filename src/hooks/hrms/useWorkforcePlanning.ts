@@ -17,10 +17,10 @@ export function useWorkforceLookups() {
     queryFn: async () => {
       const [departments, positions, shifts, employees] = await Promise.all([
         supabase.from("departments").select("id, name").eq("is_active", true).order("name"),
-        supabase.from("positions").select("id, title, department_id").eq("is_active", true).order("title"),
+        supabase.from("positions").select("id, title, department_id, in_workforce_planning").eq("is_active", true).order("title"),
         supabase
           .from("hr_shifts")
-          .select("id, name, start_time, end_time")
+          .select("id, name, start_time, end_time, planning_shift_id, is_training_shift")
           .eq("is_active", true)
           .order("start_time"),
         supabase
@@ -65,11 +65,11 @@ export function useStaffingMatrix() {
  * Used for seat occupancy: a desk is shared across shifts, so the number of
  * people sitting at once is the busiest single shift, not everyone added up.
  */
-export function useSeatOccupancy() {
+export function useSeatOccupancy(planningOnly = true) {
   return useQuery({
-    queryKey: ["workforce_seat_occupancy"],
+    queryKey: ["workforce_seat_occupancy", planningOnly],
     queryFn: async () => {
-      const [workInfoResult, schedulesResult] = await Promise.all([
+      const [workInfoResult, schedulesResult, shiftsResult, positionsResult] = await Promise.all([
         supabase
           .from("hr_employee_work_info")
           .select(
@@ -81,9 +81,15 @@ export function useSeatOccupancy() {
           .select("employee_id, shift_id, effective_from")
           .eq("is_current", true)
           .order("effective_from", { ascending: false }),
+        supabase.from("hr_shifts").select("id, planning_shift_id, is_training_shift"),
+        supabase.from("positions").select("id, is_active, in_workforce_planning"),
       ]);
       if (workInfoResult.error) throw workInfoResult.error;
       if (schedulesResult.error) throw schedulesResult.error;
+      if (shiftsResult.error) throw shiftsResult.error;
+      if (positionsResult.error) throw positionsResult.error;
+      const shiftById = new Map((shiftsResult.data || []).map((s: any) => [s.id, s]));
+      const positionById = new Map((positionsResult.data || []).map((p: any) => [p.id, p]));
 
       const currentShiftByEmployee = new Map<string, string>();
       (schedulesResult.data || []).forEach((schedule) => {
@@ -92,12 +98,26 @@ export function useSeatOccupancy() {
         }
       });
 
+      // Same people rules as the staffing matrix: positions outside planning
+      // (leadership) and tentative positions never sit on the seat map; a shift
+      // counts as its planning shift.
       return (workInfoResult.data || [])
         .filter((row: any) => (row.employee?.resignation_status ?? "") !== "completed")
-        .map((row) => ({
-          ...row,
-          shift_id: currentShiftByEmployee.get(row.employee_id) ?? row.shift_id ?? null,
-        }));
+        .filter((row: any) => {
+          if (!planningOnly) return true;
+          const pos = row.job_position_id ? positionById.get(row.job_position_id) : null;
+          return !pos || (pos.is_active && pos.in_workforce_planning !== false);
+        })
+        .map((row) => {
+          const raw = currentShiftByEmployee.get(row.employee_id) ?? row.shift_id ?? null;
+          const shift = raw ? shiftById.get(raw) : null;
+          return {
+            ...row,
+            raw_shift_id: raw,
+            shift_id: raw ? shift?.planning_shift_id || raw : null,
+            is_training: !!shift?.is_training_shift,
+          };
+        });
     },
     staleTime: STALE,
   });
@@ -131,6 +151,8 @@ export interface HeadcountPlanInput {
   target_date: string | null;
   priority: string;
   notes: string | null;
+  seat_capacity_id?: string | null;
+  follow_desks?: boolean;
 }
 
 export function useHeadcountPlans() {
@@ -157,8 +179,15 @@ function invalidatePlanning(qc: ReturnType<typeof useQueryClient>) {
     "workforce_seat_capacity",
     "workforce_hiring_requirements",
     "workforce_audit",
+    "workforce_line_people",
+    "workforce_trainees",
+    "workforce_seat_occupancy",
+    "workforce_lookups",
+    "ats",
   ].forEach((key) => qc.invalidateQueries({ queryKey: [key] }));
 }
+
+export { invalidatePlanning };
 
 export function useSaveHeadcountPlan() {
   const qc = useQueryClient();
@@ -187,10 +216,11 @@ export function useSaveHeadcountPlan() {
 export function useDeleteHeadcountPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (arg: string | { id: string; reason: string }) => {
+      const { id, reason } = typeof arg === "string" ? { id: arg, reason: null } : arg;
       const { error } = await supabase
         .from("hr_headcount_plans")
-        .update({ is_active: false })
+        .update(reason ? { is_active: false, notes: reason } : { is_active: false })
         .eq("id", id);
       if (error) throw error;
     },
@@ -213,6 +243,7 @@ export interface SeatCapacityInput {
   physical_seats: number;
   max_operational_capacity: number | null;
   notes: string | null;
+  is_training_only?: boolean;
 }
 
 export function useSeatCapacity() {
@@ -293,6 +324,7 @@ export interface HiringRequirementInput {
   priority: string;
   status: string;
   notes: string | null;
+  staffing_plan_id?: string | null;
 }
 
 export function useHiringRequirements() {
@@ -318,11 +350,19 @@ export function useSaveHiringRequirement() {
     mutationFn: async (input: HiringRequirementInput) => {
       const { id, ...payload } = input;
       if (id) {
-        const { error } = await supabase
-          .from("hr_hiring_requirements")
-          .update(payload)
-          .eq("id", id);
+        // Status changes on existing requirements only go through the transition RPC.
+        const { status, ...rest } = payload;
+        const { data: before, error: readError } = await supabase
+          .from("hr_hiring_requirements").select("status").eq("id", id).single();
+        if (readError) throw readError;
+        const { error } = await supabase.from("hr_hiring_requirements").update(rest).eq("id", id);
         if (error) throw error;
+        if (before?.status === "draft" && status === "pending_approval") {
+          const { error: tErr } = await (supabase.rpc as any)("hr_requirement_transition", {
+            p_id: id, p_action: "submit", p_reason: null,
+          });
+          if (tErr) throw tErr;
+        }
         return id;
       }
       const { data: reqNo, error: numberError } = await supabase.rpc(
@@ -351,37 +391,112 @@ export function useSaveHiringRequirement() {
   });
 }
 
-export function useSetRequirementStatus() {
+export type RequirementAction = "submit" | "approve" | "reject" | "cancel" | "reopen";
+
+/** The only way the screens change a requirement's status (hr_requirement_transition). */
+export function useRequirementTransition() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      id,
-      status,
-      rejectionReason,
-    }: {
-      id: string;
-      status: string;
-      rejectionReason?: string;
-    }) => {
-      const { data: user } = await supabase.auth.getUser();
-      const patch: Record<string, unknown> = { status };
-      if (status === "approved") {
-        patch.approved_at = new Date().toISOString();
-        patch.approver_id = user?.user?.id ?? null;
-        patch.approver_name = user?.user?.email ?? null;
-      }
-      if (status === "rejected") patch.rejection_reason = rejectionReason || null;
-      const { error } = await supabase
-        .from("hr_hiring_requirements")
-        .update(patch)
-        .eq("id", id);
+    mutationFn: async ({ id, action, reason }: { id: string; action: RequirementAction; reason?: string | null }) => {
+      const { data, error } = await (supabase.rpc as any)("hr_requirement_transition", {
+        p_id: id, p_action: action, p_reason: reason?.trim() || null,
+      });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: (_d, v) => {
+      invalidatePlanning(qc);
+      const word: Record<RequirementAction, string> = {
+        submit: "submitted for approval", approve: "approved", reject: "rejected", cancel: "cancelled", reopen: "reopened as a draft",
+      };
+      toast.success(`Requirement ${word[v.action]}`);
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not update the requirement"),
+  });
+}
+
+/** Back-compat wrapper used by the requirement detail dialog. */
+export function useSetRequirementStatus() {
+  const t = useRequirementTransition();
+  const map: Record<string, RequirementAction> = {
+    approved: "approve", rejected: "reject", cancelled: "cancel", pending_approval: "submit", draft: "reopen",
+  };
+  return {
+    ...t,
+    mutate: (
+      { id, status, rejectionReason }: { id: string; status: string; rejectionReason?: string },
+      opts?: Parameters<typeof t.mutate>[1],
+    ) => t.mutate({ id, action: map[status] ?? (status as RequirementAction), reason: rejectionReason }, opts),
+  };
+}
+
+export interface LinePerson {
+  kind: "on_roll" | "trainee";
+  employee_id: string;
+  full_name: string | null;
+  badge_id: string | null;
+  shift_name: string | null;
+  on_notice: boolean;
+  last_working_day: string | null;
+  ready_date: string | null;
+  post_training_shift_id: string | null;
+  post_training_shift_name: string | null;
+}
+
+export function useLinePeople(planId?: string | null) {
+  return useQuery({
+    queryKey: ["workforce_line_people", planId],
+    enabled: !!planId,
+    queryFn: async (): Promise<LinePerson[]> => {
+      const { data, error } = await (supabase.rpc as any)("hr_workforce_line_people", { p_plan_id: planId });
+      if (error) throw error;
+      return (data || []) as LinePerson[];
+    },
+    staleTime: STALE,
+  });
+}
+
+export interface TraineeRow {
+  employee_id: string;
+  full_name: string | null;
+  badge_id: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  position_id: string | null;
+  position_title: string | null;
+  training_end_date: string | null;
+  post_training_shift_id: string | null;
+  post_training_shift_name: string | null;
+  plan_id: string | null;
+  line_label: string | null;
+}
+
+export function useWorkforceTrainees() {
+  return useQuery({
+    queryKey: ["workforce_trainees"],
+    queryFn: async (): Promise<TraineeRow[]> => {
+      const { data, error } = await (supabase.rpc as any)("hr_workforce_trainees");
+      if (error) throw error;
+      return (data || []) as TraineeRow[];
+    },
+    staleTime: STALE,
+  });
+}
+
+export function useSetPostTrainingShift() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ employeeId, shiftId }: { employeeId: string; shiftId: string | null }) => {
+      const { error } = await (supabase.rpc as any)("hr_set_post_training_shift", {
+        p_employee: employeeId, p_shift: shiftId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       invalidatePlanning(qc);
-      toast.success("Requirement updated");
+      toast.success("After-training shift saved");
     },
-    onError: (e: any) => toast.error(e?.message || "Could not update the requirement"),
+    onError: (e: any) => toast.error(e?.message || "Could not save the after-training shift"),
   });
 }
 

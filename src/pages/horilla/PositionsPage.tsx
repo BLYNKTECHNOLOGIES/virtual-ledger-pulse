@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { useJobDescriptions, type JobDescriptionRow } from "@/hooks/useJobDescriptions";
-import { useSeatOccupancy } from "@/hooks/hrms/useWorkforcePlanning";
+import { invalidatePlanning, useHeadcountPlans, useSeatOccupancy, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
 import { JobDescriptionViewer } from "@/components/horilla/positions/JobDescriptionViewer";
 import { JobDescriptionLibraryDialog } from "@/components/horilla/positions/JobDescriptionLibraryDialog";
 
@@ -103,12 +103,63 @@ export default function PositionsPage() {
     (jobDescriptions || []).find((j) => j.position_id === positionId) || null;
 
   // People currently on roll against each position (active employees only).
-  const { data: occupancy } = useSeatOccupancy();
+  const { data: occupancy } = useSeatOccupancy(false);
   const headcountByPosition = (occupancy || []).reduce<Record<string, number>>((acc, row: any) => {
     if (row.job_position_id) acc[row.job_position_id] = (acc[row.job_position_id] || 0) + 1;
     return acc;
   }, {});
   const hiredCount = (positionId: string) => headcountByPosition[positionId] || 0;
+
+  // Planned figures per role, straight from the staffing matrix (shared lines count for each role in them).
+  const { rows: matrixRows } = useStaffingMatrix();
+  const { data: planRows = [] } = useHeadcountPlans();
+  const plannedByPosition = (() => {
+    const planRoles = new Map((planRows as any[]).map((pl) => [pl.id, pl.eligible_position_ids?.length ? pl.eligible_position_ids : [pl.position_id]]));
+    const m: Record<string, { required: number; current: number; shared: boolean }> = {};
+    matrixRows.forEach((r) => {
+      const roles: string[] = planRoles.get(r.plan_id) || (r.position_id ? [r.position_id] : []);
+      roles.forEach((id) => {
+        const e = m[id] || { required: 0, current: 0, shared: false };
+        e.required += r.required_hc; e.current += r.current_hc; e.shared = e.shared || roles.length > 1;
+        m[id] = e;
+      });
+    });
+    return m;
+  })();
+  const planningMutation = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const { error } = await supabase.from("positions").update({ in_workforce_planning: value } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
+      invalidatePlanning(queryClient);
+      toast.success(v.value ? "Position is now part of workforce planning" : "Position left out of workforce planning");
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not update the position"),
+  });
+  const PlanningControl = ({ p }: { p: any }) => {
+    const inPlan = p.in_workforce_planning !== false;
+    const planned = plannedByPosition[p.id];
+    return (
+      <div className="mt-1.5 space-y-0.5">
+        <div className="flex items-center gap-2" title="Leadership and contract roles without a desk are left out of staffing.">
+          <Switch
+            checked={inPlan}
+            disabled={planningMutation.isPending}
+            onCheckedChange={(v) => planningMutation.mutate({ id: p.id, value: v })}
+            aria-label="In workforce planning"
+          />
+          <span className="text-[10px] text-muted-foreground">In workforce planning</span>
+        </div>
+        {inPlan && planned && (
+          <p className="text-[10px] text-muted-foreground">
+            Planned: required {planned.required} · on roll {planned.current}{planned.shared ? " (shared line)" : ""}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const blockIfOccupied = (p: any, action: "tentative" | "delete") => {
     const count = hiredCount(p.id);
@@ -290,6 +341,7 @@ export default function PositionsPage() {
                     {p.is_active ? "Active" : "Tentative"}
                   </span>
                 </div>
+                <PlanningControl p={p} />
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1">
@@ -338,6 +390,7 @@ export default function PositionsPage() {
                   </span>
                 </div>
               </div>
+              <PlanningControl p={p} />
               <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
                 {jdForPosition(p.id) ? (
                   <Button variant="outline" className="h-8 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>

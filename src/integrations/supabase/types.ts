@@ -35504,6 +35504,10 @@ export type Database = {
         }
         Returns: string
       }
+      hr_requirement_transition: {
+        Args: { p_action: string; p_id: string; p_reason?: string }
+        Returns: string
+      }
       hr_resolve_employee_by_pin: {
         Args: { _device_serial: string; _pin: string; _punch_time?: string }
         Returns: string
@@ -35567,6 +35571,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      hr_set_post_training_shift: {
+        Args: { p_employee: string; p_shift: string }
+        Returns: undefined
       }
       hr_settle_compoff_credits: {
         Args: {
@@ -35747,6 +35755,8 @@ export type Database = {
           still_open: number
         }[]
       }
+      hr_wf_caller_is_internal: { Args: never; Returns: boolean }
+      hr_wf_is_manager: { Args: { _uid: string }; Returns: boolean }
       hr_wf_line_base: {
         Args: never
         Returns: {
@@ -35817,6 +35827,21 @@ export type Database = {
         }[]
       }
       hr_withdraw_holiday_credits: { Args: { p_date: string }; Returns: Json }
+      hr_workforce_line_people: {
+        Args: { p_plan_id: string }
+        Returns: {
+          badge_id: string
+          employee_id: string
+          full_name: string
+          kind: string
+          last_working_day: string
+          on_notice: boolean
+          post_training_shift_id: string
+          post_training_shift_name: string
+          ready_date: string
+          shift_name: string
+        }[]
+      }
       hr_workforce_staffing_matrix: {
         Args: never
         Returns: {
@@ -35847,6 +35872,23 @@ export type Database = {
           shift_name: string
           target_date: string
           training_ready_date: string
+        }[]
+      }
+      hr_workforce_trainees: {
+        Args: never
+        Returns: {
+          badge_id: string
+          department_id: string
+          department_name: string
+          employee_id: string
+          full_name: string
+          line_label: string
+          plan_id: string
+          position_id: string
+          position_title: string
+          post_training_shift_id: string
+          post_training_shift_name: string
+          training_end_date: string
         }[]
       }
       hr_workforce_unplanned_scopes: {

@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/select";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import {
-  EMPLOYMENT_TYPES,
+  EMPLOYMENT_TYPE_OPTIONS,
+  normEmploymentType,
+  planningShifts,
   HIRING_REASONS,
   PRIORITIES,
   PRIORITY_LABEL,
@@ -67,7 +69,7 @@ export function HiringRequirementDialog({
   const [form, setForm] = useState<HiringRequirementInput & { id?: string }>(BLANK);
 
   useEffect(() => {
-    if (open) setForm({ ...BLANK, ...initial });
+    if (open) setForm({ ...BLANK, ...initial } as HiringRequirementInput & { id?: string });
   }, [open, initial]);
 
   const set = (patch: Partial<HiringRequirementInput>) =>
@@ -174,7 +176,7 @@ export function HiringRequirementDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Not shift specific</SelectItem>
-                  {(lookups?.shifts || []).map((s) => (
+                  {planningShifts(lookups?.shifts || []).map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
@@ -186,7 +188,7 @@ export function HiringRequirementDialog({
             <div className="space-y-1">
               <Label>Employment type</Label>
               <Select
-                value={form.employment_type ?? "none"}
+                value={form.employment_type ? normEmploymentType(form.employment_type) : "none"}
                 onValueChange={(v) => set({ employment_type: v === "none" ? null : v })}
               >
                 <SelectTrigger className="text-foreground">
@@ -194,9 +196,9 @@ export function HiringRequirementDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Not specified</SelectItem>
-                  {EMPLOYMENT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
+                  {EMPLOYMENT_TYPE_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

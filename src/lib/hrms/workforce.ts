@@ -28,6 +28,12 @@ export interface StaffingMatrixRow {
   priority: string;
   open_requirement_count: number;
   open_requirement_hc: number;
+  shift_group_name: string | null;
+  seat_capacity_id: string | null;
+  follow_desks: boolean;
+  in_training_hc: number;
+  training_ready_date: string | null;
+  over_requested_hc: number;
 }
 
 export type StaffingStatus =
@@ -37,13 +43,13 @@ export type StaffingStatus =
   | "hiring";
 
 export interface StaffingDerived extends StaffingMatrixRow {
-  /** Approved capacity still unused. */
+  /** Approved − on roll (can be negative). */
   availableSeats: number;
-  /** Required − current. Positive = short of people. */
+  /** Required − on roll. Positive = short of people. */
   staffingGap: number;
-  /** People still to hire once selected candidates and confirmed joiners land. */
+  /** max(0, required − on roll − selected − joining − in training). */
   netHiringRequirement: number;
-  /** Still-uncovered hiring after open requirements are also deducted. */
+  /** max(0, net need − open requirement people). */
   uncoveredHiringRequirement: number;
   /** Physical seats still free. */
   availablePhysicalSeats: number;
@@ -51,52 +57,56 @@ export interface StaffingDerived extends StaffingMatrixRow {
   status: StaffingStatus;
   /** Gap as a share of required headcount (used for the critical alert). */
   gapPct: number;
+  /** Planning shift label ("Any shift" when the line has none). */
+  shiftLabel: string;
   alerts: string[];
 }
 
-export function deriveStaffingRow(row: StaffingMatrixRow): StaffingDerived {
+const n = (v: unknown) => Number(v) || 0;
+
+export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
+  const row: StaffingMatrixRow = {
+    ...raw,
+    approved_hc: n(raw.approved_hc),
+    required_hc: n(raw.required_hc),
+    current_hc: n(raw.current_hc),
+    physical_seats: n(raw.physical_seats),
+    pipeline_hc: n(raw.pipeline_hc),
+    selected_hc: n(raw.selected_hc),
+    pending_joining_hc: n(raw.pending_joining_hc),
+    notice_period_hc: n(raw.notice_period_hc),
+    open_requirement_count: n(raw.open_requirement_count),
+    open_requirement_hc: n(raw.open_requirement_hc),
+    in_training_hc: n(raw.in_training_hc),
+    over_requested_hc: n(raw.over_requested_hc),
+    follow_desks: !!raw.follow_desks,
+  };
   const availableSeats = row.approved_hc - row.current_hc;
   const staffingGap = row.required_hc - row.current_hc;
   const netHiringRequirement = Math.max(
     0,
-    row.required_hc - row.current_hc - row.selected_hc - row.pending_joining_hc,
+    row.required_hc - row.current_hc - row.selected_hc - row.pending_joining_hc - row.in_training_hc,
   );
-  const uncoveredHiringRequirement = Math.max(
-    0,
-    netHiringRequirement - row.open_requirement_hc,
-  );
-  const availablePhysicalSeats = row.physical_seats
-    ? row.physical_seats - row.current_hc
-    : 0;
-  const seatUtilisationPct = row.physical_seats
-    ? (row.current_hc / row.physical_seats) * 100
-    : null;
+  const uncoveredHiringRequirement = Math.max(0, netHiringRequirement - row.open_requirement_hc);
+  const availablePhysicalSeats = row.physical_seats ? row.physical_seats - row.current_hc : 0;
+  const seatUtilisationPct = row.physical_seats ? (row.current_hc / row.physical_seats) * 100 : null;
 
-  let status: StaffingStatus;
-  if (staffingGap > 0) {
-    // A requisition does not make a vacant seat staffed. Keep the shortage
-    // visible until a person actually joins; open hiring is shown separately.
-    status = "understaffed";
-  } else if (staffingGap === 0) {
-    status = "fully_staffed";
-  } else {
-    status = "overstaffed";
-  }
+  // A requisition does not make a vacant seat staffed: status follows the gap only.
+  const status: StaffingStatus =
+    staffingGap > 0 ? "understaffed" : staffingGap === 0 ? "fully_staffed" : "overstaffed";
 
   const gapPct = row.required_hc > 0 ? (staffingGap / row.required_hc) * 100 : 0;
+  const shiftLabel = row.shift_group_name || row.shift_name || "Any shift";
 
   const alerts: string[] = [];
-  if (gapPct >= 20) alerts.push("Critical staffing gap");
+  if (staffingGap > 0 && gapPct >= 20) alerts.push("Critical staffing gap");
   if (staffingGap < 0) alerts.push("Overstaffed");
-  if (row.physical_seats > 0 && row.current_hc >= row.physical_seats)
-    alerts.push("Seat capacity reached");
-  if (row.target_date && netHiringRequirement > 0) {
-    const days =
-      (new Date(row.target_date).getTime() - Date.now()) / 86_400_000;
-    if (days <= 15) alerts.push("Hiring deadline approaching");
-  }
-  if (row.notice_period_hc > 0)
-    alerts.push(`${row.notice_period_hc} on notice period`);
+  if (row.physical_seats > 0 && row.current_hc > row.physical_seats)
+    alerts.push("People without a desk");
+  if (row.over_requested_hc > 0) alerts.push(`Over-requested by ${row.over_requested_hc}`);
+  if (row.target_date && netHiringRequirement > 0 && daysUntil(row.target_date) <= 15)
+    alerts.push("Hiring deadline approaching");
+  if (row.notice_period_hc > 0) alerts.push(`${row.notice_period_hc} on notice period`);
 
   return {
     ...row,
@@ -108,8 +118,150 @@ export function deriveStaffingRow(row: StaffingMatrixRow): StaffingDerived {
     seatUtilisationPct,
     status,
     gapPct,
+    shiftLabel,
     alerts,
   };
+}
+
+/** Whole days from today (IST) to an ISO date. */
+export function daysUntil(isoDate: string, today: string = istToday()): number {
+  return Math.round((Date.parse(isoDate.slice(0, 10)) - Date.parse(today)) / 86_400_000);
+}
+
+export interface StaffingTotals {
+  lines: number;
+  required: number;
+  approved: number;
+  current: number;
+  inTraining: number;
+  /** Σ positive gaps — a surplus in one line never nets against a shortage in another. */
+  shortNow: number;
+  overNow: number;
+  netNeed: number;
+  uncovered: number;
+  requested: number;
+  overRequested: number;
+  pipeline: number;
+  selected: number;
+  joining: number;
+  notice: number;
+  /** Σ max(0, approved − on roll) per line. */
+  vacant: number;
+  nextReadyDate: string | null;
+}
+
+/** Totals are sums of per-line values, never "total required − total on roll". */
+export function sumLines(rows: StaffingDerived[]): StaffingTotals {
+  const t: StaffingTotals = {
+    lines: rows.length, required: 0, approved: 0, current: 0, inTraining: 0, shortNow: 0,
+    overNow: 0, netNeed: 0, uncovered: 0, requested: 0, overRequested: 0, pipeline: 0,
+    selected: 0, joining: 0, notice: 0, vacant: 0, nextReadyDate: null,
+  };
+  for (const r of rows) {
+    t.required += r.required_hc;
+    t.approved += r.approved_hc;
+    t.current += r.current_hc;
+    t.inTraining += r.in_training_hc;
+    t.shortNow += Math.max(0, r.staffingGap);
+    t.overNow += Math.max(0, -r.staffingGap);
+    t.netNeed += r.netHiringRequirement;
+    t.uncovered += r.uncoveredHiringRequirement;
+    t.requested += r.open_requirement_hc;
+    t.overRequested += r.over_requested_hc;
+    t.pipeline += r.pipeline_hc;
+    t.selected += r.selected_hc;
+    t.joining += r.pending_joining_hc;
+    t.notice += r.notice_period_hc;
+    t.vacant += Math.max(0, r.availableSeats);
+    if (r.training_ready_date && (!t.nextReadyDate || r.training_ready_date < t.nextReadyDate))
+      t.nextReadyDate = r.training_ready_date;
+  }
+  return t;
+}
+
+export interface RebalanceHint {
+  key: string;
+  role: string;
+  department: string | null;
+  over: { shift: string; by: number }[];
+  short: { shift: string; by: number }[];
+  movable: number;
+  message: string;
+}
+
+/** Same role over in one shift and short in another: moving people beats hiring. */
+export function findRebalances(rows: StaffingDerived[]): RebalanceHint[] {
+  const groups = new Map<string, StaffingDerived[]>();
+  for (const r of rows) {
+    const key = `${r.department_id ?? "-"}|${r.position_id ?? "-"}`;
+    groups.set(key, [...(groups.get(key) || []), r]);
+  }
+  const out: RebalanceHint[] = [];
+  groups.forEach((list, key) => {
+    const over = list.filter((r) => r.staffingGap < 0).map((r) => ({ shift: r.shiftLabel, by: -r.staffingGap }));
+    const short = list.filter((r) => r.staffingGap > 0).map((r) => ({ shift: r.shiftLabel, by: r.staffingGap }));
+    if (!over.length || !short.length) return;
+    const overTotal = over.reduce((a, o) => a + o.by, 0);
+    const shortTotal = short.reduce((a, s) => a + s.by, 0);
+    const movable = Math.min(overTotal, shortTotal);
+    const role = list[0].position_title || "Role";
+    const overText = over.map((o) => `${o.shift} has ${o.by} more than required`).join(", ");
+    const shortText = short.map((s) => `${s.shift} is short ${s.by}`).join(", ");
+    const biggest = short.slice().sort((a, b) => b.by - a.by)[0];
+    const moveHere = Math.min(movable, biggest.by);
+    out.push({
+      key, role, department: list[0].department_name, over, short, movable,
+      message: `${role}: ${overText}; ${shortText} — moving ${moveHere} ${moveHere === 1 ? "person" : "people"} cuts ${biggest.shift} hiring to ${biggest.by - moveHere}.`,
+    });
+  });
+  return out;
+}
+
+export interface PlanningShiftLike {
+  id: string;
+  name: string;
+  start_time?: string | null;
+  planning_shift_id?: string | null;
+  is_training_shift?: boolean | null;
+}
+
+/** Operating order: by start time, with shifts starting before 06:00 placed last. */
+export function operatingOrderKey(start?: string | null): number {
+  if (!start) return 99 * 60;
+  const [h = "0", m = "0"] = start.split(":");
+  const mins = Number(h) * 60 + Number(m);
+  return mins < 6 * 60 ? mins + 24 * 60 : mins;
+}
+
+export function sortByOperatingOrder<T extends { start_time?: string | null; name: string }>(list: T[]): T[] {
+  return list
+    .slice()
+    .sort((a, b) => operatingOrderKey(a.start_time) - operatingOrderKey(b.start_time) || a.name.localeCompare(b.name));
+}
+
+/** Shifts that count as themselves and are not training shifts, in operating order. */
+export function planningShifts<T extends PlanningShiftLike>(shifts: T[]): T[] {
+  return sortByOperatingOrder(shifts.filter((s) => !s.planning_shift_id && !s.is_training_shift));
+}
+
+/** The planning shift a raw shift counts as (itself when it has no group). */
+export function planningShiftId(shifts: PlanningShiftLike[], shiftId?: string | null): string | null {
+  if (!shiftId) return null;
+  const s = shifts.find((x) => x.id === shiftId);
+  return s?.planning_shift_id || shiftId;
+}
+
+export type GapTone = "short" | "met" | "over";
+export function gapTone(gap: number): GapTone {
+  return gap > 0 ? "short" : gap < 0 ? "over" : "met";
+}
+export const GAP_CHIP_CLASS: Record<GapTone, string> = {
+  short: "bg-destructive/15 text-destructive border-destructive/30",
+  met: "bg-success/15 text-success border-success/30",
+  over: "bg-warning/15 text-warning border-warning/30",
+};
+export function gapLabel(gap: number): string {
+  return gap > 0 ? `short ${gap}` : gap < 0 ? `over ${-gap}` : "met";
 }
 
 export const STATUS_LABEL: Record<StaffingStatus, string> = {
@@ -118,6 +270,13 @@ export const STATUS_LABEL: Record<StaffingStatus, string> = {
   overstaffed: "Overstaffed",
   hiring: "Hiring",
 };
+
+/** Status filter options (hiring is not a staffing state). */
+export const STATUS_FILTER_OPTIONS: { value: StaffingStatus; label: string }[] = [
+  { value: "understaffed", label: "Short" },
+  { value: "fully_staffed", label: "Met" },
+  { value: "overstaffed", label: "Over" },
+];
 
 export const STATUS_CLASS: Record<StaffingStatus, string> = {
   understaffed: "bg-destructive/15 text-destructive border-destructive/30",
@@ -188,13 +347,19 @@ export const HIRING_REASONS = [
   { value: "other", label: "Other" },
 ];
 
-export const EMPLOYMENT_TYPES = [
-  "Full Time",
-  "Part Time",
-  "Contract",
-  "Intern",
-  "Consultant",
-];
+/** ATS employment-type codes, which plans and requirements store. */
+export const EMPLOYMENT_TYPE_OPTIONS = [
+  { value: "full_time", label: "Full time" },
+  { value: "part_time", label: "Part time" },
+  { value: "contract", label: "Contract" },
+  { value: "internship", label: "Internship" },
+  { value: "trainee", label: "Trainee" },
+] as const;
+
+export function employmentTypeLabel(v?: string | null): string {
+  if (!v) return "—";
+  return EMPLOYMENT_TYPE_OPTIONS.find((o) => o.value === normEmploymentType(v))?.label ?? v;
+}
 
 /** Plans and requirements store ATS codes (full_time…); labels like "Full Time" map to the same code. */
 export function normEmploymentType(v?: string | null): string {
@@ -204,8 +369,6 @@ export function normEmploymentType(v?: string | null): string {
   if (c === "consultant") return "contract";
   return c;
 }
-
-export const SHIFT_LABELS = ["Morning", "Evening", "Night", "General"];
 
 /** Filters shared by every workforce planning page. */
 export interface WorkforceFilterState {
@@ -236,7 +399,7 @@ export function matchesFilters(
 ): boolean {
   if (f.departmentId !== "all" && row.department_id !== f.departmentId) return false;
   if (f.positionId !== "all" && row.position_id !== f.positionId) return false;
-  if (f.shift !== "all" && (row.shift_name || "—") !== f.shift) return false;
+  if (f.shift !== "all" && row.shiftLabel !== f.shift) return false;
   if (
     f.employmentType !== "all" &&
     normEmploymentType(row.employment_type) !== normEmploymentType(f.employmentType)

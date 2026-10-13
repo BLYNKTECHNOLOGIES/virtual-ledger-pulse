@@ -15,7 +15,8 @@ import {
   formatIstDate,
   formatIstDateTime,
 } from "@/lib/hrms/workforce";
-import { useSetRequirementStatus } from "@/hooks/hrms/useWorkforcePlanning";
+import { useRequirementTransition, useSetRequirementStatus } from "@/hooks/hrms/useWorkforcePlanning";
+import { RequirementReasonDialog, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,6 +72,8 @@ export function HiringRequirementDetailDialog({
   const setStatus = useSetRequirementStatus();
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
+  const transition = useRequirementTransition();
+  const [cancelTarget, setCancelTarget] = useState<ReasonTarget | null>(null);
 
   if (!requirement) return null;
 
@@ -127,6 +130,22 @@ export function HiringRequirementDetailDialog({
                 <ThumbsUp className="h-4 w-4" /> Approve
               </Button>
             </>
+          )}
+          {canManage && requirement.status === "draft" && (
+            <Button disabled={transition.isPending} onClick={() => transition.mutate({ id: requirement.id, action: "submit" })}>
+              Submit for approval
+            </Button>
+          )}
+          {canManage && ["draft", "pending_approval", "approved", "recruitment_active", "partially_fulfilled"].includes(requirement.status) && (
+            <Button variant="outline" className="text-destructive"
+              onClick={() => setCancelTarget({ id: requirement.id, requirement_no: requirement.requirement_no, action: "cancel" })}>
+              Cancel requirement
+            </Button>
+          )}
+          {canManage && ["rejected", "cancelled"].includes(requirement.status) && (
+            <Button variant="outline" disabled={transition.isPending} onClick={() => transition.mutate({ id: requirement.id, action: "reopen" })}>
+              Reopen as draft
+            </Button>
           )}
           {canSendToRecruitment && (
             <Button onClick={() => navigate(`/hrms/ats/jobs?new=1&requirement=${requirement.id}`)}>
@@ -279,6 +298,7 @@ export function HiringRequirementDetailDialog({
           </div>
         )}
       </div>
+      <RequirementReasonDialog target={cancelTarget} onClose={() => { setCancelTarget(null); onOpenChange(false); }} />
     </ResponsiveDialog>
   );
 }

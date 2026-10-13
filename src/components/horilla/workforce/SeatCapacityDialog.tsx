@@ -11,12 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Link } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import {
   useSaveSeatCapacity,
+  useStaffingMatrix,
   useWorkforceLookups,
   type SeatCapacityInput,
 } from "@/hooks/hrms/useWorkforcePlanning";
+import { sortByOperatingOrder } from "@/lib/hrms/workforce";
 
 interface SeatCapacityDialogProps {
   open: boolean;
@@ -34,6 +38,7 @@ const BLANK: SeatCapacityInput = {
   physical_seats: 0,
   max_operational_capacity: null,
   notes: null,
+  is_training_only: false,
 };
 
 export function SeatCapacityDialog({
@@ -56,10 +61,32 @@ export function SeatCapacityDialog({
     (p) => !form.department_id || !p.department_id || p.department_id === form.department_id,
   );
 
+  const { rows: matrixRows } = useStaffingMatrix();
+  const shifts = (lookups?.shifts || []) as any[];
+  const selectedShift = shifts.find((s) => s.id === form.shift_id);
+  const training = !!form.is_training_only;
+  const trainingBlocked = !selectedShift?.is_training_shift
+    ? "Pick a training shift first (mark one as a training shift on the Shifts page)."
+    : form.position_id
+      ? "Training desks belong to no role — set Position to Whole department."
+      : null;
+
+  // Lines staffing this desk group, in operating order.
+  const linkedLines = form.id ? matrixRows.filter((r) => r.seat_capacity_id === form.id) : [];
+  const orderedLines = sortByOperatingOrder(
+    linkedLines.map((r) => ({ ...r, name: r.shiftLabel, start_time: shifts.find((s) => s.id === r.shift_id)?.start_time ?? null })),
+  );
+  const newDesk = training ? 0 : form.max_operational_capacity ?? form.physical_seats;
+  const followingToChange = linkedLines.filter((r) => r.follow_desks && r.required_hc !== newDesk).length;
+
   const submit = () => {
     const shift = lookups?.shifts.find((s) => s.id === form.shift_id);
     save.mutate(
-      { ...form, shift_label: shift?.name ?? form.shift_label ?? null },
+      {
+        ...form,
+        max_operational_capacity: training ? 0 : form.max_operational_capacity,
+        shift_label: shift?.name ?? form.shift_label ?? null,
+      },
       { onSuccess: () => onOpenChange(false) },
     );
   };
@@ -78,7 +105,7 @@ export function SeatCapacityDialog({
           </Button>
           <Button
             onClick={submit}
-            disabled={!form.department_id || save.isPending}
+            disabled={!form.department_id || save.isPending || (training && !!trainingBlocked)}
           >
             {save.isPending ? "Saving..." : "Save"}
           </Button>
@@ -86,6 +113,40 @@ export function SeatCapacityDialog({
       }
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border p-2.5 sm:col-span-2">
+          <div>
+            <p className="text-sm font-medium text-foreground">Training-only desks</p>
+            <p className="text-xs text-muted-foreground">
+              {training && trainingBlocked
+                ? trainingBlocked
+                : "Used only by people on a training shift. No role, and operational capacity 0, so they never count as staffing."}
+            </p>
+          </div>
+          <Switch
+            checked={training}
+            onCheckedChange={(v) => set({ is_training_only: v, ...(v ? { max_operational_capacity: 0, eligible_position_ids: [] } : {}) })}
+          />
+        </div>
+        {form.id && !training && (
+          <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs sm:col-span-2">
+            {orderedLines.length === 0 ? (
+              <p className="text-muted-foreground">No staffing line uses these desks yet.</p>
+            ) : (
+              <p className="text-foreground">
+                Staffed in:{" "}
+                {orderedLines.map((r) => `${r.name} ${r.required_hc}`).join(" · ")}
+                {orderedLines.some((r) => r.follow_desks) ? " (follow desks)" : ""}
+                {" · "}
+                <Link to="/hrms/workforce-planning/staffing-plan" className="text-primary hover:underline">Open staffing plan</Link>
+              </p>
+            )}
+            {followingToChange > 0 && (
+              <p className="mt-1 text-warning">
+                Saving changes {followingToChange} following line{followingToChange > 1 ? "s" : ""} to {newDesk}.
+              </p>
+            )}
+          </div>
+        )}
         <div className="space-y-1">
           <Label>Department</Label>
           <Select

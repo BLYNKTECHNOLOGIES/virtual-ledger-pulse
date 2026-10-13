@@ -871,7 +871,7 @@ function FilesCard({ files, onUpload, candidateId }: { files: AtsFile[]; onUploa
     if (error) return toast.error(atsErrorMessage(error));
     toast.success("Main resume updated"); refresh();
   };
-  const useAsResume = async (f: AtsFile) => {
+  const applyResume = async (f: AtsFile) => {
     setBusy(true);
     const { error } = await supabase.from("ats_files").update({ kind: "resume", is_primary: true }).eq("id", f.id);
     setBusy(false);
@@ -899,7 +899,7 @@ function FilesCard({ files, onUpload, candidateId }: { files: AtsFile[]; onUploa
                 <p className="text-xs text-muted-foreground">{fileKindLabel(f.kind)}{f.is_primary ? " · Main resume" : ""} · {fmtBytes(f.size_bytes)} · {f.uploaded_by_name ?? "—"} · {fmtDate(f.created_at)}</p>
               </div>
               {f.kind === "resume" && !f.is_primary && <Button size="sm" variant="ghost" className="h-7" disabled={busy} onClick={() => setPrimary(f)}>Set as main resume</Button>}
-              {f.kind === "other" && /\.(pdf|docx?)$/i.test(f.file_name ?? "") && <Button size="sm" variant="ghost" className="h-7" disabled={busy} onClick={() => useAsResume(f)}>Use as resume</Button>}
+              {f.kind === "other" && /\.(pdf|docx?)$/i.test(f.file_name ?? "") && <Button size="sm" variant="ghost" className="h-7" disabled={busy} onClick={() => applyResume(f)}>Use as resume</Button>}
               <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete file" disabled={busy} onClick={() => setDel(f)}><Trash2 className="h-3.5 w-3.5" /></Button>
             </li>
           ))}

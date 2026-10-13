@@ -204,7 +204,7 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   if (!list.length) return null;
-  const useAsResume = async (f: AtsFile) => {
+  const applyResume = async (f: AtsFile) => {
     setBusy(true);
     const { error } = await supabase.from("ats_files").update({ kind: "resume", is_primary: true }).eq("id", f.id);
     setBusy(false);
@@ -233,7 +233,7 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
             ? <button key={i} type="button" onClick={() => onOpenFile(a.file_id!)} className="max-w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">{chip}</button>
             : <span key={i} className="max-w-full">{chip}</span>;
           return canResume
-            ? <span key={i} className="inline-flex max-w-full items-center gap-1">{el}<button type="button" disabled={busy} onClick={() => useAsResume(file!)} className="rounded text-xs text-primary hover:underline disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Use as resume</button></span>
+            ? <span key={i} className="inline-flex max-w-full items-center gap-1">{el}<button type="button" disabled={busy} onClick={() => applyResume(file!)} className="rounded text-xs text-primary hover:underline disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Use as resume</button></span>
             : el;
         })}
       </div>

@@ -18,6 +18,9 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { sendLeaveEmail } from "@/utils/leaveEmail";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { LeaveStatusPill } from "@/components/hrms/LeaveStatusPill";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
+import { safeFormat } from "@/lib/safe-date";
 
 export default function LeaveRequestsPage() {
   const qc = useQueryClient();
@@ -310,12 +313,12 @@ export default function LeaveRequestsPage() {
             <>
               <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
               <td className="px-4 py-3"><LeaveTypeBadge name={r.hr_leave_types?.name} /></td>
-              <td className="px-4 py-3 tabular-nums">{r.start_date}</td>
-              <td className="px-4 py-3 tabular-nums">{r.end_date}</td>
+              <td className="px-4 py-3 tabular-nums whitespace-nowrap">{safeFormat(r.start_date, "dd MMM yyyy")}</td>
+              <td className="px-4 py-3 tabular-nums whitespace-nowrap">{safeFormat(r.end_date, "dd MMM yyyy")}</td>
               <td className="px-4 py-3 font-medium tabular-nums"><LeaveDays request={r} /></td>
               <td className="px-4 py-3"><ClashBadge request={r} /></td>
               <td className="px-4 py-3"><LeaveStatusBadge status={r.status} /></td>
-              <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
+              <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate" title={r.reason || undefined}>{r.reason || "—"}</td>
               <td className="px-4 py-3"><LeaveActions request={r} managerName={managerMap[r.manager_id]} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} /></td>
             </>
           )}
@@ -333,8 +336,8 @@ export default function LeaveRequestsPage() {
                 <LeaveDays request={r} />
               </div>
               <div className="hrms-mobile-kv">
-                <span>Start</span><span>{r.start_date}</span>
-                <span>End</span><span>{r.end_date}</span>
+                <span>Start</span><span>{safeFormat(r.start_date, "dd MMM yyyy")}</span>
+                <span>End</span><span>{safeFormat(r.end_date, "dd MMM yyyy")}</span>
                 <span>Clashes</span><span><ClashBadge request={r} /></span>
                 <span>Reason</span><span>{r.reason || "—"}</span>
               </div>
@@ -373,15 +376,15 @@ export default function LeaveRequestsPage() {
               </Select>
             </div>
             <div>
-              <Label>Leave Type {form.routing === "manager" && <span className="text-[11px] text-muted-foreground">(optional — HR assigns at approval)</span>}</Label>
+              <Label>Leave Type {form.routing === "manager" && <span className="text-[11px] text-muted-foreground">(HR can change it at approval)</span>}</Label>
               <Select value={form.leave_type_id} onValueChange={(v) => setForm({ ...form, leave_type_id: v })}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <input type="checkbox" checked={form.is_half_day} onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })} className="rounded border-border" />
-              <Label>Half Day Leave</Label>
+              <input id="lr-half-day" type="checkbox" checked={form.is_half_day} onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })} className="rounded border-border" />
+              <Label htmlFor="lr-half-day">Half-day leave</Label>
             </div>
             {form.is_half_day && (
               <div>
@@ -422,8 +425,21 @@ export default function LeaveRequestsPage() {
       >
         <div className="space-y-4">
           {approveTarget && (
-            <div className="text-xs text-muted-foreground">
-              {approveTarget.hr_employees?.first_name} {approveTarget.hr_employees?.last_name} · {approveTarget.start_date} → {approveTarget.end_date} · {approveTarget.total_days} day(s)
+            <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-sm">
+              <p className="font-medium">{approveTarget.hr_employees?.first_name} {approveTarget.hr_employees?.last_name}</p>
+              <p className="tabular-nums">
+                {safeFormat(approveTarget.start_date, "EEE dd MMM")} → {safeFormat(approveTarget.end_date, "EEE dd MMM yyyy")} · {approveTarget.total_days} {Number(approveTarget.total_days) === 1 ? "day" : "days"}
+                {approveTarget.is_half_day ? ` · half day (${approveTarget.half_day_period || "—"})` : ""}
+              </p>
+              <p className="text-xs text-muted-foreground">Reason: {approveTarget.reason || "—"}</p>
+              {managerMap[approveTarget.manager_id] && (
+                <p className="text-xs text-muted-foreground">Approved by manager: {managerMap[approveTarget.manager_id]}</p>
+              )}
+              {approveTarget.leave_clashes_count > 0 && (
+                <p className="text-xs text-warning">
+                  {approveTarget.leave_clashes_count} {approveTarget.leave_clashes_count === 1 ? "colleague" : "colleagues"} in the same department overlap these dates
+                </p>
+              )}
             </div>
           )}
           <div>
@@ -526,7 +542,7 @@ function ClashBadge({ request }: { request: any }) {
         footer={<Button variant="outline" className="h-9" onClick={() => setOpen(false)}>Close</Button>}
       >
         <p className="text-xs text-muted-foreground mb-3">
-          {request.hr_employees?.first_name} {request.hr_employees?.last_name} · {request.start_date} to {request.end_date}
+          {request.hr_employees?.first_name} {request.hr_employees?.last_name} · {safeFormat(request.start_date, "dd MMM")} – {safeFormat(request.end_date, "dd MMM yyyy")}
         </p>
         {isLoading ? (
           <p className="text-xs text-muted-foreground py-4">Loading…</p>
@@ -542,7 +558,7 @@ function ClashBadge({ request }: { request: any }) {
                     {c.hr_employees?.badge_id && <span className="ml-1 text-[10px] text-muted-foreground tabular-nums">#{c.hr_employees.badge_id}</span>}
                   </p>
                   <p className="text-xs text-muted-foreground tabular-nums">
-                    {c.hr_leave_types?.name || "—"} · {c.start_date} to {c.end_date} · {c.total_days} day(s)
+                    {c.hr_leave_types?.name || "—"} · {safeFormat(c.start_date, "dd MMM")} – {safeFormat(c.end_date, "dd MMM yyyy")} · {c.total_days} day(s)
                   </p>
                   {c.reason && <p className="text-[11px] text-muted-foreground truncate max-w-[320px]">{c.reason}</p>}
                 </div>
@@ -558,17 +574,23 @@ function ClashBadge({ request }: { request: any }) {
 
 
 function LeaveStatusBadge({ status }: { status?: string }) {
+  return <LeaveStatusPill status={status} />;
+}
+
+/** Reject asks first: the employee is emailed that HR rejected the request. */
+function RejectLeaveButton({ request, statusMutation, mobile }: { request: any; statusMutation: any; mobile: boolean }) {
+  const name = `${request.hr_employees?.first_name ?? ""} ${request.hr_employees?.last_name ?? ""}`.trim() || "this employee";
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-      status === "approved" ? "bg-success/10 text-success border-success/20" :
-      status === "rejected" ? "bg-destructive/10 text-destructive border-destructive/20" :
-      status === "manager_approved" ? "bg-primary/10 text-primary border-primary/20" :
-      "bg-warning/10 text-warning border-warning/20"
-    }`}>{
-      status === "requested" ? "awaiting manager" :
-      status === "manager_approved" ? "awaiting HR" :
-      (status || "requested")
-    }</span>
+    <ConfirmButton
+      title="Reject this leave request?"
+      description={`${name}, ${safeFormat(request.start_date, "dd MMM")} – ${safeFormat(request.end_date, "dd MMM yyyy")}. The employee is emailed that HR rejected it.`}
+      confirmLabel="Reject leave"
+      onConfirm={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}
+    >
+      <Button size="sm" variant="ghost" className="text-destructive h-8" aria-label="Reject leave" title="Reject leave">
+        <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
+      </Button>
+    </ConfirmButton>
   );
 }
 
@@ -577,26 +599,31 @@ function LeaveActions({ request, statusMutation, onApprove, mobile = false, mana
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2 items-center" : "flex gap-1 items-center"}>
         <span className="text-[11px] text-muted-foreground">{managerName ? `Awaiting ${managerName}` : "Awaiting reporting manager"}</span>
-        <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}>
-          <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
-        </Button>
+        <RejectLeaveButton request={request} statusMutation={statusMutation} mobile={mobile} />
       </div>
     );
   }
   if (request.status === "manager_approved") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2" : "flex gap-1"}>
-        <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => onApprove(request)}>
+        <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => onApprove(request)} aria-label="Approve leave" title="Approve leave">
           <CheckCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Approve</span> : null}
         </Button>
-        <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}>
-          <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
-        </Button>
+        <RejectLeaveButton request={request} statusMutation={statusMutation} mobile={mobile} />
       </div>
     );
   }
   if (request.status === "approved") {
-    return <Button size="sm" variant="ghost" className="text-warning h-8 text-xs" onClick={() => statusMutation.mutate({ id: request.id, status: "cancelled", request })}>Cancel</Button>;
+    return (
+      <ConfirmButton
+        title="Cancel this approved leave?"
+        description="It moves to Cancelled. No email is sent to the employee."
+        confirmLabel="Cancel leave"
+        onConfirm={() => statusMutation.mutate({ id: request.id, status: "cancelled", request })}
+      >
+        <Button size="sm" variant="ghost" className="text-warning h-8 text-xs">Cancel leave</Button>
+      </ConfirmButton>
+    );
   }
   return <span className="text-xs text-muted-foreground">—</span>;
 }

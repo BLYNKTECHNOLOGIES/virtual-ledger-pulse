@@ -14,6 +14,7 @@ import { Plus, Pencil, Trash2, Play, CalendarDays, Clock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 
 const EMPTY_FORM = {
   name: "", leave_type_id: "", accrual_period: "monthly", accrual_amount: 1,
@@ -196,8 +197,15 @@ export default function LeaveAccrualPlansPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">{p.name}</CardTitle>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteMutation.mutate(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`} title="Edit plan"><Pencil className="h-3.5 w-3.5" /></Button>
+                    <ConfirmButton
+                      title={`Delete the “${p.name}” accrual plan?`}
+                      description="Its accrual history is deleted too. Leave already credited stays in employees' balances."
+                      confirmLabel="Delete plan"
+                      onConfirm={() => deleteMutation.mutate(p.id)}
+                    >
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label={`Delete ${p.name}`} title="Delete plan"><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </ConfirmButton>
                   </div>
                 </div>
               </CardHeader>

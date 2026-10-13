@@ -522,11 +522,11 @@ export function ResignationTab() {
     mutationFn: async () => {
       if (!selectedEmployee) throw new Error("No employee selected");
       const res = await deactivateErpAccount(selectedEmployee.id);
-      if (!res.deactivated) throw new Error(res.reason || "Could not deactivate ERP account");
+      if (!res.deactivated) throw new Error(res.reason || "ERP deletion pending — retry required");
       await markChecklistItem(t => t.includes("access revoked") || t.includes("erp"));
     },
     onSuccess: () => {
-      toast.success("ERP ID deactivated — the employee can no longer sign in");
+      toast.success("ERP login permanently deleted — employee records preserved");
       refetchErpAccount();
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
@@ -918,17 +918,15 @@ export function ResignationTab() {
                     <div className="mt-1.5">
                       {erpAccount?.userId == null ? (
                         <p className="text-xs text-muted-foreground">No ERP login linked to this employee</p>
-                      ) : erpAccount.status !== "ACTIVE" ? (
-                        <p className="text-xs text-muted-foreground">ERP ID is {String(erpAccount.status).toLowerCase()}</p>
                       ) : (
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs"
                           disabled={deactivateErp.isPending}
-                          onClick={() => deactivateErp.mutate()}
+                          onClick={() => setConfirmAction({ type: "delete_erp", id: selectedEmployee?.id || "", label: "Permanently delete this employee’s ERP login? Employee and payroll records will be preserved. This cannot be undone." })}
                         >
-                          {deactivateErp.isPending ? "Deactivating…" : "Deactivate ERP ID"}
+                          {deactivateErp.isPending ? "Deleting…" : "Delete ERP ID"}
                         </Button>
                       )}
                     </div>
@@ -942,7 +940,7 @@ export function ResignationTab() {
             <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground w-full">
               <p className="font-medium text-foreground mb-1">Access follows the last working day</p>
               <p>
-                ERP login and biometric access close after the last working day, regardless of F&amp;F payment.
+                ERP login is permanently deleted and biometric access closes after the last working day, regardless of F&amp;F payment.
                 RazorpayX stays active until F&amp;F is settled and this employee’s final salary payout is verified.
               </p>
               {completedCount < totalCount && (
@@ -1022,6 +1020,7 @@ export function ResignationTab() {
               else if (type === 'reject') rejectResignation.mutate(id);
               else if (type === 'withdraw') withdrawResignation.mutate(id);
               else if (type === 'finalise') finaliseSeparationNow.mutate(id);
+              else if (type === 'delete_erp') deactivateErp.mutate();
               setConfirmAction(null);
             }}>Confirm</AlertDialogAction>
           </AlertDialogFooter>

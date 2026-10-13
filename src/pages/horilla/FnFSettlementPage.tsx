@@ -472,7 +472,7 @@ export default function FnFSettlementPage() {
                   If it was already pushed to RazorpayX, deletion is refused — remove the F&amp;F addition/deduction in RazorpayX first.
                 </p>
                 <p className="text-muted-foreground">
-                  The employee’s account stays deactivated if the settlement was already paid — reactivate it from the employee page if that is what you want.
+                  Deleting the settlement does not restore a removed ERP login. Employee and payroll history remain on record.
                 </p>
 
               </div>

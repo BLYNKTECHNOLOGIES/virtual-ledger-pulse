@@ -44,7 +44,7 @@ export async function finalizeSeparation(
   // Non-fatal side effects — the separation itself is already committed.
   let erp: { deactivated: boolean; reason?: string } = { deactivated: false, reason: "not attempted" };
   try { erp = await deactivateErpAccount(employeeId); }
-  catch (e: any) { erp = { deactivated: false, reason: e?.message || "ERP deactivation failed" }; }
+  catch (e: any) { erp = { deactivated: false, reason: e?.message || "ERP deletion pending — queued for retry" }; }
 
   try { await deleteFromEssl(employeeId, { triggeredFrom: "last_working_day", silent: true }); }
   catch { /* biometric removal is retried from the exit checklist */ }

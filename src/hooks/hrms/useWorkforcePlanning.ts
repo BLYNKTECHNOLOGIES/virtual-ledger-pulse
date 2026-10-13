@@ -383,10 +383,7 @@ export function useSaveHiringRequirement() {
         }
         return id;
       }
-      const { data: reqNo, error: numberError } = await supabase.rpc(
-        "hr_next_hiring_requirement_no",
-      );
-      if (numberError) throw numberError;
+      // The requirement number is assigned by the database on insert.
       const { data: user } = await supabase.auth.getUser();
       const uid = user?.user?.id ?? null;
       let byName: string | null = user?.user?.email ?? null;
@@ -400,7 +397,6 @@ export function useSaveHiringRequirement() {
         .insert({
           ...payload,
           source: "manual",
-          requirement_no: reqNo as string,
           requested_by: uid,
           requested_by_name: byName,
         } as any)

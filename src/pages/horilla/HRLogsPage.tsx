@@ -13,6 +13,7 @@ import { Search, Mail, Bell, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { usersDirectory } from "@/lib/usersDirectory";
 
 export default function HRLogsPage() {
   const [tab, setTab] = useState("emails");
@@ -39,20 +40,43 @@ export default function HRLogsPage() {
   const emailCount = emailRes?.count ?? 0;
   const emailPages = Math.max(1, Math.ceil(emailCount / PAGE));
 
-  const { data: notifLogs = [], isLoading: notifLoading } = useQuery({
-    queryKey: ["hr_notification_log"],
+  // In-app notices live in hr_notifications (hr_notification_log is unused).
+  const [notifType, setNotifType] = useState("all");
+  const [notifPage, setNotifPage] = useState(0);
+  const { data: notifTypes = [] } = useQuery({
+    queryKey: ["hr_notification_type_counts"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_notification_log").select("*").order("created_at", { ascending: false }).limit(200);
-      return data || [];
+      const { data, error } = await (supabase as any).rpc("hr_notification_type_counts");
+      if (error) throw error;
+      return (data || []) as { type: string; n: number }[];
     },
   });
-
-  const filteredEmails = emailLogs;
-
-  const filteredNotifs = notifLogs.filter((n: any) =>
-    !search || n.title?.toLowerCase().includes(search.toLowerCase()) ||
-    n.message?.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: notifRes, isLoading: notifLoading, error: notifError } = useQuery({
+    queryKey: ["hr_notifications_log", term, notifType, notifPage],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      let q = (supabase as any).from("hr_notifications")
+        .select("id, created_at, user_id, employee_id, type, title, message, is_read, hr_employees(first_name, last_name)", { count: "exact" })
+        .order("created_at", { ascending: false }).order("id", { ascending: false });
+      if (notifType !== "all") q = q.eq("type", notifType);
+      if (term) q = q.or(`title.ilike.%${term}%,message.ilike.%${term}%,type.ilike.%${term}%`);
+      const { data, error, count } = await q.range(notifPage * PAGE, notifPage * PAGE + PAGE - 1);
+      if (error) throw error;
+      const rows: any[] = data || [];
+      const ids = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean)));
+      const names: Record<string, string> = {};
+      if (ids.length) {
+        const { data: users } = await usersDirectory().select("id, first_name, last_name, username").in("id", ids);
+        (users || []).forEach((u: any) => {
+          names[u.id] = `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username || "—";
+        });
+      }
+      return { rows: rows.map(r => ({ ...r, recipient_name: names[r.user_id] || "—" })), count: count ?? 0 };
+    },
+  });
+  const filteredNotifs: any[] = notifRes?.rows ?? [];
+  const notifCount = notifRes?.count ?? 0;
+  const notifPages = Math.max(1, Math.ceil(notifCount / PAGE));
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -60,13 +84,13 @@ export default function HRLogsPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search logs..." value={search} onChange={e => { setSearch(e.target.value); setEmailPage(0); }} className="pl-9 h-9" />
+        <Input placeholder="Search logs..." value={search} onChange={e => { setSearch(e.target.value); setEmailPage(0); setNotifPage(0); }} className="pl-9 h-9" />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="emails" className="gap-1"><Mail className="h-3.5 w-3.5" /> Emails ({emailCount.toLocaleString("en-IN")})</TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3.5 w-3.5" /> Notifications (latest {notifLogs.length})</TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3.5 w-3.5" /> In-app ({notifCount.toLocaleString("en-IN")})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="emails" className="space-y-2">
@@ -99,9 +123,9 @@ export default function HRLogsPage() {
                 <TableBody>
                   {emailLoading ? (
                     <TableRow><TableCell colSpan={6} className="p-4"><TableSkeleton rows={5} columns={6} /></TableCell></TableRow>
-                  ) : filteredEmails.length === 0 ? (
+                  ) : emailLogs.length === 0 ? (
                     <TableRow><TableCell colSpan={6}><EmptyState icon={Mail} title="No email logs found" /></TableCell></TableRow>
-                  ) : filteredEmails.map((e: any) => (
+                  ) : emailLogs.map((e: any) => (
                     <TableRow key={e.id}>
                       <TableCell className="text-xs tabular-nums">{format(new Date(e.created_at), "dd MMM HH:mm")}</TableCell>
                       <TableCell className="text-sm">{e.recipient_email}</TableCell>
@@ -121,30 +145,47 @@ export default function HRLogsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications">
+        <TabsContent value="notifications" className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={notifType} onValueChange={(v) => { setNotifType(v); setNotifPage(0); }}>
+              <SelectTrigger className="h-9 w-56 text-foreground"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                {notifTypes.map(t => <SelectItem key={t.type} value={t.type}>{t.type} ({Number(t.n).toLocaleString("en-IN")})</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {notifCount ? `${notifPage * PAGE + 1}–${Math.min(notifCount, (notifPage + 1) * PAGE)} of ${notifCount.toLocaleString("en-IN")}` : "0 notices"}
+            </span>
+            <Button size="sm" variant="outline" className="h-8" disabled={notifPage === 0} onClick={() => setNotifPage(p => p - 1)}>Previous</Button>
+            <Button size="sm" variant="outline" className="h-8" disabled={notifPage + 1 >= notifPages} onClick={() => setNotifPage(p => p + 1)}>Next</Button>
+          </div>
           <Card>
             <CardContent className="p-0">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
-                    {["Time", "Type", "Title", "Message", "Channel", "Read"].map(h => (
+                    {["Time", "To", "About", "Type", "Title", "Message", "Read"].map(h => (
                       <TableHead key={h} className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {notifLoading ? (
-                    <TableRow><TableCell colSpan={6} className="p-4"><TableSkeleton rows={5} columns={6} /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="p-4"><TableSkeleton rows={5} columns={7} /></TableCell></TableRow>
+                  ) : notifError ? (
+                    <TableRow><TableCell colSpan={7} className="text-sm text-destructive p-4">Could not load notices: {(notifError as any)?.message}</TableCell></TableRow>
                   ) : filteredNotifs.length === 0 ? (
-                    <TableRow><TableCell colSpan={6}><EmptyState icon={Bell} title="No notification logs found" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7}><EmptyState icon={Bell} title="No in-app notices found" /></TableCell></TableRow>
                   ) : filteredNotifs.map((n: any) => (
                     <TableRow key={n.id}>
                       <TableCell className="text-xs tabular-nums">{n.created_at ? format(new Date(n.created_at), "dd MMM HH:mm") : "—"}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-[10px]">{n.notification_type}</Badge></TableCell>
+                      <TableCell className="text-sm">{n.recipient_name}</TableCell>
+                      <TableCell className="text-sm">{n.hr_employees ? `${n.hr_employees.first_name || ""} ${n.hr_employees.last_name || ""}`.trim() || "—" : "—"}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-[10px]">{n.type}</Badge></TableCell>
                       <TableCell className="text-sm font-medium">{n.title}</TableCell>
-                      <TableCell className="text-sm max-w-[200px] truncate">{n.message || "—"}</TableCell>
-                      <TableCell className="text-xs">{n.channel || "in-app"}</TableCell>
-                      <TableCell>{n.is_read ? <CheckCircle2 className="h-4 w-4 text-success" aria-label="Read" /> : <span className="text-muted-foreground">Unread</span>}</TableCell>
+                      <TableCell className="text-sm max-w-[240px] truncate" title={n.message || ""}>{n.message || "—"}</TableCell>
+                      <TableCell>{n.is_read ? <CheckCircle2 className="h-4 w-4 text-success" aria-label="Read" /> : <span className="text-muted-foreground text-xs">Unread</span>}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

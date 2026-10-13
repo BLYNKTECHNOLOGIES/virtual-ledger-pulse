@@ -35507,6 +35507,13 @@ export type Database = {
       hr_next_hiring_requirement_no: { Args: never; Returns: string }
       hr_next_razorpay_employee_id: { Args: never; Returns: string }
       hr_normalize_pay_head: { Args: { p_label: string }; Returns: string }
+      hr_notification_type_counts: {
+        Args: never
+        Returns: {
+          n: number
+          type: string
+        }[]
+      }
       hr_notify: {
         Args: {
           _kind: string
@@ -35516,6 +35523,15 @@ export type Database = {
           _user_ids: string[]
         }
         Returns: number
+      }
+      hr_onboarding_doc_files: {
+        Args: { p_docs: Json; p_offer: Json; p_onboarding_id: string }
+        Returns: {
+          document_name: string
+          document_type: string
+          file_url: string
+          source_ref: string
+        }[]
       }
       hr_open_payroll_month: { Args: never; Returns: string }
       hr_open_unexplained_drift_count: { Args: never; Returns: number }
@@ -35797,7 +35813,7 @@ export type Database = {
         Returns: string
       }
       hr_sync_onboarding_documents: {
-        Args: { p_onboarding_id: string }
+        Args: { p_old_docs?: Json; p_old_offer?: Json; p_onboarding_id: string }
         Returns: number
       }
       hr_sync_pay_head_lines: {

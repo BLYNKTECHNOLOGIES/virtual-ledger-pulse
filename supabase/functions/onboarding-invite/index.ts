@@ -235,7 +235,8 @@ async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>)
       received: true,
       file_url: publicUrl(list[0].path),
       file_name: list[0].name,
-      extra_files: list.slice(1).map((f) => ({ url: publicUrl(f.path), name: f.name })),
+      // Same shape as the first file so the employee-documents sync picks them up.
+      extra_files: list.slice(1).map((f) => ({ file_url: publicUrl(f.path), file_name: f.name })),
       source: 'candidate_form',
     });
   }

@@ -804,11 +804,19 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted-foreground">To</span>
         <span className="min-w-0 flex-1 truncate text-foreground">{candidate.email}</span>
-        <Select value="" onValueChange={pickTemplate}>
+        <Select value="" onValueChange={(id) => pickTemplate(id)}>
           <SelectTrigger className="h-8 w-[200px] text-foreground"><SelectValue placeholder="Use a template…" /></SelectTrigger>
           <SelectContent>{(templates.data ?? []).filter((t) => !usesInterviewFields(t)).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
+      {quickReplies.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" aria-label="Quick replies">
+          <span className="shrink-0 text-xs text-muted-foreground">Quick replies:</span>
+          {quickReplies.map((t) => (
+            <Button key={t.id} type="button" size="sm" variant="outline" className="h-7 shrink-0 rounded-full px-2.5 text-xs" onClick={() => pickTemplate(t.id, true)}>{t.name}</Button>
+          ))}
+        </div>
+      )}
       <Input placeholder="Subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" aria-label="Subject" />
       <SubjectSentAs subject={subject} />
       {latest && (
@@ -847,8 +855,15 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
             </Button>
           </PopoverContent>
         </Popover>
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" disabled={sending} onClick={onClose}>Cancel</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={fuChoice} onValueChange={(v) => { const c = v as FollowUpChoice; setFuChoice(c); try { localStorage.setItem(FU_KEY, c); } catch { /* storage unavailable */ } }}>
+            <SelectTrigger className="h-8 w-auto gap-1 text-xs text-foreground" aria-label="Follow up if no reply">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              <span className="text-muted-foreground">Follow up if no reply:</span><SelectValue />
+            </SelectTrigger>
+            <SelectContent>{FOLLOW_UP_CHOICES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+          </Select>
+          <Button size="sm" variant="ghost" disabled={sending} onClick={cancel}>Cancel</Button>
           <Button size="sm" className="gap-1.5" disabled={!canSend} onClick={send} title="Ctrl/⌘ + Enter">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
           </Button>
@@ -859,7 +874,15 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
           <AlertDialogHeader><AlertDialogTitle>Replace what you've written?</AlertDialogTitle>
             <AlertDialogDescription>The subject and message will be replaced with the template.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Keep mine</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const id = pendingTpl!; setPendingTpl(null); applyTemplate(id); }}>Replace</AlertDialogAction></AlertDialogFooter>
+            <AlertDialogAction onClick={() => { const p = pendingTpl!; setPendingTpl(null); applyTemplate(p.id, p.quick); }}>Replace</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={askDiscard} onOpenChange={setAskDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Discard this draft?</AlertDialogTitle>
+            <AlertDialogDescription>What you've written in this email will be lost.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Keep writing</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setAskDiscard(false); clearDraft(candidate.id); setBody(""); onClose(); }}>Discard</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

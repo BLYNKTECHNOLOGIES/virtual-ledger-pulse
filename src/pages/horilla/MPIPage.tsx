@@ -13,6 +13,27 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { usersDirectory } from "@/lib/usersDirectory";
+
+/** MPI employee_id is a users/auth id — resolve via the users directory (loaded once, cached). */
+function useMpiUsers() {
+  return useQuery({
+    queryKey: ["mpi_users_directory"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await usersDirectory().select("id, username, first_name, last_name");
+      if (error) throw error;
+      return new Map<string, any>((data || []).map((u: any) => [u.id, u]));
+    },
+  });
+}
+function MpiPerson({ id }: { id: string }) {
+  const { data: map } = useMpiUsers();
+  const u = map?.get(id);
+  const name = u ? [u.first_name, u.last_name].filter(Boolean).join(" ") : "";
+  if (!u) return <span className="font-mono">{String(id ?? "").slice(0, 8)}</span>;
+  return <span>{name || u.username}{u.username && name ? <span className="text-muted-foreground"> · {u.username}</span> : null}</span>;
+}
 
 type Grade = "S" | "A+" | "A" | "B" | "C" | "D";
 const GRADE_COLORS: Record<Grade, string> = {
@@ -240,7 +261,7 @@ function ScorecardsTab({ results, templates }: any) {
         <tbody>
           {results.map((r: any) => (
             <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
-              <td className={`${TD} font-mono text-xs`}>{r.employee_id.slice(0, 8)}</td>
+              <td className={`${TD} text-xs`}><MpiPerson id={r.employee_id} /></td>
               <td className={TD}>{tplName(r.template_id)}</td>
               <td className={`${TD} w-48`}><div className="flex items-center gap-2"><Progress value={Number(r.total_score)} className="h-2" /><span className="text-xs font-medium tabular-nums w-10">{Number(r.total_score).toFixed(1)}</span></div></td>
               <td className={TD}><GradeBadge grade={r.grade} /></td>
@@ -282,7 +303,7 @@ function WarningsTab({ results }: any) {
         <thead className="bg-muted/50"><tr><th className={TH}>Employee</th><th className={TH}>Score</th><th className={TH}>Grade</th><th className={TH}>Reason</th></tr></thead>
         <tbody>{flagged.map((r: any) => (
           <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
-            <td className={`${TD} font-mono text-xs`}>{r.employee_id.slice(0, 8)}</td>
+            <td className={`${TD} text-xs`}><MpiPerson id={r.employee_id} /></td>
             <td className={`${TD} tabular-nums`}>{Number(r.total_score).toFixed(1)}</td>
             <td className={TD}><GradeBadge grade={r.grade} /></td>
             <td className={`${TD} text-xs`}>{r.grade_capped ? r.cap_reason : `Below threshold`}</td>
@@ -298,7 +319,7 @@ function PipTab({ pips }: any) {
   return (
     <div className="space-y-2">{pips.map((p: any) => (
       <Card key={p.id}><CardContent className="p-4 flex items-center justify-between">
-        <div><p className="font-medium text-sm font-mono">{p.employee_id.slice(0, 8)}</p><p className="text-xs text-muted-foreground tabular-nums">{p.start_date} → {p.end_date} · triggered at grade {p.triggering_grade ?? "—"}</p></div>
+        <div><p className="font-medium text-sm"><MpiPerson id={p.employee_id} /></p><p className="text-xs text-muted-foreground tabular-nums">{p.start_date} → {p.end_date} · triggered at grade {p.triggering_grade ?? "—"}</p></div>
         <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-muted-foreground/20">{p.status}</span>
       </CardContent></Card>
     ))}</div>
@@ -318,7 +339,7 @@ function ViolationsTab({ violations }: any) {
         <tbody>{violations.map((v: any) => (
           <tr key={v.id} className="border-t hover:bg-muted/30 transition-colors">
             <td className={`${TD} tabular-nums text-xs`}>{new Date(v.reported_at).toLocaleDateString()}</td>
-            <td className={`${TD} font-mono text-xs`}>{v.employee_id.slice(0, 8)}</td>
+            <td className={`${TD} text-xs`}><MpiPerson id={v.employee_id} /></td>
             <td className={TD}>{v.violation_type}</td>
             <td className={TD}><Badge variant={v.severity === "critical" ? "destructive" : "outline"}>{v.severity}</Badge></td>
             <td className={`${TD} text-xs`}>{v.description}</td>
@@ -338,7 +359,7 @@ function LeaderboardTab({ top }: any) {
         <tbody>{top.map((r: any, i: number) => (
           <tr key={r.id} className="border-t hover:bg-muted/30 transition-colors">
             <td className={`${TD} font-bold text-warning tabular-nums`}>#{i + 1}</td>
-            <td className={`${TD} font-mono text-xs`}>{r.employee_id.slice(0, 8)}</td>
+            <td className={`${TD} text-xs`}><MpiPerson id={r.employee_id} /></td>
             <td className={`${TD} tabular-nums`}>{Number(r.total_score).toFixed(1)}</td>
             <td className={TD}><GradeBadge grade={r.grade} /></td>
           </tr>

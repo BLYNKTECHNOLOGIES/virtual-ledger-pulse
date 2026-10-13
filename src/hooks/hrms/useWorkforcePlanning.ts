@@ -460,7 +460,7 @@ export function useWorkforceFlows() {
           .not("date_of_joining", "is", null),
         supabase
           .from("hr_employees")
-          .select("id, first_name, last_name, badge_id, resignation_status")
+          .select("id, first_name, last_name, badge_id, resignation_status, last_working_day, notice_period_end_date, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id)")
           .eq("is_active", true)
           .eq("resignation_status", "notice_period"),
         supabase
@@ -475,7 +475,10 @@ export function useWorkforceFlows() {
           joining_date: r.date_of_joining,
           job_position_id: r.position_id,
         })),
-        notice: notice.data || [],
+        notice: (notice.data || []).map((r: any) => {
+          const wi = Array.isArray(r.hr_employee_work_info) ? r.hr_employee_work_info[0] : r.hr_employee_work_info;
+          return { ...r, department_id: wi?.department_id ?? null, exit_date: r.last_working_day ?? r.notice_period_end_date ?? null };
+        }),
         activeCount: active.count || 0,
       };
     },

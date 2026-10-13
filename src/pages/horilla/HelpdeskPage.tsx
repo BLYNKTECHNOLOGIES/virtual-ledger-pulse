@@ -51,7 +51,23 @@ export default function HelpdeskPage() {
   });
 
   const filtered = tickets.filter((t: any) => t.title?.toLowerCase().includes(search.toLowerCase()));
-  const stats = { open: tickets.filter((t: any) => t.status === "open").length, in_progress: tickets.filter((t: any) => t.status === "in_progress").length, resolved: tickets.filter((t: any) => t.status === "resolved").length };
+  // Cards always count every ticket, independent of the status filter and search.
+  // Key sits under the "hr_helpdesk" prefix so existing invalidations refresh it.
+  const { data: stats = { open: 0, in_progress: 0, resolved: 0, closed: 0 } } = useQuery({
+    queryKey: ["hr_helpdesk", "counts"],
+    queryFn: async () => {
+      const c = async (st: string) => {
+        const { count, error } = await (supabase as any).from("hr_helpdesk_tickets").select("id", { count: "exact", head: true }).eq("status", st);
+        if (error) throw error;
+        return count ?? 0;
+      };
+      const [open, in_progress, resolved, closed] = await Promise.all(["open", "in_progress", "resolved", "closed"].map(c));
+      return { open, in_progress, resolved, closed };
+    },
+  });
+  const isFiltered = statusFilter !== "all" || search.trim() !== "";
+  const emptyTitle = isFiltered ? "No tickets match" : "No tickets found";
+  const emptyDesc = isFiltered ? "A filter or search is hiding tickets — clear them to see all." : "Create a new support ticket to get help.";
 
   const priorityColor = (p: string) => p === "high" ? "bg-destructive/10 text-destructive border border-destructive/20" : p === "medium" ? "bg-warning/10 text-warning border border-warning/20" : "bg-success/10 text-success border border-success/20";
   const statusColor = (s: string) => s === "open" ? "bg-info/10 text-info border border-info/20" : s === "in_progress" ? "bg-warning/10 text-warning border border-warning/20" : s === "resolved" ? "bg-success/10 text-success border border-success/20" : "bg-muted text-foreground border border-border";
@@ -67,11 +83,12 @@ export default function HelpdeskPage() {
           </Button>
         }
       />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Open", value: stats.open, icon: MessageSquare, color: "text-info", bg: "bg-info/10" },
           { label: "In Progress", value: stats.in_progress, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
           { label: "Resolved", value: stats.resolved, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+          { label: "Closed", value: stats.closed, icon: CheckCircle, color: "text-muted-foreground", bg: "bg-muted" },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -104,7 +121,7 @@ export default function HelpdeskPage() {
             {isLoading ? (
               <div className="p-4"><TableSkeleton rows={5} columns={2} /></div>
             ) : filtered.length === 0 ? (
-              <div className="p-4"><EmptyState icon={MessageSquare} title="No tickets found" description="Create a new support ticket to get help." action={<Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-11 w-full"><Plus className="h-4 w-4 mr-2" />New Ticket</Button>} /></div>
+              <div className="p-4"><EmptyState icon={MessageSquare} title={emptyTitle} description={emptyDesc} action={<Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-11 w-full"><Plus className="h-4 w-4 mr-2" />New Ticket</Button>} /></div>
             ) : filtered.map((t: any) => (
               <div key={t.id} className="p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
@@ -142,7 +159,7 @@ export default function HelpdeskPage() {
                 <tr><td colSpan={6} className="p-4"><TableSkeleton rows={5} columns={6} /></td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6}>
-                  <EmptyState icon={MessageSquare} title="No tickets found" description="Create a new support ticket to get help." action={<Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9"><Plus className="h-4 w-4 mr-2" />New Ticket</Button>} />
+                  <EmptyState icon={MessageSquare} title={emptyTitle} description={emptyDesc} action={<Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9"><Plus className="h-4 w-4 mr-2" />New Ticket</Button>} />
                 </td></tr>
               ) : filtered.map((t: any) => (
                 <tr key={t.id} className="border-b hover:bg-muted/50">

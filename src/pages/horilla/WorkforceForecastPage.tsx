@@ -112,7 +112,12 @@ export default function WorkforceForecastPage() {
         0,
       );
 
-    const noticeExits = (flows?.notice || []).length;
+    // Only staff in the selected department whose exit date falls in the horizon.
+    const noticeExits = (flows?.notice || []).filter((n: any) => {
+      if (!n.exit_date || n.exit_date > horizonEnd) return false;
+      if (departmentId !== "all" && n.department_id !== departmentId) return false;
+      return true;
+    }).length;
     const estimatedAttrition = Math.round((current * (attritionPct / 100)) * months);
     const expectedSeparations = noticeExits + estimatedAttrition;
 

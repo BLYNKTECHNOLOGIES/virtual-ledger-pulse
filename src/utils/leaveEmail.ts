@@ -17,6 +17,8 @@ interface LeaveEmailParams {
   endDate: string;
   totalDays: number | string;
   reason?: string;
+  /** Why HR / the reporting manager rejected — shown to the employee as its own row. */
+  rejectionReason?: string;
   contactDuringLeave?: string;
   balanceNote?: string;
   decidedBy?: string;

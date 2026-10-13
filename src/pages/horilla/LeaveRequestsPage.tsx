@@ -17,6 +17,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { sendLeaveEmail } from "@/utils/leaveEmail";
+import { useLeaveDecision, ApproveLeaveDialog, RejectLeaveDialog } from "@/components/hrms/leave/LeaveDecision";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { LeaveStatusPill } from "@/components/hrms/LeaveStatusPill";
 import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
@@ -29,7 +30,7 @@ export default function LeaveRequestsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning", routing: "manager" as "manager" | "hr" });
   const [approveTarget, setApproveTarget] = useState<any>(null);
-  const [approveTypeId, setApproveTypeId] = useState("");
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["hr_leave_requests", statusFilter],
@@ -203,58 +204,7 @@ export default function LeaveRequestsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const statusMutation = useMutation({
-    mutationFn: async ({ id, status, request, leaveTypeId }: { id: string; status: string; request?: any; leaveTypeId?: string }) => {
-      // HR assigns the leave type at approval time; the DB cascade consumes
-      // assigned type -> comp-off -> casual leave -> LOP, so no client-side block.
-      if (status === "approved" && !leaveTypeId && !request?.leave_type_id) {
-        throw new Error("Select a leave type before approving");
-      }
-
-      const { error } = await (supabase as any).from("hr_leave_requests").update({
-        status,
-        ...(status === "approved"
-          ? {
-              leave_type_id: leaveTypeId || request?.leave_type_id,
-              approved_at: new Date().toISOString(),
-              hr_approved_at: new Date().toISOString(),
-            }
-          : {}),
-        ...(status === "rejected" ? { rejection_reason: "Rejected by HR" } : {}),
-      }).eq("id", id);
-      if (error) throw error;
-
-      if (request && (status === "approved" || status === "rejected")) {
-        const res = await sendLeaveEmail({
-          eventType: status === "approved" ? "leave_approved" : "leave_rejected",
-          requestId: id,
-          employeeName: `${request.hr_employees?.first_name || ""} ${request.hr_employees?.last_name || ""}`.trim() || "Employee",
-          leaveType:
-            (leaveTypes as any[]).find((lt: any) => lt.id === (leaveTypeId || request.leave_type_id))?.name ||
-            request.hr_leave_types?.name,
-          startDate: request.start_date,
-          endDate: request.end_date,
-          totalDays: request.total_days,
-          reason: request.reason,
-          decidedBy: "HR",
-          employeeEmail: request.hr_employees?.email || null,
-        });
-        return { emailFailures: res?.failures || [], noEmail: !request.hr_employees?.email };
-      }
-      return { emailFailures: [], noEmail: false };
-    },
-    onSuccess: (res: any) => {
-      qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
-      qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
-      setApproveTarget(null);
-      setApproveTypeId("");
-      toast.success("Status updated");
-      if (res?.noEmail) toast.warning("No email on record for this employee — notification not sent");
-      else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
-    },
-    onError: (e: any) => toast.error(e.message),
-
-  });
+  const statusMutation = useLeaveDecision({ onDone: () => { setApproveTarget(null); setRejectTarget(null); } });
 
   const filtered = requests.filter((r: any) => {
     const q = search.toLowerCase();
@@ -319,7 +269,7 @@ export default function LeaveRequestsPage() {
               <td className="px-4 py-3"><ClashBadge request={r} /></td>
               <td className="px-4 py-3"><LeaveStatusBadge status={r.status} /></td>
               <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate" title={r.reason || undefined}>{r.reason || "—"}</td>
-              <td className="px-4 py-3"><LeaveActions request={r} managerName={managerMap[r.manager_id]} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} /></td>
+              <td className="px-4 py-3"><LeaveActions request={r} managerName={managerMap[r.manager_id]} statusMutation={statusMutation} onApprove={(req: any) => setApproveTarget(req)} onReject={(req: any) => setRejectTarget(req)} /></td>
             </>
           )}
           renderCard={(r: any) => (
@@ -341,7 +291,7 @@ export default function LeaveRequestsPage() {
                 <span>Clashes</span><span><ClashBadge request={r} /></span>
                 <span>Reason</span><span>{r.reason || "—"}</span>
               </div>
-              <LeaveActions request={r} managerName={managerMap[r.manager_id]} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} mobile />
+              <LeaveActions request={r} managerName={managerMap[r.manager_id]} statusMutation={statusMutation} onApprove={(req: any) => setApproveTarget(req)} onReject={(req: any) => setRejectTarget(req)} mobile />
             </div>
           )}
         />
@@ -406,54 +356,8 @@ export default function LeaveRequestsPage() {
           </div>
       </ResponsiveDialog>
 
-      <ResponsiveDialog
-        open={!!approveTarget}
-        onOpenChange={(o) => { if (!o) { setApproveTarget(null); setApproveTypeId(""); } }}
-        title={<span className="text-sm font-semibold flex items-center gap-2"><CheckCircle className="h-4 w-4 text-success" /> Approve Leave</span>}
-        footer={
-          <>
-            <Button variant="outline" className="h-9" onClick={() => setApproveTarget(null)}>Cancel</Button>
-            <Button
-              className="bg-[#E8604C] hover:bg-[#d4553f] h-9"
-              disabled={!approveTypeId || statusMutation.isPending}
-              onClick={() => statusMutation.mutate({ id: approveTarget.id, status: "approved", request: approveTarget, leaveTypeId: approveTypeId })}
-            >
-              Approve
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {approveTarget && (
-            <div className="rounded-md border bg-muted/40 p-3 space-y-1 text-sm">
-              <p className="font-medium">{approveTarget.hr_employees?.first_name} {approveTarget.hr_employees?.last_name}</p>
-              <p className="tabular-nums">
-                {safeFormat(approveTarget.start_date, "EEE dd MMM")} → {safeFormat(approveTarget.end_date, "EEE dd MMM yyyy")} · {approveTarget.total_days} {Number(approveTarget.total_days) === 1 ? "day" : "days"}
-                {approveTarget.is_half_day ? ` · half day (${approveTarget.half_day_period || "—"})` : ""}
-              </p>
-              <p className="text-xs text-muted-foreground">Reason: {approveTarget.reason || "—"}</p>
-              {managerMap[approveTarget.manager_id] && (
-                <p className="text-xs text-muted-foreground">Approved by manager: {managerMap[approveTarget.manager_id]}</p>
-              )}
-              {approveTarget.leave_clashes_count > 0 && (
-                <p className="text-xs text-warning">
-                  {approveTarget.leave_clashes_count} {approveTarget.leave_clashes_count === 1 ? "colleague" : "colleagues"} in the same department overlap these dates
-                </p>
-              )}
-            </div>
-          )}
-          <div>
-            <Label>Leave Type (assigned by HR)</Label>
-            <Select value={approveTypeId} onValueChange={setApproveTypeId}>
-              <SelectTrigger className="h-9"><SelectValue placeholder="Select leave type" /></SelectTrigger>
-              <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            If the chosen type has insufficient balance, the system automatically draws from Comp-Off, then Casual Leave, and only the remainder becomes Loss of Pay.
-          </p>
-        </div>
-      </ResponsiveDialog>
+      <ApproveLeaveDialog request={approveTarget} onClose={() => setApproveTarget(null)} leaveTypes={leaveTypes as any[]} decision={statusMutation} />
+      <RejectLeaveDialog request={rejectTarget} onClose={() => setRejectTarget(null)} decision={statusMutation} />
     </div>
   );
 }
@@ -577,29 +481,21 @@ function LeaveStatusBadge({ status }: { status?: string }) {
   return <LeaveStatusPill status={status} />;
 }
 
-/** Reject asks first: the employee is emailed that HR rejected the request. */
-function RejectLeaveButton({ request, statusMutation, mobile }: { request: any; statusMutation: any; mobile: boolean }) {
-  const name = `${request.hr_employees?.first_name ?? ""} ${request.hr_employees?.last_name ?? ""}`.trim() || "this employee";
+/** Reject opens the shared dialog, which asks for a reason shared with the employee. */
+function RejectLeaveButton({ request, onReject, mobile }: { request: any; onReject: (r: any) => void; mobile: boolean }) {
   return (
-    <ConfirmButton
-      title="Reject this leave request?"
-      description={`${name}, ${safeFormat(request.start_date, "dd MMM")} – ${safeFormat(request.end_date, "dd MMM yyyy")}. The employee is emailed that HR rejected it.`}
-      confirmLabel="Reject leave"
-      onConfirm={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}
-    >
-      <Button size="sm" variant="ghost" className="text-destructive h-8" aria-label="Reject leave" title="Reject leave">
-        <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
-      </Button>
-    </ConfirmButton>
+    <Button size="sm" variant="ghost" className="text-destructive h-8" aria-label="Reject leave" title="Reject leave" onClick={() => onReject(request)}>
+      <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
+    </Button>
   );
 }
 
-function LeaveActions({ request, statusMutation, onApprove, mobile = false, managerName }: { request: any; statusMutation: any; onApprove: (r: any) => void; mobile?: boolean; managerName?: string }) {
+function LeaveActions({ request, statusMutation, onApprove, onReject, mobile = false, managerName }: { request: any; statusMutation: any; onApprove: (r: any) => void; onReject: (r: any) => void; mobile?: boolean; managerName?: string }) {
   if (request.status === "requested") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2 items-center" : "flex gap-1 items-center"}>
         <span className="text-[11px] text-muted-foreground">{managerName ? `Awaiting ${managerName}` : "Awaiting reporting manager"}</span>
-        <RejectLeaveButton request={request} statusMutation={statusMutation} mobile={mobile} />
+        <RejectLeaveButton request={request} onReject={onReject} mobile={mobile} />
       </div>
     );
   }
@@ -609,7 +505,7 @@ function LeaveActions({ request, statusMutation, onApprove, mobile = false, mana
         <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => onApprove(request)} aria-label="Approve leave" title="Approve leave">
           <CheckCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Approve</span> : null}
         </Button>
-        <RejectLeaveButton request={request} statusMutation={statusMutation} mobile={mobile} />
+        <RejectLeaveButton request={request} onReject={onReject} mobile={mobile} />
       </div>
     );
   }
@@ -619,7 +515,7 @@ function LeaveActions({ request, statusMutation, onApprove, mobile = false, mana
         title="Cancel this approved leave?"
         description="It moves to Cancelled. No email is sent to the employee."
         confirmLabel="Cancel leave"
-        onConfirm={() => statusMutation.mutate({ id: request.id, status: "cancelled", request })}
+        onConfirm={() => statusMutation.mutate({ request, status: "cancelled" })}
       >
         <Button size="sm" variant="ghost" className="text-warning h-8 text-xs">Cancel leave</Button>
       </ConfirmButton>

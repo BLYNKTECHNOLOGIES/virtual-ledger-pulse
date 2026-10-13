@@ -1,21 +1,19 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 import { CheckCircle, XCircle } from "lucide-react";
-import { sendLeaveEmail } from "@/utils/leaveEmail";
-import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
+import { useLeaveDecision, LEAVE_APPROVE_BALANCE_NOTE } from "@/components/hrms/leave/LeaveDecision";
 
 /**
  * Inline leave approve/reject panel.
  * Used by the unified HRMS Requests inbox so HR never has to leave the inbox —
  * it writes to hr_leave_requests exactly like the dedicated Leave Requests page
- * (HR assigns the leave type at approval; the DB cascade consumes assigned type
- * -> comp-off -> casual -> LOP).
+ * (HR assigns the leave type at approval; approval never spills into other
+ * types — the DB refuses with "Not enough … balance").
  */
 export function LeaveApprovalPanel({ request, onDone }: { request: any; onDone?: () => void }) {
   const qc = useQueryClient();
@@ -33,61 +31,27 @@ export function LeaveApprovalPanel({ request, onDone }: { request: any; onDone?:
 
   const actionable = ["requested", "pending", "manager_approved"].includes(String(request?.status));
 
-  const decide = useMutation({
-    mutationFn: async (status: "approved" | "rejected") => {
-      if (status === "approved" && !leaveTypeId && !request?.leave_type_id) {
-        throw new Error("Select a leave type before approving");
-      }
-      if (status === "rejected" && !rejectReason.trim()) {
-        throw new Error("A rejection reason is required");
-      }
-
-      const { error } = await (supabase as any)
-        .from("hr_leave_requests")
-        .update({
-          status,
-          ...(status === "approved"
-            ? {
-                leave_type_id: leaveTypeId || request.leave_type_id,
-                approved_at: new Date().toISOString(),
-                hr_approved_at: new Date().toISOString(),
-              }
-            : { rejection_reason: rejectReason.trim() }),
-        })
-        .eq("id", request.id);
-      if (error) throw error;
-
-      const res = await sendLeaveEmail({
-        eventType: status === "approved" ? "leave_approved" : "leave_rejected",
-        requestId: request.id,
-        employeeName:
-          `${request.hr_employees?.first_name || ""} ${request.hr_employees?.last_name || ""}`.trim() || "Employee",
-        leaveType:
-          (leaveTypes as any[]).find((lt: any) => lt.id === (leaveTypeId || request.leave_type_id))?.name ||
-          request.hr_leave_types?.name,
-        startDate: request.start_date,
-        endDate: request.end_date,
-        totalDays: request.total_days,
-        reason: request.reason,
-        decidedBy: "HR",
-        employeeEmail: request.hr_employees?.email || null,
-      });
-      return { emailFailures: res?.failures || [], noEmail: !request.hr_employees?.email, status };
-    },
-    onSuccess: (res: any) => {
+  // Shared decision logic (same writes, email and cache refresh as the Leave
+  // Requests page). This panel's stage rule is unchanged for now.
+  const shared = useLeaveDecision({
+    onDone: () => {
       qc.invalidateQueries({ queryKey: ["hrms_unified_requests"] });
-      qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
-      qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
-      invalidateAttendanceCaches(qc);
-      toast.success(res.status === "approved" ? "Leave approved" : "Leave rejected");
-      if (res?.noEmail) toast.warning("No email on record for this employee — notification not sent");
-      else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
       setMode("idle");
       setRejectReason("");
       onDone?.();
     },
-    onError: (e: any) => toast.error(e?.message || "Could not update the leave request"),
   });
+  const decide = {
+    isPending: shared.isPending,
+    mutate: (status: "approved" | "rejected") =>
+      shared.mutate({
+        request,
+        status,
+        leaveTypeId: status === "approved" ? leaveTypeId || request.leave_type_id : undefined,
+        leaveTypeName: (leaveTypes as any[]).find((lt: any) => lt.id === (leaveTypeId || request.leave_type_id))?.name,
+        rejectionReason: status === "rejected" ? rejectReason : undefined,
+      }),
+  };
 
   if (!actionable) {
     return (
@@ -122,7 +86,7 @@ export function LeaveApprovalPanel({ request, onDone }: { request: any; onDone?:
             </SelectContent>
           </Select>
           <p className="text-[11px] text-muted-foreground">
-            Balance cascade runs automatically: assigned type → comp-off → casual → LOP.
+            {LEAVE_APPROVE_BALANCE_NOTE}
           </p>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1 h-10" onClick={() => setMode("idle")}>Back</Button>

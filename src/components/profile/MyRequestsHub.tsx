@@ -97,7 +97,7 @@ export default function MyRequestsHub({ employeeId, userId, defaultHolderName }:
     queryFn: async () => {
       const { data, error } = await supabase
         .from('hr_leave_requests')
-        .select('id, status, manager_status, manager_remarks, paid_days, unpaid_days, start_date, end_date, total_days, reason, created_at, leave_type_id, hr_leave_types(name, color)')
+        .select('id, status, manager_status, manager_remarks, paid_days, unpaid_days, start_date, end_date, total_days, reason, rejection_reason, created_at, leave_type_id, hr_leave_types(name, color)')
         .eq('employee_id', employeeId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -156,7 +156,7 @@ export default function MyRequestsHub({ employeeId, userId, defaultHolderName }:
         id: `l-${r.id}`,
         kind: 'leave' as const,
         title: r.hr_leave_types?.name || 'Leave',
-        subtitle: `${r.total_days} day(s) · ${r.reason || 'No reason'}${split}`,
+        subtitle: `${r.total_days} day(s) · Your reason: ${r.reason || 'none given'}${split}${r.status === 'rejected' && r.rejection_reason ? ` · Reason for rejection: ${r.rejection_reason}` : ''}`,
         date: `${r.start_date} → ${r.end_date}`,
         status: stage,
         raw: r,

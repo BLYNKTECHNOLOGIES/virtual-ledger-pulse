@@ -54,12 +54,13 @@ export default function TeamLeaveApprovals({ employeeId, highlightedRequestId }:
 
   const decide = useMutation({
     mutationFn: async ({ req, approve }: { req: any; approve: boolean }) => {
+      if (!approve && !remarks[req.id]?.trim()) throw new Error('Add a short reason before rejecting — it is shared with the employee');
       const { error } = await (supabase as any)
         .from('hr_leave_requests')
         .update({
           manager_status: approve ? 'approved' : 'rejected',
           manager_remarks: remarks[req.id]?.trim() || null,
-          ...(approve ? {} : { rejection_reason: remarks[req.id]?.trim() || 'Rejected by reporting manager' }),
+          ...(approve ? {} : { rejection_reason: remarks[req.id]?.trim() }),
         })
         .eq('id', req.id);
       if (error) throw error;
@@ -73,6 +74,7 @@ export default function TeamLeaveApprovals({ employeeId, highlightedRequestId }:
         endDate: req.end_date,
         totalDays: req.total_days,
         reason: req.reason,
+        rejectionReason: approve ? undefined : remarks[req.id]?.trim(),
         employeeEmail: req.employee_email || null,
         decidedBy: 'Reporting manager',
       });
@@ -148,14 +150,14 @@ export default function TeamLeaveApprovals({ employeeId, highlightedRequestId }:
                     <Textarea
                       rows={2}
                       className="text-foreground text-xs"
-                      placeholder="Remarks (optional)"
+                      placeholder="Remarks — required to reject (shared with the employee)"
                       value={remarks[r.id] || ''}
                       onChange={(e) => setRemarks((p) => ({ ...p, [r.id]: e.target.value }))}
                     />
                     <div className="flex gap-2 justify-end">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost" className="text-destructive h-8">
+                          <Button size="sm" variant="ghost" className="text-destructive h-8" disabled={!remarks[r.id]?.trim()} title={!remarks[r.id]?.trim() ? 'Add remarks to reject' : undefined}>
                             <XCircle className="h-4 w-4 mr-1" /> Reject
                           </Button>
                         </AlertDialogTrigger>
@@ -163,7 +165,7 @@ export default function TeamLeaveApprovals({ employeeId, highlightedRequestId }:
                           <AlertDialogHeader>
                             <AlertDialogTitle>Reject this leave request?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              {name} will be notified. Your remarks are shared with HR.
+                              {name} will be notified. Your remarks are shared with HR and with {name} as the reason for rejection.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

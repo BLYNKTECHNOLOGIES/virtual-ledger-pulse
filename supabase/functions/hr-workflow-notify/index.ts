@@ -163,7 +163,8 @@ function buildRows(kind: string, d: Record<string, any>): Array<[string, string]
       : `${shortDate(d.startDate)} — ${shortDate(d.endDate)}`;
     push("Dates", range);
     push("Total days", d.totalDays);
-    push("Reason", d.reason);
+    push("Employee's reason", d.reason);
+    push("Reason for rejection", d.rejectionReason);
     push("Contact during leave", d.contactDuringLeave);
     push("Balance", d.balanceNote);
   } else {

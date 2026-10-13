@@ -25,6 +25,7 @@ import {
   formatIstDate, matchesFilters, planningShifts, sortByOperatingOrder, sumLines, type StaffingDerived, type WorkforceFilterState,
 } from "@/lib/hrms/workforce";
 import { useLeavingSoon } from "@/hooks/hrms/useWorkforceRepair";
+import { WorkforceBudgetCard } from "@/components/horilla/workforce/WorkforceBudgetCard";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 
 const OPEN = new Set(["pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
@@ -238,6 +239,8 @@ export default function WorkforceOverviewPage() {
               )}
             </CardContent>
           </Card>
+
+          <WorkforceBudgetCard canManage={canManage} />
 
           {rebalances.length > 0 && (
             <Card>

@@ -1,3 +1,4 @@
+import { formatInr, type BudgetLine } from "@/hooks/hrms/useWorkforceBudget";
 import { Link } from "react-router-dom";
 import { Armchair, GraduationCap, PauseCircle, Plus, UserMinus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +82,8 @@ interface Props {
   canManage: boolean;
   onOpenLine: (line: StaffingDerived, roleLabel: string) => void;
   onPlanCell: (row: GridRow, columnId: string) => void;
+  /** Monthly cost per line (HRMS managers, "Show cost" on). */
+  costs?: Map<string, BudgetLine>;
 }
 
 function CellTip({ r }: { r: StaffingDerived }) {
@@ -97,7 +100,7 @@ function CellTip({ r }: { r: StaffingDerived }) {
   );
 }
 
-export function StaffingGrid({ columns, rows, canManage, onOpenLine, onPlanCell }: Props) {
+export function StaffingGrid({ columns, rows, canManage, onOpenLine, onPlanCell, costs }: Props) {
   const departments = Array.from(new Set(rows.map((r) => r.departmentName)));
   return (
     <TooltipProvider delayDuration={150}>
@@ -116,7 +119,7 @@ export function StaffingGrid({ columns, rows, canManage, onOpenLine, onPlanCell 
           <tbody>
             {departments.map((dept) => (
               <DeptRows key={dept} dept={dept} rows={rows.filter((r) => r.departmentName === dept)} columns={columns}
-                canManage={canManage} onOpenLine={onOpenLine} onPlanCell={onPlanCell} />
+                canManage={canManage} onOpenLine={onOpenLine} onPlanCell={onPlanCell} costs={costs} />
             ))}
           </tbody>
         </table>
@@ -125,7 +128,7 @@ export function StaffingGrid({ columns, rows, canManage, onOpenLine, onPlanCell 
   );
 }
 
-function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell }: Props & { dept: string }) {
+function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, costs }: Props & { dept: string }) {
   return (
     <>
       <tr className="border-b border-border bg-muted/20">
@@ -146,6 +149,16 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell }: Pr
               {row.notice > 0 && (
                 <span className="inline-flex items-center gap-1 text-warning"><UserMinus className="h-3 w-3 shrink-0" /> {row.notice} on notice</span>
               )}
+              {costs && (() => {
+                const cs = Array.from(row.cells.values()).map((r) => costs.get(r.plan_id)).filter(Boolean) as BudgetLine[];
+                const known = cs.filter((c) => c.full_cost != null);
+                const total = known.reduce((a, c) => a + (c.full_cost || 0), 0);
+                return cs.length ? (
+                  <span className="font-mono text-foreground" title="Fully staffed, monthly">
+                    {formatInr(total)}/mo{known.length < cs.length ? " + in dept. total" : ""}
+                  </span>
+                ) : null;
+              })()}
               {row.trainees > 0 && (
                 <span className="inline-flex items-center gap-1 text-primary"><GraduationCap className="h-3 w-3 shrink-0" /> {row.trainees} training</span>
               )}
@@ -182,6 +195,11 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell }: Pr
                       <span className="mt-0.5 flex flex-wrap items-center justify-center gap-1">
                         <Badge variant="outline" className={cn("px-1.5 py-0 text-[10px]", GAP_CHIP_CLASS[tone])}>{gapLabel(r.staffingGap)}</Badge>
                         {r.follow_desks && <span className="text-[10px] text-muted-foreground">= desks</span>}
+                        {costs?.get(r.plan_id) && (
+                          <span className="block w-full font-mono text-[10px] text-muted-foreground">
+                            {costs.get(r.plan_id)!.full_cost != null ? `${formatInr(costs.get(r.plan_id)!.full_cost)}/mo` : "in dept. total"}
+                          </span>
+                        )}
                         {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Automatic hiring paused" />}
                       </span>
                     </button>

@@ -180,6 +180,20 @@ export function HiringRequirementDetailDialog({
           <Progress value={pct} />
         </div>
 
+        {canManage && (() => {
+          const b = budget.data?.requirements.find((x) => x.id === r.id);
+          const range = r.salary_min || r.salary_max
+            ? `${formatInr(r.salary_min ?? r.salary_max)}–${formatInr(r.salary_max ?? r.salary_min)} a month`
+            : b?.per_person != null ? `${formatInr(b.per_person)} a month` : "no salary figure";
+          const people = b?.people ?? stillNeeded;
+          return (
+            <div className="rounded-lg border border-border p-3 text-sm">
+              <p className="text-foreground">Budget: {range} × {people}{b?.per_person != null ? ` ≈ ${formatInr(b.per_person * people)} a month` : ""}</p>
+              <p className="text-xs text-muted-foreground">Basis: {b?.basis ?? (r.salary_min || r.salary_max ? "requirement salary range" : "—")}. {BUDGET_SOURCE_LABEL}. Visible to HRMS managers only.</p>
+            </div>
+          );
+        })()}
+
         <div>
           <p className="mb-2 text-sm font-semibold text-foreground">Funnel {jobs.length > 1 && <span className="text-xs font-normal text-muted-foreground">(all {jobs.length} linked jobs)</span>}</p>
           {pipeline.isError ? (

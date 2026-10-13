@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
+import { Switch } from "@/components/ui/switch";
+import { BUDGET_SOURCE_LABEL, useWorkforceBudget } from "@/hooks/hrms/useWorkforceBudget";
 import { WorkforceKpiCard } from "@/components/horilla/workforce/WorkforceKpiCard";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { AddLineDialog, type AddLineSeed } from "@/components/horilla/workforce/AddLineDialog";
@@ -39,6 +41,9 @@ export default function StaffingPlanPage() {
   const [shift, setShift] = useState("all");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+  const [showCost, setShowCost] = useState(false);
+  const budget = useWorkforceBudget(canManage && showCost);
+  const costs = useMemo(() => (showCost && budget.data ? new Map(budget.data.lines.map((l) => [l.plan_id, l])) : undefined), [showCost, budget.data]);
   const [addSeed, setAddSeed] = useState<AddLineSeed | null>(null);
   const [panel, setPanel] = useState<{ planId: string; roleLabel: string } | null>(null);
   const [reqSeed, setReqSeed] = useState<any | null>(null);
@@ -195,6 +200,11 @@ export default function StaffingPlanPage() {
             <Input className="h-9 pl-8 text-foreground" placeholder="Search role or department" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         </div>
+        {canManage && (
+          <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground" title={BUDGET_SOURCE_LABEL}>
+            <Switch checked={showCost} onCheckedChange={setShowCost} /> Show cost
+          </label>
+        )}
         <div className="hidden shrink-0 gap-1 md:flex" role="group" aria-label="View">
           <Button size="sm" variant={view === "grid" ? "secondary" : "ghost"} onClick={() => setView("grid")} aria-label="Grid view"><LayoutGrid className="h-4 w-4" /></Button>
           <Button size="sm" variant={view === "list" ? "secondary" : "ghost"} onClick={() => setView("list")} aria-label="List view"><List className="h-4 w-4" /></Button>
@@ -213,7 +223,8 @@ export default function StaffingPlanPage() {
         <>
           <div className={view === "grid" ? "hidden md:block" : "hidden"}>
             <StaffingGrid columns={grid.columns} rows={grid.rows} canManage={canManage}
-              onOpenLine={(r, roleLabel) => setPanel({ planId: r.plan_id, roleLabel })} onPlanCell={planCell} />
+              onOpenLine={(r, roleLabel) => setPanel({ planId: r.plan_id, roleLabel })} onPlanCell={planCell} costs={costs} />
+            {costs && <p className="mt-1 text-xs text-muted-foreground">Monthly cost if fully staffed. {BUDGET_SOURCE_LABEL}. Lines with one person on roll are counted only in the department total.</p>}
           </div>
 
           <Card className={view === "list" ? "hidden md:block" : "hidden"}>

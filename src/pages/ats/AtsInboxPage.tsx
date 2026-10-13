@@ -381,9 +381,10 @@ const EMPTY: Record<string, string> = { unread: "No unread replies.", all: "No r
 type View = "unread" | "all" | "undelivered" | "queued";
 const PAGE = 50;
 const SELECT =
-  "id,candidate_id,application_id,direction,status,error,subject,snippet,from_name,from_address,to_addresses,received_at,sent_at,created_at,read_at,is_automatic,attachments,ats_candidates(full_name,ref_no),ats_applications(position_text,ats_jobs(title))";
+  "id,candidate_id,application_id,direction,status,error,subject,snippet,from_name,from_address,to_addresses,received_at,sent_at,created_at,read_at,is_automatic,attachments,template_code,ats_candidates(full_name,ref_no),ats_applications(position_text,ats_jobs(title))";
 
 interface InboxRow {
+  template_code?: string | null;
   id: string; candidate_id: string; application_id: string | null; direction: string; status: string; error: string | null;
   subject: string | null; snippet: string | null; from_name: string | null; from_address: string | null; to_addresses: string[];
   received_at: string | null; sent_at: string | null; created_at: string; read_at: string | null; is_automatic: boolean;
@@ -455,7 +456,8 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-destructive">
               <StatusPill tone="destructive">Not delivered</StatusPill>
               <span>{r.status === "bounced" ? "Bounced: check the address" : mailErrorMessage(r.error)}</span>
-              {mailOn && r.status === "failed" && canRetry(r.error) && (
+              {r.status === "failed" && r.template_code === "interview-pick-a-slot" && <span>Make a new link from the Interviews card instead.</span>}
+              {mailOn && r.status === "failed" && canRetry(r.error) && r.template_code !== "interview-pick-a-slot" && (
                 <Button size="sm" variant="outline" className="h-7 gap-1" disabled={busy} onClick={(e) => { e.stopPropagation(); r.error === "interrupted" ? setAskRetry(true) : retry(); }}>
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
                 </Button>

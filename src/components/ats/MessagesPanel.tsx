@@ -220,7 +220,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
     const all = nextSteps({
       intent, hasUpcoming: !!upcoming, upcomingAccepted: upcoming?.candidate_response === "accepted",
       times: proposedTimes(barMsg.intent_data), appOpen: app?.status === "active" || app?.status === "on_hold",
-      canUseResume: !!resumeCandidate, mentionsAddress: ADDRESS_RE.test(`${barMsg.subject ?? ""}\n${barMsg.body_text ?? ""}`),
+      canUseResume: !!resumeCandidate, mentionsAddress: ADDRESS_RE.test(`${barMsg.subject ?? ""}\n${splitQuoted(barMsg.body_text ?? "")[0]}`),
     });
     const appOpen = app?.status === "active" || app?.status === "on_hold";
     if (selfOn && appOpen && (intent === "reschedule" || intent === "availability")) all.push({ key: "pick_time", label: "Let them pick a time" });
@@ -578,7 +578,8 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
             <StatusPill tone="destructive">Not delivered</StatusPill>
             <span>{mailErrorMessage(m.error)}</span>
-            {mailOn && canRetry(m.error) && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={() => (m.error === "interrupted" ? setAskRetry(true) : retry())}>
+            {(m as any).template_code === "interview-pick-a-slot" && <span>Make a new link from the Interviews card instead.</span>}
+            {mailOn && canRetry(m.error) && (m as any).template_code !== "interview-pick-a-slot" && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={() => (m.error === "interrupted" ? setAskRetry(true) : retry())}>
               {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
             </Button>}
           </div>
@@ -678,7 +679,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
   useEffect(() => {
     if (restored.current) return;
     restored.current = true;
-    if (preset) return;
+    // With a preset, the draft is restored first; the template then asks "Replace what you've written?".
     const d = readDraft(candidate.id);
     if (d && (d.body?.trim() || d.subject?.trim())) { if (d.subject) setSubject(d.subject); setBody(d.body ?? ""); }
   }, [candidate.id, preset]);
@@ -791,6 +792,9 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
         toast.error(mailErrorMessage(r.error));
         idRef.current = crypto.randomUUID();
         attemptSig.current = null;
+        // The failed email has Retry; restoring the text would invite a double send.
+        sentRef.current = true;
+        clearDraft(candidate.id);
         onClose();
       } else {
         toast.success("Email sent");

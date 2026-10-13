@@ -173,7 +173,8 @@ export default function PositionsPage() {
   };
   const confirmLines = confirmSwitch ? linesOf(confirmSwitch.p.id) : [];
   const leaving = !!confirmSwitch && !confirmSwitch.value;
-  const confirmPlanIds = confirmLines.map((r) => r.plan_id);
+  // Only lines left with no other role are switched off; shared lines keep their requests.
+  const confirmPlanIds = confirmLines.filter((r: any) => !(r.eligible_position_ids?.length > 1)).map((r) => r.plan_id);
   const openOnLines = useQuery({
     queryKey: ["workforce_hiring_requirements", "open-on-lines", confirmPlanIds.join(",")],
     enabled: leaving && confirmPlanIds.length > 0,
@@ -524,8 +525,8 @@ export default function PositionsPage() {
           )}
           {leaving && (openOnLines.data?.length ?? 0) > 0 && (() => {
             const all = openOnLines.data!;
-            const pend = all.filter((q: any) => ["draft", "pending_approval"].includes(q.status));
-            const live = all.filter((q: any) => !["draft", "pending_approval"].includes(q.status));
+            const pend = all.filter((q: any) => q.status === "pending_approval");
+            const live = all.filter((q: any) => q.status !== "pending_approval");
             return (
               <div className="space-y-2 text-sm">
                 {pend.length > 0 && <div>
@@ -533,7 +534,7 @@ export default function PositionsPage() {
                   <ul className="text-foreground">{pend.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
                 </div>}
                 {live.length > 0 && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-warning">
-                  <p>Approved or recruiting requests stay open on the removed lines — move them to another line or cancel them in Hiring Requirements:</p>
+                  <p>Drafts and approved or recruiting requests stay open on the removed lines — move them to another line or cancel them in Hiring Requirements:</p>
                   <ul>{live.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
                 </div>}
               </div>

@@ -239,7 +239,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
         onOpenChange={(o) => (!o ? requestClose() : undefined)}
         title={isEdit ? "Edit job" : "New job"}
         description={isEdit ? undefined : "Fill in the basics now; you can add the rest later."}
-        contentClassName="md:max-w-6xl"
+        contentClassName="md:w-[calc(100vw-3rem)] md:max-w-6xl"
         footer={
           <>
             <Button type="button" variant="ghost" onClick={requestClose}>Cancel</Button>

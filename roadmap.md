@@ -1,7 +1,7 @@
 # Workforce capacity integrity
 
 ## ATS job details formatting
-- [ ] Rename Benefits to candidate-visible Notes and widen/reorganize the job editor for comfortable writing; verify layout and editing.
+- [x] Rename Benefits to candidate-visible Notes across editor, job detail and activity labels; widen/reorganize editor with larger full-width writing fields, verify actual isolated form at 1280/1125/390 widths and editable Notes/list controls (no live save).
 - [x] Automatically bullet pasted multi-line points across all four job details fields; nine tests pass and the actual editor paste event produces the supplied eight bullets (isolated editor; live save remains blocked below).
 - [x] Add bullet and numbered-list controls with Enter continuation to all four job copy fields, preserving the existing plain-text careers feed.
 - [x] Verify bullet/number controls, Enter continuation and empty-item exit in browser; five formatting tests pass and preview build is OK; literal markers remain compatible with existing text displays.

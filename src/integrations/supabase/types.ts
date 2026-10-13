@@ -862,6 +862,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "ats_applications_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
@@ -1040,6 +1047,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_candidates_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
             columns: ["referred_by_employee_id"]
             isOneToOne: false
@@ -1094,6 +1108,51 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ats_sources"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_conversation_state: {
+        Row: {
+          candidate_id: string
+          done_at: string | null
+          follow_up_at: string | null
+          snoozed_until: string | null
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          candidate_id: string
+          done_at?: string | null
+          follow_up_at?: string | null
+          snoozed_until?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          done_at?: string | null
+          follow_up_at?: string | null
+          snoozed_until?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_conversation_state_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: true
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_conversation_state_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: true
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -1216,11 +1275,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_events_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
+          {
             foreignKeyName: "ats_events_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "ats_candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
           },
           {
             foreignKeyName: "ats_events_job_id_fkey"
@@ -1309,11 +1382,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_files_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
+          {
             foreignKeyName: "ats_files_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "ats_candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_files_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -1370,11 +1457,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_import_rows_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
+          {
             foreignKeyName: "ats_import_rows_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "ats_candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_import_rows_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
           },
           {
             foreignKeyName: "ats_import_rows_import_id_fkey"
@@ -1642,6 +1743,13 @@ export type Database = {
             foreignKeyName: "ats_interview_panel_interview_id_fkey"
             columns: ["interview_id"]
             isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["next_interview_id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
             referencedRelation: "ats_interviews"
             referencedColumns: ["id"]
           },
@@ -1751,11 +1859,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_interviews_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
+          {
             foreignKeyName: "ats_interviews_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "ats_candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_interviews_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -2050,9 +2172,16 @@ export type Database = {
           from_address: string | null
           from_name: string | null
           from_other_address: boolean
+          handled_action: string | null
+          handled_at: string | null
+          handled_by: string | null
+          handled_by_name: string | null
           id: string
           imap_uid: number | null
           in_reply_to: string | null
+          intent: string | null
+          intent_data: Json
+          intent_source: string | null
           interview_id: string | null
           is_automatic: boolean
           mailbox_id: string | null
@@ -2090,9 +2219,16 @@ export type Database = {
           from_address?: string | null
           from_name?: string | null
           from_other_address?: boolean
+          handled_action?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          handled_by_name?: string | null
           id?: string
           imap_uid?: number | null
           in_reply_to?: string | null
+          intent?: string | null
+          intent_data?: Json
+          intent_source?: string | null
           interview_id?: string | null
           is_automatic?: boolean
           mailbox_id?: string | null
@@ -2130,9 +2266,16 @@ export type Database = {
           from_address?: string | null
           from_name?: string | null
           from_other_address?: boolean
+          handled_action?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          handled_by_name?: string | null
           id?: string
           imap_uid?: number | null
           in_reply_to?: string | null
+          intent?: string | null
+          intent_data?: Json
+          intent_source?: string | null
           interview_id?: string | null
           is_automatic?: boolean
           mailbox_id?: string | null
@@ -2168,11 +2311,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_messages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
+          {
             foreignKeyName: "ats_messages_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "ats_candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_messages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "ats_messages_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["next_interview_id"]
           },
           {
             foreignKeyName: "ats_messages_interview_id_fkey"
@@ -2230,11 +2394,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_notes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
+          {
             foreignKeyName: "ats_notes_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "ats_candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -2283,6 +2461,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ats_applications"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_ratings_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
           },
         ]
       }
@@ -30017,6 +30202,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ats_applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "ats_applications_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
@@ -30059,6 +30251,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ats_conversation_list: {
+        Row: {
+          app_status: string | null
+          application_id: string | null
+          candidate_id: string | null
+          done_at: string | null
+          email: string | null
+          follow_up_at: string | null
+          full_name: string | null
+          job_title: string | null
+          last_at: string | null
+          last_direction: string | null
+          last_in_at: string | null
+          last_in_handled_action: string | null
+          last_in_handled_at: string | null
+          last_in_id: string | null
+          last_intent: string | null
+          last_intent_data: Json | null
+          last_out_at: string | null
+          last_snippet: string | null
+          last_status: string | null
+          last_subject: string | null
+          next_interview_at: string | null
+          next_interview_id: string | null
+          next_interview_response: string | null
+          phone: string | null
+          ref_no: string | null
+          snoozed_until: string | null
+          stage_kind: string | null
+          stage_name: string | null
+          state: string | null
+          unread: number | null
+        }
+        Relationships: []
       }
       ats_job_summary: {
         Row: {
@@ -30962,13 +31189,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["counter_subsidiary_id"]
             isOneToOne: false
             referencedRelation: "fin_entity_master_v"
@@ -30977,13 +31197,20 @@ export type Database = {
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["counter_subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["counter_subsidiary_id"]
+            columns: ["subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
@@ -32281,6 +32508,53 @@ export type Database = {
         Args: { p_interview_id: string; p_reason?: string }
         Returns: Json
       }
+      ats_conversation_counts: { Args: never; Returns: Json }
+      ats_conversations: {
+        Args: {
+          p_before?: string
+          p_limit?: number
+          p_search?: string
+          p_view?: string
+        }
+        Returns: {
+          app_status: string | null
+          application_id: string | null
+          candidate_id: string | null
+          done_at: string | null
+          email: string | null
+          follow_up_at: string | null
+          full_name: string | null
+          job_title: string | null
+          last_at: string | null
+          last_direction: string | null
+          last_in_at: string | null
+          last_in_handled_action: string | null
+          last_in_handled_at: string | null
+          last_in_id: string | null
+          last_intent: string | null
+          last_intent_data: Json | null
+          last_out_at: string | null
+          last_snippet: string | null
+          last_status: string | null
+          last_subject: string | null
+          next_interview_at: string | null
+          next_interview_id: string | null
+          next_interview_response: string | null
+          phone: string | null
+          ref_no: string | null
+          snoozed_until: string | null
+          stage_kind: string | null
+          stage_name: string | null
+          state: string | null
+          unread: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ats_conversation_list"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       ats_create_application: {
         Args: {
           p_answers?: Json
@@ -32344,12 +32618,28 @@ export type Database = {
         Args: { p_attendee: string; p_interview_id: string; p_partstat: string }
         Returns: boolean
       }
+      ats_log_contact: {
+        Args: {
+          p_application_id: string
+          p_candidate_id: string
+          p_channel: string
+          p_follow_up_at?: string
+          p_note?: string
+          p_outcome: string
+          p_template_code?: string
+        }
+        Returns: string
+      }
       ats_mail_claim: {
         Args: { p_mailbox_id: string; p_owner: string; p_seconds?: number }
         Returns: Json
       }
       ats_mail_status: { Args: never; Returns: Json }
       ats_mail_store_inbound: { Args: { p: Json }; Returns: Json }
+      ats_mark_message_handled: {
+        Args: { p_action: string; p_message_id: string }
+        Returns: undefined
+      }
       ats_mark_message_unread: {
         Args: { p_message_id: string }
         Returns: boolean
@@ -32403,9 +32693,25 @@ export type Database = {
         }
         Returns: Json
       }
+      ats_set_conversation: {
+        Args: { p_action: string; p_candidate_id: string; p_until?: string }
+        Returns: undefined
+      }
+      ats_set_interview_response: {
+        Args: {
+          p_interview_id: string
+          p_message_id?: string
+          p_response: string
+        }
+        Returns: undefined
+      }
       ats_set_interview_status: {
         Args: { p_interview_id: string; p_status: string }
         Returns: Json
+      }
+      ats_set_message_intent: {
+        Args: { p_intent: string; p_message_id: string }
+        Returns: undefined
       }
       ats_set_status: {
         Args: {

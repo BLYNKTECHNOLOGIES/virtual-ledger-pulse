@@ -1,20 +1,16 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2, Lock, Unlock, RefreshCw, ShieldCheck, ExternalLink } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Users, Lock, ExternalLink, FileText, Gauge } from "lucide-react";
 import { StatutoryReportsPanel } from "@/components/hrms/StatutoryReportsPanel";
 import { PayrollRunDetailDialog } from "@/components/hrms/payroll/PayrollRunDetailDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 /** Display labels for RazorpayX run statuses (the stored values are unchanged). */
 const RUN_STATUS_LABEL: Record<string, string> = {
@@ -25,37 +21,66 @@ const RUN_STATUS_LABEL: Record<string, string> = {
   bulk_applied: "Sent to RazorpayX",
   locked: "Locked",
   recalled: "Recalled",
+  payslips_only: "Payslips imported · no run record",
+};
+
+interface MonthRow {
+  id: string;
+  title: string;
+  pay_period_start: string;
+  pay_period_end: string;
+  run_date: string;
+  employee_count: number;
+  total_gross: number;
+  total_deductions: number;
+  total_net: number;
+  status: string;
+  is_locked: boolean;
+}
+
+const istDate = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) : "—";
+
+// Display only: last day of the month, computed in UTC so IST browsers don't show the 29th/30th.
+const monthEnd = (m: string) => {
+  const d = new Date(m);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+};
+const monthLabel = (m: string) =>
+  new Date(m).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+
+const statusColor = (status: string) => {
+  switch (status) {
+    case "bulk_applied": case "locked": return "bg-success/10 text-success";
+    case "pilot_applied": case "dry_run_ok": case "computed": return "bg-info/10 text-info";
+    case "recalled": return "bg-destructive/10 text-destructive";
+    case "payslips_only": return "bg-warning/10 text-warning";
+    default: return "bg-muted text-foreground";
+  }
 };
 
 export default function PayrollDashboardPage() {
-  const qc = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ title: "", pay_period_start: "", pay_period_end: "", notes: "" });
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
-  const [lockConfirm, setLockConfirm] = useState<any>(null);
-  const [rerunDialog, setRerunDialog] = useState<any>(null);
-  const [rerunReason, setRerunReason] = useState("");
-  const [reviewDialog, setReviewDialog] = useState<any>(null);
-  const [reviewNotes, setReviewNotes] = useState("");
-  const [detailRun, setDetailRun] = useState<any>(null);
+  const [detailRun, setDetailRun] = useState<MonthRow | null>(null);
 
-  // RazorpayX is the payroll authority — mirror its runs (hr_razorpay_payroll_runs)
-  // and derive totals from the imported payslip records for each period.
-  const { data: runs = [], isLoading } = useQuery({
+  // RazorpayX is the payroll authority — one row per month that has a RazorpayX
+  // run row OR imported payslip records; totals come from the payslip records.
+  const { data: runs = [], isLoading } = useQuery<MonthRow[]>({
     queryKey: ["hr_payroll_runs_mirror"],
     queryFn: async () => {
-      const [{ data: rzRuns, error: runErr }, { data: recs, error: recErr }] = await Promise.all([
+      const [{ data: rzRuns, error: runErr }, recs] = await Promise.all([
         (supabase as any).from("hr_razorpay_payroll_runs").select("*").order("period_month", { ascending: false }),
-        (supabase as any)
-          .from("hr_razorpay_payslip_records")
-          .select("period_month, gross_earnings, total_deductions, net_pay, reg_gross_salary, reg_net_pay"),
+        fetchAllPaginated<any>(() =>
+          (supabase as any)
+            .from("hr_razorpay_payslip_records")
+            .select("id, period_month, gross_earnings, total_deductions, net_pay, reg_gross_salary, reg_net_pay")
+            .order("id", { ascending: true }),
+        ),
       ]);
       if (runErr) throw runErr;
-      if (recErr) throw recErr;
 
       const agg = new Map<string, { emps: number; gross: number; ded: number; net: number }>();
       for (const r of recs || []) {
-        const key = r.period_month as string;
+        const key = String(r.period_month).slice(0, 10);
         const cur = agg.get(key) || { emps: 0, gross: 0, ded: 0, net: 0 };
         cur.emps += 1;
         cur.gross += Number(r.gross_earnings ?? r.reg_gross_salary ?? 0);
@@ -64,172 +89,64 @@ export default function PayrollDashboardPage() {
         agg.set(key, cur);
       }
 
-      // Display only: last day of the month, computed in UTC so IST browsers don't show the 29th/30th.
-      const monthEnd = (m: string) => {
-        const d = new Date(m);
-        return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
-      };
-      const monthLabel = (m: string) =>
-        new Date(m).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+      // Latest run row per month (runs are ordered newest month first).
+      const runByMonth = new Map<string, any>();
+      for (const r of rzRuns || []) {
+        const key = String(r.period_month).slice(0, 10);
+        const prev = runByMonth.get(key);
+        if (!prev || String(r.created_at) > String(prev.created_at)) runByMonth.set(key, r);
+      }
 
-      return (rzRuns || []).map((r: any) => {
-        const a = agg.get(r.period_month) || { emps: 0, gross: 0, ded: 0, net: 0 };
+      const months = Array.from(new Set([...runByMonth.keys(), ...agg.keys()])).sort().reverse();
+      return months.map((m) => {
+        const r = runByMonth.get(m);
+        const a = agg.get(m) || { emps: 0, gross: 0, ded: 0, net: 0 };
         return {
-          id: r.id,
-          title: `Payroll — ${monthLabel(r.period_month)}`,
-          pay_period_start: r.period_month,
-          pay_period_end: monthEnd(r.period_month),
-          run_date: (r.created_at || "").slice(0, 10),
-          employee_count: a.emps || r.headcount_included || 0,
-          total_gross: Number(r.totals_gross) || a.gross,
-          total_deductions: Number(r.totals_deductions) || a.ded,
-          total_net: Number(r.totals_net) || a.net,
-          status: r.status,
-          is_locked: !!r.locked_at,
-          rerun_count: 0,
+          id: r?.id ?? `payslips-${m}`,
+          title: `Payroll — ${monthLabel(m)}`,
+          pay_period_start: m,
+          pay_period_end: monthEnd(m),
+          run_date: istDate(r?.created_at),
+          employee_count: a.emps || r?.headcount_included || 0,
+          total_gross: Number(r?.totals_gross) || a.gross,
+          total_deductions: Number(r?.totals_deductions) || a.ded,
+          total_net: Number(r?.totals_net) || a.net,
+          status: r ? r.status : "payslips_only",
+          is_locked: !!r?.locked_at,
         };
       });
     },
   });
 
+  const totalGross = runs.reduce((s, r) => s + (r.total_gross || 0), 0);
+  const totalNet = runs.reduce((s, r) => s + (r.total_net || 0), 0);
+  const totalDeductions = runs.reduce((s, r) => s + (r.total_deductions || 0), 0);
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await (supabase as any).from("hr_payroll_runs").insert({
-        title: form.title,
-        pay_period_start: form.pay_period_start,
-        pay_period_end: form.pay_period_end,
-        notes: form.notes || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
-      setShowCreate(false);
-      setForm({ title: "", pay_period_start: "", pay_period_end: "", notes: "" });
-      toast.success("Payroll run created");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
+  const statusChip = (r: MonthRow, size: "xs" | "sm") => (
+    <div className="flex items-center gap-1 flex-wrap">
+      {r.is_locked && (
+        <span className={`inline-flex items-center gap-1 ${size === "xs" ? "text-[10px]" : "text-xs"} text-warning bg-warning/10 px-2 py-0.5 rounded-full`}>
+          <Lock className="h-3 w-3" /> Locked
+        </span>
+      )}
+      <span className={`px-2 py-0.5 rounded-full ${size === "xs" ? "text-[10px]" : "text-xs"} font-medium ${statusColor(r.status)}`}>
+        {RUN_STATUS_LABEL[r.status] ?? String(r.status || "").replace(/_/g, " ")}
+      </span>
+    </div>
+  );
 
-  const reviewMutation = useMutation({
-    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
-      const { error } = await (supabase as any).from("hr_payroll_runs").update({
-        status: "reviewed",
-        reviewed_by: (await supabase.auth.getUser()).data.user?.id || null,
-        reviewed_at: new Date().toISOString(),
-        review_notes: notes || null,
-      }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
-      toast.success("Payroll reviewed & approved");
-      setReviewDialog(null);
-      setReviewNotes("");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  const lockMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("hr_payroll_runs").update({
-        status: "completed",
-        is_locked: true,
-        locked_at: new Date().toISOString(),
-      }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
-      toast.success("Payroll locked successfully");
-      setLockConfirm(null);
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  const rerunMutation = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      // Get current rerun_count
-      const { data: current } = await (supabase as any).from("hr_payroll_runs").select("rerun_count").eq("id", id).single();
-      const newCount = (current?.rerun_count || 0) + 1;
-      const { error } = await (supabase as any).from("hr_payroll_runs").update({
-        status: "processing",
-        is_locked: false,
-        locked_at: null,
-        rerun_count: newCount,
-        rerun_reason: reason,
-      }).eq("id", id);
-      if (error) throw error;
-      return id;
-    },
-    onSuccess: async (id: string) => {
-      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
-      toast.success("Payroll unlocked — regenerating payslips...");
-      setRerunDialog(null);
-      setRerunReason("");
-      // Auto-regenerate after unlock
-      const { data: run } = await (supabase as any).from("hr_payroll_runs").select("*").eq("id", id).single();
-      if (run) generatePayslips(run);
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  // --- Salary computation from shared utility ---
-  // (Eliminates duplicated evalFormula/computeComponentAmounts logic)
-
-  // Generate payslips for a payroll run
-  const generatePayslips = async (run: any) => {
-    setGeneratingId(run.id);
-    try {
-      // Call server-side payroll engine RPC (GAP-V5-03)
-      const { data: result, error } = await (supabase as any)
-        .rpc("fn_generate_payroll", { p_payroll_run_id: run.id });
-      if (error) throw error;
-
-      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
-      qc.invalidateQueries({ queryKey: ["hr_payslips"] });
-      toast.success(`Generated ${result?.payslip_count || 0} payslips (server-side)`);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to generate payslips");
-    } finally {
-      setGeneratingId(null);
-    }
-  };
-
-  const totalGross = runs.reduce((s: number, r: any) => s + (r.total_gross || 0), 0);
-  const totalNet = runs.reduce((s: number, r: any) => s + (r.total_net || 0), 0);
-  const totalDeductions = runs.reduce((s: number, r: any) => s + (r.total_deductions || 0), 0);
-
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "draft": return "bg-muted text-foreground";
-      case "processing": return "bg-info/10 text-info";
-      case "reviewed": return "bg-primary/10 text-primary";
-      case "completed": return "bg-success/10 text-success";
-      case "paid": return "bg-success/10 text-success";
-      case "cancelled": return "bg-destructive/10 text-destructive";
-      case "bulk_applied": return "bg-success/10 text-success";
-      case "pilot_applied": case "dry_run_ok": case "computed": return "bg-info/10 text-info";
-      case "recalled": return "bg-destructive/10 text-destructive";
-      default: return "bg-muted text-foreground";
-    }
-  };
-
-  const markPaidMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("hr_payroll_runs").update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-      }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
-      toast.success("Payroll marked as paid — disbursement recorded");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
+  const actions = (r: MonthRow, mobile = false) => (
+    <div className={`flex gap-1 ${mobile ? "flex-wrap pt-1" : ""}`} onClick={(e) => e.stopPropagation()}>
+      <Button size="sm" variant="outline" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 text-xs"} onClick={() => setDetailRun(r)}>
+        <FileText className="h-3 w-3 mr-1" /> Breakdown
+      </Button>
+      <Button asChild size="sm" variant="ghost" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 text-xs"}>
+        <Link to={`/hrms/payroll/cockpit?month=${r.pay_period_start.slice(0, 7)}`}>
+          <Gauge className="h-3 w-3 mr-1" /> Open in Cockpit
+        </Link>
+      </Button>
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -239,9 +156,9 @@ export default function PayrollDashboardPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline" className="h-9">
-              <a href="/hrms/payroll/inputs">Payroll Inputs</a>
+              <Link to="/hrms/payroll/inputs">Payroll Inputs</Link>
             </Button>
-            <Button asChild size="sm" className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
+            <Button asChild size="sm" className="h-9">
               <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5">Open RazorpayX <ExternalLink className="h-3.5 w-3.5" /></a>
             </Button>
           </div>
@@ -253,18 +170,17 @@ export default function PayrollDashboardPage() {
         <div>
           <div className="font-medium">RazorpayX is the payroll authority</div>
           <div className="text-muted-foreground mt-1">
-            Payroll is <strong>computed and executed on RazorpayX</strong>. The rows below are a read-only mirror kept for record. Provide inputs (additions, deductions, do-not-pay, attendance) via <a className="underline" href="/hrms/payroll/inputs">Payroll Inputs</a>, then run the pay-cycle on the <a className="underline" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">RazorpayX dashboard</a>.
+            Payroll is <strong>computed and executed on RazorpayX</strong>. The rows below are a read-only mirror kept for record. Provide inputs (additions, deductions, do-not-pay, attendance) via <Link className="underline" to="/hrms/payroll/inputs">Payroll Inputs</Link>, then run the pay-cycle on the <a className="underline" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">RazorpayX dashboard</a>.
           </div>
         </div>
       </div>
 
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[
-          { label: "Total Runs", value: runs.length, icon: Wallet, color: "text-info", bg: "bg-info/10" },
-          { label: "Gross · all runs", value: `₹${totalGross.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
-          { label: "Deductions · all runs", value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
-          { label: "Net pay · all runs", value: `₹${totalNet.toLocaleString('en-IN')}`, icon: Users, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Payroll months", value: runs.length, icon: Wallet, color: "text-info", bg: "bg-info/10" },
+          { label: "Gross · all months", value: `₹${totalGross.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
+          { label: "Deductions · all months", value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: TrendingDown, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Net pay · all months", value: `₹${totalNet.toLocaleString('en-IN')}`, icon: Users, color: "text-primary", bg: "bg-primary/10" },
         ].map((s) => (
           <Card key={s.label} className="h-full transition-shadow hover:shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
@@ -285,266 +201,68 @@ export default function PayrollDashboardPage() {
             ) : runs.length === 0 ? (
               <EmptyState icon={Wallet} title="No payroll runs yet" description="Runs appear once RazorpayX payroll is synced — work the month in the Monthly Cockpit." />
             ) : (
-              runs.map((r: any) => (
+              runs.map((r) => (
                 <div key={r.id} className="p-4 space-y-2 cursor-pointer active:bg-muted/40" onClick={() => setDetailRun(r)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{r.title}</p>
                       <p className="text-[11px] text-muted-foreground">{r.pay_period_start} — {r.pay_period_end}</p>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
-                      {r.is_locked && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full">
-                          <Lock className="h-3 w-3" /> Locked
-                        </span>
-                      )}
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor(r.status)}`}>{RUN_STATUS_LABEL[r.status] ?? String(r.status || "").replace(/_/g, " ")}</span>
-                    </div>
+                    <div className="flex-shrink-0">{statusChip(r, "xs")}</div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div><p className="text-[10px] uppercase text-muted-foreground">Emp</p><p className="tabular-nums">{r.employee_count || 0}</p></div>
                     <div><p className="text-[10px] uppercase text-muted-foreground">Gross</p><p className="text-success tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</p></div>
                     <div><p className="text-[10px] uppercase text-muted-foreground">Net</p><p className="font-semibold tabular-nums">₹{(r.total_net || 0).toLocaleString('en-IN')}</p></div>
                   </div>
-                  <div className="flex flex-wrap gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
-                    {r.status === "draft" && (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
-                        <Lock className="h-3 w-3" /> Compute on RazorpayX
-                      </span>
-                    )}
-                    {r.status === "processing" && !r.is_locked && (
-                      <Button size="sm" variant="outline" className="min-h-11 flex-1 text-xs" onClick={() => setReviewDialog(r)}>
-                        <CheckCircle className="h-3 w-3 mr-1" /> Review & Approve
-                      </Button>
-                    )}
-                    {r.status === "reviewed" && !r.is_locked && (
-                      <Button size="sm" variant="outline" className="min-h-11 flex-1 text-xs text-warning" onClick={() => setLockConfirm(r)}>
-                        <Lock className="h-3 w-3 mr-1" /> Lock & Complete
-                      </Button>
-                    )}
-                    {r.status === "completed" && r.is_locked && (
-                      <Button size="sm" className="min-h-11 flex-1 text-xs bg-success hover:bg-success/90 text-success-foreground" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
-                        <CheckCircle className="h-3 w-3 mr-1" /> Mark as Paid
-                      </Button>
-                    )}
-                    {r.status === "paid" && (
-                      <span className="text-xs text-success font-medium flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" /> Disbursed
-                      </span>
-                    )}
-                  </div>
+                  {actions(r, true)}
                 </div>
               ))
             )}
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                {["Title", "Period", "Run Date", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
-                  <th key={h} className={`px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap ${["Employees", "Gross", "Deductions", "Net"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
-              ) : runs.length === 0 ? (
-                <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Runs appear once RazorpayX payroll is synced — work the month in the Monthly Cockpit." /></td></tr>
-              ) : (
-                runs.map((r: any) => (
-                  <tr key={r.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => setDetailRun(r)}>
-                    <td className="px-4 py-3 font-medium">{r.title}<span className="block text-[11px] font-normal text-muted-foreground">Click for breakdown</span></td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
-                    <td className="px-4 py-3 tabular-nums">{r.run_date}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{r.employee_count || 0}</td>
-                    <td className="px-4 py-3 text-right text-success font-medium tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-right text-destructive tabular-nums">₹{(r.total_deductions || 0).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums">₹{(r.total_net || 0).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {r.is_locked && (
-                          <span className="inline-flex items-center gap-1 text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full mr-1">
-                            <Lock className="h-3 w-3" /> Locked
-                          </span>
-                        )}
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>{RUN_STATUS_LABEL[r.status] ?? String(r.status || "").replace(/_/g, " ")}</span>
-                        {r.rerun_count > 0 && (
-                          <span className="text-xs text-muted-foreground" title={r.rerun_reason || ""}>
-                            (Re-run #{r.rerun_count})
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-1">
-                        {/* Draft: compute on RazorpayX (button retired) */}
-                        {r.status === "draft" && (
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
-                            <Lock className="h-3 w-3" /> Compute on RazorpayX
-                          </span>
-                        )}
-                        {/* Processing: mirroring RazorpayX (regenerate retired) */}
-                        {r.status === "processing" && !r.is_locked && (
-                          <>
-                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
-                              <RefreshCw className="h-3 w-3" /> Mirroring RazorpayX
-                            </span>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs text-primary" onClick={() => setReviewDialog(r)}>
-                              <CheckCircle className="h-3 w-3 mr-1" /> Review & Approve
-                            </Button>
-                          </>
-                        )}
-                        {/* Reviewed: Lock only (regenerate retired) */}
-                        {r.status === "reviewed" && !r.is_locked && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-warning" onClick={() => setLockConfirm(r)}>
-                            <Lock className="h-3 w-3 mr-1" /> Lock & Complete
-                          </Button>
-                        )}
-                        {/* Completed & Locked: Mark Paid only (unlock/re-run retired — re-run on RazorpayX) */}
-                        {r.status === "completed" && r.is_locked && (
-                          <Button size="sm" className="h-7 text-xs bg-success hover:bg-success/90 text-success-foreground" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
-                            <CheckCircle className="h-3 w-3 mr-1" /> Mark as Paid
-                          </Button>
-                        )}
-                        {/* Paid: Final state */}
-                        {r.status === "paid" && (
-                          <span className="text-xs text-success font-medium flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3" /> Disbursed
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <div className="hidden md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  {["Title", "Period", "Run Date (IST)", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
+                    <th key={h} className={`px-3 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground ${["Employees", "Gross", "Deductions", "Net"].includes(h) ? "text-right" : "text-left"}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={9} className="p-0"><TableSkeleton rows={5} columns={9} /></td></tr>
+                ) : runs.length === 0 ? (
+                  <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Runs appear once RazorpayX payroll is synced — work the month in the Monthly Cockpit." /></td></tr>
+                ) : (
+                  runs.map((r) => (
+                    <tr key={r.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => setDetailRun(r)}>
+                      <td className="px-3 py-3 font-medium">{r.title}<span className="block text-[11px] font-normal text-muted-foreground">Click for breakdown</span></td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">{r.pay_period_start} — {r.pay_period_end}</td>
+                      <td className="px-3 py-3 tabular-nums whitespace-nowrap">{r.run_date}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{r.employee_count || 0}</td>
+                      <td className="px-3 py-3 text-right text-success font-medium tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-3 text-right text-destructive tabular-nums">₹{(r.total_deductions || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-3 text-right font-semibold tabular-nums">₹{(r.total_net || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-3">{statusChip(r, "sm")}</td>
+                      <td className="px-3 py-3">{actions(r)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
 
-
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Create Payroll Run</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. February 2026 Salary" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Period Start</Label><Input type="date" value={form.pay_period_start} onChange={(e) => setForm({ ...form, pay_period_start: e.target.value })} /></div>
-              <div><Label>Period End</Label><Input type="date" value={form.pay_period_end} onChange={(e) => setForm({ ...form, pay_period_end: e.target.value })} /></div>
-            </div>
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!form.title || !form.pay_period_start || !form.pay_period_end} className="bg-[#E8604C] hover:bg-[#d4553f]">Create</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* Lock Confirmation */}
-      <AlertDialog open={!!lockConfirm} onOpenChange={(open) => !open && setLockConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-warning" /> Lock Payroll Run?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Locking <strong>{lockConfirm?.title}</strong> will mark it as completed and prevent any further modifications or regeneration. This action can only be reversed via a controlled re-run.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-warning hover:bg-warning/90 text-warning-foreground" onClick={() => lockMutation.mutate(lockConfirm?.id)}>
-              <Lock className="h-4 w-4 mr-1" /> Lock & Complete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Review & Approve Dialog */}
-      <Dialog open={!!reviewDialog} onOpenChange={(open) => { if (!open) { setReviewDialog(null); setReviewNotes(""); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-primary" /> Review & Approve Payroll</DialogTitle>
-            <DialogDescription>
-              Reviewing <strong>{reviewDialog?.title}</strong> — {reviewDialog?.employee_count || 0} payslips, Net Pay ₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-[10px] text-muted-foreground uppercase">Gross</p>
-                <p className="text-sm font-bold text-success tabular-nums">₹{(reviewDialog?.total_gross || 0).toLocaleString('en-IN')}</p>
-              </div>
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
-                <p className="text-sm font-bold text-destructive tabular-nums">₹{(reviewDialog?.total_deductions || 0).toLocaleString('en-IN')}</p>
-              </div>
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
-                <p className="text-sm font-bold tabular-nums">₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}</p>
-              </div>
-            </div>
-            <div>
-              <Label>Review Notes</Label>
-              <Textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Verification notes, discrepancies checked..." className="mt-1" />
-            </div>
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm text-foreground">
-              <strong>Review confirms</strong> payslip amounts are verified and ready for final lock. After approval, the payroll can be locked to prevent changes.
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setReviewDialog(null); setReviewNotes(""); }}>Cancel</Button>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate({ id: reviewDialog?.id, notes: reviewNotes.trim() })}>
-              {reviewMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Reviewing...</> : <><CheckCircle className="h-4 w-4 mr-1" /> Approve</>}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-
-      <Dialog open={!!rerunDialog} onOpenChange={(open) => { if (!open) { setRerunDialog(null); setRerunReason(""); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Unlock className="h-5 w-5 text-warning" /> Unlock & Re-run Payroll</DialogTitle>
-            <DialogDescription>
-              This will unlock <strong>{rerunDialog?.title}</strong>, delete existing payslips, and regenerate them with current data. This is Re-run #{(rerunDialog?.rerun_count || 0) + 1}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Reason for Re-run <span className="text-destructive">*</span></Label>
-              <Textarea
-                value={rerunReason}
-                onChange={(e) => setRerunReason(e.target.value)}
-                placeholder="e.g. Attendance correction for 3 employees, salary revision applied..."
-                className="mt-1"
-              />
-            </div>
-            <div className="bg-warning/5 border border-warning/20 rounded-lg p-3 text-sm text-foreground">
-              <strong>Warning:</strong> All existing payslips for this run will be deleted and regenerated. Make sure any corrections are already applied before proceeding.
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setRerunDialog(null); setRerunReason(""); }}>Cancel</Button>
-            <Button
-              className="bg-warning hover:bg-warning/90 text-warning-foreground"
-              disabled={!rerunReason.trim() || rerunMutation.isPending}
-              onClick={() => rerunMutation.mutate({ id: rerunDialog?.id, reason: rerunReason.trim() })}
-            >
-              {rerunMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processing...</> : <><RefreshCw className="h-4 w-4 mr-1" /> Unlock & Re-run</>}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <PayrollRunDetailDialog
         open={!!detailRun}
         onOpenChange={(o) => !o && setDetailRun(null)}
         periodMonth={detailRun?.pay_period_start ?? null}
         title={detailRun?.title ? `${detailRun.title} — breakdown` : undefined}
       />
-
 
       {/* Statutory Reports */}
       <Card className="mt-6">

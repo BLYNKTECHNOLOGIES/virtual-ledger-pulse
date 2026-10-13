@@ -344,18 +344,30 @@ export function useHiringRequirements() {
   });
 }
 
+/** Fields an approved / recruiting requirement may still change (with a reason). */
+export const LIMITED_REQUIREMENT_FIELDS = [
+  "number_required", "target_joining_date", "salary_min", "salary_max", "required_skills", "notes",
+] as const;
+
 export function useSaveHiringRequirement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: HiringRequirementInput) => {
-      const { id, ...payload } = input;
+    mutationFn: async (input: HiringRequirementInput & { editReason?: string | null }) => {
+      const { id, editReason, approver_name: _ignored, ...payload } = input;
       if (id) {
-        // Status changes on existing requirements only go through the transition RPC.
+        // Edits go through hr_update_requirement (audited, status-aware); status only via the transition RPC.
         const { status, ...rest } = payload;
         const { data: before, error: readError } = await supabase
           .from("hr_hiring_requirements").select("status").eq("id", id).single();
         if (readError) throw readError;
-        const { error } = await supabase.from("hr_hiring_requirements").update(rest).eq("id", id);
+        const full = ["draft", "pending_approval"].includes(before?.status ?? "");
+        const patch: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(rest)) {
+          if (full || (LIMITED_REQUIREMENT_FIELDS as readonly string[]).includes(k)) patch[k] = v;
+        }
+        const { error } = await (supabase.rpc as any)("hr_update_requirement", {
+          p_id: id, p_patch: patch, p_reason: editReason?.trim() || null,
+        });
         if (error) throw error;
         if (before?.status === "draft" && status === "pending_approval") {
           const { error: tErr } = await (supabase.rpc as any)("hr_requirement_transition", {
@@ -370,19 +382,28 @@ export function useSaveHiringRequirement() {
       );
       if (numberError) throw numberError;
       const { data: user } = await supabase.auth.getUser();
+      const uid = user?.user?.id ?? null;
+      let byName: string | null = user?.user?.email ?? null;
+      if (uid) {
+        const { data: u } = await supabase.from("users").select("first_name, last_name, username").eq("id", uid).maybeSingle();
+        const n = [u?.first_name, u?.last_name].filter(Boolean).join(" ").trim();
+        byName = n || u?.username || byName;
+      }
       const { data, error } = await supabase
         .from("hr_hiring_requirements")
         .insert({
           ...payload,
+          source: "manual",
           requirement_no: reqNo as string,
-          requested_by: user?.user?.id ?? null,
-          requested_by_name: user?.user?.email ?? null,
-        })
+          requested_by: uid,
+          requested_by_name: byName,
+        } as any)
         .select("id")
         .single();
       if (error) throw error;
       return data.id as string;
     },
+
     onSuccess: () => {
       invalidatePlanning(qc);
       toast.success("Hiring requirement saved");

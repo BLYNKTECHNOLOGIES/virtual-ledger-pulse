@@ -264,6 +264,29 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <Paperclip className="h-3 w-3" /> {d.file_name || "View file"}
                   </button>
                 )}
+                {!f.noFile && (d?.extra_files?.filter(x => extraUrl(x)).length || 0) > 0 && (
+                  <div className="pl-1 space-y-1">
+                    <p className="text-[11px] text-muted-foreground">+{d!.extra_files!.filter(x => extraUrl(x)).length} more {d!.extra_files!.filter(x => extraUrl(x)).length === 1 ? "file" : "files"}</p>
+                    {d!.extra_files!.map((x, idx) => extraUrl(x) ? (
+                      <div key={`${extraUrl(x)}-${idx}`} className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => { openStoredDocument(extraUrl(x)).catch((e: any) => toast.error(e?.message || "Could not open this document")); }}
+                          className="text-xs text-primary underline flex items-center gap-1 max-w-[220px] truncate text-left"
+                        >
+                          <Paperclip className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{extraName(x)}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </button>
+                        {!readOnly && (
+                          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => removeExtra(f.key, idx)}>
+                            <X className="h-3 w-3 mr-1" /> Remove
+                          </Button>
+                        )}
+                      </div>
+                    ) : null)}
+                  </div>
+                )}
               </div>
             );
           })}

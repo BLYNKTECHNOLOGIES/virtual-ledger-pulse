@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { StatusPill } from "./AtsUi";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDate, fmtDateTime } from "@/lib/ats/format";
+import { InterruptedRetryDialog, SubjectSentAs } from "./MailBits";
 import { AtsFileError, fileKindLabel, fmtBytes, uploadAtsFile } from "@/lib/ats/files";
 import { candKeys, type AtsCandidate, type AtsFile } from "@/lib/ats/candidates";
 import {
@@ -56,7 +57,7 @@ interface Props {
 
 const istDay = (v: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(v));
 const msgAt = (m: AtsMessage) => m.received_at ?? m.sent_at ?? m.created_at;
-const istTime = (v: string) => new Date(v).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true });
+const istTime = (v: string) => new Date(v).toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true });
 
 export function MessagesPanel({ candidate, appId, files, visible, composeSignal, onOpenFile, onEditProfile, className }: Props) {
   const qc = useQueryClient();
@@ -249,6 +250,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
   const [origOpen, setOrigOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [askRetry, setAskRetry] = useState(false);
   const [main, quoted] = useMemo(() => (out ? [m.body_text ?? "", null] : splitQuoted(m.body_text ?? "")), [m.body_text, out]);
   const atts = (Array.isArray(m.attachments) ? m.attachments : []) as MailAttachmentInfo[];
   const when = msgAt(m);
@@ -305,6 +307,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
           {m.calendar_ics && <Badge variant="outline" className="gap-1 font-normal"><CalendarDays className="h-3 w-3" /> Calendar invite</Badge>}
           {!out && m.is_automatic && <Badge variant="outline" className="font-normal">Automatic reply</Badge>}
         </div>
+        {!out && m.from_other_address && <p className="mt-1 text-xs text-muted-foreground">Sent from {m.from_address}, not the candidate's saved address.</p>}
         <p className="mt-1 break-words text-sm font-semibold text-foreground">{m.subject || "(no subject)"}</p>
         <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{main}</p>
         {quoted && (
@@ -320,7 +323,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
             <StatusPill tone="destructive">Not delivered</StatusPill>
             <span>{mailErrorMessage(m.error)}</span>
-            {mailOn && canRetry(m.error) && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={retry}>
+            {mailOn && canRetry(m.error) && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={() => (m.error === "interrupted" ? setAskRetry(true) : retry())}>
               {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
             </Button>}
           </div>
@@ -330,6 +333,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
         )}
       </div>
       {!out && m.body_html && <OriginalDialog open={origOpen} onOpenChange={setOrigOpen} html={m.body_html} subject={m.subject} />}
+      <InterruptedRetryDialog open={askRetry} onOpenChange={setAskRetry} onConfirm={retry} />
       <AlertDialog open={delOpen} onOpenChange={setDelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Remove this email?</AlertDialogTitle>
@@ -384,7 +388,9 @@ function Composer({ candidate, appId, files, thread, onClose, onDone }: {
 }) {
   const qc = useQueryClient();
   const templates = useEmailTemplates();
-  const latest = thread[thread.length - 1];
+  // Continue this application's latest message; fall back to the latest overall when it has none.
+  const appThread = thread.filter((m) => m.application_id === appId);
+  const latest = appThread[appThread.length - 1] ?? thread[thread.length - 1];
   const [subject, setSubject] = useState(() => (latest?.subject ? `Re: ${stripRe(latest.subject)}`.slice(0, 200) : ""));
   const [body, setBody] = useState("");
   const [reply, setReply] = useState(!!latest);
@@ -394,6 +400,7 @@ function Composer({ candidate, appId, files, thread, onClose, onDone }: {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const idRef = useRef<string>(crypto.randomUUID());
+  const attemptSig = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -442,8 +449,11 @@ function Composer({ candidate, appId, files, thread, onClose, onDone }: {
   const send = async () => {
     if (!canSend) return;
     setSending(true);
+    // Same client id on a retry after a network error (so the server never sends twice), but only while the email is unchanged.
+    const sig = JSON.stringify([subject.trim(), body, sel, reply && latest ? latest.id : null]);
+    if (attemptSig.current !== null && attemptSig.current !== sig) idRef.current = crypto.randomUUID();
+    attemptSig.current = sig;
     try {
-      // Same client id on a retry after a network error, so the server never sends twice.
       const r = await sendCandidateEmail({
         id: idRef.current,
         candidateId: candidate.id,
@@ -459,10 +469,12 @@ function Composer({ candidate, appId, files, thread, onClose, onDone }: {
         // Stored as Failed with Retry in the thread; this draft is done.
         toast.error(mailErrorMessage(r.error));
         idRef.current = crypto.randomUUID();
+        attemptSig.current = null;
         onClose();
       } else {
         toast.success("Email sent");
         idRef.current = crypto.randomUUID();
+        attemptSig.current = null;
         setSubject(""); setBody(""); setSel([]); setTplMeta({ code: null, purpose: "general" });
         onClose();
       }
@@ -486,6 +498,7 @@ function Composer({ candidate, appId, files, thread, onClose, onDone }: {
         </Select>
       </div>
       <Input placeholder="Subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" aria-label="Subject" />
+      <SubjectSentAs subject={subject} />
       {latest && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <Checkbox checked={reply} onCheckedChange={(v) => setReply(!!v)} /> Reply in this thread

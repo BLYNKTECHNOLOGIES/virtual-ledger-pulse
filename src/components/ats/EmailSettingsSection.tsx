@@ -24,6 +24,7 @@ import {
   sampleValuesFrom, sendTestEmail, templateProblems, templateValues, useEmailTemplates, useMailStatus, type AtsEmailTemplate,
 } from "@/lib/ats/mail";
 import { INTERVIEW_PLACEHOLDERS } from "@/lib/ats/mail";
+import { SLOT_SAMPLE, SLOT_TEMPLATE_CODES } from "@/lib/ats/selfSchedule";
 import { useAtsSettings, useCanManageAtsSettings } from "@/lib/ats/api";
 import { LastChecked, SubjectSentAs } from "./MailBits";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
@@ -529,11 +530,14 @@ function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmail
   const isIv = purpose === "interview";
   const candVals = useCandidatePreviewValues(previewCand?.id ?? null, isIv);
   const samples = sampleValuesFrom(settings.data as any);
-  const previewVals = previewCand && candVals.data
+  // The two pick-a-time templates may also use {{slot_link}} / {{slot_list}} (filled by the app when the link is made).
+  const isSlotTpl = !!t && SLOT_TEMPLATE_CODES.includes(t.code);
+  const basePreview = previewCand && candVals.data
     ? (candVals.data.sampleInterview
       ? { ...Object.fromEntries(INTERVIEW_PLACEHOLDERS.map((k) => [k, samples[k]])), ...candVals.data.values }
       : candVals.data.values)
     : samples;
+  const previewVals = isSlotTpl ? { ...basePreview, ...SLOT_SAMPLE } : basePreview;
 
   const insert = (p: string) => {
     const tok = `{{${p}}}`;
@@ -551,7 +555,8 @@ function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmail
     }
   };
   const effSubject = wa ? name.trim() : subject;
-  const problems = templateProblems(effSubject, body, purpose);
+  const stripSlots = (x: string) => (isSlotTpl ? x.replace(/\{\{\s*slot_(link|list)\s*\}\}/g, "") : x);
+  const problems = templateProblems(stripSlots(effSubject), stripSlots(body), purpose);
   const valid = name.trim().length >= 1 && name.trim().length <= 80 && effSubject.trim().length >= 1 && effSubject.trim().length <= 200
     && body.trim().length >= 1 && problems.length === 0;
   const defSubject = (t as any)?.default_subject as string | null | undefined;
@@ -626,6 +631,15 @@ function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmail
                 </div>
               </div>
             ))}
+            {isSlotTpl && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Pick-a-time link</p>
+                <div className="flex flex-wrap gap-1">
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onMouseDown={(e) => e.preventDefault()} onClick={() => insert("slot_link")}>Pick-a-time link</Button>
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onMouseDown={(e) => e.preventDefault()} onClick={() => insert("slot_list")}>List of times</Button>
+                </div>
+              </div>
+            )}
             {isIv && <p className="text-xs text-muted-foreground">Interview details are filled in from the interview. Templates that use them are offered when you schedule, change or cancel an interview, not in the normal email composer.</p>}
           </div>
           <Textarea id="tpl-body" ref={bodyRef} rows={12} maxLength={20000} value={body} onFocus={() => { lastField.current = "body"; }}

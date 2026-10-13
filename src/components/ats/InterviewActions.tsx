@@ -24,10 +24,12 @@ import { InterviewFeedbackDialog } from "./InterviewFeedbackDialog";
 type Dlg = null | { kind: "change" } | { kind: "again" } | { kind: "notify" | "cancel" | "feedback" };
 
 /** Action buttons, ⋮ menu and the per-interview dialogs (shared by the candidate card and the Interviews tab). */
-export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onOpenFeedback, waPhone }: {
+export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onOpenFeedback, waPhone, onPickNewTime }: {
   iv: InterviewRow; target: IvTarget; mailOn: boolean; canSchedule: boolean; primary?: boolean;
   /** 10-digit phone; enables "WhatsApp reminder" on upcoming interviews. */
   waPhone?: string | null;
+  /** Shown as "Let them pick a new time" on upcoming interviews (self-scheduling on). */
+  onPickNewTime?: () => void;
   /** When given, the toast's "Add feedback" opens the dialog through the parent, so it still works after this row unmounts. */
   onOpenFeedback?: (iv: InterviewRow) => void;
 }) {
@@ -105,6 +107,7 @@ export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onO
               ? <DropdownMenuItem onSelect={() => setDlg({ kind: "again" })}>Schedule again</DropdownMenuItem>
               : <div title="Reopen this application to schedule an interview."><DropdownMenuItem disabled>Schedule again</DropdownMenuItem></div>)}
             {st !== "no_show" && st !== "cancelled" && <DropdownMenuItem onSelect={copyDetails}>Copy details</DropdownMenuItem>}
+            {onPickNewTime && st === "upcoming" && <DropdownMenuItem onSelect={() => onPickNewTime()}>Let them pick a new time</DropdownMenuItem>}
             {waTpl && <DropdownMenuItem onSelect={() => void openWaReminder()}><MessageCircle className="mr-2 h-4 w-4" /> WhatsApp reminder</DropdownMenuItem>}
             {(st === "upcoming" || st === "now" || st === "awaiting") && <>
               <DropdownMenuSeparator />

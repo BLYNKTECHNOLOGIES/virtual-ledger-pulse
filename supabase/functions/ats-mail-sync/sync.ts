@@ -411,7 +411,7 @@ async function lookupContext(admin: any, headers: MailHeader[], self: Set<string
   for (let i = 0; i < senders.length; i += 50) {
     const chunk = senders.slice(i, i + 50)
     const { data, error } = await admin.from('hr_employees').select('email')
-      .or(chunk.map((a) => `email.ilike.${a.replace(/[,()*%_\\]/g, '')}`).join(','))
+      .or(chunk.map((a) => `email.ilike.${a.replace(/[,()*%\\"]/g, '')}`).join(','))
     if (error) throw new SyncError('lookup_failed')
     for (const r of data ?? []) if (r.email) employeeAddresses.add(String(r.email).trim().toLowerCase())
   }

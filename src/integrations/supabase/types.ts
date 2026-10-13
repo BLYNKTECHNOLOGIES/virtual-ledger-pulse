@@ -35619,7 +35619,7 @@ export type Database = {
         Returns: string
       }
       hr_requirement_pipeline: {
-        Args: { p_requirement?: string }
+        Args: { p_requirement: string }
         Returns: {
           applied: number
           assessment: number
@@ -35955,6 +35955,22 @@ export type Database = {
           selected_hc: number
         }[]
       }
+      hr_wf_requirement_pipeline_core: {
+        Args: { p_requirement?: string }
+        Returns: {
+          applied: number
+          assessment: number
+          hired: number
+          interview: number
+          joined: number
+          joining: number
+          new_hc: number
+          offer: number
+          requirement_id: string
+          screening: number
+          still_needed: number
+        }[]
+      }
       hr_wf_resume_auto_hiring: { Args: { p_plan: string }; Returns: Json }
       hr_wf_roles: {
         Args: { p_eligible: string[]; p_position: string }
@@ -35968,12 +35984,62 @@ export type Database = {
         Args: { p_eligible: string[]; p_shift: string }
         Returns: string
       }
+      hr_wf_staffing_matrix_core: {
+        Args: never
+        Returns: {
+          approved_hc: number
+          auto_paused_at: string
+          auto_paused_by_name: string
+          auto_paused_need: number
+          auto_paused_reason: string
+          current_hc: number
+          department_id: string
+          department_name: string
+          employment_type: string
+          follow_desks: boolean
+          in_training_hc: number
+          location: string
+          notice_period_hc: number
+          open_requirement_count: number
+          open_requirement_hc: number
+          operational_capacity: number
+          over_requested_hc: number
+          pending_joining_hc: number
+          physical_seats: number
+          pipeline_hc: number
+          plan_id: string
+          position_id: string
+          position_title: string
+          priority: string
+          required_hc: number
+          seat_active: boolean
+          seat_capacity_id: string
+          selected_hc: number
+          shift_group_name: string
+          shift_id: string
+          shift_name: string
+          target_date: string
+          training_ready_date: string
+        }[]
+      }
       hr_wf_trainee_allocation: {
         Args: never
         Returns: {
           out_employee_id: string
           out_plan_id: string
           out_ready_date: string
+        }[]
+      }
+      hr_wf_unplanned_scopes_core: {
+        Args: never
+        Returns: {
+          current_hc: number
+          department_id: string
+          department_name: string
+          position_id: string
+          position_title: string
+          shift_id: string
+          shift_name: string
         }[]
       }
       hr_wf_user_name: { Args: { p_uid: string }; Returns: string }

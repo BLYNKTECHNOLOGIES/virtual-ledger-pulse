@@ -35,9 +35,9 @@ export default function AtsWorkspace() {
   const { pathname } = useLocation();
   const mailSt = useMailStatus();
   const ivCounts = useInterviewCounts();
-  const [editor, setEditor] = useState<{ open: boolean; job: AtsJob | null }>({ open: false, job: null });
+  const [editor, setEditor] = useState<{ open: boolean; job: AtsJob | null; requirementId?: string | null }>({ open: false, job: null });
   const [adder, setAdder] = useState<{ open: boolean; jobId: string | null }>({ open: false, jobId: null });
-  const openJobEditor = useCallback((job?: AtsJob | null) => setEditor({ open: true, job: job ?? null }), []);
+  const openJobEditor = useCallback((job?: AtsJob | null, opts?: { requirementId?: string | null }) => setEditor({ open: true, job: job ?? null, requirementId: opts?.requirementId ?? null }), []);
   const openAddCandidate = useCallback((jobId?: string | null) => setAdder({ open: true, jobId: jobId ?? null }), []);
   const ctx = useMemo(() => ({ openJobEditor, openAddCandidate }), [openJobEditor, openAddCandidate]);
   const isOverview = TABS[0].match(pathname);
@@ -98,7 +98,7 @@ export default function AtsWorkspace() {
           <Route path="*" element={<Navigate to="/hrms/ats" replace />} />
         </Routes>
       </div>
-      <JobEditor open={editor.open} job={editor.job} onClose={() => setEditor((s) => ({ ...s, open: false }))} />
+      <JobEditor open={editor.open} job={editor.job} initialRequirementId={editor.requirementId} onClose={() => setEditor((s) => ({ ...s, open: false }))} />
       <AddCandidateDialog open={adder.open} jobId={adder.jobId} onOpenChange={(o) => setAdder((s) => ({ ...s, open: o }))} />
     </AtsContext.Provider>
   );

@@ -385,56 +385,6 @@ export function useSetRequirementStatus() {
   });
 }
 
-/** Opens the recruitment posting for an approved requirement. */
-export function useSendToRecruitment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (requirementId: string) => {
-      const { data, error } = await supabase.rpc("hr_send_requirement_to_recruitment", {
-        p_requirement_id: requirementId,
-      });
-      if (error) throw error;
-      return data as string;
-    },
-    onSuccess: () => {
-      invalidatePlanning(qc);
-      qc.invalidateQueries({ queryKey: ["recruitments"] });
-      toast.success("Recruitment opening created");
-    },
-    onError: (e: any) => toast.error(e?.message || "Could not start recruitment"),
-  });
-}
-
-export function useRequirementProgress(requirementId: string | null) {
-  return useQuery({
-    queryKey: ["workforce_requirement_progress", requirementId],
-    enabled: !!requirementId,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("hr_hiring_requirement_progress", {
-        p_requirement_id: requirementId as string,
-      });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      return (row || {
-        applied: 0,
-        screened: 0,
-        interview: 0,
-        selected: 0,
-        joining_pending: 0,
-        joined: 0,
-      }) as {
-        applied: number;
-        screened: number;
-        interview: number;
-        selected: number;
-        joining_pending: number;
-        joined: number;
-      };
-    },
-    staleTime: STALE,
-  });
-}
-
 export function useForecastAssumptions() {
   return useQuery({
     queryKey: ["workforce_forecast_assumptions"],
@@ -504,11 +454,10 @@ export function useWorkforceFlows() {
     queryFn: async () => {
       const [joiners, notice, active] = await Promise.all([
         supabase
-          .from("hr_candidates")
-          .select("id, name, joining_date, job_position_id, recruitment_id")
-          .eq("hired", true)
-          .eq("converted", false)
-          .not("joining_date", "is", null),
+          .from("hr_employee_onboarding")
+          .select("id, first_name, last_name, date_of_joining, position_id")
+          .not("status", "in", "(completed,cancelled)")
+          .not("date_of_joining", "is", null),
         supabase
           .from("hr_employees")
           .select("id, first_name, last_name, badge_id, resignation_status")
@@ -520,7 +469,12 @@ export function useWorkforceFlows() {
           .eq("is_active", true),
       ]);
       return {
-        joiners: joiners.data || [],
+        joiners: (joiners.data || []).map((r: any) => ({
+          id: r.id,
+          name: [r.first_name, r.last_name].filter(Boolean).join(" "),
+          joining_date: r.date_of_joining,
+          job_position_id: r.position_id,
+        })),
         notice: notice.data || [],
         activeCount: active.count || 0,
       };

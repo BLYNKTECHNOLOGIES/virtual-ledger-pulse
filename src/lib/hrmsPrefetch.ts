@@ -37,14 +37,6 @@ const ROUTE_MODULE: Record<string, string> = {
   "/hrms/workforce-planning/forecast": "WorkforceForecastPage",
 
 
-  "/hrms/recruitment": "RecruitmentDashboardPage",
-  "/hrms/recruitment/pipeline": "RecruitmentPipelinePage",
-  "/hrms/recruitment/candidates": "CandidatesListPage",
-  "/hrms/recruitment/rejected": "RejectedCandidatesPage",
-  "/hrms/recruitment/interviews": "InterviewListPage",
-  "/hrms/recruitment/stages": "StagesPage",
-  "/hrms/recruitment/skill-zones": "SkillZonePage",
-  "/hrms/recruitment/surveys": "RecruitmentSurveyPage",
 
   "/hrms/attendance": "AttendanceOverviewPage",
   "/hrms/attendance/biometric-devices": "BiometricDevicesPage",
@@ -132,7 +124,7 @@ export function prefetchHrmsRoute(path: string): void {
 export type HrmsPageShape = "dashboard" | "list" | "detail";
 
 export function hrmsPageShape(pathname: string): HrmsPageShape {
-  if (/\/hrms\/(employee|recruitment\/candidates)\/[^/]+$/.test(pathname)) return "detail";
+  if (/\/hrms\/employee\/[^/]+$/.test(pathname)) return "detail";
   if (/\/hrms\/attendance\/day\//.test(pathname)) return "detail";
   const dashboards = [
     "/hrms",
@@ -141,7 +133,6 @@ export function hrmsPageShape(pathname: string): HrmsPageShape {
     "/hrms/payroll",
     "/hrms/asset",
     "/hrms/pms",
-    "/hrms/recruitment",
     "/hrms/reports",
     "/hrms/system-pulse",
     "/hrms/data-health",

@@ -20,7 +20,7 @@ interface Props {
  * Rule of thumb: if a module is fully wired but the table has 0 rows,
  * render this instead of a bare table. Reason must be plain English —
  * "No candidates yet — post a job to start receiving applications",
- * not "hr_candidates: 0 rows".
+ * not a raw "table: 0 rows" count.
  */
 export function HrmsEmptyState({ icon: Icon = Inbox, title, reason, nextAction, secondary }: Props) {
   return (

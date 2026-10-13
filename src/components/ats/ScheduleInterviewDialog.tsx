@@ -299,6 +299,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
       return;
     }
     setSaved(r);
+    onSaved?.();
     const needEmails = mailOn && endFuture && (wantCand || (sendPanel && (panel.length > 0 || (r.removed?.length ?? 0) > 0)));
     if (!needEmails) {
       toast.success(baseText(r));

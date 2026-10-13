@@ -221,10 +221,9 @@ export function ResignationTab() {
       });
       if (rpcError) throw rpcError;
     },
-    onSuccess: (_d, employeeId) => {
+    onSuccess: () => {
       toast.success("Resignation approved — notice period started");
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
-      if (replaceOnApprove) raiseReplacement.mutate({ employeeId, note: replaceNote });
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -1061,7 +1060,10 @@ export function ResignationTab() {
             <AlertDialogAction onClick={() => {
               if (!confirmAction) return;
               const { type, id } = confirmAction;
-              if (type === 'approve') approveResignation.mutate(id);
+              if (type === 'approve') {
+                const want = replaceOnApprove, note = replaceNote;
+                approveResignation.mutate(id, { onSuccess: () => { if (want) raiseReplacement.mutate({ employeeId: id, note }); } });
+              }
               else if (type === 'reject') rejectResignation.mutate(id);
               else if (type === 'withdraw') withdrawResignation.mutate(id);
               else if (type === 'finalise') finaliseSeparationNow.mutate(id);

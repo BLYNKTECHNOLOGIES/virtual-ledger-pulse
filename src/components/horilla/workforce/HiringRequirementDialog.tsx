@@ -26,8 +26,10 @@ import {
   useSaveHiringRequirement,
   useWorkforceLookups,
   useStaffingMatrix,
+  useHeadcountPlans,
   type HiringRequirementInput,
 } from "@/hooks/hrms/useWorkforcePlanning";
+import { linesForRole } from "@/hooks/hrms/useWorkforceRepair";
 
 interface HiringRequirementDialogProps {
   open: boolean;
@@ -91,7 +93,7 @@ export function HiringRequirementDialog({
   const needsLine = roleLines.length > 0;
   const lineChoices = form.department_id && form.position_id ? roleLines : matrix.rows;
   const lineMoved = !!form.id && !!initial?.staffing_plan_id && form.staffing_plan_id !== initial.staffing_plan_id;
-  const becomesManual = !!form.id && initial?.source === "capacity_occupancy" && ["draft", "pending_approval"].includes(initial?.status ?? "")
+  const becomesManual = !!form.id && (initial as any)?.source === "capacity_occupancy" && ["draft", "pending_approval"].includes(initial?.status ?? "")
     && (Number(form.number_required) !== Number(initial?.number_required) || lineMoved);
   const askReason = limited || lineMoved;
 

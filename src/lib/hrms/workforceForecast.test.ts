@@ -1,5 +1,5 @@
-// @ts-nocheck — run with `bun test src/lib/hrms/workforceForecast.test.ts`
-import { describe, expect, test } from "bun:test";
+// @ts-nocheck — run with `bun run test` (vitest)
+import { describe, expect, test } from "vitest";
 import { actualAttrition, buildForecast, monthSegments } from "./workforceForecast";
 
 const lines = [

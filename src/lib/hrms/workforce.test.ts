@@ -1,5 +1,5 @@
-// @ts-nocheck — run with `bun test src/lib/hrms/workforce.test.ts`
-import { describe, expect, test } from "bun:test";
+// @ts-nocheck — run with `bun run test` (vitest)
+import { describe, expect, test } from "vitest";
 import { deriveStaffingRow, findRebalances, pauseText, seatCountsInShift, sortByOperatingOrder, sumLines } from "./workforce";
 
 const base = {

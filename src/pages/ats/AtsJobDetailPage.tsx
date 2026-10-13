@@ -21,6 +21,7 @@ import { MetricCell, MetricStrip, StatusPill, stageDotClass } from "@/components
 import { Skeleton } from "@/components/ui/skeleton";
 import { CandidateTable } from "@/components/ats/CandidateTable";
 import { CareersJobCard } from "@/components/ats/CareersJobCard";
+import { WorkforceJobCard } from "@/components/ats/WorkforceJobCard";
 import { PipelineBoard } from "@/components/ats/PipelineBoard";
 import { candidateHref, saveNavCtx, useCandidateList } from "@/lib/ats/candidates";
 import { useAtsSettings } from "@/lib/ats/api";
@@ -181,6 +182,7 @@ export default function AtsJobDetailPage() {
           </SectionCard>
 
           <CareersJobCard job={j} />
+          {j.requisition_id && <WorkforceJobCard requirementId={j.requisition_id} />}
 
           <SectionCard title="Key facts">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -191,7 +193,7 @@ export default function AtsJobDetailPage() {
               <Fact label="Experience">{fmtExperience(j.experience_min_years, j.experience_max_years)}</Fact>
               <Fact label="Hiring manager">{manager ?? "—"}</Fact>
               <Fact label="Target date">{fmtDate(j.target_close_date)}</Fact>
-              <Fact label="Hiring requirement">{reqNo ? <span className="t-mono">{reqNo}</span> : "—"}</Fact>
+              <Fact label="Hiring requirement">{j.requisition_id ? <Link className="t-mono text-primary hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${j.requisition_id}`}>{reqNo === "Linked" ? "Open" : reqNo}</Link> : "—"}</Fact>
               <Fact label="Created">{j.created_by_name ?? "—"}<span className="block text-xs text-muted-foreground">{fmtDateTime(j.created_at)}</span></Fact>
               <Fact label="Opened">{fmtDateTime(j.opened_at)}</Fact>
               {j.status === "closed" && <Fact label="Closed">{j.closed_reason ?? fmtDateTime(j.closed_at)}{j.closed_reason && <span className="block text-xs text-muted-foreground">{fmtDateTime(j.closed_at)}</span>}</Fact>}

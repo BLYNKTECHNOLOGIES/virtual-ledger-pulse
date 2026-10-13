@@ -7,6 +7,7 @@ import {
   type StaffingDerived,
   type StaffingMatrixRow,
 } from "@/lib/hrms/workforce";
+import type { AttritionMonth, ForecastEvent } from "@/lib/hrms/workforceForecast";
 
 const STALE = 60_000;
 
@@ -543,85 +544,72 @@ export function useForecastAssumptions() {
 export function useSaveForecastAssumption() {
   const qc = useQueryClient();
   return useMutation({
+    /** pct = null removes the override, so the page falls back to actual history. */
     mutationFn: async ({
       departmentId,
       pct,
       notes,
     }: {
       departmentId: string | null;
-      pct: number;
+      pct: number | null;
       notes?: string | null;
     }) => {
-      let existingQuery = supabase
-        .from("hr_workforce_forecast_assumptions")
-        .select("id");
-
+      let existingQuery = supabase.from("hr_workforce_forecast_assumptions").select("id");
       existingQuery = departmentId
         ? existingQuery.eq("department_id", departmentId)
         : existingQuery.is("department_id", null);
-
       const { data: existing, error: lookupError } = await existingQuery.maybeSingle();
       if (lookupError) throw lookupError;
 
-      if (existing?.id) {
-        const { error } = await supabase
-          .from("hr_workforce_forecast_assumptions")
-          .update({ expected_monthly_attrition_pct: pct, notes: notes ?? null })
-          .eq("id", existing.id);
+      if (pct === null) {
+        if (!existing?.id) return;
+        const { error } = await supabase.from("hr_workforce_forecast_assumptions").delete().eq("id", existing.id);
         if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("hr_workforce_forecast_assumptions")
-          .insert({
-            department_id: departmentId,
-            expected_monthly_attrition_pct: pct,
-            notes: notes ?? null,
-          });
-        if (error) throw error;
+        return;
       }
+      const { data: auth } = await supabase.auth.getUser();
+      const row = {
+        expected_monthly_attrition_pct: pct,
+        notes: notes ?? null,
+        updated_by: auth.user?.id ?? null,
+      };
+      const { error } = existing?.id
+        ? await supabase.from("hr_workforce_forecast_assumptions").update(row).eq("id", existing.id)
+        : await supabase.from("hr_workforce_forecast_assumptions").insert({ department_id: departmentId, ...row });
+      if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["workforce_forecast_assumptions"] });
-      toast.success("Attrition assumption saved");
+      toast.success(v.pct === null ? "Using actual attrition again" : "Attrition assumption saved");
     },
     onError: (e: any) => toast.error(e?.message || "Could not save the assumption"),
   });
 }
 
-/** Confirmed joiners and people on notice, used by the forecast page. */
-export function useWorkforceFlows() {
+/** Dated movements per staffing line (exits, joiners, trainees, open hiring). HR only. */
+export function useForecastEvents(enabled = true) {
   return useQuery({
-    queryKey: ["workforce_flows"],
-    queryFn: async () => {
-      const [joiners, notice, active] = await Promise.all([
-        supabase
-          .from("hr_employee_onboarding")
-          .select("id, first_name, last_name, date_of_joining, position_id")
-          .not("status", "in", "(completed,cancelled)")
-          .not("date_of_joining", "is", null),
-        supabase
-          .from("hr_employees")
-          .select("id, first_name, last_name, badge_id, resignation_status, last_working_day, notice_period_end_date, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id)")
-          .eq("is_active", true)
-          .eq("resignation_status", "notice_period"),
-        supabase
-          .from("hr_employees")
-          .select("id", { count: "exact", head: true })
-          .eq("is_active", true),
-      ]);
-      return {
-        joiners: (joiners.data || []).map((r: any) => ({
-          id: r.id,
-          name: [r.first_name, r.last_name].filter(Boolean).join(" "),
-          joining_date: r.date_of_joining,
-          job_position_id: r.position_id,
-        })),
-        notice: (notice.data || []).map((r: any) => {
-          const wi = Array.isArray(r.hr_employee_work_info) ? r.hr_employee_work_info[0] : r.hr_employee_work_info;
-          return { ...r, department_id: wi?.department_id ?? null, exit_date: r.last_working_day ?? r.notice_period_end_date ?? null };
-        }),
-        activeCount: active.count || 0,
-      };
+    queryKey: ["workforce_staffing_matrix", "forecast_events"],
+    enabled,
+    queryFn: async (): Promise<ForecastEvent[]> => {
+      const { data, error } = await (supabase.rpc as any)("hr_workforce_forecast_events");
+      if (error) throw error;
+      return (data || []) as ForecastEvent[];
+    },
+    staleTime: STALE,
+  });
+}
+
+/** Month-by-month actual attrition for planned roles (company or one department). HR only. */
+export function useAttritionHistory(departmentId: string | null, months = 12) {
+  return useQuery({
+    queryKey: ["workforce_staffing_matrix", "attrition_history", departmentId, months],
+    queryFn: async (): Promise<AttritionMonth[]> => {
+      const { data, error } = await (supabase.rpc as any)("hr_workforce_attrition_history", {
+        p_department: departmentId, p_months: months,
+      });
+      if (error) throw error;
+      return (data || []) as AttritionMonth[];
     },
     staleTime: STALE,
   });

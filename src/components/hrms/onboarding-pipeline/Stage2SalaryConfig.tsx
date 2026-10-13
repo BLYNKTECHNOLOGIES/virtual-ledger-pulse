@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { DollarSign } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
 
 interface Stage2Props {
   data: any;
@@ -31,8 +33,11 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     date_of_joining: "",
     training_completion_date: "",
     post_training_ctc: "",
+    post_training_shift_id: "",
     deposit_config: null as any,
   });
+  const { data: lookups } = useWorkforceLookups();
+  const workShifts = (lookups?.shifts ?? []).filter((s: any) => !s.is_training_shift);
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,6 +49,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
         date_of_joining: data.date_of_joining || "",
         training_completion_date: data.training_completion_date || "",
         post_training_ctc: data.post_training_ctc?.toString() || "",
+        post_training_shift_id: data.post_training_shift_id || "",
         deposit_config: data.deposit_config || null,
       });
     }
@@ -98,6 +104,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
     salary_template_id: null,
     training_completion_date: form.training_completion_date || null,
     post_training_ctc: form.post_training_ctc ? Number(form.post_training_ctc) : null,
+    post_training_shift_id: form.post_training_shift_id || null,
     deposit_config: form.deposit_config,
   });
 
@@ -153,7 +160,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
 
         <div className="rounded-lg border p-4 space-y-3">
           <p className="text-sm font-medium">Training period (optional)</p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <Label>Training completion date</Label>
               <Input
@@ -181,6 +188,21 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
                 disabled={readOnly}
                 className="text-foreground"
               />
+            </div>
+            <div>
+              <Label>Shift after training</Label>
+              <Select
+                value={form.post_training_shift_id || "none"}
+                disabled={readOnly}
+                onValueChange={(v) => { dirtyRef.current = true; setForm(p => ({ ...p, post_training_shift_id: v === "none" ? "" : v })); }}
+              >
+                <SelectTrigger className="text-foreground"><SelectValue placeholder="Not decided" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not decided</SelectItem>
+                  {workShifts.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-[11px] text-muted-foreground">Used by the staffing plan for where this trainee will sit.</p>
             </div>
           </div>
           {preview && (

@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Keyboard, MoreVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import {
   Mail, Phone, MessageCircle, Pencil, ChevronDown, Pause, Play, XCircle, LogOut, RotateCcw, Star, Trash2, Upload,
   Activity, ArrowRight, CheckCircle2, Hourglass, StickyNote, ArrowRightLeft, FileText, UserPlus, Eye, Loader2,
 } from "lucide-react";
+import { onboardingInProgress, onboardingStatusLabel, useApplicationOnboarding } from "@/hooks/hrms/useRequirementLifecycle";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -217,6 +218,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     qc.invalidateQueries({ queryKey: candKeys.all });
     qc.invalidateQueries({ queryKey: atsKeys.overview });
     qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
+    // Hire hand-off changes onboarding and workforce figures.
+    qc.invalidateQueries({ queryKey: ["ats", "app-onboarding"] });
+    for (const k of ["workforce_staffing_matrix", "workforce_hiring_requirements", "workforce_line_people"]) qc.invalidateQueries({ queryKey: [k] });
   };
 
   const run = async (fn: () => PromiseLike<{ error: any }>, success: string, after?: () => void, action?: { label: string; onClick: () => void }, noAdvance = false) => {
@@ -265,6 +269,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const next = curIdx >= 0 ? activeStages[curIdx + 1] : undefined;
   const closed = app?.status === "rejected" || app?.status === "withdrawn";
   const hired = app?.status === "hired";
+  const onboarding = useApplicationOnboarding(app?.application_id ?? null);
   const stageLocked = closed || hired || busy || !app;
   const appIdle = app?.status === "active" && (app.days_in_stage ?? 0) >= (atsSettings.data?.idle_alert_days ?? 7);
   const waPhone = c.phone_norm && /^\d{10}$/.test(c.phone_norm) ? c.phone_norm : null;
@@ -443,7 +448,10 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       )}
       {hired && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-success/10 p-3 text-sm text-foreground">
-          <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" /> Hired on {fmtDate(app.hired_at)}</span>
+          <span className="flex flex-wrap items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" /> Hired on {fmtDate(app.hired_at)}
+            {onboarding.data && <span className="text-muted-foreground">· Onboarding: {onboardingStatusLabel(onboarding.data.status)} ·{" "}
+              <Link className="text-primary hover:underline" to={`/hrms/onboarding-pipeline?id=${onboarding.data.id}`}>Open</Link></span>}
+          </span>
           {undoTarget && <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setUndoOpen(true)}><RotateCcw className="h-4 w-4" /> Undo hire</Button>}
         </div>
       )}
@@ -591,7 +599,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mark {c.full_name} as hired?</AlertDialogTitle>
-            <AlertDialogDescription>The application moves to {hireDlg?.name} and is marked hired.</AlertDialogDescription>
+            <AlertDialogDescription>The application moves to {hireDlg?.name} and is marked hired. An onboarding draft will be created for HR to complete. No email is sent.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -603,7 +611,10 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Undo the hire?</AlertDialogTitle>
-            <AlertDialogDescription>{c.full_name} goes back to the {undoTarget?.name} stage and is no longer counted as hired.</AlertDialogDescription>
+            <AlertDialogDescription>{c.full_name} goes back to the {undoTarget?.name} stage and is no longer counted as hired.
+              {onboardingInProgress(onboarding.data)
+                ? " Onboarding is already in progress — it will not be cancelled. Review it in the onboarding pipeline."
+                : onboarding.data && onboarding.data.status !== "cancelled" ? " The untouched onboarding draft will be cancelled." : ""}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

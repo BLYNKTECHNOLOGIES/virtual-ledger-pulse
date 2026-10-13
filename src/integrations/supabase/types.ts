@@ -35456,6 +35456,10 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: string
       }
+      hr_raise_replacement_requirement: {
+        Args: { p_employee: string; p_reason?: string }
+        Returns: string
+      }
       hr_razorpay_month_salary: {
         Args: { p_employee: string; p_month: string }
         Returns: number
@@ -35503,6 +35507,22 @@ export type Database = {
           p_repayment_date?: string
         }
         Returns: string
+      }
+      hr_requirement_pipeline: {
+        Args: { p_requirement?: string }
+        Returns: {
+          applied: number
+          assessment: number
+          hired: number
+          interview: number
+          joined: number
+          joining: number
+          new_hc: number
+          offer: number
+          requirement_id: string
+          screening: number
+          still_needed: number
+        }[]
       }
       hr_requirement_transition: {
         Args: { p_action: string; p_id: string; p_reason?: string }
@@ -35680,6 +35700,10 @@ export type Database = {
           unlocked_ids: string[]
         }[]
       }
+      hr_update_requirement: {
+        Args: { p_id: string; p_patch: Json; p_reason?: string }
+        Returns: undefined
+      }
       hr_v4_detect_shift: {
         Args: {
           p_date: string
@@ -35779,6 +35803,10 @@ export type Database = {
         }[]
       }
       hr_wf_norm_employment_type: { Args: { p: string }; Returns: string }
+      hr_wf_note_line: {
+        Args: { p_text: string; p_uid: string; p_verb: string }
+        Returns: string
+      }
       hr_wf_people: {
         Args: never
         Returns: {

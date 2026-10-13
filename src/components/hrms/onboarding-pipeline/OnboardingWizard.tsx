@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
+import { OnboardingAtsOrigin } from "./OnboardingAtsOrigin";
 import { Stage1BasicDetails } from "./Stage1BasicDetails";
 import { Stage2SalaryConfig } from "./Stage2SalaryConfig";
 import { Stage3Documents } from "./Stage3Documents";
@@ -854,6 +855,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         </h2>
         {isCompleted && <Badge className="bg-success/10 text-success">Completed</Badge>}
       </div>
+      <OnboardingAtsOrigin applicationId={(record as any)?.ats_application_id} />
 
       {/* Stage stepper */}
       <div className="flex gap-1 overflow-x-auto pb-2">

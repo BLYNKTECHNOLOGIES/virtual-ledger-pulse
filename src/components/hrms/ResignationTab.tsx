@@ -22,6 +22,10 @@ import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeact
 import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
 import { ensureIssuedPdf } from "@/lib/ensureIssuedPdf";
 import { finalizeSeparation } from "@/lib/finalizeSeparation";
+import { Link as RouterLink } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
+import { useRaiseReplacement, useReplacementRequirements } from "@/hooks/hrms/useRequirementLifecycle";
+import { REQ_STATUS_LABEL } from "@/lib/hrms/workforce";
 
 /** Title and button label for each confirm step (display only). */
 const RESIGNATION_CONFIRM: Record<string, [string, string]> = {
@@ -196,6 +200,11 @@ export function ResignationTab() {
     },
     onError: (err: any) => toast.error(err.message),
   });
+
+  const raiseReplacement = useRaiseReplacement();
+  const replacements = useReplacementRequirements();
+  const [replaceOnApprove, setReplaceOnApprove] = useState(true);
+  const [replaceNote, setReplaceNote] = useState("");
 
   // Approve resignation — moves to notice_period and initializes checklist
   const approveResignation = useMutation({
@@ -680,6 +689,19 @@ export function ResignationTab() {
                           <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
                         </div>
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
+                        {(() => {
+                          const rq = replacements.data?.get(emp.id);
+                          return rq ? (
+                            <p className="text-sm text-muted-foreground">Replacement:{" "}
+                              <RouterLink className="text-primary hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${rq.id}`}>{rq.requirement_no}</RouterLink>
+                              {" · "}{REQ_STATUS_LABEL[rq.status] ?? rq.status}</p>
+                          ) : (
+                            <Button size="sm" variant="outline" disabled={raiseReplacement.isPending}
+                              onClick={() => raiseReplacement.mutate({ employeeId: emp.id })}>
+                              <Plus className="h-4 w-4 mr-1" /> Raise replacement
+                            </Button>
+                          );
+                        })()}
                       </div>
                       <div className="flex gap-2 items-center">
                         <Button size="sm" variant="outline" onClick={() => openChecklist(emp)}>
@@ -1014,18 +1036,34 @@ export function ResignationTab() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+      <AlertDialog open={!!confirmAction} onOpenChange={() => { setConfirmAction(null); setReplaceOnApprove(true); setReplaceNote(""); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{RESIGNATION_CONFIRM[confirmAction?.type ?? ""]?.[0] ?? "Confirm"}</AlertDialogTitle>
             <AlertDialogDescription>{confirmAction?.label}</AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmAction?.type === 'approve' && (
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <label className="flex items-center justify-between gap-3 text-sm text-foreground">
+                Replacement needed?
+                <Switch checked={replaceOnApprove} onCheckedChange={setReplaceOnApprove} />
+              </label>
+              {replaceOnApprove && (
+                <Input className="text-foreground" placeholder="Optional note for the replacement requirement"
+                  value={replaceNote} onChange={(e) => setReplaceNote(e.target.value)} />
+              )}
+              <p className="text-xs text-muted-foreground">A hiring requirement awaiting approval is raised for this person's role and shift. No email is sent.</p>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               if (!confirmAction) return;
               const { type, id } = confirmAction;
-              if (type === 'approve') approveResignation.mutate(id);
+              if (type === 'approve') {
+                const want = replaceOnApprove, note = replaceNote;
+                approveResignation.mutate(id, { onSuccess: () => { if (want) raiseReplacement.mutate({ employeeId: id, note }); } });
+              }
               else if (type === 'reject') rejectResignation.mutate(id);
               else if (type === 'withdraw') withdrawResignation.mutate(id);
               else if (type === 'finalise') finaliseSeparationNow.mutate(id);

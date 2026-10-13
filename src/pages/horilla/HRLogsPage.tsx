@@ -123,9 +123,9 @@ export default function HRLogsPage() {
                 <TableBody>
                   {emailLoading ? (
                     <TableRow><TableCell colSpan={6} className="p-4"><TableSkeleton rows={5} columns={6} /></TableCell></TableRow>
-                  ) : filteredEmails.length === 0 ? (
+                  ) : emailLogs.length === 0 ? (
                     <TableRow><TableCell colSpan={6}><EmptyState icon={Mail} title="No email logs found" /></TableCell></TableRow>
-                  ) : filteredEmails.map((e: any) => (
+                  ) : emailLogs.map((e: any) => (
                     <TableRow key={e.id}>
                       <TableCell className="text-xs tabular-nums">{format(new Date(e.created_at), "dd MMM HH:mm")}</TableCell>
                       <TableCell className="text-sm">{e.recipient_email}</TableCell>

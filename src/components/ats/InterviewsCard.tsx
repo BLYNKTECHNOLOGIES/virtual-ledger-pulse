@@ -119,9 +119,6 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                       if (rm.status === "failed" || rm.status === "bounced") return <Tip text={mailErrorMessage(rm.error)}><Badge variant="outline" tabIndex={0} className="border-destructive/40 font-normal text-destructive">Reminder not delivered</Badge></Tip>;
                       return null;
                     })()}
-                    {false && (
-                      <span />
-                    )}
                   </div>
                   {iv.internal_note && <Clamp lines={2} prefix="Note for interviewers: " text={iv.internal_note} />}
                   {iv.candidate_note && <Clamp lines={2} prefix={`Note for ${first}: `} text={iv.candidate_note} />}

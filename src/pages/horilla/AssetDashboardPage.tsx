@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { fullName } from "@/lib/hrms/employeeFields";
+const empLabel = (e: any) => { const n = fullName(e); return n ? `${n}${e?.badge_id ? ` (${e.badge_id})` : ""}` : "—"; };
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Laptop, CheckCircle, Wrench, Archive, Users, TrendingUp } from "lucide-react";
@@ -17,12 +19,12 @@ export default function AssetDashboardPage() {
     },
   });
 
-  const { data: recentAssignments = [] } = useQuery({
+  const { data: recentAssignments = [], isError: assignmentsError } = useQuery({
     queryKey: ["hr_asset_assignments_recent"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_asset_assignments")
-        .select("*, hr_assets(name), hr_employees(employee_name)")
+        .select("*, hr_assets(name), hr_employees(first_name, last_name, badge_id)")
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;
@@ -106,14 +108,16 @@ export default function AssetDashboardPage() {
         <CardContent className="p-0">
           {/* Mobile */}
           <div className="md:hidden divide-y">
-            {recentAssignments.length === 0 ? (
+            {assignmentsError ? (
+              <div className="text-center py-6 text-destructive text-sm">Couldn't load recent assignments. Refresh to try again.</div>
+            ) : recentAssignments.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground text-sm">No assignments yet</div>
             ) : recentAssignments.map((a: any) => (
               <div key={a.id} className="px-4 py-3 space-y-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="font-medium truncate">{a.hr_assets?.name || "—"}</div>
-                    <div className="text-xs text-muted-foreground truncate">{a.hr_employees?.employee_name || "—"}</div>
+                    <div className="text-xs text-muted-foreground truncate">{empLabel(a.hr_employees)}</div>
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border shrink-0 ${a.status === "active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-foreground border-border"}`}>{a.status}</span>
                 </div>
@@ -131,13 +135,15 @@ export default function AssetDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {recentAssignments.length === 0 ? (
+              {assignmentsError ? (
+                <tr><td colSpan={4} className="text-center py-6 text-destructive text-sm">Couldn't load recent assignments. Refresh to try again.</td></tr>
+              ) : recentAssignments.length === 0 ? (
                 <tr><td colSpan={4} className="text-center py-6 text-muted-foreground text-sm">No assignments yet</td></tr>
               ) : (
                 recentAssignments.map((a: any) => (
                   <tr key={a.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium">{a.hr_assets?.name || "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.employee_name || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{empLabel(a.hr_employees)}</td>
                     <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.assigned_date}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${a.status === "active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-foreground border-border"}`}>

@@ -35891,6 +35891,16 @@ export type Database = {
       }
       hr_wf_caller_is_internal: { Args: never; Returns: boolean }
       hr_wf_is_manager: { Args: { _uid: string }; Returns: boolean }
+      hr_wf_leaving_soon_core: {
+        Args: never
+        Returns: {
+          department_id: string
+          employee_id: string
+          last_working_day: string
+          plan_id: string
+          position_id: string
+        }[]
+      }
       hr_wf_line_base: {
         Args: never
         Returns: {

@@ -460,7 +460,7 @@ export function useWorkforceFlows() {
           .not("date_of_joining", "is", null),
         supabase
           .from("hr_employees")
-          .select("id, first_name, last_name, badge_id, resignation_status, last_working_day, notice_period_end_date, hr_employee_work_info(department_id)")
+          .select("id, first_name, last_name, badge_id, resignation_status, last_working_day, notice_period_end_date, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id)")
           .eq("is_active", true)
           .eq("resignation_status", "notice_period"),
         supabase

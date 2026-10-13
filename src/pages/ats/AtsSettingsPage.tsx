@@ -146,7 +146,7 @@ function StagesSection() {
                   <div className="flex items-center gap-1">
                     <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Move up" disabled={!upAfter || move.isPending} onClick={() => upAfter && move.mutate({ id: s.id, afterId: upAfter.id })}><ArrowUp className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Move down" disabled={!downAfter || move.isPending} onClick={() => downAfter && move.mutate({ id: s.id, afterId: downAfter.id })}><ArrowDown className="h-4 w-4" /></Button>
-                    <Switch checked={s.is_active} aria-label="Active" disabled={readOnly} onCheckedChange={(on) => toggle.mutate({ id: s.id, on })} />
+                    <Switch checked={s.is_active} aria-label="Active" onCheckedChange={(on) => toggle.mutate({ id: s.id, on })} />
                     <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={`Delete ${s.name}`} onClick={() => setDel(s)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 )}

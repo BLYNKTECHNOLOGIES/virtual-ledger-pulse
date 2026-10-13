@@ -45,8 +45,9 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
         .eq("application_id", app.application_id!).eq("template_code", "interview-reminder").not("interview_id", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const m = new Map<string, { status: string; sent_at: string | null; error: string | null; calendar_revision: number | null }>();
-      for (const r of data ?? []) if (!m.has(r.interview_id!)) m.set(r.interview_id!, r);
+      // Newest first, all rows per interview: the badge uses the newest one for the interview's current time.
+      const m = new Map<string, { status: string; sent_at: string | null; error: string | null; calendar_revision: number | null }[]>();
+      for (const r of data ?? []) m.set(r.interview_id!, [...(m.get(r.interview_id!) ?? []), r]);
       return m;
     },
   });
@@ -112,9 +113,9 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                     <PanelChips iv={iv} mailOn={mailOn} />
                     <ResponseChip iv={iv} />
                     {(() => {
-                      const rm = reminders.data?.get(iv.id);
-                      // A reminder for an earlier time of this interview (before it was moved) is not shown.
-                      if (!rm || (rm.calendar_revision != null && rm.calendar_revision !== iv.revision)) return null;
+                      // A reminder for an earlier time of this interview (before it was moved) is ignored.
+                      const rm = reminders.data?.get(iv.id)?.find((r) => r.calendar_revision == null || r.calendar_revision === iv.revision);
+                      if (!rm) return null;
                       if (rm.status === "sent") return <Tip text={fmtDateTime(rm.sent_at)}><Badge variant="outline" tabIndex={0} className="font-normal text-muted-foreground">Reminder sent</Badge></Tip>;
                       if (rm.status === "queued" || rm.status === "sending") return <Badge variant="outline" className="font-normal text-muted-foreground">Reminder waiting to send</Badge>;
                       if (rm.status === "failed" || rm.status === "bounced") return <Tip text={mailErrorMessage(rm.error)}><Badge variant="outline" tabIndex={0} className="border-destructive/40 font-normal text-destructive">Reminder not delivered</Badge></Tip>;

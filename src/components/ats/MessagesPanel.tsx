@@ -737,6 +737,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
       if (!(quick && reply && latest)) setSubject(r.subject.slice(0, 200));
       setBody(r.body);
       setTplMeta({ code: r.template_code, purpose: r.purpose });
+      setAiNote(false);
       setTimeout(() => bodyRef.current?.focus(), 0);
     } catch (e) {
       toast.error(atsErrorMessage(e));

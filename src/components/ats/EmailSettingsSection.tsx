@@ -116,6 +116,7 @@ function MailCard() {
   const [ackConfirm, setAckConfirm] = useState(false);
   const [switchTo, setSwitchTo] = useState<string | null>(null);
   const [showIssues, setShowIssues] = useState(false);
+  const aiOn = !!(useAtsSettings().data as any)?.ai_drafts_enabled;
 
   const s = st.data;
   useEffect(() => {
@@ -230,6 +231,15 @@ function MailCard() {
                 {s.queued} waiting to be sent · <Link to="/hrms/ats/inbox?view=undelivered" className="text-primary hover:underline">{Number(s.failed_30d ?? 0)} not delivered in the last 30 days</Link>
               </p>
             </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 border-t border-border pt-3">
+          <Switch id="ats-ai-drafts" checked={aiOn} disabled={ro || saving}
+            onCheckedChange={async (v) => { if (await save({ ai_drafts_enabled: v })) { qc.invalidateQueries({ queryKey: ["ats", "settings"] }); toast.success("Saved"); } }} />
+          <div className="space-y-1">
+            <Label htmlFor="ats-ai-drafts" className="leading-5">Suggest reply drafts with AI (optional)</Label>
+            <p className="text-xs text-muted-foreground">Off by default. When on, 'Draft a reply' sends the recent emails with this candidate (no phone numbers, salary or notes) to the AI service to write a draft. Nothing is sent to the candidate until you press Send.</p>
           </div>
         </div>
 

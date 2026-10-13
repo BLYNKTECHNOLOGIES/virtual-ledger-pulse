@@ -50,9 +50,15 @@ interface Props {
   target: IvTarget;
   interview?: InterviewRow | null;
   copyFrom?: InterviewRow | null;
+  /** Prefill the start (e.g. a time the candidate proposed); applied once when the dialog opens. */
+  initialStart?: string | null;
+  /** Only the date of initialStart is used. */
+  initialDateOnly?: boolean;
+  /** Called after the interview was saved successfully. */
+  onSaved?: () => void;
 }
 
-export function ScheduleInterviewDialog({ open, onOpenChange, target, interview, copyFrom }: Props) {
+export function ScheduleInterviewDialog({ open, onOpenChange, target, interview, copyFrom, initialStart, initialDateOnly, onSaved }: Props) {
   const qc = useQueryClient();
   const settings = useAtsSettings();
   const mail = useMailStatus();
@@ -125,6 +131,13 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
     setAttachResume(false);
     setTemplateId(null); setSubject(""); setBody("");
     setPhase("idle"); setSaved(null); setNotifyErr(null); setConflicts([]);
+    // A time proposed by the candidate (applied once, after the defaults).
+    if (initialStart) {
+      const p = istInputs(initialStart);
+      setDate(p.date);
+      if (!initialDateOnly) setTime(p.time);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings.data, settings.isLoading, interview, copyFrom, target.email]);
 
   // Default template once templates are loaded.

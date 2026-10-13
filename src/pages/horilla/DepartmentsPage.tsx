@@ -239,7 +239,9 @@ export default function DepartmentsPage() {
               <Trash2 className="h-4 w-4 text-destructive" /> Delete Department
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Delete "{deleteTarget?.name}"?{(empCounts?.[deleteTarget?.id ?? ""] || 0) > 0 ? ` ${empCounts?.[deleteTarget?.id ?? ""]} employee(s) are assigned to it.` : ""} This cannot be undone.
+              {(empCounts?.[deleteTarget?.id ?? ""] || 0) > 0
+                ? `"${deleteTarget?.name}" can't be deleted while ${empCounts?.[deleteTarget?.id ?? ""]} employee(s) are assigned to it — move them to another department first, or switch it to Inactive instead.`
+                : `Delete "${deleteTarget?.name}"? Its positions, headcount and seat plans and forecast assumptions are deleted with it. This cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

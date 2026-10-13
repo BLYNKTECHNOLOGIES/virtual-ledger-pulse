@@ -10,6 +10,24 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 /** Long policies start collapsed; "Read full policy" opens them. */
 const isLong = (text: string) => text.length > 280 || text.split("\n").length > 4;
 
+function PolicyBody({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  if (!isLong(text)) return <p className="text-sm text-muted-foreground whitespace-pre-wrap">{text}</p>;
+  return (
+    <div>
+      <p className={`text-sm text-muted-foreground whitespace-pre-wrap ${open ? "" : "line-clamp-4"}`}>{text}</p>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="mt-1 text-xs font-medium text-primary hover:underline"
+      >
+        {open ? "Show less" : "Read full policy"}
+      </button>
+    </div>
+  );
+}
+
 export default function HRPoliciesPage() {
   const [search, setSearch] = useState("");
 
@@ -68,16 +86,8 @@ export default function HRPoliciesPage() {
               <CardContent>
                 {!policy.body ? (
                   <p className="text-sm text-muted-foreground">No text added yet.</p>
-                ) : isLong(policy.body) ? (
-                  <details className="group">
-                    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                      <span className="block text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4 group-open:line-clamp-none">{policy.body}</span>
-                      <span className="mt-1 inline-block text-xs font-medium text-primary group-open:hidden">Read full policy</span>
-                      <span className="mt-1 hidden text-xs font-medium text-primary group-open:inline-block">Show less</span>
-                    </summary>
-                  </details>
                 ) : (
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{policy.body}</p>
+                  <PolicyBody text={policy.body} />
                 )}
                 <p className="text-[10px] tabular-nums text-muted-foreground mt-3">
                   Updated {new Date(policy.updated_at || policy.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}

@@ -1156,7 +1156,7 @@ export default function EmployeeListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Permanently delete {deleteTarget?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This erases the employee and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone. If they have left, use Start Separation instead; to hide them but keep their history, deactivate them.
+              This erases the employee and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone. It is refused if they still have penalties, comp-off credits, assets, helpdesk tickets or people reporting to them. If they have left, use Start Separation instead; to hide them but keep their history, deactivate them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1170,7 +1170,7 @@ export default function EmployeeListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Permanently delete {selectedIds.size} selected employee{selectedIds.size === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This erases them and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone.
+              This erases them and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone. Anyone with penalties, comp-off credits, assets, helpdesk tickets or people reporting to them can't be deleted, and the run stops there — deactivate or separate them instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

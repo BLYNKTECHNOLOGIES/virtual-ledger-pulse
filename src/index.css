@@ -1677,17 +1677,17 @@ html {
   border-color: hsl(var(--border)) !important;
 }
 
-/* Brand orange (#E8604C) accents — keep, but soften pale tints so
-   they don't glow harshly on the darker canvas */
+/* Legacy accent tints (#E8604C classes now follow the theme primary) — slightly
+   stronger on the darker canvas so they stay visible */
 .dark .horilla-root .bg-\[\#E8604C\]\/5 {
-  background-color: hsl(11 74% 60% / 0.08) !important;
+  background-color: hsl(var(--primary) / 0.08) !important;
 }
 .dark .horilla-root .bg-\[\#E8604C\]\/10 {
-  background-color: hsl(11 74% 60% / 0.14) !important;
+  background-color: hsl(var(--primary) / 0.14) !important;
 }
 .dark .horilla-root .border-\[\#E8604C\]\/20,
 .dark .horilla-root .border-\[\#E8604C\]\/30 {
-  border-color: hsl(11 74% 60% / 0.35) !important;
+  border-color: hsl(var(--primary) / 0.35) !important;
 }
 
 /* Dialogs / popovers get the elevated surface */
@@ -2535,8 +2535,10 @@ html {
 /* ── HRMS shell: one page padding ──────────────────────────────────────────
    The HRMS work area (<main class="hrms-work-area"> in HorillaLayout) already pads every page,
    so page roots don't add a second layer (that cost up to 112px of width on laptops).
+   Only the standard page wrappers (.page-mount / .hrms-page) are affected: empty states, spinners and
+   pages with full-bleed bars (e.g. RazorpayX Sync) keep their own padding.
    Pages opened inside the payroll cockpit's tool sheet are not inside <main> and keep their padding. */
-.horilla-root main.hrms-work-area > * {
+.horilla-root main.hrms-work-area > :is(.page-mount, .hrms-page) {
   padding: 0 !important;
 }
 

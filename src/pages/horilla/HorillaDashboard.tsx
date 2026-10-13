@@ -137,7 +137,8 @@ export default function HorillaDashboard() {
 
   const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present" || a.attendance_status === "late").length;
   const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
-  const lateToday = (todayAttendance || []).filter(a => a.attendance_status === "late").length;
+  // Display only — same rule as Attendance Overview: a late status, or present with late minutes.
+  const lateToday = (todayAttendance || []).filter((a: any) => a.attendance_status === "late" || (a.attendance_status === "present" && (a.late_minutes ?? 0) > 0)).length;
   // Display only: everyone active with no attendance row yet today (the list below shows the first few).
   const punchedIds = new Set((todayAttendance || []).map((a: any) => a.employee_id));
   const notPunchedCount = (employees || []).filter((e: any) => e.is_active && !punchedIds.has(e.id)).length;
@@ -174,14 +175,14 @@ export default function HorillaDashboard() {
   ].filter(d => d.value > 0);
 
   const stats = [
-    { label: "Total Employees", to: "/hrms/employee", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
     { label: "Active Employees", to: "/hrms/employee", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
     { label: "Open Positions", to: "/hrms/ats/jobs", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Candidates", to: "/hrms/ats/candidates", value: atsCounts?.candidates ?? 0, sub: `${atsCounts?.hired ?? 0} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Present Today", to: "/hrms/attendance", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Pending Leaves", to: "/hrms/leave/requests", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Onboarding", to: "/hrms/onboarding-pipeline", value: atsCounts?.onboarding ?? 0, sub: "in progress", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
-    { label: "Payroll Runs", to: "/hrms/payroll", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
   ];
 
   return (
@@ -307,23 +308,34 @@ export default function HorillaDashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((c) => (
-          <button
-            type="button"
-            key={c.label}
-            onClick={() => navigate(c.to)}
-            className="group w-full text-left bg-card rounded-lg border border-border p-5 flex items-start justify-between transition-colors duration-200 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{c.label}</p>
-              <p className="font-mono text-3xl font-bold text-foreground mt-2 tabular-nums first:text-primary">{c.value}</p>
-              <p className="text-[11px] mt-1 text-muted-foreground">{c.sub}</p>
-            </div>
-            <div className={`w-9 h-9 rounded-lg ${c.iconBg} flex items-center justify-center shrink-0`}>
-              <c.icon className={`h-5 w-5 ${c.iconColor}`} />
-            </div>
-          </button>
-        ))}
+        {stats.map((c) => {
+          const body = (
+            <>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{c.label}</p>
+                <p className="font-mono text-3xl font-bold text-foreground mt-2 tabular-nums first:text-primary">{c.value}</p>
+                <p className="text-[11px] mt-1 text-muted-foreground">{c.sub}</p>
+              </div>
+              <div className={`w-9 h-9 rounded-lg ${c.iconBg} flex items-center justify-center shrink-0`}>
+                <c.icon className={`h-5 w-5 ${c.iconColor}`} />
+              </div>
+            </>
+          );
+          const cls = "group w-full text-left bg-card rounded-lg border border-border p-5 flex items-start justify-between transition-colors duration-200";
+          const to = (c as { to?: string }).to;
+          return to ? (
+            <button
+              type="button"
+              key={c.label}
+              onClick={() => navigate(to)}
+              className={`${cls} hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+            >
+              {body}
+            </button>
+          ) : (
+            <div key={c.label} className={cls}>{body}</div>
+          );
+        })}
       </div>
 
       {/* Data completeness — HR manager's daily "what next" home base */}

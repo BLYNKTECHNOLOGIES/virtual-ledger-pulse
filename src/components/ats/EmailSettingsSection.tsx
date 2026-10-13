@@ -396,7 +396,7 @@ function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmail
             </Select>
           </div>
         </div>
-        <div className="space-y-1.5"><Label htmlFor="tpl-subject">Subject</Label><Input id="tpl-subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" /></div>
+        <div className="space-y-1.5"><Label htmlFor="tpl-subject">Subject</Label><Input id="tpl-subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" /><SubjectSentAs subject={subject} /></div>
         <div className="space-y-1.5">
           <Label htmlFor="tpl-body">Body</Label>
           <div className="flex flex-wrap gap-1">

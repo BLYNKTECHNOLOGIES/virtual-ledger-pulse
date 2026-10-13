@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { useAttendanceDay, resolveDayStatus, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { DAY_STATUS_DOT, DAY_STATUS_LABEL, istTime } from "@/components/hrms/attendance/DayTileTooltip";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
-const fmt = (ts: string | null) =>
-  ts ? new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—";
+const fmt = (ts: string | null) => istTime(ts) ?? "—";
 
 /**
  * Read-only "what is currently marked" snapshot for one employee/day.
@@ -39,7 +38,7 @@ export function CurrentAttendanceSnapshot({
 
   if (!employeeId || !date) return null;
 
-  const status: AttendanceDayStatus = (data?.status as AttendanceDayStatus) || "no_data";
+  const status: AttendanceDayStatus = data ? resolveDayStatus(data) : "no_data";
 
 
   return (

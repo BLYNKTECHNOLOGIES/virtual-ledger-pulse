@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 import { Plus, Pencil, Trash2, Clock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -122,7 +123,14 @@ export default function ShiftsPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
-                  <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 h-8" onClick={() => deleteMutation.mutate(s.id)}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
+                  <ConfirmButton
+                    title={`Delete the “${s.name}” shift?`}
+                    description="This can't be undone."
+                    confirmLabel="Delete shift"
+                    onConfirm={() => deleteMutation.mutate(s.id)}
+                  >
+                    <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 h-8"><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
+                  </ConfirmButton>
                 </div>
               </CardContent>
             </Card>

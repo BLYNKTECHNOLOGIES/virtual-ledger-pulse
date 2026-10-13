@@ -17,6 +17,12 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
+/** "1 Sep 2026" from a yyyy-MM-dd date. */
+const fmtD = (d?: string | null) => (d ? format(new Date(`${d}T00:00:00`), "d MMM yyyy") : "…");
+/** Timestamp in IST, e.g. "13 Oct 2026, 9:05 am". */
+const fmtIst = (ts?: string | null) =>
+  ts ? new Date(ts).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : "—";
+
 export default function AttendancePeriodLockPage({ month }: { month?: string }) {
   const qc = useQueryClient();
   const now = new Date();
@@ -207,12 +213,12 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
             <CardContent className="p-3 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <Lock className="h-3.5 w-3.5 text-success shrink-0" />
-                <span className="font-medium tabular-nums text-sm">{l.period_start} → {l.period_end}</span>
+                <span className="font-medium tabular-nums text-sm">{fmtD(l.period_start)} – {fmtD(l.period_end)}</span>
                 {l.is_system && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/15 text-info border border-info/30 uppercase tracking-wide">Auto</span>
                 )}
               </div>
-              <div className="text-[11px] text-muted-foreground">Locked: {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}</div>
+              <div className="text-[11px] text-muted-foreground">Locked: {fmtIst(l.locked_at)}</div>
               {l.notes && <div className="text-xs text-muted-foreground">{l.notes}</div>}
               <div className="flex gap-2 pt-1">
                 <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => { setVerifyLock(l); setVerifyEmp(''); setVerifyResult(null); }}>
@@ -254,13 +260,13 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
                     <tr key={l.id} className="border-b hover:bg-muted/30">
                       <td className="px-4 py-2 font-medium">
                         <Lock className="h-3 w-3 inline mr-1 text-success" />
-                        {l.period_start} → {l.period_end}
+                        {fmtD(l.period_start)} – {fmtD(l.period_end)}
                         {l.is_system && (
                           <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-info/15 text-info border border-info/30 uppercase tracking-wide">Auto</span>
                         )}
                       </td>
                       <td className="px-4 py-2 text-xs text-muted-foreground">
-                        {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}
+                        {fmtIst(l.locked_at)}
                       </td>
                       <td className="px-4 py-2 text-muted-foreground">{l.notes || '—'}</td>
                       <td className="px-4 py-2 text-right">
@@ -286,6 +292,9 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Lock Attendance Period</DialogTitle>
+            <DialogDescription>
+              Attendance and regularizations in this range can't be changed until someone unlocks it with a logged reason. Payroll can then run for it.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -309,7 +318,7 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={() => create.mutate()} disabled={create.isPending}>
-              {create.isPending ? 'Locking...' : 'Lock Period'}
+              {create.isPending ? 'Locking…' : `Lock ${fmtD(form.period_start)} – ${fmtD(form.period_end)}`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -318,11 +327,11 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
       <AlertDialog open={!!unlockLock} onOpenChange={(o) => { if (!o) { setUnlockLock(null); setUnlockReason(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unlock {unlockLock?.period_start} → {unlockLock?.period_end}?</AlertDialogTitle>
+            <AlertDialogTitle>Unlock {fmtD(unlockLock?.period_start)} – {fmtD(unlockLock?.period_end)}?</AlertDialogTitle>
             <AlertDialogDescription>
               {unlockLock?.is_system
-                ? 'This period was auto-locked by the system after the grace window. Unlocking will surface as a Super-Admin intervention.'
-                : 'Unlocking allows attendance/regularization to be changed again. If payroll for this period has already been paid, this can cause reconciliation drift.'}
+                ? 'The system locked this period automatically after the grace window. Unlocking it is flagged for the Super Admin.'
+                : 'Attendance and regularizations in this range can be changed again. If payroll for it is already paid, the paid amounts may stop matching attendance.'}
               {' '}A reason is required and gets logged.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -332,9 +341,13 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
             onChange={(e) => setUnlockReason(e.target.value)}
             placeholder="Reason (e.g. late regularization approved for #EMP102, needs re-run)"
           />
+          <p className="text-xs text-muted-foreground">
+            {unlockReason.trim().length < 5 ? `At least 5 characters (${unlockReason.trim().length}/5).` : "This reason is logged."}
+          </p>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={unlockReason.trim().length < 5 || remove.isPending}
               onClick={() => unlockLock && remove.mutate({
                 periodStart: unlockLock.period_start,
@@ -353,9 +366,9 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
           <DialogHeader>
             <DialogTitle>Verify locked period against Razorpay</DialogTitle>
             <DialogDescription>
-              Read-only sample. Picks one mapped employee and pulls their day-by-day attendance from Razorpay for
-              <span className="tabular-nums"> {verifyLock?.period_start} → {verifyLock?.period_end}</span>. No writes; safe to run repeatedly.
-              Range capped at 62 days on the proxy.
+              Read-only check. Picks one mapped employee and pulls their day-by-day attendance from Razorpay for
+              <span className="tabular-nums"> {fmtD(verifyLock?.period_start)} – {fmtD(verifyLock?.period_end)}</span>. Nothing is changed; safe to run again.
+              Up to 62 days at a time.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">

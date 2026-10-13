@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/hrms/primitives/ConfirmAction";
 import { Plus, Search, MoreVertical, Pencil, Trash2, Wifi, Database, AlertTriangle, History } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -29,6 +30,7 @@ export default function BiometricDevicesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [dataDevice, setDataDevice] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
   const { data: devices = [], isLoading } = useQuery({
     queryKey: ["hr_biometric_devices"],
@@ -96,6 +98,7 @@ export default function BiometricDevicesPage() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["hr_biometric_devices"] }); toast.success("Device deleted"); },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const filtered = devices.filter((d: any) =>
@@ -190,13 +193,13 @@ export default function BiometricDevicesPage() {
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreVertical className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label={`Actions for ${d.name}`}><MoreVertical className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { setEditId(d.id); setForm({ name: d.name, device_type: d.device_type, machine_ip: d.machine_ip || "", port_no: d.port_no || "", password: d.password || "0", device_direction: d.device_direction, company: d.company || "", is_live_capture: d.is_live_capture, is_scheduled: d.is_scheduled, device_serial: d.device_serial || "" }); setShowDialog(true); }}>
                           <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(d.id)}>
+                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(d)}>
                           <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -253,7 +256,7 @@ export default function BiometricDevicesPage() {
             <div><Label>Password</Label><Input className="h-9" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="0" /></div>
             <div><Label>Device Direction</Label><Select value={form.device_direction} onValueChange={(v) => setForm({ ...form, device_direction: v })}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent>{DEVICE_DIRECTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Company</Label><Input className="h-9" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Company name" /></div>
-            <div><Label>Device Serial (SN) <span className="text-muted-foreground text-xs">— required for iclock push</span></Label><Input className="h-9 font-mono" value={form.device_serial} onChange={(e) => setForm({ ...form, device_serial: e.target.value.trim() })} placeholder="e.g. CJXK202160002" /></div>
+            <div><Label>Device Serial (SN) <span className="text-muted-foreground text-xs">— required for the device to push punches</span></Label><Input className="h-9 font-mono" value={form.device_serial} onChange={(e) => setForm({ ...form, device_serial: e.target.value.trim() })} placeholder="e.g. CJXK202160002" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" className="h-9" onClick={() => setShowDialog(false)}>Cancel</Button>
@@ -262,6 +265,14 @@ export default function BiometricDevicesPage() {
         </DialogContent>
       </Dialog>
 
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={`Delete “${deleteTarget?.name ?? "this device"}”?`}
+        description="The device is removed from HRMS. This can't be undone."
+        confirmLabel="Delete device"
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+      />
     </div>
   );
 }

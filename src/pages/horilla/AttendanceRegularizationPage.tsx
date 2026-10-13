@@ -304,7 +304,7 @@ export default function AttendanceRegularizationPage() {
       });
     },
     onSuccess: () => {
-      toast.success(`Intervention ${decision}`);
+      toast.success(decision === 'approved' ? 'Request approved' : 'Request rejected');
       setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason(''); setDayMark('none');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
@@ -329,7 +329,7 @@ export default function AttendanceRegularizationPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Attendance Regularization" />
+      <PageHeader title="Attendance Regularization" description="Requests to correct a missed or wrong punch. Approve or reject each one, or push it to the manager first." />
 
       <Card>
         <CardContent className="p-3 sm:p-4 space-y-3">
@@ -358,7 +358,7 @@ export default function AttendanceRegularizationPage() {
             {isLoading ? (
               <TableSkeleton rows={4} columns={2} />
             ) : filtered.length === 0 ? (
-              <EmptyState icon={Hourglass} title="No requests" />
+              <EmptyState icon={Hourglass} title={search ? "No requests match your search" : status === "all" ? "No requests yet" : "Nothing in this status"} description={status !== "all" ? "Change the status filter above to see other requests." : undefined} />
             ) : filtered.map((r: any) => {
               const emp = r.hr_employees;
               return (
@@ -367,7 +367,7 @@ export default function AttendanceRegularizationPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="font-medium truncate">{emp?.first_name} {emp?.last_name}</div>
-                        <div className="text-xs text-muted-foreground">{emp?.badge_id} · {r.attendance_date}</div>
+                        <div className="text-xs text-muted-foreground">{emp?.badge_id} · {format(new Date(r.attendance_date), 'd MMM yyyy')}</div>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium capitalize shrink-0 ${
                         r.status === 'approved' ? 'bg-success/10 text-success' :
@@ -380,7 +380,7 @@ export default function AttendanceRegularizationPage() {
                       In: {fmtTime(r.requested_check_in)} · Out: {fmtTime(r.requested_check_out)}
                     </div>
                     <div className="text-xs"><span className="text-muted-foreground">Reason:</span> {r.reason}</div>
-                    {r.reason_code && <div className="text-[10px] uppercase tracking-wide text-muted-foreground">code: {r.reason_code}</div>}
+                    {r.reason_code && <div className="text-[11px] text-muted-foreground">Reason code: {REASON_CODES.find((c) => c.value === r.reason_code)?.label ?? r.reason_code}</div>}
                     {r.approver_notes && <div className="text-xs italic text-muted-foreground">"{r.approver_notes}"</div>}
                     {r.manager_status && (
                       <div className="text-xs text-muted-foreground">
@@ -416,7 +416,7 @@ export default function AttendanceRegularizationPage() {
             {isLoading ? (
               <TableSkeleton rows={5} />
             ) : filtered.length === 0 ? (
-              <EmptyState icon={Hourglass} title="No requests" />
+              <EmptyState icon={Hourglass} title={search ? "No requests match your search" : status === "all" ? "No requests yet" : "Nothing in this status"} description={status !== "all" ? "Change the status filter above to see other requests." : undefined} />
             ) : (
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-sm">
@@ -427,7 +427,7 @@ export default function AttendanceRegularizationPage() {
                       <th className="w-[14%]">In / Out</th>
                       <th>Reason</th>
                       <th className="w-[15%]">Status</th>
-                      <th className="w-[1%] text-right">&nbsp;</th>
+                      <th className="w-[1%] text-right"><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
@@ -453,7 +453,7 @@ export default function AttendanceRegularizationPage() {
                             </div>
                           </td>
                           <td className="px-3 py-2">
-                            <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
+                            <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
                               r.status === 'approved' ? 'bg-success/10 text-success' :
                               r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
                               r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
@@ -463,16 +463,16 @@ export default function AttendanceRegularizationPage() {
                           <td className="px-3 py-2">
                             {actionable && (
                               <div className="flex items-center justify-end gap-1">
-                                <Button size="icon" variant="ghost" title="Approve" className="h-8 w-8 text-success hover:bg-success/10"
+                                <Button size="icon" variant="ghost" title="Approve" aria-label="Approve" className="h-8 w-8 text-success hover:bg-success/10"
                                   onClick={() => openReview(r, 'approved')}>
                                   <CheckCircle2 className="h-4 w-4" />
                                 </Button>
-                                <Button size="icon" variant="ghost" title="Reject" className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                <Button size="icon" variant="ghost" title="Reject" aria-label="Reject" className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                   onClick={() => openReview(r, 'rejected')}>
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                                 {r.status === 'pending' && (
-                                  <Button size="icon" variant="ghost" title="Push to manager" className="h-8 w-8"
+                                  <Button size="icon" variant="ghost" title="Push to manager" aria-label="Push to manager" className="h-8 w-8"
                                     disabled={pushToManager.isPending} onClick={() => pushToManager.mutate(r)}>
                                     <UserCheck className="h-4 w-4" />
                                   </Button>
@@ -496,7 +496,7 @@ export default function AttendanceRegularizationPage() {
       {groupedInterventions.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Recent intervention log</CardTitle>
+            <CardTitle className="text-base">Recent attendance corrections</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border/60">
@@ -551,13 +551,13 @@ export default function AttendanceRegularizationPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {decision === 'approved' ? 'Approve' : 'Reject'} Intervention
+              {decision === 'approved' ? 'Approve' : 'Reject'} regularization request
             </DialogTitle>
           </DialogHeader>
           {reviewing && (
             <div className="space-y-3 text-sm">
               <div className="p-3 rounded bg-muted/40">
-                <div className="font-medium">{reviewing.hr_employees?.first_name} {reviewing.hr_employees?.last_name} — {reviewing.attendance_date}</div>
+                <div className="font-medium">{reviewing.hr_employees?.first_name} {reviewing.hr_employees?.last_name} — {format(new Date(reviewing.attendance_date), 'd MMM yyyy')}</div>
                 <div className="text-xs text-muted-foreground mt-1">Reason: {reviewing.reason}</div>
                 <div className="text-xs mt-1">In: {fmtTime(reviewing.requested_check_in)} · Out: {fmtTime(reviewing.requested_check_out)}</div>
               </div>
@@ -609,6 +609,9 @@ export default function AttendanceRegularizationPage() {
 
                       </SelectContent>
                     </Select>
+                    {reasonCode && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">{REASON_CODES.find((c) => c.value === reasonCode)?.help}</p>
+                    )}
                   </div>
 
                   <div>
@@ -649,8 +652,8 @@ export default function AttendanceRegularizationPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewing(null)}>Cancel</Button>
-            <Button onClick={() => review.mutate()} disabled={review.isPending}>
-              Confirm {decision}
+            <Button variant={decision === 'rejected' ? 'destructive' : 'default'} onClick={() => review.mutate()} disabled={review.isPending}>
+              {review.isPending ? 'Saving…' : decision === 'approved' ? 'Approve request' : 'Reject request'}
             </Button>
           </DialogFooter>
         </DialogContent>

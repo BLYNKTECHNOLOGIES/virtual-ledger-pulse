@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { toast } from "sonner";
+import { ConfirmButton } from "@/components/hrms/primitives/ConfirmAction";
 import { Plus, CalendarDays, Users, Trash2, UsersRound, Search } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
@@ -288,9 +289,16 @@ export default function WeeklyOffPage() {
                 </td>
                 <td className="px-3 py-3 text-sm">{a.hr_weekly_off_patterns?.name || "—"}</td>
                 <td className="px-3 py-3">
-                  <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(a.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
+                  <ConfirmButton
+                    title="Remove this weekly-off assignment?"
+                    description={`${a.hr_employees?.first_name ?? "This employee"} will no longer have “${a.hr_weekly_off_patterns?.name ?? "this pattern"}”.`}
+                    confirmLabel="Remove"
+                    onConfirm={() => deleteMutation.mutate(a.id)}
+                  >
+                    <Button variant="ghost" size="sm" aria-label="Remove assignment" title="Remove assignment">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </ConfirmButton>
                 </td>
               </>
             )}
@@ -307,9 +315,16 @@ export default function WeeklyOffPage() {
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Pattern</p>
                     <p className="text-sm text-foreground break-words">{a.hr_weekly_off_patterns?.name || "—"}</p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(a.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
+                  <ConfirmButton
+                    title="Remove this weekly-off assignment?"
+                    description={`${a.hr_employees?.first_name ?? "This employee"} will no longer have “${a.hr_weekly_off_patterns?.name ?? "this pattern"}”.`}
+                    confirmLabel="Remove"
+                    onConfirm={() => deleteMutation.mutate(a.id)}
+                  >
+                    <Button variant="ghost" size="sm" aria-label="Remove assignment" title="Remove assignment">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </ConfirmButton>
                 </div>
               </div>
             )}

@@ -255,7 +255,9 @@ export default function LateComeEarlyOutPage() {
               <CardTitle className="text-base">Monthly Summary — {format(new Date(monthFilter + "-01"), "MMMM yyyy")}</CardTitle>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              {summaryList.length === 0 ? (
+              {isLoading ? (
+                <div className="p-4"><TableSkeleton rows={6} columns={7} /></div>
+              ) : summaryList.length === 0 ? (
                 <EmptyState
                   icon={Clock}
                   title="No records for this month"

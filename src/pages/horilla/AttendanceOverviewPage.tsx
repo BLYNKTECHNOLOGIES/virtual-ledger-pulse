@@ -22,6 +22,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { DAY_STATUS_LABEL } from "@/components/hrms/attendance/DayTileTooltip";
 
 export default function AttendanceOverviewPage() {
   const queryClient = useQueryClient();
@@ -211,6 +212,7 @@ export default function AttendanceOverviewPage() {
     absent: attendance.filter((a: any) => a.attendance_status === "absent").length,
     late: attendance.filter((a: any) => a.attendance_status === "late" || (a.late_minutes ?? 0) > 0).length,
     not_punched: attendance.filter((a: any) => a.attendance_status === "no_data" || a.attendance_status === "incomplete").length,
+    in_progress: attendance.filter((a: any) => a.attendance_status === "in_progress").length,
     total: attendance.length,
   };
 
@@ -235,13 +237,14 @@ export default function AttendanceOverviewPage() {
       <StaleSessionAlert />
 
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 stagger-children">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 stagger-children">
         {[
           { label: "Total", value: stats.total, icon: Clock, color: "text-info", bg: "bg-info/10" },
           { label: "Present", value: stats.present, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+          { label: "In progress", value: stats.in_progress, icon: Clock, color: "text-info", bg: "bg-info/10" },
           { label: "Late", value: stats.late, icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
           { label: "Absent", value: stats.absent, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
-          { label: "Not Punched", value: stats.not_punched, icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
+          { label: "No punch / missing out", value: stats.not_punched, icon: Clock, color: "text-muted-foreground", bg: "bg-muted" },
         ].map((s) => (
           <Card key={s.label} className="h-full transition-shadow hover:shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
@@ -263,6 +266,7 @@ export default function AttendanceOverviewPage() {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="present">Present</SelectItem>
+            <SelectItem value="in_progress">In progress</SelectItem>
             <SelectItem value="absent">Absent</SelectItem>
             <SelectItem value="late">Late</SelectItem>
             <SelectItem value="half_day">Half Day</SelectItem>
@@ -372,20 +376,17 @@ export default function AttendanceOverviewPage() {
 
 function AttendanceStatusBadge({ status }: { status: string }) {
   const label =
-    status === "present" ? "Present" :
-    status === "absent" ? "Absent" :
     status === "late" ? "Late" :
-    status === "half_day" ? "Half Day" :
-    status === "incomplete" ? "Incomplete" :
     status === "no_data" ? "Not Punched" :
-    status || "—";
+    (DAY_STATUS_LABEL as Record<string, string>)[status] ?? (status ? status.replace(/_/g, " ") : "—");
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
       status === "present" ? "bg-success/10 text-success border-success/20" :
       status === "absent" ? "bg-destructive/10 text-destructive border-destructive/20" :
       status === "late" ? "bg-warning/10 text-warning border-warning/20" :
       status === "half_day" ? "bg-warning/10 text-warning border-warning/20" :
-      status === "incomplete" ? "bg-info/10 text-info border-info/20" :
+      status === "incomplete" ? "bg-background text-warning border-dashed border-warning" :
+      status === "in_progress" ? "bg-info/10 text-info border-info/20" :
       "bg-muted text-muted-foreground border-border"
     }`}>{label}</span>
   );

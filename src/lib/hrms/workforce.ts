@@ -196,6 +196,15 @@ export const EMPLOYMENT_TYPES = [
   "Consultant",
 ];
 
+/** Plans and requirements store ATS codes (full_time…); labels like "Full Time" map to the same code. */
+export function normEmploymentType(v?: string | null): string {
+  if (!v) return "—";
+  const c = v.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (c === "intern") return "internship";
+  if (c === "consultant") return "contract";
+  return c;
+}
+
 export const SHIFT_LABELS = ["Morning", "Evening", "Night", "General"];
 
 /** Filters shared by every workforce planning page. */
@@ -230,7 +239,7 @@ export function matchesFilters(
   if (f.shift !== "all" && (row.shift_name || "—") !== f.shift) return false;
   if (
     f.employmentType !== "all" &&
-    (row.employment_type || "—") !== f.employmentType
+    normEmploymentType(row.employment_type) !== normEmploymentType(f.employmentType)
   )
     return false;
   if (f.status !== "all" && row.status !== f.status) return false;

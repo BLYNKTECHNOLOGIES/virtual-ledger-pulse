@@ -36,6 +36,7 @@ const ErpEntryManager = lazy(() => import('./pages/ErpEntryManager'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const RaciPage = lazy(() => import('./pages/RaciPage'));
 const OnboardingApplyPage = lazy(() => import('./pages/public/OnboardingApplyPage'));
+const InterviewPickPage = lazy(() => import('./pages/public/InterviewPickPage'));
 const CbtTestPage = lazy(() => import('./pages/public/CbtTestPage'));
 const SkillPracticePage = lazy(() => import('./pages/SkillPracticePage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -979,6 +980,11 @@ const router = createBrowserRouter([
     {
       path: "/onboarding/apply/:token",
       element: <OnboardingApplyPage />,
+    },
+    // Public pick-an-interview-time link (no login)
+    {
+      path: "/interview/pick/:token",
+      element: <InterviewPickPage />,
     },
     // Public candidate assessment (Quiz / CBT) — no login
     {

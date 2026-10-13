@@ -16,6 +16,12 @@ import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
 import { InterviewStatusBadge, ivAccentClass, PanelChips, ResponseChip, Tip, WhereLine } from "./InterviewBits";
 import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
 import { InterviewActions } from "./InterviewActions";
+import { OfferTimesDialog } from "./OfferTimesDialog";
+import { cancelSlotOffer, offerLink, slotKeys, useSelfScheduleOn, useSlotOffers, type SlotOffer } from "@/lib/ats/selfSchedule";
+import { atsErrorMessage } from "@/lib/ats/errors";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { candKeys } from "@/lib/ats/candidates";
 
 function Clamp({ text, lines, prefix }: { text: string; lines: 2 | 3; prefix?: string }) {
   const [open, setOpen] = useState(false);
@@ -52,6 +58,18 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
     },
   });
   const [newOpen, setNewOpen] = useState(false);
+  const qc = useQueryClient();
+  const selfOn = useSelfScheduleOn();
+  const offers = useSlotOffers(app.application_id, selfOn);
+  const [offerDlg, setOfferDlg] = useState<null | { move?: any; prefill?: SlotOffer | null }>(null);
+  const cancelOffer = async (id: string, removed = false) => {
+    try {
+      await cancelSlotOffer(id);
+      toast.success(removed ? "Link removed" : "Link cancelled");
+      qc.invalidateQueries({ queryKey: slotKeys.offers(app.application_id!) });
+      qc.invalidateQueries({ queryKey: candKeys.events(candidate.id) });
+    } catch (e) { toast.error(atsErrorMessage(e)); }
+  };
   const [showAll, setShowAll] = useState(false);
   const first = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "the candidate";
   const waPhone = candidate.phone_norm && /^\d{10}$/.test(candidate.phone_norm) ? candidate.phone_norm : null;
@@ -87,9 +105,34 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
   );
   const appClosed = app.status === "rejected" || app.status === "withdrawn" || app.status === "hired";
 
+  const openOffers = selfOn ? (offers.data ?? []).filter((o) => o.status === "open") : [];
+  const bookedIds = new Set((offers.data ?? []).filter((o) => o.status === "booked" && o.interview_id).map((o) => o.interview_id!));
+  const pickBtn = selfOn && canSchedule
+    ? <Button size="sm" variant="outline" className="h-8" onClick={() => setOfferDlg({})}>Let the candidate pick a time</Button>
+    : null;
+
   return (
     <SectionCard title={<>Interviews{sorted.length > 1 && <span className="ml-1.5 text-muted-foreground">({sorted.length})</span>}</>}
-      action={canSchedule ? scheduleBtn : <Tip text={scheduleTip}><span tabIndex={0}>{scheduleBtn}</span></Tip>}>
+      action={<div className="flex flex-wrap items-center gap-1.5">{pickBtn}{canSchedule ? scheduleBtn : <Tip text={scheduleTip}><span tabIndex={0}>{scheduleBtn}</span></Tip>}</div>}>
+      {openOffers.length > 0 && (
+        <ul className="mb-2 space-y-1.5">
+          {openOffers.map((o) => {
+            const expired = new Date(o.expires_at).getTime() <= Date.now();
+            const link = offerLink(o.id);
+            return (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-sm">
+                <span className="text-foreground">{expired ? "Link expired" : `Times offered · ${o.slots.length} · link expires ${fmtUntil(o.expires_at)}`}</span>
+                <span className="flex flex-wrap gap-1.5">
+                  {!expired && link
+                    ? <Button size="sm" variant="outline" className="h-7" onClick={() => navigator.clipboard.writeText(link).then(() => toast.success("Copied"), () => toast.error("Couldn't copy"))}>Copy link</Button>
+                    : <Button size="sm" variant="outline" className="h-7" disabled={!canSchedule} onClick={() => setOfferDlg({ prefill: o, move: o.move_interview_id ? (list.data ?? []).find((iv) => iv.id === o.move_interview_id) ?? null : null })}>Create a new link</Button>}
+                  <Button size="sm" variant="ghost" className="h-7" onClick={() => void cancelOffer(o.id, expired)}>{expired ? "Remove" : "Cancel link"}</Button>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {list.isLoading ? <RowsSkeleton rows={2} /> : list.isError ? <QueryError error={list.error} onRetry={() => list.refetch()} /> :
         !sorted.length ? <EmptyState icon={CalendarClock} title="No interviews yet." className="py-6" /> : (
           <ul className="space-y-2">
@@ -113,6 +156,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                   <div className="flex flex-wrap items-center gap-1">
                     <PanelChips iv={iv} mailOn={mailOn} />
                     <ResponseChip iv={iv} />
+                    {bookedIds.has(iv.id) && <Badge variant="outline" className="font-normal text-muted-foreground">Picked by the candidate</Badge>}
                     {(() => {
                       // A reminder for an earlier time of this interview (before it was moved) is ignored.
                       const rm = reminders.data?.get(iv.id)?.find((r) => r.calendar_revision == null || r.calendar_revision === iv.revision);
@@ -140,7 +184,8 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                   {st === "completed" && missing.length > 0 && <p className="text-sm text-warning">Feedback missing from {missing.map((m) => m.name).join(", ")}</p>}
                   {iv.status === "scheduled" && appClosed && <p className="text-sm text-warning">This application is closed. Cancel this interview if it won't happen.</p>}
 
-                  <InterviewActions iv={iv} target={target} mailOn={mailOn} canSchedule={canSchedule} waPhone={waPhone} />
+                  <InterviewActions iv={iv} target={target} mailOn={mailOn} canSchedule={canSchedule} waPhone={waPhone}
+                    onPickNewTime={selfOn && canSchedule ? () => setOfferDlg({ move: iv }) : undefined} />
                 </li>
               );
             })}
@@ -151,6 +196,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
         )}
 
       <ScheduleInterviewDialog open={newOpen} onOpenChange={setNewOpen} target={target} />
+      {offerDlg && <OfferTimesDialog open onOpenChange={(o) => !o && setOfferDlg(null)} target={target} moveInterview={offerDlg.move ?? null} prefill={offerDlg.prefill ?? null} />}
     </SectionCard>
   );
 }

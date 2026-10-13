@@ -55,6 +55,9 @@ import { InterviewsCard } from "./InterviewsCard";
 import { ImportDetailsCard } from "./ImportDetailsCard";
 import { LogCallDialog } from "./LogCallDialog";
 import { WhatsAppMenu } from "./WhatsAppMenu";
+import { OfferTimesDialog } from "./OfferTimesDialog";
+import { useSelfScheduleOn } from "@/lib/ats/selfSchedule";
+import { CalendarRange } from "lucide-react";
 import { PickTimeDialog } from "./ConversationBits";
 import { convKeys, setConversation, snoozeChoices, useConversationState } from "@/lib/ats/conversations";
 import { BellRing, Clock } from "lucide-react";
@@ -81,6 +84,7 @@ const EVENT_ICON: Record<string, typeof Activity> = {
   interview_completed: CalendarCheck, interview_no_show: UserX, interview_reopened: RotateCcw,
   interview_response: Reply, interview_feedback: ClipboardCheck,
   call_logged: Phone, whatsapp_opened: MessageCircle,
+  slots_offered: CalendarRange, slots_offer_cancelled: CalendarRange,
 };
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -168,6 +172,8 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const convState = useConversationState(mailOn ? candidateId : null);
   const [callOpen, setCallOpen] = useState(false);
   const [snoozePick, setSnoozePick] = useState(false);
+  const selfOn = useSelfScheduleOn();
+  const [offerOpen, setOfferOpen] = useState(false);
   const afterStatusRef = useRef<null | (() => void)>(null);
   const convAction = async (action: "done" | "reopen" | "snooze", until?: string, unsnooze = false) => {
     try {
@@ -356,6 +362,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setKeysOpen(true)}><Keyboard className="mr-2 h-4 w-4" /> Keyboard shortcuts (?)</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setCallOpen(true)}><Phone className="mr-2 h-4 w-4" /> Log a call…</DropdownMenuItem>
+              {selfOn && app?.application_id && (app.status === "active" || app.status === "on_hold") && (
+                <DropdownMenuItem onSelect={() => setOfferOpen(true)}><CalendarRange className="mr-2 h-4 w-4" /> Let the candidate pick a time…</DropdownMenuItem>
+              )}
               {mailOn && <>
                 <DropdownMenuSeparator />
                 {convState.data?.done_at
@@ -601,6 +610,12 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} candidate={c} />
       <LogCallDialog open={callOpen} onOpenChange={setCallOpen} candidateId={candidateId} applicationId={app?.application_id ?? null}
         candidateName={c.full_name ?? ""} onEditProfile={() => setEditOpen(true)} />
+      {offerOpen && app?.application_id && (
+        <OfferTimesDialog open onOpenChange={(o) => !o && setOfferOpen(false)} target={{
+          applicationId: app.application_id, candidateId: c.id, fullName: c.full_name ?? "", email: c.email ?? null,
+          phone: c.phone ?? null, refNo: c.ref_no ?? null, jobTitle: app.job_title ?? app.position_text ?? null,
+        }} />
+      )}
       <PickTimeDialog open={snoozePick} onOpenChange={setSnoozePick} title="Snooze until" confirmLabel="Snooze" onPick={(iso) => convAction("snooze", iso)} />
     </div>
   );

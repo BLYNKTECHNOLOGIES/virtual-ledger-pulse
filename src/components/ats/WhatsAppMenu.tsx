@@ -27,7 +27,7 @@ export async function fillWhatsAppForInterview(interviewId: string, body: string
 /** The reminder template for interviews: 'wa-interview-reminder', else the first active WhatsApp template with purpose 'interview'. */
 export function pickWhatsAppReminder(templates: AtsEmailTemplate[] | undefined) {
   const list = templates ?? [];
-  return list.find((t) => t.code === "wa-interview-reminder") ?? list.find((t) => t.purpose === "interview") ?? null;
+  return list.find((t) => t.code === "wa-interview-reminder") ?? list.find((t) => t.purpose === "interview" && t.code !== "wa-pick-a-slot") ?? null;
 }
 
 export function WhatsAppDialog({ open, onOpenChange, candidateId, applicationId, firstName, waPhone, initialText, templateCode }: {
@@ -80,7 +80,7 @@ export function WhatsAppMenu({ candidate, app, waPhone }: { candidate: AtsCandid
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0] ?? null, [ivs.data]);
   const [dlg, setDlg] = useState<{ text: string; code: string } | null>(null);
   if (!waPhone) return null;
-  const list = (templates.data ?? []).filter((t) => !usesInterviewFields(t) || !!upcoming);
+  const list = (templates.data ?? []).filter((t) => t.code !== "wa-pick-a-slot" && (!usesInterviewFields(t) || !!upcoming));
   const firstName = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "the candidate";
 
   const choose = async (t: AtsEmailTemplate) => {

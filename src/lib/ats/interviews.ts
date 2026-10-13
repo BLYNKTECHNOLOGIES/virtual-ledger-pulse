@@ -157,8 +157,8 @@ export function pendingInvites(iv: InterviewRow) {
   };
 }
 
-const NOT_FOR_SCHEDULING = ["interview-invitation", "interview-reminder", "interview-cancelled", "interview-confirmed"];
-const NOT_FOR_CANCELLING = ["interview-invitation", "interview-reminder", "interview-scheduled", "interview-rescheduled", "interview-confirmed"];
+const NOT_FOR_SCHEDULING = ["interview-invitation", "interview-reminder", "interview-cancelled", "interview-confirmed", "interview-pick-a-slot"];
+const NOT_FOR_CANCELLING = ["interview-invitation", "interview-reminder", "interview-scheduled", "interview-rescheduled", "interview-confirmed", "interview-pick-a-slot"];
 /** Templates offered when scheduling or changing an interview (built-in ones first). */
 export const scheduleTemplates = (all: AtsEmailTemplate[]) =>
   all.filter((t) => t.purpose === "interview" && !NOT_FOR_SCHEDULING.includes(t.code));

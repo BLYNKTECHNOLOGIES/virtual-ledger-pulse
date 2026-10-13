@@ -219,7 +219,7 @@ function SourcesSection({ readOnly = false }: { readOnly?: boolean }) {
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
               </span>
-              <Switch checked={s.is_active} aria-label="Active" onCheckedChange={(on) => toggle.mutate({ id: s.id, on })} />
+              <Switch checked={s.is_active} aria-label="Active" disabled={readOnly} onCheckedChange={(on) => toggle.mutate({ id: s.id, on })} />
             </li>
           ))}
         </ul>

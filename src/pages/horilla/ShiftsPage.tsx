@@ -44,7 +44,7 @@ export default function ShiftsPage() {
       // Friendly duplicate-name guard (case-insensitive): a repeated name makes
       // the terminal shift-window sync upsert the same key twice and fail raw.
       const name = form.name.trim();
-      const { data: existing, error: dupErr } = await supabase.from("hr_shifts").select("id, name").ilike("name", name.replace(/[\\%_]/g, "\\$&"));
+      const { data: existing, error: dupErr } = await supabase.from("hr_shifts").select("id, name");
       if (dupErr) throw dupErr;
       if ((existing || []).some((s: any) => s.id !== editId && String(s.name).trim().toLowerCase() === name.toLowerCase())) {
         throw new Error(`A shift named "${name}" already exists. Use a different name.`);

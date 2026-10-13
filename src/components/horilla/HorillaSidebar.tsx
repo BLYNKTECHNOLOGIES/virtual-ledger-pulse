@@ -17,7 +17,6 @@ import {
   Megaphone,
   ChevronLeft,
   ChevronRight,
-  Briefcase,
   AlertTriangle,
   Mail,
   Inbox,

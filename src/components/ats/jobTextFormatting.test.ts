@@ -1,8 +1,33 @@
 // @ts-expect-error Bun's test runtime is available independently of the browser TypeScript types.
 import { describe, expect, test } from "bun:test";
-import { continueJobList, formatJobList } from "./jobTextFormatting";
+import { continueJobList, formatJobList, pasteJobList } from "./jobTextFormatting";
 
 describe("job list formatting", () => {
+  test("automatically bullets the owner's eight blank-line-separated responsibilities", () => {
+    const points = [
+      "Execute and process buy/sell orders across designated digital asset exchange platforms.",
+      "Verify and match payment confirmations against corresponding orders.",
+      "Monitor live order queues and action requests within defined response timelines.",
+      "Maintain accurate, up-to-date transaction records and shift logs.",
+      "Coordinate with Relationship, KYC, and Compliance teams as required.",
+      "Identify, flag, and escalate discrepancies or processing errors per SOP.",
+      "Complete shift handover documentation at the close of each shift.",
+      "Follow all internal compliance, reporting, and data-handling protocols.",
+    ];
+    expect(pasteJobList("", 0, 0, points.join("\n\n"))?.value).toBe(points.map((point) => `• ${point}`).join("\n"));
+  });
+  test("preserves existing bullets and numbering, including Windows line endings", () => {
+    expect(pasteJobList("", 0, 0, "• Accuracy\r\n\r\n• Speed")?.value).toBe("• Accuracy\n• Speed");
+    expect(pasteJobList("", 0, 0, "1. Accuracy\n2. Speed")?.value).toBe("1. Accuracy\n2. Speed");
+  });
+  test("single paragraphs use normal paste and selected content is replaced", () => {
+    expect(pasteJobList("", 0, 0, "A single paragraph.\n")).toBeNull();
+    expect(pasteJobList("Intro\nOld\nOutro", 6, 9, "Accuracy\nSpeed")?.value).toBe("Intro\n• Accuracy\n• Speed\nOutro");
+  });
+  test("pasting into an empty bullet does not duplicate its marker", () => {
+    const edit = pasteJobList("• ", 2, 2, "Accuracy\nSpeed");
+    expect(edit).toEqual({ value: "• Accuracy\n• Speed", start: 18, end: 18 });
+  });
   test("formats selected lines without changing surrounding paragraphs", () => {
     expect(formatJobList("Intro\nAccuracy\nSpeed\nOutro", 6, 20, false).value).toBe("Intro\n• Accuracy\n• Speed\nOutro");
   });

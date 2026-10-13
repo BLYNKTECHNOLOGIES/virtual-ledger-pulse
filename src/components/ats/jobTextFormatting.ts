@@ -1,6 +1,20 @@
 type TextEdit = { value: string; start: number; end: number };
 const marker = /^(\s*)(?:[•*-]|\d+[.)])\s+/;
 
+/** Convert pasted points, not single paragraphs; never duplicate existing list markers. */
+export function pasteJobList(value: string, start: number, end: number, pasted: string): TextEdit | null {
+  const lines = pasted.replace(/\r\n?/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) return null;
+  const formatted = lines.map((line) => marker.test(line) ? line : `• ${line}`);
+  const from = start === 0 ? 0 : value.lastIndexOf("\n", start - 1) + 1;
+  const prefix = value.slice(from, start);
+  // An empty current list item already supplies the first pasted point's marker.
+  if (/^\s*(?:[•*-]|\d+[.)])\s+$/.test(prefix)) formatted[0] = formatted[0].replace(marker, "");
+  const insertion = formatted.join("\n");
+  const caret = start + insertion.length;
+  return { value: value.slice(0, start) + insertion + value.slice(end), start: caret, end: caret };
+}
+
 /** Keep job copy plain text so the careers feed and existing consumers need no new contract. */
 export function formatJobList(value: string, start: number, end: number, ordered: boolean): TextEdit {
   const from = start === 0 ? 0 : value.lastIndexOf("\n", start - 1) + 1;

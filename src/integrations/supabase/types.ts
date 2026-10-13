@@ -12433,6 +12433,7 @@ export type Database = {
       hr_employee_onboarding: {
         Row: {
           address: string | null
+          ats_application_id: string | null
           bank_details: Json | null
           candidate_id: string | null
           city: string | null
@@ -12465,6 +12466,7 @@ export type Database = {
           phone: string | null
           position_id: string | null
           post_training_ctc: number | null
+          post_training_shift_id: string | null
           probation_end_date: string | null
           razorpay_employee_id: string | null
           razorpay_reconciliation: Json | null
@@ -12482,6 +12484,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          ats_application_id?: string | null
           bank_details?: Json | null
           candidate_id?: string | null
           city?: string | null
@@ -12514,6 +12517,7 @@ export type Database = {
           phone?: string | null
           position_id?: string | null
           post_training_ctc?: number | null
+          post_training_shift_id?: string | null
           probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
@@ -12531,6 +12535,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          ats_application_id?: string | null
           bank_details?: Json | null
           candidate_id?: string | null
           city?: string | null
@@ -12563,6 +12568,7 @@ export type Database = {
           phone?: string | null
           position_id?: string | null
           post_training_ctc?: number | null
+          post_training_shift_id?: string | null
           probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
@@ -12579,6 +12585,27 @@ export type Database = {
           zip?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "hr_employee_onboarding_ats_application_id_fkey"
+            columns: ["ats_application_id"]
+            isOneToOne: true
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_ats_application_id_fkey"
+            columns: ["ats_application_id"]
+            isOneToOne: true
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_ats_application_id_fkey"
+            columns: ["ats_application_id"]
+            isOneToOne: true
+            referencedRelation: "ats_conversation_list"
+            referencedColumns: ["application_id"]
+          },
           {
             foreignKeyName: "hr_employee_onboarding_candidate_id_fkey"
             columns: ["candidate_id"]
@@ -12598,6 +12625,13 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_post_training_shift_id_fkey"
+            columns: ["post_training_shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
             referencedColumns: ["id"]
           },
           {
@@ -14116,6 +14150,7 @@ export type Database = {
           eligible_position_ids: string[]
           eligible_shift_ids: string[]
           employment_type: string | null
+          follow_desks: boolean
           id: string
           is_active: boolean
           location: string | null
@@ -14123,6 +14158,7 @@ export type Database = {
           position_id: string | null
           priority: string
           required_hc: number
+          seat_capacity_id: string | null
           shift_id: string | null
           shift_label: string | null
           target_date: string | null
@@ -14137,6 +14173,7 @@ export type Database = {
           eligible_position_ids?: string[]
           eligible_shift_ids?: string[]
           employment_type?: string | null
+          follow_desks?: boolean
           id?: string
           is_active?: boolean
           location?: string | null
@@ -14144,6 +14181,7 @@ export type Database = {
           position_id?: string | null
           priority?: string
           required_hc?: number
+          seat_capacity_id?: string | null
           shift_id?: string | null
           shift_label?: string | null
           target_date?: string | null
@@ -14158,6 +14196,7 @@ export type Database = {
           eligible_position_ids?: string[]
           eligible_shift_ids?: string[]
           employment_type?: string | null
+          follow_desks?: boolean
           id?: string
           is_active?: boolean
           location?: string | null
@@ -14165,6 +14204,7 @@ export type Database = {
           position_id?: string | null
           priority?: string
           required_hc?: number
+          seat_capacity_id?: string | null
           shift_id?: string | null
           shift_label?: string | null
           target_date?: string | null
@@ -14183,6 +14223,13 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_headcount_plans_seat_capacity_id_fkey"
+            columns: ["seat_capacity_id"]
+            isOneToOne: false
+            referencedRelation: "hr_seat_capacity"
             referencedColumns: ["id"]
           },
           {
@@ -20798,7 +20845,9 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_night_shift: boolean | null
+          is_training_shift: boolean
           name: string
+          planning_shift_id: string | null
           start_time: string
           updated_at: string
         }
@@ -20811,7 +20860,9 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_night_shift?: boolean | null
+          is_training_shift?: boolean
           name: string
+          planning_shift_id?: string | null
           start_time?: string
           updated_at?: string
         }
@@ -20824,11 +20875,21 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_night_shift?: boolean | null
+          is_training_shift?: boolean
           name?: string
+          planning_shift_id?: string | null
           start_time?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hr_shifts_planning_shift_id_fkey"
+            columns: ["planning_shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_skill_zone_candidates: {
         Row: {
@@ -24193,6 +24254,7 @@ export type Database = {
           description: string | null
           hierarchy_level: number | null
           id: string
+          in_workforce_planning: boolean
           is_active: boolean | null
           reports_to_position_id: string | null
           title: string
@@ -24204,6 +24266,7 @@ export type Database = {
           description?: string | null
           hierarchy_level?: number | null
           id?: string
+          in_workforce_planning?: boolean
           is_active?: boolean | null
           reports_to_position_id?: string | null
           title: string
@@ -24215,6 +24278,7 @@ export type Database = {
           description?: string | null
           hierarchy_level?: number | null
           id?: string
+          in_workforce_planning?: boolean
           is_active?: boolean | null
           reports_to_position_id?: string | null
           title?: string
@@ -35683,6 +35747,75 @@ export type Database = {
           still_open: number
         }[]
       }
+      hr_wf_line_base: {
+        Args: never
+        Returns: {
+          committed_hc: number
+          current_hc: number
+          department_id: string
+          group_name: string
+          group_start: string
+          groups: string[]
+          joining_hc: number
+          net_need: number
+          notice_hc: number
+          open_count: number
+          open_hc: number
+          pipeline_hc: number
+          plan_id: string
+          required_hc: number
+          roles: string[]
+          selected_hc: number
+        }[]
+      }
+      hr_wf_norm_employment_type: { Args: { p: string }; Returns: string }
+      hr_wf_people: {
+        Args: never
+        Returns: {
+          department_id: string
+          employee_id: string
+          group_id: string
+          is_training: boolean
+          position_id: string
+          resignation_status: string
+          shift_id: string
+        }[]
+      }
+      hr_wf_planning_shift: { Args: { p_shift: string }; Returns: string }
+      hr_wf_refresh_requirement: {
+        Args: { p_requirement: string }
+        Returns: undefined
+      }
+      hr_wf_requirement_people: {
+        Args: { p_requirement?: string }
+        Returns: {
+          joined_hc: number
+          joining_hc: number
+          pipeline_hc: number
+          requirement_id: string
+          selected_hc: number
+        }[]
+      }
+      hr_wf_roles: {
+        Args: { p_eligible: string[]; p_position: string }
+        Returns: string[]
+      }
+      hr_wf_shift_groups: {
+        Args: { p_eligible: string[]; p_shift: string }
+        Returns: string[]
+      }
+      hr_wf_shift_label: {
+        Args: { p_eligible: string[]; p_shift: string }
+        Returns: string
+      }
+      hr_wf_trainee_allocation: {
+        Args: never
+        Returns: {
+          out_employee_id: string
+          out_plan_id: string
+          out_ready_date: string
+        }[]
+      }
       hr_withdraw_holiday_credits: { Args: { p_date: string }; Returns: Json }
       hr_workforce_staffing_matrix: {
         Args: never
@@ -35692,10 +35825,13 @@ export type Database = {
           department_id: string
           department_name: string
           employment_type: string
+          follow_desks: boolean
+          in_training_hc: number
           location: string
           notice_period_hc: number
           open_requirement_count: number
           open_requirement_hc: number
+          over_requested_hc: number
           pending_joining_hc: number
           physical_seats: number
           pipeline_hc: number
@@ -35704,10 +35840,13 @@ export type Database = {
           position_title: string
           priority: string
           required_hc: number
+          seat_capacity_id: string
           selected_hc: number
+          shift_group_name: string
           shift_id: string
           shift_name: string
           target_date: string
+          training_ready_date: string
         }[]
       }
       hr_workforce_unplanned_scopes: {

@@ -38,13 +38,17 @@ import {
   useSeatOccupancy,
   useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
-import { EMPTY_FILTERS, type WorkforceFilterState } from "@/lib/hrms/workforce";
+import { EMPTY_FILTERS, planningShiftId, sortByOperatingOrder, type WorkforceFilterState } from "@/lib/hrms/workforce";
+import { useNavigate } from "react-router-dom";
+import { WorkforceAlertsStrip } from "@/components/horilla/workforce/WorkforceAlertsStrip";
 
 type SeatPerson = {
   employee_id: string;
   department_id: string | null;
   job_position_id: string | null;
+  /** Planning shift (a shift that "counts as" another is already mapped). */
   shift_id: string | null;
+  is_training?: boolean;
   employee_type?: string | null;
   employee?: {
     first_name?: string | null;
@@ -81,12 +85,6 @@ function occupancyTone(utilisation: number) {
   return "bg-primary";
 }
 
-const COMBINED_MORNING_ID = "combined-morning";
-
-function isMorningShift(name?: string | null) {
-  return name === "Morning Shift" || name === "Morning Shift Exemption";
-}
-
 function employeeName(person: SeatPerson) {
   const name = [person.employee?.first_name, person.employee?.last_name].filter(Boolean).join(" ").trim();
   return name || "Unnamed employee";
@@ -113,11 +111,16 @@ export default function CapacitySeatsPage() {
   const { data: people = [] } = useSeatOccupancy();
   const { data: headcountPlans = [] } = useHeadcountPlans();
   const removeSeat = useDeleteSeatCapacity();
+  const navigate = useNavigate();
 
-  /** Shifts that exist purely for training, so their people sit in the training zone. */
+  const allShifts = useMemo(() => (lookups?.shifts || []) as any[], [lookups?.shifts]);
+  /** A seat's shift, mapped to its planning shift. */
+  const seatShift = useCallback((seat: any): string | null => planningShiftId(allShifts, seat.shift_id), [allShifts]);
+
+  /** Shifts flagged as training shifts in Shift settings; their people sit in the training zone. */
   const trainingShiftIds = useMemo(
-    () => new Set((seats as any[]).filter((s) => s.is_training_only && s.shift_id).map((s) => s.shift_id as string)),
-    [seats],
+    () => new Set(allShifts.filter((s) => s.is_training_shift).map((s) => s.id as string)),
+    [allShifts],
   );
 
   /**
@@ -128,7 +131,7 @@ export default function CapacitySeatsPage() {
     () =>
       new Set(
         (people as SeatPerson[])
-          .filter((person) => person.shift_id && trainingShiftIds.has(person.shift_id))
+          .filter((person) => person.is_training || (!!person.shift_id && trainingShiftIds.has(person.shift_id)))
           .map((person) => person.employee_id),
       ),
     [people, trainingShiftIds],
@@ -137,12 +140,12 @@ export default function CapacitySeatsPage() {
   const seatMatchesPerson = useCallback(
     (seat: any, person: SeatPerson) =>
       seat.is_training_only
-        ? person.shift_id === seat.shift_id
+        ? traineeIds.has(person.employee_id) && (!seat.shift_id || person.shift_id === seatShift(seat))
         : !traineeIds.has(person.employee_id) &&
           person.department_id === seat.department_id &&
           seatAllowsPosition(seat, person.job_position_id) &&
-          (!seat.shift_id || person.shift_id === seat.shift_id),
-    [traineeIds],
+          (!seat.shift_id || person.shift_id === seatShift(seat)),
+    [traineeIds, seatShift],
   );
 
   /**
@@ -160,8 +163,7 @@ export default function CapacitySeatsPage() {
         if (!s.shift_id) {
           const perShift = new Map<string, number>();
           matching.forEach((p) => {
-            const shiftName = (lookups?.shifts || []).find((shift) => shift.id === p.shift_id)?.name;
-            const k = isMorningShift(shiftName) ? COMBINED_MORNING_ID : p.shift_id ?? "-";
+            const k = p.shift_id ?? "-";
             perShift.set(k, (perShift.get(k) || 0) + 1);
           });
           current = perShift.size ? Math.max(...perShift.values()) : 0;
@@ -174,7 +176,7 @@ export default function CapacitySeatsPage() {
           totalOnRoll,
           availableSeats: physical - current,
           utilisation,
-          shiftName: s.hr_shifts?.name ?? s.shift_label ?? null,
+          shiftName: allShifts.find((x) => x.id === seatShift(s))?.name ?? s.hr_shifts?.name ?? s.shift_label ?? null,
           departmentName: s.departments?.name ?? null,
           positionTitle: Array.isArray(s.eligible_position_ids) && s.eligible_position_ids.length > 1
             ? s.eligible_position_ids
@@ -184,7 +186,7 @@ export default function CapacitySeatsPage() {
             : s.positions?.title ?? null,
         };
       }),
-    [seats, people, lookups?.positions, lookups?.shifts, seatMatchesPerson],
+    [seats, people, lookups?.positions, allShifts, seatShift, seatMatchesPerson],
   );
 
   const filtered = useMemo(
@@ -193,12 +195,7 @@ export default function CapacitySeatsPage() {
         if (filters.departmentId !== "all" && s.department_id !== filters.departmentId)
           return false;
         if (filters.positionId !== "all" && !seatAllowsPosition(s, filters.positionId)) return false;
-        if (
-          filters.shift !== "all" &&
-          (filters.shift === "Morning Shift"
-            ? !isMorningShift(s.shiftName)
-            : (s.shiftName || "—") !== filters.shift)
-        ) return false;
+        if (filters.shift !== "all" && (s.shiftName || "—") !== filters.shift) return false;
         return true;
       }),
     [enriched, filters],
@@ -212,28 +209,35 @@ export default function CapacitySeatsPage() {
     return Array.from(unique.values());
   }, [filtered, people, seatMatchesPerson]);
 
+  /**
+   * Planned desks per shift come from the staffing lines linked to each desk
+   * group (seat_capacity_id). "any" = a line with no shift of its own.
+   */
+  const plannedSeatShifts = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    (headcountPlans as any[]).forEach((plan) => {
+      if (!plan.seat_capacity_id) return;
+      const ids = [plan.shift_id, ...(plan.eligible_shift_ids || [])].filter(Boolean) as string[];
+      const set = map.get(plan.seat_capacity_id) || new Set<string>();
+      if (ids.length === 0) set.add("any");
+      ids.forEach((id) => set.add(planningShiftId(allShifts, id)!));
+      map.set(plan.seat_capacity_id, set);
+    });
+    return map;
+  }, [headcountPlans, allShifts]);
+
   const shiftBreakdown = useMemo(() => {
-    const shifts = (lookups?.shifts || []) as ShiftLookup[];
-    const morningShifts = shifts.filter((shift) => isMorningShift(shift.name));
-    const displayShifts: Array<ShiftLookup & { memberIds: string[] }> = [
-      ...(morningShifts.length
-        ? [{
-            id: COMBINED_MORNING_ID,
-            name: "Morning Shift",
-            start_time: morningShifts.reduce<string | null>((earliest, shift) => !earliest || (shift.start_time || "") < earliest ? shift.start_time || null : earliest, null),
-            end_time: morningShifts.reduce<string | null>((latest, shift) => !latest || (shift.end_time || "") > latest ? shift.end_time || null : latest, null),
-            memberIds: morningShifts.map((shift) => shift.id),
-          }]
-        : []),
-      ...shifts.filter((shift) => !isMorningShift(shift.name)).map((shift) => ({ ...shift, memberIds: [shift.id] })),
-    ];
+    // One entry per planning shift; shifts that "count as" another are folded in.
+    const displayShifts: Array<ShiftLookup & { memberIds: string[] }> = sortByOperatingOrder(
+      allShifts.filter((shift) => !shift.planning_shift_id),
+    ).map((shift) => ({ ...shift, memberIds: [shift.id] }));
     const rows = displayShifts.map((shift) => {
       const assignedPeople = filteredPeople.filter((person) => person.shift_id && shift.memberIds.includes(person.shift_id));
       const assigned = assignedPeople.length;
       // Capacity is role-scoped. A shift containing only Office Help must be
       // compared with the Office Help seat, not every desk in the office.
       const eligibleSeats = filtered.reduce((sum, seat) => {
-        if (seat.shift_id && !shift.memberIds.includes(seat.shift_id)) return sum;
+        if (seat.shift_id && !shift.memberIds.includes(seatShift(seat)!)) return sum;
         if (seat.is_training_only) return sum + (seat.physical_seats || 0);
         const hasMatchingAssignment = assignedPeople.some(
           (person) =>
@@ -241,7 +245,9 @@ export default function CapacitySeatsPage() {
             person.department_id === seat.department_id &&
             seatAllowsPosition(seat, person.job_position_id),
         );
-        return sum + (hasMatchingAssignment ? seat.physical_seats || 0 : 0);
+        const planned = plannedSeatShifts.get(seat.id);
+        const isPlanned = !!planned && (planned.has("any") || planned.has(shift.id));
+        return sum + (hasMatchingAssignment || isPlanned ? seat.physical_seats || 0 : 0);
       }, 0);
       const utilisation = eligibleSeats > 0 ? (assigned / eligibleSeats) * 100 : 0;
       return {
@@ -278,7 +284,7 @@ export default function CapacitySeatsPage() {
       });
     }
     return rows.filter((row) => row.assigned > 0 || row.seats > 0);
-  }, [filtered, filteredPeople, lookups?.shifts, traineeIds]);
+  }, [filtered, filteredPeople, allShifts, traineeIds, seatShift, plannedSeatShifts]);
 
   const totals = useMemo(() => {
     const workingSeats = filtered.filter((seat) => !seat.is_training_only);
@@ -287,7 +293,7 @@ export default function CapacitySeatsPage() {
       (a, s) => a + (s.is_training_only ? 0 : s.max_operational_capacity || s.physical_seats || 0),
       0,
     );
-    const occupied = shiftBreakdown.reduce((peak, shift) => shift.name === "Trainees Shift" ? peak : Math.max(peak, shift.assigned), 0);
+    const occupied = shiftBreakdown.reduce((peak, shift) => trainingShiftIds.has(shift.id) ? peak : Math.max(peak, shift.assigned), 0);
     return {
       physical,
       operational,
@@ -295,7 +301,7 @@ export default function CapacitySeatsPage() {
       free: Math.max(0, physical - occupied),
       utilisation: physical > 0 ? (occupied / physical) * 100 : 0,
     };
-  }, [filtered, shiftBreakdown]);
+  }, [filtered, shiftBreakdown, trainingShiftIds]);
 
   const seatBreakdown = useMemo(() => {
     const grouped = new Map<
@@ -319,7 +325,7 @@ export default function CapacitySeatsPage() {
         .map((seat) => {
           const matching = filteredPeople.filter((person) =>
             seat.is_training_only
-              ? !!person.shift_id && trainingShiftIds.has(person.shift_id)
+              ? traineeIds.has(person.employee_id)
               : !traineeIds.has(person.employee_id) &&
                 person.department_id === seat.department_id &&
                 seatAllowsPosition(seat, person.job_position_id),
@@ -354,56 +360,15 @@ export default function CapacitySeatsPage() {
     [shiftBreakdown],
   );
 
-  const capacityFilterShifts = useMemo(() => {
-    const shifts = (lookups?.shifts || []) as ShiftLookup[];
-    const morning = shifts.find((shift) => shift.name === "Morning Shift");
-    return shifts.filter((shift) => shift.name !== "Morning Shift Exemption").map((shift) =>
-      shift.name === "Morning Shift" && morning ? { ...shift, name: "Morning Shift" } : shift,
-    );
-  }, [lookups?.shifts]);
+  const capacityFilterShifts = useMemo(
+    () => sortByOperatingOrder(allShifts.filter((shift) => !shift.planning_shift_id)),
+    [allShifts],
+  );
 
   const activeMapShiftId = useMemo(() => {
     if (mapShifts.some((shift) => shift.id === selectedMapShiftId)) return selectedMapShiftId;
     return peakShift?.id ?? mapShifts[0]?.id ?? "";
   }, [mapShifts, peakShift?.id, selectedMapShiftId]);
-
-  /**
-   * Which shifts each role is actually worked in, taken from the people on roll.
-   * A staffing plan without a shift of its own is scoped to those shifts only —
-   * treating it as "every shift" made every role show up in every shift.
-   */
-  const shiftIdsByPosition = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    (people as SeatPerson[]).forEach((person) => {
-      if (!person.job_position_id || !person.shift_id) return;
-      if (!map.has(person.job_position_id)) map.set(person.job_position_id, new Set());
-      map.get(person.job_position_id)!.add(person.shift_id);
-    });
-    return map;
-  }, [people]);
-
-  /** Approved staffing demand per shift, used to keep planned seats visible. */
-  const planScopes = useMemo(
-    () =>
-      (headcountPlans as any[]).map((plan) => {
-        const positionIds: string[] = Array.isArray(plan.eligible_position_ids) && plan.eligible_position_ids.length
-          ? plan.eligible_position_ids
-          : plan.position_id
-            ? [plan.position_id]
-            : [];
-        const explicitShiftIds: string[] = Array.isArray(plan.eligible_shift_ids) && plan.eligible_shift_ids.length
-          ? plan.eligible_shift_ids
-          : plan.shift_id
-            ? [plan.shift_id]
-            : [];
-        // No shift on the plan: fall back to the shifts that role is worked in.
-        const shiftIds = explicitShiftIds.length
-          ? explicitShiftIds
-          : positionIds.flatMap((id) => Array.from(shiftIdsByPosition.get(id) || []));
-        return { positionIds, shiftIds };
-      }),
-    [headcountPlans, shiftIdsByPosition],
-  );
 
   const mapRoles = useMemo(() => {
     if (!activeMapShiftId) return [];
@@ -419,8 +384,8 @@ export default function CapacitySeatsPage() {
     return filtered
       .filter((seat) => {
         if (isTrainingShiftView) return !!seat.is_training_only;
-        if (seat.is_training_only) return !!seat.shift_id && selectedShiftIds.includes(seat.shift_id);
-        if (seat.shift_id) return selectedShiftIds.includes(seat.shift_id);
+        if (seat.is_training_only) return !!seat.shift_id && selectedShiftIds.includes(seatShift(seat)!);
+        if (seat.shift_id) return selectedShiftIds.includes(seatShift(seat)!);
         // Shift-neutral desks are shared across shifts, but they only become
         // eligible for a shift when that exact department/role works it.
         // This prevents one Support Staff assignment from inheriting all 22 desks.
@@ -433,11 +398,8 @@ export default function CapacitySeatsPage() {
         // A plan with no shift of its own is scoped to the shifts that role is
         // actually worked in, so roles no longer leak into every shift.
         if (activeMapShiftId === "unassigned") return false;
-        return planScopes.some(
-          (plan) =>
-            plan.shiftIds.some((id: string) => selectedShiftIds.includes(id)) &&
-            plan.positionIds.some((id: string) => seatAllowsPosition(seat, id)),
-        );
+        const planned = plannedSeatShifts.get(seat.id);
+        return !!planned && (planned.has("any") || selectedShiftIds.some((id) => planned.has(id)));
       })
       .map((seat) => {
         const matchingPeople = selectedShiftPeople
@@ -467,7 +429,7 @@ export default function CapacitySeatsPage() {
         a.departmentName.localeCompare(b.departmentName) ||
         a.positionTitle.localeCompare(b.positionTitle),
       );
-  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown, seatMatchesPerson, trainingShiftIds]);
+  }, [activeMapShiftId, filtered, filteredPeople, plannedSeatShifts, shiftBreakdown, seatMatchesPerson, trainingShiftIds, seatShift]);
 
   return (
     <div className="space-y-4 p-3 md:p-6">
@@ -515,6 +477,13 @@ export default function CapacitySeatsPage() {
           tone={totals.utilisation >= 100 ? "danger" : totals.utilisation >= 90 ? "warning" : "success"}
         />
       </div>
+
+      <WorkforceAlertsStrip
+        rows={[]}
+        positionTitle={(id) => (lookups?.positions || []).find((p) => p.id === id)?.title}
+        canManage={canManage}
+        onPlanDesks={(seat) => navigate(`/hrms/workforce-planning/staffing-plan?plan_desk=${seat.id}`)}
+      />
 
       {!isLoading && filtered.length > 0 && mapShifts.length > 0 && (
         <OfficeSeatMap
@@ -648,10 +617,7 @@ export default function CapacitySeatsPage() {
                         <p className="text-xs text-muted-foreground">{row.departmentName || "Unassigned"}</p>
                       </td>
                       {mapShifts.map((shift) => {
-                        const sourceIds = shift.id === COMBINED_MORNING_ID
-                          ? ((lookups?.shifts || []) as ShiftLookup[]).filter((item) => isMorningShift(item.name)).map((item) => item.id)
-                          : [shift.id];
-                        const count = sourceIds.reduce((sum, id) => sum + (row.byShift.get(id) || 0), 0);
+                        const count = row.byShift.get(shift.id) || 0;
                         return (
                           <td key={shift.id} className="px-2 py-2.5 text-center tabular-nums">
                             <span className={count > 0 ? "font-semibold text-foreground" : "text-muted-foreground/50"}>{count}</span>
@@ -689,9 +655,7 @@ export default function CapacitySeatsPage() {
                     {mapShifts
                       .map((shift) => ({
                         ...shift,
-                        count: (shift.id === COMBINED_MORNING_ID
-                          ? ((lookups?.shifts || []) as ShiftLookup[]).filter((item) => isMorningShift(item.name)).map((item) => item.id)
-                          : [shift.id]).reduce((sum, id) => sum + (row.byShift.get(id) || 0), 0),
+                        count: row.byShift.get(shift.id) || 0,
                       }))
                       .filter((shift) => shift.count > 0)
                       .map((shift) => (
@@ -751,7 +715,7 @@ export default function CapacitySeatsPage() {
                         <td className="px-3 py-2 text-muted-foreground">
                           {s.shiftName || (
                             <div className="flex max-w-52 flex-wrap gap-1">
-                              {((lookups?.shifts || []) as ShiftLookup[])
+                              {capacityFilterShifts
                                 .filter((shift) => (planningRows.find((row) => row.id === s.id)?.byShift.get(shift.id) || 0) > 0)
                                 .map((shift) => (
                                   <Badge key={shift.id} variant="secondary" className="text-[10px] font-medium">
@@ -814,6 +778,7 @@ export default function CapacitySeatsPage() {
                                       shift_label: s.shift_label,
                                       physical_seats: s.physical_seats,
                                       max_operational_capacity: s.max_operational_capacity,
+                                      is_training_only: !!s.is_training_only,
                                       notes: s.notes,
                                     },
                                   })
@@ -891,6 +856,7 @@ export default function CapacitySeatsPage() {
                             shift_label: s.shift_label,
                             physical_seats: s.physical_seats,
                             max_operational_capacity: s.max_operational_capacity,
+                            is_training_only: !!s.is_training_only,
                             notes: s.notes,
                           },
                         })

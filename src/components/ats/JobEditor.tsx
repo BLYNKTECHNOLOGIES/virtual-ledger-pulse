@@ -239,7 +239,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
         onOpenChange={(o) => (!o ? requestClose() : undefined)}
         title={isEdit ? "Edit job" : "New job"}
         description={isEdit ? undefined : "Fill in the basics now; you can add the rest later."}
-        contentClassName="sm:max-w-4xl"
+        contentClassName="md:max-w-6xl"
         footer={
           <>
             <Button type="button" variant="ghost" onClick={requestClose}>Cancel</Button>
@@ -254,8 +254,8 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
           </>
         }
       >
-        <form id="ats-job-form" noValidate onSubmit={handleSubmit((v) => save.mutate(v))} className="space-y-6 pb-2">
-          <section className="space-y-3">
+        <form id="ats-job-form" noValidate onSubmit={handleSubmit((v) => save.mutate(v))} className="grid min-w-0 grid-cols-1 gap-6 pb-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-x-8">
+          <section className="min-w-0 space-y-3 lg:col-start-1">
             <h3 className="text-xs font-semibold text-muted-foreground">Basics</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
@@ -313,7 +313,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
             </div>
           </section>
 
-          <section className="space-y-3">
+          <section className="min-w-0 space-y-3 border-t border-border pt-5 lg:col-start-1">
             <h3 className="text-xs font-semibold text-muted-foreground">Pay and experience</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Salary min (₹)" error={e.salary_min?.message}>
@@ -348,18 +348,18 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
             </div>
           </section>
 
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground">Description</h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
+          <section className="min-w-0 space-y-3 border-t border-border pt-5 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <h3 className="text-xs font-semibold text-muted-foreground">Job details</h3>
+            <div className="grid min-w-0 grid-cols-1 gap-5">
+              <div>
                 <Field label="Summary" error={e.summary?.message} htmlFor="ats-summary">
-                  <Controller control={control} name="summary" render={({ field }) => <JobDetailsInput {...field} id="ats-summary" label="Summary" rows={2} invalid={!!e.summary} />} />
+                  <Controller control={control} name="summary" render={({ field }) => <JobDetailsInput {...field} id="ats-summary" label="Summary" rows={3} invalid={!!e.summary} />} />
                 </Field>
               </div>
               {(["description", "requirements", "benefits"] as const).map((key) => {
-                const label = key[0].toUpperCase() + key.slice(1);
+                const label = key === "benefits" ? "Notes" : key[0].toUpperCase() + key.slice(1);
                 return <Field key={key} label={label} error={e[key]?.message} htmlFor={`ats-${key}`}>
-                  <Controller control={control} name={key} render={({ field }) => <JobDetailsInput {...field} id={`ats-${key}`} label={label} rows={key === "benefits" ? 4 : 5} invalid={!!e[key]} />} />
+                  <Controller control={control} name={key} render={({ field }) => <JobDetailsInput {...field} id={`ats-${key}`} label={label} rows={key === "benefits" ? 5 : 8} invalid={!!e[key]} />} />
                 </Field>;
               })}
               <Field label="Alternative titles" hint="Other names candidates may use for this job. Careers-page applications and imported rows with one of these names are filed under this job.">
@@ -370,7 +370,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
             </div>
           </section>
 
-          <section className="space-y-3">
+          <section className="min-w-0 space-y-3 border-t border-border pt-5 lg:col-start-1">
             <h3 className="text-xs font-semibold text-muted-foreground">Hiring requirement (optional)</h3>
             <Controller control={control} name="requisition_id" render={({ field }) => (
               <Select value={field.value || NONE} onValueChange={(v) => (v === NONE ? field.onChange("") : applyRequirement(v))}>

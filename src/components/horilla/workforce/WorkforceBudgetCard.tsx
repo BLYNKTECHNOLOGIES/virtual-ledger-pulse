@@ -1,28 +1,26 @@
-import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { IndianRupee } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BUDGET_SOURCE_LABEL, formatInr, useWorkforceBudget, type BudgetDepartment } from "@/hooks/hrms/useWorkforceBudget";
+import { BUDGET_SOURCE_LABEL, formatInr, useWorkforceBudget } from "@/hooks/hrms/useWorkforceBudget";
 
-/** Overview "Budget" card — HRMS managers only; departments with one person on roll are grouped. */
+/**
+ * Overview "Budget" card — HRMS managers only. The database groups departments with fewer than
+ * 2 people and builds every average from at least 2 people, so no figure is one person's salary.
+ */
 export function WorkforceBudgetCard({ canManage }: { canManage: boolean }) {
   const q = useWorkforceBudget(canManage);
-  const rows = useMemo(() => {
-    const deps = q.data?.departments || [];
-    const big = deps.filter((d) => d.on_roll_hc !== 1);
-    const small = deps.filter((d) => d.on_roll_hc === 1);
-    if (small.length < 2) return deps; // one lone team can't be hidden in a group of one
-    const g = small.reduce<BudgetDepartment>((a, d) => ({
-      ...a, on_roll_hc: a.on_roll_hc + d.on_roll_hc, on_roll_cost: a.on_roll_cost + d.on_roll_cost,
-      hiring_hc: a.hiring_hc + d.hiring_hc, hiring_cost: a.hiring_cost + d.hiring_cost,
-      uncovered_hc: a.uncovered_hc + d.uncovered_hc, uncovered_cost: a.uncovered_cost + d.uncovered_cost,
-      required_hc: a.required_hc + d.required_hc, full_cost: a.full_cost + d.full_cost,
-    }), { department_id: null, department_name: `Small teams (${small.map((d) => d.department_name).join(", ")})`,
-      on_roll_hc: 0, on_roll_cost: 0, hiring_hc: 0, hiring_cost: 0, uncovered_hc: 0, uncovered_cost: 0, required_hc: 0, full_cost: 0 });
-    return [...big, g];
-  }, [q.data]);
-
-  if (!canManage || q.isError || !q.data) return null;
+  if (!canManage) return null;
+  if (q.isError) {
+    return (
+      <Card><CardContent className="p-4 text-sm text-destructive">
+        Couldn't load the salary budget. <button type="button" className="underline" onClick={() => q.refetch()}>Try again</button>
+      </CardContent></Card>
+    );
+  }
+  if (!q.data) return null;
   const c = q.data.company;
+  const rows = q.data.departments;
+  const unpriced = q.data.unpriced || [];
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -30,16 +28,21 @@ export function WorkforceBudgetCard({ canManage }: { canManage: boolean }) {
         <p className="text-xs text-muted-foreground">{BUDGET_SOURCE_LABEL}. Visible to HRMS managers only.</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Figure label="Cost today" value={formatInr(c.on_roll_cost)} hint={`${c.on_roll_hc} people on roll`} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Figure label="Cost today" value={formatInr(c.on_roll_cost)}
+            hint={`${c.on_roll_hc} people on roll${c.training_hc ? ` (incl. ${c.training_hc} in training)` : ""}`} />
+          <Figure label="Hired, joining" value={formatInr(c.joining_cost)} hint={`${c.joining_hc} selected or joining`} />
           <Figure label="Requested hiring" value={formatInr(c.hiring_cost)} hint={`${c.hiring_hc} people in open requests`} />
           <Figure label="If fully staffed" value={formatInr(c.full_cost)} hint={`${c.required_hc} required on all lines`} />
         </div>
-        <table className="w-full text-sm">
+
+        {/* Desktop table */}
+        <table className="hidden w-full text-sm sm:table">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="py-1.5 font-medium">Department</th>
               <th className="px-1 text-right font-medium">Today</th>
+              <th className="px-1 text-right font-medium">Joining</th>
               <th className="px-1 text-right font-medium">Requested</th>
               <th className="pl-1 text-right font-medium">Fully staffed</th>
             </tr>
@@ -49,15 +52,49 @@ export function WorkforceBudgetCard({ canManage }: { canManage: boolean }) {
               <tr key={d.department_name || "x"} className="border-b border-border/60 last:border-0">
                 <td className="py-1.5 pr-2 text-foreground">{d.department_name || "Unassigned"}</td>
                 <td className="px-1 text-right">{formatInr(d.on_roll_cost)}</td>
+                <td className="px-1 text-right">{formatInr(d.joining_cost)}</td>
                 <td className="px-1 text-right">{formatInr(d.hiring_cost)}</td>
                 <td className="pl-1 text-right font-medium text-foreground">{formatInr(d.full_cost)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        {/* Phones: stacked rows, nothing clipped */}
+        <div className="space-y-2 sm:hidden">
+          {rows.map((d) => (
+            <div key={d.department_name || "x"} className="rounded-md border border-border p-2.5 text-sm">
+              <p className="font-medium text-foreground">{d.department_name || "Unassigned"}</p>
+              <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs tabular-nums">
+                <dt className="text-muted-foreground">Today</dt><dd className="text-right">{formatInr(d.on_roll_cost)}</dd>
+                <dt className="text-muted-foreground">Joining</dt><dd className="text-right">{formatInr(d.joining_cost)}</dd>
+                <dt className="text-muted-foreground">Requested</dt><dd className="text-right">{formatInr(d.hiring_cost)}</dd>
+                <dt className="text-muted-foreground">Fully staffed</dt><dd className="text-right font-medium text-foreground">{formatInr(d.full_cost)}</dd>
+              </dl>
+            </div>
+          ))}
+        </div>
+
+        {unpriced.length > 0 && (
+          <div className="rounded-md border border-warning/40 bg-warning/5 p-2.5 text-xs">
+            <p className="font-medium text-foreground">{unpriced.length} open request{unpriced.length === 1 ? "" : "s"} without a salary range — priced on an average</p>
+            <ul className="mt-1 space-y-0.5">
+              {unpriced.map((u) => (
+                <li key={u.id}>
+                  <Link className="text-primary underline-offset-2 hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${u.id}`}>
+                    {u.requirement_no}
+                  </Link>{" "}
+                  · {u.position_title ?? "Role"} × {u.people} · {u.per_person != null ? `${formatInr(u.per_person)} (${u.basis})` : "₹0 — no salary data"} · add a salary range
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <p className="text-xs text-muted-foreground">
-          Requested hiring uses each request's salary range midpoint, else its ATS job's range, else the role's average CTC on record.
-          Roles with no salary anywhere count as ₹0. Fully staffed = cost today + each line's shortfall × that per-person figure.
+          Per-person figures use the request's salary range midpoint, else its ATS job's range, else an average CTC built from at least 2 people
+          (the role, else the department, else all planned staff). Departments with fewer than 2 people are grouped. Fully staffed = cost today + each
+          line's shortfall after people in training × that per-person figure.
         </p>
       </CardContent>
     </Card>

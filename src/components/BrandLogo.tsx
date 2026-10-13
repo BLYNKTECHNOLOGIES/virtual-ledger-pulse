@@ -8,7 +8,7 @@ type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   theme?: 'light' | 'dark';
 };
 
-export function BrandLogo({ variant = 'full', theme, className, alt = 'BlynkEx', ...props }: Props) {
+export function BrandLogo({ variant = 'text', theme, className, alt = 'BlynkEx', ...props }: Props) {
   const globalTheme = useThemeMode();
   const dark = (theme ?? globalTheme.theme) === 'dark';
   const src = variant === 'icon'

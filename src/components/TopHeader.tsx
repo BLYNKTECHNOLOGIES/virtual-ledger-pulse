@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ThemeModeToggle } from "@/components/ThemeModeToggle";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { useShortcuts } from "@/contexts/ShortcutsProvider";
+import { BrandLogo } from "@/components/BrandLogo";
 
 
 export function TopHeader() {
@@ -94,13 +95,14 @@ export function TopHeader() {
           aria-label="Toggle sidebar"
           title="Collapse / expand sidebar (Ctrl/⌘ + B)"
         />
-        <button 
+        <Button
+          variant="ghost"
           onClick={handleDashboardClick}
-          className="text-sm md:text-lg font-bold text-primary hover:text-primary/80 transition-colors cursor-pointer truncate"
+          aria-label="BlynkEx dashboard"
+          className="h-9 min-w-0 shrink px-0 hover:bg-transparent"
         >
-          <span className="hidden sm:inline">BLYNK VIRTUAL TECHNOLOGIES PVT. LTD.</span>
-          <span className="sm:hidden">BLYNK VT</span>
-        </button>
+          <BrandLogo variant="text" className="h-auto w-[92px] max-w-full md:w-[144px]" />
+        </Button>
         
         {isDragMode && (
           <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-lg">

@@ -434,6 +434,8 @@ export interface MailAddress {
 export interface MailHeader {
   fromAddress: string | null
   fromName: string | null
+  /** First Reply-To address, if any. */
+  replyTo: string | null
   to: string[]
   cc: string[]
   subject: string | null
@@ -527,6 +529,7 @@ export function parseMailHeader(input: Uint8Array | string): MailHeader {
   return {
     fromAddress: from?.address ?? null,
     fromName: from?.name ?? null,
+    replyTo: parseAddressList((h['reply-to'] ?? []).join(', '))[0]?.address ?? null,
     to: (h['to'] ?? []).flatMap((v) => parseAddressList(v)).map((a) => a.address),
     cc: (h['cc'] ?? []).flatMap((v) => parseAddressList(v)).map((a) => a.address),
     subject: subject === null ? null : decodeMimeWords(subject).replace(/\s+/g, ' ').trim(),
@@ -542,12 +545,25 @@ export function parseMailHeader(input: Uint8Array | string): MailHeader {
 
 /** Header fields the reader asks for (keep in sync with parseMailHeader). */
 export const HEADER_FIELDS =
-  'FROM TO CC SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES AUTO-SUBMITTED X-AUTOREPLY X-AUTORESPOND PRECEDENCE RETURN-PATH'
+  'FROM REPLY-TO TO CC SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES AUTO-SUBMITTED X-AUTOREPLY X-AUTORESPOND PRECEDENCE RETURN-PATH'
 
 // ---------------------------------------------------------------- matching
 
 /** Message-IDs the ATS puts on its own emails: <ats.{uuid}@domain>. */
 export const OUR_ID_RE = /^<ats\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@[^<>\s]+>$/i
+
+/** Matching key, same rule as public.ats_email_key: lower-case, no "+tag"; Gmail also ignores dots. */
+export function emailKey(a: string): string {
+  const s = String(a ?? '').trim().toLowerCase()
+  const at = s.indexOf('@')
+  if (at < 0) return s
+  const local = s.slice(0, at).split('@')[0]
+  const domain = s.slice(at + 1).split('@')[0]
+  const base = local.split('+')[0]
+  return domain === 'gmail.com' || domain === 'googlemail.com'
+    ? `${base.replace(/\./g, '')}@gmail.com`
+    : `${base}@${domain}`
+}
 
 export function ourIds(ids: string[]): string[] {
   return [...new Set(ids.filter((i) => OUR_ID_RE.test(i)))]
@@ -577,32 +593,56 @@ export interface ThreadRef {
 export type Classification =
   | { kind: 'self' }
   | { kind: 'bounce'; refs: string[] }
-  | { kind: 'match'; candidateId: string; applicationId: string | null; via: 'thread' | 'sender' }
+  | { kind: 'match'; candidateId: string; applicationId: string | null; via: 'thread' | 'sender'; otherAddress?: boolean }
+  | { kind: 'internal' }
   | { kind: 'none' }
+
+export interface ClassifyContext {
+  selfAddresses: Set<string>
+  threadByRef: Map<string, ThreadRef>
+  /** Candidate id by exact address (email_norm) and by matching key (email_key). */
+  candidateByEmail: Map<string, string>
+  candidateByKey?: Map<string, string>
+  /** Our company domains (from hr_mailboxes.from_address), e.g. blynkex.com. */
+  internalDomains?: Set<string>
+  /** Sender addresses that belong to employees (hr_employees.email, lower-case). */
+  employeeAddresses?: Set<string>
+}
 
 /**
  * Who an email belongs to:
- * 1. sent from one of our own mailboxes -> ignored;
+ * 1. sent from one of our own mailboxes -> ignored (self);
  * 2. a delivery failure -> marks our original email as bounced;
- * 3. a reply in a thread the ATS started (In-Reply-To / References) -> that candidate;
- * 4. sent from a candidate's email address -> that candidate;
+ * 3. the sender (From, else Reply-To) is a candidate (exact address or matching key) -> that candidate
+ *    (via 'sender'; via 'thread' with the thread's application when the thread points to the same candidate);
+ * 4. otherwise a reply in a thread the ATS started (In-Reply-To / References):
+ *    from our company domain or an employee's address -> internal (ignored; colleagues replying-all);
+ *    from any other address -> the thread's candidate, marked as sent from another address;
  * 5. anything else is ignored and never stored.
  */
-export function classifyMessage(
-  h: MailHeader,
-  ctx: { selfAddresses: Set<string>; threadByRef: Map<string, ThreadRef>; candidateByEmail: Map<string, string> },
-): Classification {
+export function classifyMessage(h: MailHeader, ctx: ClassifyContext): Classification {
   const from = h.fromAddress
   if (from && ctx.selfAddresses.has(from)) return { kind: 'self' }
   if (isBounce(h)) return { kind: 'bounce', refs: ourIds([...h.inReplyTo, ...h.references]) }
   const refs = ourIds([...h.inReplyTo, ...[...h.references].reverse()])
+  let thread: ThreadRef | null = null
   for (const r of refs) {
     const t = ctx.threadByRef.get(r)
-    if (t) return { kind: 'match', candidateId: t.candidateId, applicationId: t.applicationId, via: 'thread' }
+    if (t) { thread = t; break }
   }
-  if (from) {
-    const c = ctx.candidateByEmail.get(from)
-    if (c) return { kind: 'match', candidateId: c, applicationId: null, via: 'sender' }
+  const findCandidate = (a: string | null) => {
+    if (!a) return undefined
+    return ctx.candidateByEmail.get(a) ?? ctx.candidateByKey?.get(emailKey(a))
+  }
+  const sender = findCandidate(from) ?? (h.replyTo && !ctx.selfAddresses.has(h.replyTo) ? findCandidate(h.replyTo) : undefined)
+  if (sender) {
+    if (thread && thread.candidateId === sender) return { kind: 'match', candidateId: sender, applicationId: thread.applicationId, via: 'thread' }
+    return { kind: 'match', candidateId: sender, applicationId: null, via: 'sender' }
+  }
+  if (thread) {
+    const domain = (from ?? '').split('@')[1] ?? ''
+    if (from && (ctx.internalDomains?.has(domain) || ctx.employeeAddresses?.has(from))) return { kind: 'internal' }
+    return { kind: 'match', candidateId: thread.candidateId, applicationId: thread.applicationId, via: 'thread', otherAddress: true }
   }
   return { kind: 'none' }
 }

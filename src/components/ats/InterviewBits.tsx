@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { SubjectSentAs } from "./MailBits";
 import { toast } from "sonner";
 import { AlertCircle, AlertTriangle, CalendarClock, CheckCircle2, UserX, XCircle, ChevronDown, Circle, Copy, MailX, MapPin, Phone, RefreshCw, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -185,6 +186,7 @@ export function InterviewEmailFields(p: InterviewEmailFieldsProps) {
       <div className="space-y-1.5">
         <Label>Subject</Label>
         <Input value={p.subject} maxLength={200} disabled={p.disabled} onChange={(e) => p.onSubjectChange(e.target.value)} className="text-foreground" />
+        <SubjectSentAs subject={p.subject} />
       </div>
       <div className="space-y-1.5">
         <Label>Message</Label>

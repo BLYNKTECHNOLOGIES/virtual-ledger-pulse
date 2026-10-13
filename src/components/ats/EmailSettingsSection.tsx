@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Lock, Pencil, Plus, RefreshCw, Trash2, Loader2 } from "lucide-react";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/ats/mail";
 import { INTERVIEW_PLACEHOLDERS } from "@/lib/ats/mail";
 import { useAtsSettings, useCanManageAtsSettings } from "@/lib/ats/api";
+import { LastChecked, SubjectSentAs } from "./MailBits";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
 
 const LOOKBACK = [
@@ -67,6 +68,40 @@ export function EmailSettingsSection() {
   );
 }
 
+/** Emails the reader could not file (ats_mail_issues), each with Dismiss. */
+function MailIssuesList() {
+  const qc = useQueryClient();
+  const issues = useQuery({
+    queryKey: ["ats", "mail", "issues"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("ats_mail_issues").select("id, from_address, subject, received_at, created_at")
+        .is("dismissed_at", null).order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const dismiss = async (id: string) => {
+    const { data: u } = await supabase.auth.getUser();
+    const { data: name } = u.user ? await supabase.rpc("ats_actor_name", { p_uid: u.user.id }) : { data: null };
+    const { error } = await supabase.from("ats_mail_issues")
+      .update({ dismissed_at: new Date().toISOString(), dismissed_by_name: (name as string | null) ?? u.user?.email ?? null }).eq("id", id);
+    if (error) return toast.error(atsErrorMessage(error));
+    qc.invalidateQueries({ queryKey: ["ats", "mail"] });
+  };
+  if (issues.isLoading) return <RowsSkeleton rows={2} />;
+  if (issues.isError) return <QueryError error={issues.error} onRetry={() => issues.refetch()} />;
+  return (
+    <ul className="divide-y divide-border rounded-md border border-border bg-background">
+      {(issues.data ?? []).map((i) => (
+        <li key={i.id} className="flex flex-wrap items-center gap-2 px-2 py-1.5 text-xs">
+          <span className="min-w-0 flex-1 break-words text-foreground">{i.from_address ?? "Unknown sender"} · {i.subject || "(no subject)"} · {fmtDateTime(i.received_at ?? i.created_at)}</span>
+          <Button size="sm" variant="ghost" className="h-7" onClick={() => dismiss(i.id)}>Dismiss</Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function MailCard() {
   const ro = useCanManageAtsSettings().data !== true;
   const qc = useQueryClient();
@@ -77,6 +112,8 @@ function MailCard() {
   const [confirm, setConfirm] = useState<null | "on" | "off">(null);
   const [saving, setSaving] = useState(false);
   const [ackConfirm, setAckConfirm] = useState(false);
+  const [switchTo, setSwitchTo] = useState<string | null>(null);
+  const [showIssues, setShowIssues] = useState(false);
 
   const s = st.data;
   useEffect(() => {
@@ -126,7 +163,7 @@ function MailCard() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Mailbox</Label>
-            <Select value={mailbox} onValueChange={(v) => { setMailbox(v); if (s.enabled) save({ mail_mailbox_id: v }); }} disabled={ro || saving || !s.mailboxes.length}>
+            <Select value={mailbox} onValueChange={(v) => { if (s.enabled) { if (v !== mailbox) setSwitchTo(v); } else setMailbox(v); }} disabled={ro || saving || !s.mailboxes.length}>
               <SelectTrigger className="text-foreground"><SelectValue placeholder="No active mailbox" /></SelectTrigger>
               <SelectContent>{s.mailboxes.map((m) => <SelectItem key={m.id} value={m.id}>{m.label ?? m.from_name ?? "Mailbox"} · {m.from_address}</SelectItem>)}</SelectContent>
             </Select>
@@ -154,15 +191,20 @@ function MailCard() {
         {s.enabled && (
           <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <TooltipProvider><Tooltip><TooltipTrigger asChild>
-                <span className="text-foreground">Last checked {sync?.last_run_at ? fmtRelative(sync.last_run_at) : "never"}</span>
-              </TooltipTrigger><TooltipContent>{sync?.last_run_at ? `${fmtDateTime(sync.last_run_at)}${stats.source ? ` · ${stats.source}` : ""}` : "Not checked yet"}</TooltipContent></Tooltip></TooltipProvider>
+              <LastChecked sync={sync} className="text-foreground" />
               <Button size="sm" variant="outline" className="gap-1.5" disabled={check.disabled} onClick={check.run}>
                 {check.running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Check now
               </Button>
             </div>
-            {sync?.last_stats && Object.keys(stats).length > 0 && (
-              <p className="text-muted-foreground">{Number(stats.stored ?? 0)} new candidate {Number(stats.stored ?? 0) === 1 ? "email" : "emails"} · {Number(stats.attachments_saved ?? 0)} files saved · {Number(stats.bounces ?? 0)} bounced</p>
+            <p className="text-muted-foreground">Last 24 hours: {Number(s.received_24h ?? 0)} replies filed · {Number(s.sent_24h ?? 0)} emails sent · {Number(s.failed_30d ?? 0)} not delivered in 30 days</p>
+            {Number(s.issues ?? 0) > 0 && (
+              <div className="space-y-1">
+                <p className="text-warning">
+                  {s.issues} {s.issues === 1 ? "email" : "emails"} couldn't be filed. Open them in the HR mailbox.{" "}
+                  <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={() => setShowIssues((v) => !v)}>{showIssues ? "Hide" : "Show"}</button>
+                </p>
+                {showIssues && <MailIssuesList />}
+              </div>
             )}
             {Number(stats.pending ?? 0) > 0 && <p className="text-muted-foreground">{stats.pending} still to read</p>}
             {attention && <p className="text-destructive">{mailErrorMessage(sync!.last_error)} · {fmtDateTime(sync!.last_error_at)}</p>}
@@ -183,7 +225,7 @@ function MailCard() {
               <Label htmlFor="ats-ack" className="leading-5">Send 'Application received' to careers-page applicants</Label>
               <p className="text-xs text-muted-foreground">Sent automatically within about 5 minutes of applying, from {chosen?.from_address ?? "the HR mailbox"}, using the 'Application received' template. Applications that reach the ATS more than a day after they were made (for example, older ones synced from the website) don't get one.</p>
               <p className="text-xs text-muted-foreground">
-                {s.queued} waiting to be sent · <Link to="/hrms/ats/inbox?view=undelivered" className="text-primary hover:underline">{s.failed_7d} not delivered in the last 7 days</Link>
+                {s.queued} waiting to be sent · <Link to="/hrms/ats/inbox?view=undelivered" className="text-primary hover:underline">{Number(s.failed_30d ?? 0)} not delivered in the last 30 days</Link>
               </p>
             </div>
           </div>
@@ -192,6 +234,20 @@ function MailCard() {
         <p className="text-xs text-muted-foreground">Only emails from a candidate's address, or replies to emails sent from the ATS, are copied. PDF, Word and image attachments up to 10 MB are saved to the candidate's files.</p>
       </div>
 
+      <AlertDialog open={!!switchTo} onOpenChange={(o) => { if (!o) setSwitchTo(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Switch candidate email to {s.mailboxes.find((m) => m.id === switchTo)?.label ?? s.mailboxes.find((m) => m.id === switchTo)?.from_address}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              New emails will be sent from {s.mailboxes.find((m) => m.id === switchTo)?.from_address} and replies will be read from that mailbox. Replies to emails sent earlier from {chosen?.from_address} will not be picked up after the switch.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { const v = switchTo!; setSwitchTo(null); if (await save({ mail_mailbox_id: v })) setMailbox(v); }}>Switch mailbox</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={ackConfirm} onOpenChange={setAckConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -340,7 +396,7 @@ function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmail
             </Select>
           </div>
         </div>
-        <div className="space-y-1.5"><Label htmlFor="tpl-subject">Subject</Label><Input id="tpl-subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" /></div>
+        <div className="space-y-1.5"><Label htmlFor="tpl-subject">Subject</Label><Input id="tpl-subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" /><SubjectSentAs subject={subject} /></div>
         <div className="space-y-1.5">
           <Label htmlFor="tpl-body">Body</Label>
           <div className="flex flex-wrap gap-1">

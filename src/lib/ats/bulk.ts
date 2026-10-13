@@ -15,7 +15,7 @@ export interface BulkResult {
   failed: { row: AtsAppRow; reason: string }[];
   cancelled: boolean;
   /** Present when rejection emails were requested. */
-  email?: { sent: number; noEmail: number; notSent: { row: AtsAppRow; reason: string }[] };
+  email?: { sent: number; noEmail: number; notSent: { row: AtsAppRow; reason: string }[]; samePerson: number };
 }
 
 /** Pre-flight skip rules (B4). Returns a reason when the row must be skipped. */
@@ -52,7 +52,9 @@ export async function runBulk(
   action: BulkAction,
   rows: AtsAppRow[],
   opts: {
-    signal: { cancelled: boolean }; onProgress: (processed: number, total: number) => void; concurrency?: number;
+    signal: { cancelled: boolean };
+    /** phase 'emails' reports the rejection emails after the status changes. */
+    onProgress: (processed: number, total: number, phase?: "actions" | "emails") => void; concurrency?: number;
     /** Reject only: email each rejected candidate with this template. */
     emailTemplateId?: string | null;
   },
@@ -87,25 +89,44 @@ export async function runBulk(
   await Promise.all(Array.from({ length: Math.min(opts.concurrency ?? 4, queue.length) }, worker));
   if (opts.signal.cancelled && next < queue.length) res.cancelled = true;
   if (action.kind === "reject" && opts.emailTemplateId) {
-    res.email = await sendRejectionEmails(emailQueue, opts.emailTemplateId, opts.signal, () => { if (opts.signal.cancelled) res.cancelled = true; });
+    res.email = await sendRejectionEmails(emailQueue, opts.emailTemplateId, opts.signal, () => { if (opts.signal.cancelled) res.cancelled = true; },
+      (d, t) => opts.onProgress(d, t, "emails"));
   }
   return res;
 }
 
-/** Rejection emails, at most 2 at a time; Cancel stops new ones. Each is filled for its own application. */
+/**
+ * Rejection emails, at most 2 at a time; Cancel stops new ones. One email per person, filled for that person's
+ * most recent rejected application; the person's other rejected applications are counted in samePerson.
+ */
 async function sendRejectionEmails(
-  rows: AtsAppRow[], templateId: string, signal: { cancelled: boolean }, onCancel: () => void,
+  all: AtsAppRow[], templateId: string, signal: { cancelled: boolean }, onCancel: () => void,
+  onProgress: (done: number, total: number) => void,
 ): Promise<NonNullable<BulkResult["email"]>> {
-  const out: NonNullable<BulkResult["email"]> = { sent: 0, noEmail: 0, notSent: [] };
+  const byPerson = new Map<string, AtsAppRow>();
+  const noId: AtsAppRow[] = [];
+  let samePerson = 0;
+  for (const r of all) {
+    if (!r.candidate_id) { noId.push(r); continue; }
+    const cur = byPerson.get(r.candidate_id);
+    if (!cur) { byPerson.set(r.candidate_id, r); continue; }
+    samePerson++;
+    if (String(r.applied_at ?? "") > String(cur.applied_at ?? "")) byPerson.set(r.candidate_id, r);
+  }
+  const rows = [...byPerson.values(), ...noId];
+  const out: NonNullable<BulkResult["email"]> = { sent: 0, noEmail: 0, notSent: [], samePerson };
+  let done = 0;
+  const tick = () => onProgress(++done, rows.length);
+  onProgress(0, rows.length);
   let next = 0;
   const worker = async () => {
     while (next < rows.length) {
       if (signal.cancelled) { onCancel(); return; }
       const r = rows[next++];
-      if (!r.email || !r.candidate_id) { out.noEmail++; continue; }
+      if (!r.email || !r.candidate_id) { out.noEmail++; tick(); continue; }
       try {
         const t = await renderTemplate(templateId, r.application_id, r.candidate_id);
-        if (PLACEHOLDER_RE.test(`${t.subject}\n${t.body}`)) { out.notSent.push({ row: r, reason: mailErrorMessage("invalid_template") }); continue; }
+        if (PLACEHOLDER_RE.test(`${t.subject}\n${t.body}`)) { out.notSent.push({ row: r, reason: mailErrorMessage("invalid_template") }); tick(); continue; }
         const s = await sendCandidateEmail({
           id: crypto.randomUUID(), candidateId: r.candidate_id, applicationId: r.application_id, subject: t.subject, body: t.body,
           purpose: "rejection", templateCode: t.template_code, replyToId: null, fileIds: [],
@@ -115,6 +136,7 @@ async function sendRejectionEmails(
       } catch (e) {
         out.notSent.push({ row: r, reason: e instanceof MailError ? mailErrorMessage(e.code, e.field) : atsErrorMessage(e) });
       }
+      tick();
     }
   };
   await Promise.all(Array.from({ length: Math.min(2, rows.length) }, worker));

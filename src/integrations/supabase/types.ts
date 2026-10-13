@@ -914,6 +914,7 @@ export type Database = {
           current_title: string | null
           education: string | null
           email: string | null
+          email_key: string | null
           email_norm: string | null
           expected_ctc_monthly: number | null
           full_name: string
@@ -957,6 +958,7 @@ export type Database = {
           current_title?: string | null
           education?: string | null
           email?: string | null
+          email_key?: string | null
           email_norm?: string | null
           expected_ctc_monthly?: number | null
           full_name: string
@@ -1000,6 +1002,7 @@ export type Database = {
           current_title?: string | null
           education?: string | null
           email?: string | null
+          email_key?: string | null
           email_norm?: string | null
           expected_ctc_monthly?: number | null
           full_name?: string
@@ -1929,6 +1932,48 @@ export type Database = {
           },
         ]
       }
+      ats_mail_issues: {
+        Row: {
+          created_at: string
+          dismissed_at: string | null
+          dismissed_by_name: string | null
+          from_address: string | null
+          id: string
+          imap_uid: number | null
+          mailbox_id: string | null
+          reason: string
+          received_at: string | null
+          subject: string | null
+          uid_validity: number | null
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by_name?: string | null
+          from_address?: string | null
+          id?: string
+          imap_uid?: number | null
+          mailbox_id?: string | null
+          reason: string
+          received_at?: string | null
+          subject?: string | null
+          uid_validity?: number | null
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by_name?: string | null
+          from_address?: string | null
+          id?: string
+          imap_uid?: number | null
+          mailbox_id?: string | null
+          reason?: string
+          received_at?: string | null
+          subject?: string | null
+          uid_validity?: number | null
+        }
+        Relationships: []
+      }
       ats_mail_state: {
         Row: {
           last_error: string | null
@@ -1992,6 +2037,7 @@ export type Database = {
           error: string | null
           from_address: string | null
           from_name: string | null
+          from_other_address: boolean
           id: string
           imap_uid: number | null
           in_reply_to: string | null
@@ -2031,6 +2077,7 @@ export type Database = {
           error?: string | null
           from_address?: string | null
           from_name?: string | null
+          from_other_address?: boolean
           id?: string
           imap_uid?: number | null
           in_reply_to?: string | null
@@ -2070,6 +2117,7 @@ export type Database = {
           error?: string | null
           from_address?: string | null
           from_name?: string | null
+          from_other_address?: boolean
           id?: string
           imap_uid?: number | null
           in_reply_to?: string | null
@@ -32232,6 +32280,7 @@ export type Database = {
         Returns: Json
       }
       ats_duration_text: { Args: { p_minutes: number }; Returns: string }
+      ats_email_key: { Args: { p: string }; Returns: string }
       ats_employee_contacts: {
         Args: { p_ids: string[] }
         Returns: {

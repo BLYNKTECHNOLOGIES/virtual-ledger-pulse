@@ -10,7 +10,7 @@
 // index.ts only starts the server; the work is here so it can be tested without a server.
 import { requireCaller } from '../_shared/require-caller.ts'
 import {
-  AtsImap, ATS_BUCKET, HEADER_FIELDS, ImapError, classifyMessage, errorCode, extractAttachments, findOurIdsInText, htmlToText,
+  AtsImap, ATS_BUCKET, HEADER_FIELDS, ImapError, classifyMessage, emailKey, errorCode, extractAttachments, findOurIdsInText, htmlToText,
   imapDate, imapQuote, istStamp, ourIds, parseMailHeader, parseMessage, safeStem, sectionOf, sha256Hex, utf8,
   type ImapFetchItem, type MailAttachment, type MailHeader, type ThreadRef,
 } from '../_shared/ats-mail.ts'
@@ -52,6 +52,7 @@ interface Stats {
   attachments_skipped: number
   bounces: number
   ignored_own: number
+  ignored_internal: number
   gave_up: number
   pending: number
   queued_sent: number
@@ -63,7 +64,7 @@ interface Stats {
 
 const newStats = (): Stats => ({
   scanned: 0, matched: 0, stored: 0, duplicates: 0, attachments_saved: 0, attachments_skipped: 0,
-  bounces: 0, ignored_own: 0, gave_up: 0, pending: 0, queued_sent: 0, queued_failed: 0, queued_retrying: 0,
+  bounces: 0, ignored_own: 0, ignored_internal: 0, gave_up: 0, pending: 0, queued_sent: 0, queued_failed: 0, queued_retrying: 0,
   reminders_queued: 0, rsvps: 0,
 })
 
@@ -108,6 +109,8 @@ export interface SyncOptions {
 interface OpenedMailbox {
   mailboxId: string
   self: Set<string>
+  /** Our company domains, from the mailboxes' from_address. */
+  domains: Set<string>
 }
 
 /** Mailbox chosen in ATS settings, checked and signed in (read-only). */
@@ -129,7 +132,10 @@ async function openMailbox(admin: any, mailboxId: string, imap: AtsImap, caCerts
     ...(mailboxes ?? []).map((m: any) => String(m.from_address || '').trim().toLowerCase()).filter(Boolean),
   ])
   await imap.connect({ host: mailbox.imap_host, port: mailbox.imap_port || 993, user, pass, caCerts })
-  return { mailboxId, self }
+  const domains = new Set<string>(
+    (mailboxes ?? []).map((m: any) => String(m.from_address || '').trim().toLowerCase().split('@')[1] || '').filter(Boolean),
+  )
+  return { mailboxId, self, domains }
 }
 
 export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record<string, unknown>> {
@@ -177,7 +183,7 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
   const imap = new AtsImap(deadline)
 
   try {
-    const { self } = await openMailbox(admin, mailboxId, imap, opts.imapCaCerts)
+    const { self, domains } = await openMailbox(admin, mailboxId, imap, opts.imapCaCerts)
     const box = await imap.examine('INBOX')
     if (!uidValidity || uidValidity !== box.uidValidity) {
       // First run, or the mailbox was rebuilt: start from the look-back window, never from all old mail.
@@ -201,7 +207,7 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
       if (Date.now() > deadline - 10_000) break
       const chunk = queue.slice(i, i + HEADER_BATCH)
       const { fetched, headers } = await fetchHeaders(imap, chunk)
-      const ctx = await lookupContext(admin, [...headers.values()], self)
+      const ctx = await lookupContext(admin, [...headers.values()], self, domains)
 
       for (const uid of chunk) {
         if (Date.now() > deadline - 6_000) {
@@ -217,6 +223,11 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
         const c = classifyMessage(h, ctx)
         if (c.kind === 'self') {
           stats.ignored_own++
+          lastUid = uid
+          continue
+        }
+        if (c.kind === 'internal') {
+          stats.ignored_internal++
           lastUid = uid
           continue
         }
@@ -249,6 +260,7 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
         if (outcome === 'retry') {
           if (retryUid === uid) {
             stats.gave_up++ // failed twice in a row: skip it so newer emails are not held up
+            await recordIssue(admin, mailboxId, uid, uidValidity!, h, 'save_failed')
             lastUid = uid
             continue
           }
@@ -326,7 +338,10 @@ export async function runCandidateLookback(
       if (c.kind !== 'match') continue
       stats.matched++
       const outcome = await storeOne(admin, imap, uid, box.uidValidity, h, fetched.get(uid)!, c, mailboxId, stats)
-      if (outcome === 'retry') stats.gave_up++
+      if (outcome === 'retry') {
+        stats.gave_up++
+        await recordIssue(admin, mailboxId, uid, box.uidValidity, h, 'save_failed')
+      }
     }
   } catch (e) {
     errCode = e instanceof SyncError ? e.code : errorCode(e)
@@ -351,9 +366,20 @@ async function fetchHeaders(imap: AtsImap, uids: number[]) {
 }
 
 /** Which of these emails continue an ATS thread, and which senders are candidates (batched lookups). */
-async function lookupContext(admin: any, headers: MailHeader[], self: Set<string>) {
+/** Keeps an email the reader could not file, so HR can open it in the mailbox (never lost silently). */
+async function recordIssue(admin: any, mailboxId: string, uid: number, uidValidity: number, h: MailHeader, reason: string) {
+  const { error } = await admin.from('ats_mail_issues').upsert({
+    mailbox_id: mailboxId, imap_uid: uid, uid_validity: uidValidity, from_address: h.fromAddress,
+    subject: (h.subject ?? '').slice(0, 500), received_at: h.date, reason,
+  }, { onConflict: 'mailbox_id,uid_validity,imap_uid', ignoreDuplicates: true })
+  if (error) console.error('ats-mail-sync issue not recorded', error.code ?? error.message)
+}
+
+async function lookupContext(admin: any, headers: MailHeader[], self: Set<string>, domains: Set<string>) {
   const threadByRef = new Map<string, ThreadRef>()
   const candidateByEmail = new Map<string, string>()
+  const candidateByKey = new Map<string, string>()
+  const employeeAddresses = new Set<string>()
   const refs = [...new Set(headers.flatMap((h) => ourIds([...h.inReplyTo, ...h.references])))]
   for (let i = 0; i < refs.length; i += 50) {
     const { data, error } = await admin.from('ats_messages')
@@ -362,7 +388,8 @@ async function lookupContext(admin: any, headers: MailHeader[], self: Set<string
     if (error) throw new SyncError('lookup_failed')
     for (const r of data ?? []) threadByRef.set(r.message_id, { candidateId: r.candidate_id, applicationId: r.application_id })
   }
-  const emails = [...new Set(headers.map((h) => h.fromAddress).filter((a): a is string => !!a && !self.has(a)))]
+  const emails = [...new Set(headers.flatMap((h) => [h.fromAddress, h.replyTo]).filter((a): a is string => !!a && !self.has(a)))]
+  const keys = [...new Set(emails.map(emailKey))]
   for (let i = 0; i < emails.length; i += 100) {
     const { data, error } = await admin.from('ats_candidates')
       .select('id, email_norm')
@@ -371,13 +398,30 @@ async function lookupContext(admin: any, headers: MailHeader[], self: Set<string
     if (error) throw new SyncError('lookup_failed')
     for (const r of data ?? []) candidateByEmail.set(r.email_norm, r.id)
   }
-  return { selfAddresses: self, threadByRef, candidateByEmail }
+  for (let i = 0; i < keys.length; i += 100) {
+    const { data, error } = await admin.from('ats_candidates')
+      .select('id, email_key')
+      .in('email_key', keys.slice(i, i + 100))
+      .is('merged_into_id', null).is('anonymized_at', null)
+    if (error) throw new SyncError('lookup_failed')
+    for (const r of data ?? []) if (r.email_key) candidateByKey.set(r.email_key, r.id)
+  }
+  // Senders that are employees (colleagues replying-all are not filed on the candidate).
+  const senders = [...new Set(headers.map((h) => h.fromAddress).filter((a): a is string => !!a && !self.has(a)))]
+  for (let i = 0; i < senders.length; i += 50) {
+    const chunk = senders.slice(i, i + 50)
+    const { data, error } = await admin.from('hr_employees').select('email')
+      .or(chunk.map((a) => `email.ilike.${a.replace(/[,()*%\\"]/g, '')}`).join(','))
+    if (error) throw new SyncError('lookup_failed')
+    for (const r of data ?? []) if (r.email) employeeAddresses.add(String(r.email).trim().toLowerCase())
+  }
+  return { selfAddresses: self, threadByRef, candidateByEmail, candidateByKey, internalDomains: domains, employeeAddresses }
 }
 
 /** Downloads one candidate email, saves allowed attachments to ats-files and stores everything in one call. */
 async function storeOne(
   admin: any, imap: AtsImap, uid: number, uidValidity: number, h: MailHeader, meta: ImapFetchItem,
-  c: { candidateId: string; applicationId: string | null }, mailboxId: string, stats: Stats,
+  c: { candidateId: string; applicationId: string | null; otherAddress?: boolean }, mailboxId: string, stats: Stats,
 ): Promise<'stored' | 'duplicate' | 'skipped' | 'retry'> {
   const messageId = h.messageId ?? `<ats-noid.${uidValidity}.${uid}@${mailboxId}>`
   const { data: existing, error: exErr } = await admin.from('ats_messages').select('id').eq('message_id', messageId).maybeSingle()
@@ -482,6 +526,7 @@ async function storeOne(
       imap_uid: uid,
       received_at: meta.internalDate ?? h.date ?? null,
       is_automatic: h.automatic,
+      from_other_address: !!c.otherAddress,
       attachments: listed,
       files,
     },

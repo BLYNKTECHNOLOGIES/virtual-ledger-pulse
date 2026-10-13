@@ -18,6 +18,10 @@ export interface MailStatus {
   } | null;
   unread: number;
   failed_7d: number;
+  failed_30d?: number;
+  received_24h?: number;
+  sent_24h?: number;
+  issues?: number;
   queued: number;
 }
 
@@ -46,6 +50,7 @@ export const purposeLabel = (p?: string | null) => PURPOSES.find((x) => x.value 
 export const useMailStatus = () =>
   useQuery({
     queryKey: mailKeys.status,
+    refetchInterval: (q) => ((q.state.data as MailStatus | null | undefined)?.enabled ? 60_000 : false),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("ats_mail_status");
       if (error) throw error;

@@ -31,7 +31,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rid, setRid] = useState("");
   const [note, setNote] = useState("");
-  const [progress, setProgress] = useState<{ n: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{ n: number; total: number; phase?: "actions" | "emails" } | null>(null);
   const [result, setResult] = useState<{ action: BulkAction; res: BulkResult } | null>(null);
   const signal = useRef({ cancelled: false });
   const running = !!progress;
@@ -52,7 +52,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
     signal.current = { cancelled: false };
     setProgress({ n: 0, total: rows.length });
     const emailTemplateId = action.kind === "reject" && mailOn && emailEach ? (tplId || null) : null;
-    const res = await runBulk(action, rows, { signal: signal.current, onProgress: (n, total) => setProgress({ n, total }), concurrency: 4, emailTemplateId });
+    const res = await runBulk(action, rows, { signal: signal.current, onProgress: (n, total, phase) => setProgress({ n, total, phase }), concurrency: 4, emailTemplateId });
     setProgress(null);
     setResult({ action, res });
     qc.invalidateQueries({ queryKey: candKeys.all });
@@ -83,7 +83,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
         {progress && (
           <div className="flex w-full items-center gap-3 pt-1">
             <Progress value={(progress.n / Math.max(1, progress.total)) * 100} className="h-2 flex-1" />
-            <span className="text-xs tabular-nums text-muted-foreground">{progress.n} / {progress.total}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{progress.phase === "emails" ? `Sending emails ${progress.n} of ${progress.total}…` : `${progress.n} / ${progress.total}`}</span>
             <Button size="sm" variant="ghost" onClick={() => { signal.current.cancelled = true; }}>Cancel</Button>
           </div>
         )}
@@ -147,6 +147,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
             {result.res.email && (
               <>
                 <p className="text-foreground">{result.res.email.sent} email{result.res.email.sent === 1 ? "" : "s"} sent · {result.res.email.noEmail} without an email address · {result.res.email.notSent.length} not sent</p>
+                {result.res.email.samePerson > 0 && <p className="text-muted-foreground">{result.res.email.samePerson} people had more than one application rejected; each got one email.</p>}
                 {result.res.email.notSent.length > 0 && (
                   <ul className="max-h-40 divide-y divide-border overflow-y-auto rounded-lg border border-border">
                     {result.res.email.notSent.map(({ row, reason }) => (

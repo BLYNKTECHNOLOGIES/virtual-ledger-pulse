@@ -56,8 +56,17 @@ export async function handleSend(req: Request): Promise<Response> {
     if (!prev) return json({ error: 'not_found' }, 404)
     if (prev.status !== 'failed') return json({ id: prev.id, status: prev.status })
     if (await interviewEmailOutdated(admin, prev)) return json({ error: 'outdated' }, 409)
+    // The resend goes to the candidate's CURRENT address.
+    const { data: cand } = await admin.from('ats_candidates')
+      .select('email, merged_into_id, anonymized_at').eq('id', prev.candidate_id).maybeSingle()
+    if (!cand || cand.merged_into_id || cand.anonymized_at) return json({ error: 'candidate_closed' }, 409)
+    const to = String(cand.email ?? '').trim().toLowerCase()
+    if (!isEmail(to)) return json({ error: 'no_email' }, 400)
+    const changed = to !== String(prev.to_addresses?.[0] ?? '').trim().toLowerCase()
+    // An interview invite names the old address as the calendar attendee, so it can't simply be redirected.
+    if (changed && prev.calendar_ics) return json({ error: 'outdated' }, 409)
     const { data: claimed } = await admin.from('ats_messages')
-      .update({ status: 'sending', error: null, attempts: Number(prev.attempts ?? 0) + 1 })
+      .update({ status: 'sending', error: null, attempts: Number(prev.attempts ?? 0) + 1, ...(changed ? { to_addresses: [to] } : {}) })
       .eq('id', prev.id).eq('status', 'failed').select('*').maybeSingle()
     if (!claimed) return json({ id: prev.id, status: 'sending' })
     row = claimed
@@ -156,8 +165,15 @@ export async function handleSend(req: Request): Promise<Response> {
 }
 
 /** An interview email (with its calendar invite) is only resent while the interview is still as it describes. */
+/** A reminder (interview email without a calendar invite) is resent only while the interview is still ahead and unchanged. */
 export async function interviewEmailOutdated(admin: any, prev: any): Promise<boolean> {
-  if (!prev?.calendar_ics) return false
+  if (!prev?.calendar_ics) {
+    if (!prev?.interview_id) return false
+    const { data: iv } = await admin.from('ats_interviews').select('revision, status, starts_at').eq('id', prev.interview_id).maybeSingle()
+    if (!iv || iv.status !== 'scheduled') return true
+    if (new Date(iv.starts_at).getTime() <= Date.now()) return true
+    return prev.calendar_revision != null && iv.revision !== prev.calendar_revision
+  }
   if (!prev.interview_id) return true
   const { data: iv } = await admin.from('ats_interviews').select('revision').eq('id', prev.interview_id).maybeSingle()
   return !iv || iv.revision !== prev.calendar_revision

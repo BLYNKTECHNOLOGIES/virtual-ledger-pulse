@@ -164,7 +164,9 @@ export default function StaffingPlanPage() {
 
       <WorkforceTimingAlerts />
       <WorkforceAlertsStrip
-        rows={rows}
+        rows={filtered}
+        scope={{ departmentId: dept }}
+        shiftFiltered={shift !== "all"}
         positionTitle={title}
         canManage={canManage}
         onOpenLine={openLine}

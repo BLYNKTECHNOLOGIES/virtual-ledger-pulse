@@ -97,7 +97,7 @@ export async function runBulk(
 
 /**
  * Rejection emails, at most 2 at a time; Cancel stops new ones. One email per person, filled for that person's
- * most recent rejected application; the person's other rejected applications are counted in samePerson.
+ * most recent rejected application; samePerson counts the people who had more than one rejected application.
  */
 async function sendRejectionEmails(
   all: AtsAppRow[], templateId: string, signal: { cancelled: boolean }, onCancel: () => void,
@@ -105,16 +105,16 @@ async function sendRejectionEmails(
 ): Promise<NonNullable<BulkResult["email"]>> {
   const byPerson = new Map<string, AtsAppRow>();
   const noId: AtsAppRow[] = [];
-  let samePerson = 0;
+  const multi = new Set<string>();
   for (const r of all) {
     if (!r.candidate_id) { noId.push(r); continue; }
     const cur = byPerson.get(r.candidate_id);
     if (!cur) { byPerson.set(r.candidate_id, r); continue; }
-    samePerson++;
+    multi.add(r.candidate_id);
     if (String(r.applied_at ?? "") > String(cur.applied_at ?? "")) byPerson.set(r.candidate_id, r);
   }
   const rows = [...byPerson.values(), ...noId];
-  const out: NonNullable<BulkResult["email"]> = { sent: 0, noEmail: 0, notSent: [], samePerson };
+  const out: NonNullable<BulkResult["email"]> = { sent: 0, noEmail: 0, notSent: [], samePerson: multi.size };
   let done = 0;
   const tick = () => onProgress(++done, rows.length);
   onProgress(0, rows.length);

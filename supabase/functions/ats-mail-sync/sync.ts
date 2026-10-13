@@ -502,7 +502,7 @@ async function storeOne(
       continue
     }
     uploaded.push(path)
-    const resume = ['pdf', 'doc', 'docx'].includes(a.ext) && RESUME_NAME_RE.test(a.filename)
+    const resume = !c.otherAddress && ['pdf', 'doc', 'docx'].includes(a.ext) && RESUME_NAME_RE.test(a.filename)
     files.push({
       kind: resume ? 'resume' : 'other', file_name: a.filename.slice(0, 255), storage_path: path,
       mime_type: a.contentType, size_bytes: a.bytes.length, sha256: sha,

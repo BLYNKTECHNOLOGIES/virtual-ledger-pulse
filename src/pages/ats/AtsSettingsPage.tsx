@@ -33,7 +33,7 @@ import { SOURCE_KINDS, fmtDateTime, sourceKindLabel } from "@/lib/ats/format";
 const chk = (r: { error: any }) => { if (r.error) throw r.error; };
 
 /* ---------- inline rename ---------- */
-function InlineName({ value, max, onSave, saving }: { value: string; max: number; onSave: (v: string) => void; saving?: boolean }) {
+function InlineName({ value, max, onSave, saving, disabled }: { value: string; max: number; onSave: (v: string) => void; saving?: boolean; disabled?: boolean }) {
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState(value);
   useEffect(() => setV(value), [value]);
@@ -41,7 +41,7 @@ function InlineName({ value, max, onSave, saving }: { value: string; max: number
     return (
       <span className="inline-flex min-w-0 items-center gap-1">
         <span className="truncate text-sm text-foreground">{value}</span>
-        <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Rename ${value}`} onClick={() => setEdit(true)}>
+        <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={`Rename ${value}`} disabled={disabled} onClick={() => setEdit(true)}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
       </span>
@@ -190,7 +190,7 @@ function StagesSection() {
   );
 }
 
-function SourcesSection() {
+function SourcesSection({ readOnly = false }: { readOnly?: boolean }) {
   const sources = useAtsSources();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -204,13 +204,13 @@ function SourcesSection() {
   if (sources.isLoading) return <RowsSkeleton rows={6} />;
   if (sources.isError) return <QueryError error={sources.error} onRetry={() => sources.refetch()} />;
   return (
-    <SectionCard title="Sources" action={<Button size="sm" onClick={() => setOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add source</Button>}>
+    <SectionCard title="Sources" action={<Button size="sm" disabled={readOnly} onClick={() => setOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add source</Button>}>
       <p className="mb-2 text-xs text-muted-foreground">Sources are kept for reporting; deactivate instead.</p>
       {(sources.data ?? []).length === 0 ? <EmptyState icon={Megaphone} title="No sources" description="Add where applicants come from." className="py-8" /> : (
         <ul className="divide-y divide-border">
           {sources.data!.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-              <div className="min-w-0 flex-1"><InlineName value={s.name} max={60} onSave={(n) => rename.mutate({ id: s.id, name: n })} /></div>
+              <div className="min-w-0 flex-1"><InlineName value={s.name} max={60} disabled={readOnly} onSave={(n) => rename.mutate({ id: s.id, name: n })} /></div>
               <StatusPill tone="neutral">{sourceKindLabel(s.kind)}</StatusPill>
               <span className="inline-flex items-center gap-1">
                 <span className="t-mono text-xs text-muted-foreground">{s.code}</span>
@@ -219,7 +219,7 @@ function SourcesSection() {
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
               </span>
-              <Switch checked={s.is_active} aria-label="Active" onCheckedChange={(on) => toggle.mutate({ id: s.id, on })} />
+              <Switch checked={s.is_active} aria-label="Active" disabled={readOnly} onCheckedChange={(on) => toggle.mutate({ id: s.id, on })} />
             </li>
           ))}
         </ul>
@@ -424,7 +424,7 @@ export default function AtsSettingsPage() {
       </nav>
       <div className="min-w-0">
         <TabsContent value="stages" className="mt-0">{lock(<StagesSection />)}</TabsContent>
-        <TabsContent value="sources" className="mt-0">{lock(<SourcesSection />)}</TabsContent>
+        <TabsContent value="sources" className="mt-0"><SourcesSection readOnly={!canManage} /></TabsContent>
         <TabsContent value="reasons" className="mt-0">{lock(<ReasonsSection />)}</TabsContent>
         <TabsContent value="careers" className="mt-0"><CareersSettingsSection /></TabsContent>
         <TabsContent value="email" className="mt-0"><EmailSettingsSection /></TabsContent>

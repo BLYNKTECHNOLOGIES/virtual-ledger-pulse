@@ -634,10 +634,13 @@ export function classifyMessage(h: MailHeader, ctx: ClassifyContext): Classifica
     if (!a) return undefined
     return ctx.candidateByEmail.get(a) ?? ctx.candidateByKey?.get(emailKey(a))
   }
-  const sender = findCandidate(from) ?? (h.replyTo && !ctx.selfAddresses.has(h.replyTo) ? findCandidate(h.replyTo) : undefined)
+  const byFrom = findCandidate(from)
+  // Reply-To is not authenticated (SPF/DKIM/DMARC check From only): a Reply-To-only match is marked otherAddress.
+  const sender = byFrom ?? (h.replyTo && !ctx.selfAddresses.has(h.replyTo) ? findCandidate(h.replyTo) : undefined)
   if (sender) {
-    if (thread && thread.candidateId === sender) return { kind: 'match', candidateId: sender, applicationId: thread.applicationId, via: 'thread' }
-    return { kind: 'match', candidateId: sender, applicationId: null, via: 'sender' }
+    const other = byFrom ? {} : { otherAddress: true }
+    if (thread && thread.candidateId === sender) return { kind: 'match', candidateId: sender, applicationId: thread.applicationId, via: 'thread', ...other }
+    return { kind: 'match', candidateId: sender, applicationId: null, via: 'sender', ...other }
   }
   if (thread) {
     const domain = (from ?? '').split('@')[1] ?? ''

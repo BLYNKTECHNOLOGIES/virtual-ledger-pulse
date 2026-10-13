@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { InterruptedRetryDialog, LastChecked } from "@/components/ats/MailBits";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fmtDateTime, fmtRelative } from "@/lib/ats/format";
@@ -80,7 +81,7 @@ export default function AtsInboxPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          {st.data?.enabled && <p className="text-xs text-muted-foreground" title={fmtDateTime(st.data.sync?.last_ok_at)}>Last checked {st.data.sync?.last_ok_at ? fmtRelative(st.data.sync.last_ok_at) : "never"}</p>}
+          {st.data?.enabled && <p className="text-xs text-muted-foreground"><LastChecked sync={st.data.sync} /></p>}
         </div>
         {st.data?.enabled && (
           <Button size="sm" variant="outline" className="gap-1.5" disabled={check.disabled} onClick={check.run}>
@@ -132,13 +133,13 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const [busy, setBusy] = useState(false);
+  const [askRetry, setAskRetry] = useState(false);
   const unreadRow = r.direction === "inbound" && !r.read_at;
   const when = r.received_at ?? r.sent_at ?? r.created_at;
   const job = r.ats_applications?.ats_jobs?.title ?? (r.application_id ? r.ats_applications?.position_text : null) ?? "General";
   const attCount = Array.isArray(r.attachments) ? r.attachments.length : 0;
   const href = `/hrms/ats/candidates/${r.candidate_id}?${r.application_id ? `app=${r.application_id}&` : ""}tab=messages`;
-  const retry = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const retry = async () => {
     setBusy(true);
     try {
       const res = await retryCandidateEmail(r.id);
@@ -177,7 +178,7 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
               <StatusPill tone="destructive">Not delivered</StatusPill>
               <span>{r.status === "bounced" ? "Bounced: check the address" : mailErrorMessage(r.error)}</span>
               {mailOn && r.status === "failed" && canRetry(r.error) && (
-                <Button size="sm" variant="outline" className="h-7 gap-1" disabled={busy} onClick={retry}>
+                <Button size="sm" variant="outline" className="h-7 gap-1" disabled={busy} onClick={(e) => { e.stopPropagation(); r.error === "interrupted" ? setAskRetry(true) : retry(); }}>
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
                 </Button>
               )}
@@ -188,6 +189,7 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
           <span className="inline-flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap text-xs text-muted-foreground" title={fmtDateTime(when)}>{fmtRelative(when)}{unreadRow && <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />}</span>
         </TooltipTrigger><TooltipContent>{fmtDateTime(when)}</TooltipContent></Tooltip></TooltipProvider>
       </div>
+      <InterruptedRetryDialog open={askRetry} onOpenChange={setAskRetry} onConfirm={retry} />
     </li>
   );
 }

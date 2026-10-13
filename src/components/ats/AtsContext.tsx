@@ -2,7 +2,7 @@ import { createContext, useContext } from "react";
 import type { AtsJob } from "@/lib/ats/api";
 
 export interface AtsCtx {
-  openJobEditor: (job?: AtsJob | null) => void;
+  openJobEditor: (job?: AtsJob | null, opts?: { requirementId?: string | null }) => void;
   openAddCandidate: (jobId?: string | null) => void;
 }
 export const AtsContext = createContext<AtsCtx>({ openJobEditor: () => {}, openAddCandidate: () => {} });

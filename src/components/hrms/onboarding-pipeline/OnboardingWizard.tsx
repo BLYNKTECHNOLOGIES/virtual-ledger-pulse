@@ -99,7 +99,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     "reporting_manager_id",
     "erp_role_id",
     "salary_template_id",
-    "candidate_id",
     "employee_id",
   ]);
 

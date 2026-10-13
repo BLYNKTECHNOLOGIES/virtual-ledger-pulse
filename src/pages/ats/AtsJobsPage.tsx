@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Briefcase, Globe, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,15 @@ const ALL = "__all";
 export default function AtsJobsPage() {
   const navigate = useNavigate();
   const { openJobEditor } = useAts();
+  const [sp, setSp] = useSearchParams();
+  useEffect(() => {
+    if (sp.get("new") !== "1") return;
+    openJobEditor(null, { requirementId: sp.get("requirement") });
+    const next = new URLSearchParams(sp);
+    next.delete("new"); next.delete("requirement");
+    setSp(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp]);
   const jobs = useAtsJobs();
   const summary = useAtsJobSummary();
   const depts = useDepartmentsLookup();

@@ -135,7 +135,7 @@ function LookupSelect({ value, onChange, options, placeholder, disabled }: { val
   );
 }
 
-export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob | null; onClose: () => void }) {
+export function JobEditor({ open, job, onClose, initialRequirementId }: { open: boolean; job: AtsJob | null; onClose: () => void; initialRequirementId?: string | null }) {
   const navigate = useNavigate();
   const isEdit = !!job;
   const settings = useAtsSettings();
@@ -201,6 +201,17 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
     const pos = positions.data?.find((p) => p.id === r.position_id);
     if (pos) setIfEmpty("title", pos.label);
   };
+
+  // Opened from Workforce Planning ("Create ATS job"): pre-select the requirement once its options have loaded.
+  const appliedReq = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) { appliedReq.current = null; return; }
+    if (isEdit || !initialRequirementId || appliedReq.current === initialRequirementId) return;
+    if (!reqOptions.some((o) => o.id === initialRequirementId) || !positions.data) return;
+    appliedReq.current = initialRequirementId;
+    applyRequirement(initialRequirementId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, initialRequirementId, reqOptions, positions.data]);
 
   const save = useAtsMutation(
     async (v: FormValues) => {

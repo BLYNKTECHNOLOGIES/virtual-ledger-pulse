@@ -35913,7 +35913,6 @@ export type Database = {
       }
       hr_wf_caller_is_internal: { Args: never; Returns: boolean }
       hr_wf_daily_reconcile: { Args: never; Returns: Json }
-      hr_wf_is_current_manager: { Args: never; Returns: boolean }
       hr_wf_is_manager: { Args: { _uid: string }; Returns: boolean }
       hr_wf_leaving_soon_core: {
         Args: never

@@ -13523,6 +13523,39 @@ export type Database = {
           },
         ]
       }
+      hr_erp_access_revocations: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          employee_id: string
+          last_error: string | null
+          requested_at: string
+          requested_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          employee_id: string
+          last_error?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          employee_id?: string
+          last_error?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hr_erp_account_exemptions: {
         Row: {
           badge_id: string | null
@@ -34697,6 +34730,7 @@ export type Database = {
           tolerance_used: number
         }[]
       }
+      hr_cleanup_revoked_erp: { Args: { p_user_id: string }; Returns: Json }
       hr_close_fnf_sources: { Args: { p_settlement_id: string }; Returns: Json }
       hr_close_leaver_instalments: {
         Args: { _employee_id: string; _reason: string }
@@ -35350,6 +35384,10 @@ export type Database = {
         }[]
       }
       hr_queue_attlog_resweep: { Args: never; Returns: number }
+      hr_queue_erp_revocation: {
+        Args: { p_employee_id: string }
+        Returns: string
+      }
       hr_razorpay_month_salary: {
         Args: { p_employee: string; p_month: string }
         Returns: number

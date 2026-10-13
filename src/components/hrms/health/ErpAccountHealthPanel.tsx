@@ -197,8 +197,8 @@ export function ErpAccountHealthPanel() {
     setBusy(`${row.user_id}-deactivate`);
     try {
       const res = await deactivateErpAccount(row.hr_employee_id);
-      if (res.deactivated) toast.success("ERP login deactivated and signed out");
-      else toast.error(res.reason || "Could not deactivate");
+      if (res.deactivated) toast.success("ERP login permanently deleted");
+      else toast.error(res.reason || "ERP deletion pending — retry required");
       setDeactivateTarget(null);
       refresh();
     } catch (e: any) {
@@ -376,7 +376,7 @@ export function ErpAccountHealthPanel() {
                             className="inline-flex items-center gap-1 rounded-md border border-destructive/40 text-destructive px-2 py-1 hover:bg-destructive/10"
                           >
                             <UserX className="h-3 w-3" />
-                            Deactivate login
+                            Delete ERP login
                           </button>
                         )}
                         {r.user_id && (
@@ -438,16 +438,16 @@ export function ErpAccountHealthPanel() {
       <AlertDialog open={!!deactivateTarget} onOpenChange={(o) => !o && setDeactivateTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate this ERP login?</AlertDialogTitle>
+            <AlertDialogTitle>Permanently delete this ERP login?</AlertDialogTitle>
             <AlertDialogDescription>
               {deactivateTarget?.emp_full_name || deactivateTarget?.username} is inactive in HRMS but can still
-              sign in to the ERP. Deactivating sets the account to INACTIVE and signs out any live session.
+              sign in to the ERP. Permanently remove the login and all ERP access. Employee, payroll and historical records are preserved. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => deactivateTarget && doDeactivate(deactivateTarget)}>
-              Deactivate
+              Delete permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

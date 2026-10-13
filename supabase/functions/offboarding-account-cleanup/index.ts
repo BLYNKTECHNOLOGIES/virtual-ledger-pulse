@@ -1,41 +1,15 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { requireHrCaller } from "../_shared/require-hr-caller.ts";
+import { drainErpRevocations } from "../_shared/hr-erp-revocation.ts";
+const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
+Deno.serve(async req=>{
+  if(req.method==="OPTIONS") return new Response("ok",{headers:corsHeaders});
+  const caller=await requireHrCaller(req,corsHeaders);
+  if(!caller.ok) return caller.response;
+  if(caller.kind==="user") return json({error:"Server only"},403);
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
-
-    // Call the RPC that processes all due account deletions
-    const { data, error } = await supabase.rpc("process_scheduled_account_deletions");
-
-    if (error) {
-      console.error("Error processing scheduled deletions:", error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log("Scheduled account cleanup result:", JSON.stringify(data));
-
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+    const {data,error}=await caller.admin.rpc("process_scheduled_account_deletions");
+    if(error) throw error;
+    return json({...data,results:await drainErpRevocations(caller.admin)});
+  } catch(error) {return json({error:error instanceof Error ? error.message : "Cleanup failed"},500);}
 });

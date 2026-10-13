@@ -1,5 +1,9 @@
 # Workforce capacity integrity
 
+## HRMS permanent ERP access revocation
+- [ ] Route manual and scheduled HRMS revocations through permanent ERP/Auth cleanup with retries and historical-record preservation.
+- [ ] Reconcile already separated employees, test deletion and denied access, and verify deployed functions.
+
 ## ATS UI refresh U5
 - [x] Apply F1–F9 presentation review fixes; intake cannot distinguish missing from wrong keys, and does not persist not_configured (backend unchanged).
 - [x] Verify requested representative-data screenshots, all four failed-check retry buttons, result states, countdowns and preview build; append exact state-log entry.

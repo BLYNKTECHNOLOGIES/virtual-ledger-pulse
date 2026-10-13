@@ -8,9 +8,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { requireHrCaller } from "../_shared/require-hr-caller.ts";
+import { revokeEmployeeErp, drainErpRevocations } from "../_shared/hr-erp-revocation.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -33,32 +34,6 @@ async function logPushback(svc: any, row: Record<string, unknown>) {
   try {
     await svc.from("hr_razorpay_pushback_log").insert(row);
   } catch (_) { /* logging must never break the sweep */ }
-}
-
-async function deactivateErpLogin(svc: any, emp: any): Promise<boolean> {
-  let userId: string | null = emp.user_id || null;
-  if (!userId && emp.badge_id) {
-    const { data } = await svc.from("users").select("id").eq("badge_id", emp.badge_id).maybeSingle();
-    userId = data?.id || null;
-  }
-  if (!userId && emp.email) {
-    // Exact match: a former employee's email must not be interpreted as an ILIKE pattern.
-    const { data } = await svc.from("users").select("id").eq("email", emp.email).maybeSingle();
-    userId = data?.id || null;
-  }
-  if (!userId) return false;
-  const { data: userRow, error: lookupError } = await svc.from("users").select("status").eq("id", userId).maybeSingle();
-  if (lookupError || !userRow) return false;
-  if (userRow.status === "INACTIVE") return true;
-  const { error } = await svc
-    .from("users")
-    .update({
-      status: "INACTIVE",
-      force_logout_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
-  return !error;
 }
 
 async function queueBiometricRemoval(svc: any, emp: any): Promise<{ ok: boolean; detail: string }> {
@@ -176,6 +151,11 @@ Deno.serve(async (req) => {
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
   const dryRun = !!body?.dry_run;
   const today = istToday();
+  if (!dryRun) {
+    const { error: queueError } = await svc.rpc("process_scheduled_account_deletions");
+    if (queueError) return json({ ok: false, error: queueError.message }, 500);
+    await drainErpRevocations(svc);
+  }
 
   const { data: due, error } = await svc
     .from("hr_employees")
@@ -240,8 +220,10 @@ Deno.serve(async (req) => {
     } else {
       // Retry ERP on every sweep until it is inactive. Do not tie it to
       // hr_employees.is_active: a previously closed HR row can retain a live ERP login.
-      const erp = await deactivateErpLogin(svc, emp);
-      access.erp_login_disabled = erp;
+      const erp = await revokeEmployeeErp(svc, emp.id);
+      access.erp_login_disabled = erp.deactivated;
+      access.erp_login_deleted = erp.deleted;
+      if (!erp.deleted) access.erp_error = erp.reason;
       if (emp.is_active) {
         const { error: updErr } = await svc.from("hr_employees")
           .update({ is_active: false, resignation_status: "completed", account_deletion_date: emp.last_working_day })

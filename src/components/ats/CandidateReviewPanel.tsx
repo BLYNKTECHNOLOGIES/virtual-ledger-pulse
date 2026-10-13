@@ -54,9 +54,10 @@ import { Send, MailX, AlertTriangle, CalendarPlus, CalendarClock, CalendarX, Cal
 import { InterviewsCard } from "./InterviewsCard";
 import { ImportDetailsCard } from "./ImportDetailsCard";
 import { LogCallDialog } from "./LogCallDialog";
+import { WhatsAppMenu } from "./WhatsAppMenu";
 import { PickTimeDialog } from "./ConversationBits";
 import { convKeys, setConversation, snoozeChoices, useConversationState } from "@/lib/ats/conversations";
-import { Clock } from "lucide-react";
+import { BellRing, Clock } from "lucide-react";
 
 interface Props {
   candidateId: string;
@@ -67,6 +68,8 @@ interface Props {
   className?: string;
   /** Left-pane tab used when the URL has no `tab`. */
   initialPaneTab?: "resume" | "messages";
+  /** Called after Done / Reopen / Snooze / Unsnooze from the ⋮ menu succeeds (Inbox uses it to advance). */
+  onConversationChanged?: () => void;
 }
 
 const EVENT_ICON: Record<string, typeof Activity> = {
@@ -77,6 +80,7 @@ const EVENT_ICON: Record<string, typeof Activity> = {
   interview_scheduled: CalendarPlus, interview_rescheduled: CalendarClock, interview_cancelled: CalendarX,
   interview_completed: CalendarCheck, interview_no_show: UserX, interview_reopened: RotateCcw,
   interview_response: Reply, interview_feedback: ClipboardCheck,
+  call_logged: Phone, whatsapp_opened: MessageCircle,
 };
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -121,7 +125,7 @@ function ReferredBy({ employeeId }: { employeeId: string }) {
 const Chips = ({ items }: { items?: string[] | null }) =>
   items?.length ? <div className="flex flex-wrap gap-1">{items.map((s) => <Badge key={s} variant="secondary" className="font-normal">{s}</Badge>)}</div> : <>—</>;
 
-export function CandidateReviewPanel({ candidateId, appId, onAppChange, onActionDone, className, initialPaneTab }: Props) {
+export function CandidateReviewPanel({ candidateId, appId, onAppChange, onActionDone, className, initialPaneTab, onConversationChanged }: Props) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const cand = useCandidate(candidateId);
@@ -165,11 +169,12 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const [callOpen, setCallOpen] = useState(false);
   const [snoozePick, setSnoozePick] = useState(false);
   const afterStatusRef = useRef<null | (() => void)>(null);
-  const convAction = async (action: "done" | "reopen" | "snooze", until?: string) => {
+  const convAction = async (action: "done" | "reopen" | "snooze", until?: string, unsnooze = false) => {
     try {
       await setConversation(candidateId, action, until);
-      toast.success(action === "done" ? "Conversation marked done" : action === "reopen" ? "Conversation reopened" : "Conversation snoozed");
+      toast.success(unsnooze ? "Conversation unsnoozed" : action === "done" ? "Conversation marked done" : action === "reopen" ? "Conversation reopened" : "Conversation snoozed");
       qc.invalidateQueries({ queryKey: convKeys.all });
+      onConversationChanged?.();
     } catch (e) { toast.error(atsErrorMessage(e)); }
   };
   const openFileInResume = (id: string) => { setSelFile(id); setPaneTab("resume"); };
@@ -344,7 +349,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
             ? <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => { setPaneTab("messages"); setComposeSignal((n) => n + 1); }}><Mail className="h-3.5 w-3.5" /> Email</Button>
             : c.email && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`mailto:${c.email}`}><Mail className="h-3.5 w-3.5" /> Email</a></Button>}
           {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`} onClick={() => toast("Log this call?", { duration: 8000, action: { label: "Log call", onClick: () => setCallOpen(true) } })}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
-          {waPhone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`https://wa.me/91${waPhone}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a></Button>}
+          <WhatsAppMenu candidate={c} app={app ?? null} waPhone={waPhone} />
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="outline" className="h-8 w-8" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -356,6 +361,12 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
                 {convState.data?.done_at
                   ? <DropdownMenuItem onSelect={() => convAction("reopen")}><RotateCcw className="mr-2 h-4 w-4" /> Reopen conversation</DropdownMenuItem>
                   : <DropdownMenuItem onSelect={() => convAction("done")}><CheckCircle2 className="mr-2 h-4 w-4" /> Mark conversation done</DropdownMenuItem>}
+                {convState.data?.snoozed_until && new Date(convState.data.snoozed_until).getTime() > Date.now() && (
+                  <DropdownMenuItem onSelect={() => convAction("reopen", undefined, true)}>
+                    <BellRing className="mr-2 h-4 w-4" />
+                    <span className="flex flex-col"><span>Unsnooze conversation</span><span className="text-xs text-muted-foreground">until {fmtDateTime(convState.data.snoozed_until)}</span></span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger><Clock className="mr-2 h-4 w-4" /> Snooze conversation</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>

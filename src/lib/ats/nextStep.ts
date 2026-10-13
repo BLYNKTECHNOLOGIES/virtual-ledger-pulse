@@ -2,7 +2,7 @@ import type { ProposedTime, ReplyIntent } from "./conversations";
 
 export type StepKey =
   | "mark_confirmed" | "reply_see_you" | "reply" | "no_reply" | "change_time" | "ask_times" | "schedule"
-  | "schedule_at" | "other_time" | "withdraw" | "use_resume" | "docs_received" | "office_address" | "pick_time";
+  | "schedule_at" | "other_time" | "withdraw" | "use_resume" | "docs_received" | "office_address" | "pick_time" | "ai_draft";
 export interface Step { key: StepKey; label: string; time?: ProposedTime }
 
 export interface NextStepCtx {

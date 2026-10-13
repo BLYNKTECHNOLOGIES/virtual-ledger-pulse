@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, ArrowRightLeft, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, Clock, Loader2, Mail, MessageCircle,
-  MoreVertical, Paperclip, Phone, RefreshCw, Reply, RotateCcw, Send, Upload, UserX,
+  MoreVertical, Paperclip, Phone, RefreshCw, Reply, RotateCcw, Send, Sparkles, Upload, UserX,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ import { IntentChip } from "./ConversationBits";
 import { NextStepBar } from "./NextStepBar";
 import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
 import { OfferTimesDialog } from "./OfferTimesDialog";
+import { AiDraftError, aiDraftError, requestReplyDraft, useAiDraftsOn } from "@/lib/ats/aiDraft";
 import { useSelfScheduleOn } from "@/lib/ats/selfSchedule";
 import { CalendarRange } from "lucide-react";
 
@@ -90,7 +91,7 @@ const ACTIVITY_ICON: Record<string, typeof Mail> = {
 const ACTIVITY_KEY = "ats-msg-activity";
 const readActivityPref = () => { try { return localStorage.getItem(ACTIVITY_KEY) !== "off"; } catch { return true; } };
 
-export interface ComposerPreset { nonce: number; code?: string; interviewId?: string | null }
+export interface ComposerPreset { nonce: number; code?: string; interviewId?: string | null; ai?: boolean }
 interface SchedReq { interview: InterviewRow | null; time: ProposedTime | null; handled?: string; msgId?: string }
 
 const isTyping = (t: EventTarget | null) =>
@@ -115,7 +116,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   const msgs = thread.data ?? [];
   const firstName = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "this candidate";
 
-  const openComposer = (p?: { code?: string; interviewId?: string | null }) => {
+  const openComposer = (p?: { code?: string; interviewId?: string | null; ai?: boolean }) => {
     setComposing(true);
     setPreset(p ? { ...p, nonce: Date.now() } : null);
     setFocusNonce((n) => n + 1);
@@ -214,6 +215,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
     return null;
   }, [barMsg, fileIds]);
   const selfOn = useSelfScheduleOn();
+  const aiOn = useAiDraftsOn();
   const steps = useMemo(() => {
     if (!barMsg) return [];
     const intent = (barMsg.intent as ReplyIntent) || "other";
@@ -223,10 +225,12 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       canUseResume: !!resumeCandidate, mentionsAddress: ADDRESS_RE.test(`${barMsg.subject ?? ""}\n${splitQuoted(barMsg.body_text ?? "")[0]}`),
     });
     const appOpen = app?.status === "active" || app?.status === "on_hold";
+    const ri = all.findIndex((s) => s.key === "reply");
+    if (aiOn && ri >= 0) all.splice(ri + 1, 0, { key: "ai_draft", label: "Draft a reply" });
     if (selfOn && appOpen && (intent === "reschedule" || intent === "availability")) all.push({ key: "pick_time", label: "Let them pick a time" });
     const needsTarget = new Set(["mark_confirmed", "change_time", "schedule", "schedule_at", "other_time", "pick_time"]);
     return all.filter((s) => (target ? true : !needsTarget.has(s.key)) && (s.key !== "withdraw" || !!onRequestStatus));
-  }, [barMsg, upcoming, app?.status, resumeCandidate, target, onRequestStatus, selfOn]);
+  }, [barMsg, upcoming, app?.status, resumeCandidate, target, onRequestStatus, selfOn, aiOn]);
   const [pickOpen, setPickOpen] = useState(false);
 
   const handle = async (id: string, action: string | null) => {
@@ -237,6 +241,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
     const m = barMsg;
     switch (s.key) {
       case "reply": return openComposer();
+      case "ai_draft": return openComposer({ ai: true });
       case "no_reply": return handle(m.id, "no_reply_needed");
       case "reply_see_you": return openComposer({ code: "interview-confirmed", interviewId: upcoming?.id ?? null });
       case "ask_times": return openComposer({ code: "interview-invitation" });
@@ -373,7 +378,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
             </div>
           ) : (
             <Composer candidate={candidate} appId={appId} files={files} thread={msgs} preset={preset} focusNonce={focusNonce}
-              upcomingId={upcoming?.id ?? null}
+              upcomingId={upcoming?.id ?? null} aiOn={aiOn && enabled && msgs.some((x) => x.direction === "inbound")}
               onClose={() => { setComposing(false); setPreset(null); }} onDone={refreshAll} />
           )}
         </div>
@@ -649,9 +654,9 @@ const readFu = (): FollowUpChoice => {
   try { const v = localStorage.getItem(FU_KEY); return FOLLOW_UP_CHOICES.some((c) => c.value === v) ? (v as FollowUpChoice) : "off"; } catch { return "off"; }
 };
 
-function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomingId, onClose, onDone }: {
+function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomingId, aiOn = false, onClose, onDone }: {
   candidate: AtsCandidate; appId: string | null; files: AtsFile[]; thread: AtsMessage[]; onClose: () => void; onDone: () => void;
-  preset?: ComposerPreset | null; focusNonce?: number; upcomingId?: string | null;
+  preset?: ComposerPreset | null; focusNonce?: number; upcomingId?: string | null; aiOn?: boolean;
 }) {
   const qc = useQueryClient();
   const templates = useEmailTemplates();
@@ -663,7 +668,9 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
   const [body, setBody] = useState("");
   const [reply, setReply] = useState(!!latest);
   const [tplMeta, setTplMeta] = useState<{ code: string | null; purpose: string }>({ code: null, purpose: "general" });
-  const [pendingTpl, setPendingTpl] = useState<{ id: string; quick: boolean } | null>(null);
+  const [pendingTpl, setPendingTpl] = useState<{ id: string; quick: boolean; ai?: boolean } | null>(null);
+  const [drafting, setDrafting] = useState(false);
+  const [aiNote, setAiNote] = useState(false);
   const [sel, setSel] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -730,6 +737,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
       if (!(quick && reply && latest)) setSubject(r.subject.slice(0, 200));
       setBody(r.body);
       setTplMeta({ code: r.template_code, purpose: r.purpose });
+      setAiNote(false);
       setTimeout(() => bodyRef.current?.focus(), 0);
     } catch (e) {
       toast.error(atsErrorMessage(e));
@@ -737,11 +745,33 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
   };
   const pickTemplate = (id: string, quick = false) => (body.trim() ? setPendingTpl({ id, quick }) : applyTemplate(id, quick));
 
+  // AI draft: written on request from the recent emails; never stored, never sent without HR pressing Send.
+  const runDraft = async () => {
+    if (drafting) return;
+    setDrafting(true);
+    try {
+      const text = await requestReplyDraft(candidate.id, appId ?? null);
+      setBody(text);
+      setTplMeta({ code: null, purpose: "general" });
+      setAiNote(true);
+      setTimeout(() => bodyRef.current?.focus(), 0);
+    } catch (e) {
+      toast.error(e instanceof AiDraftError ? e.message : aiDraftError(null));
+    } finally { setDrafting(false); }
+  };
+  const pickDraft = () => (body.trim() ? setPendingTpl({ id: "", quick: true, ai: true }) : void runDraft());
+
   const quickReplies = (templates.data ?? []).filter((t) => (t as AtsEmailTemplate).quick_reply && (!usesInterviewFields(t) || (!!upcomingId && t.code === "interview-confirmed")));
 
   // Preset from the next-step bar: fill a template by code once per request.
   const presetDone = useRef<number | null>(null);
   useEffect(() => {
+    if (preset?.ai && presetDone.current !== preset.nonce) {
+      presetDone.current = preset.nonce;
+      if (body.trim() || readDraft(candidate.id)?.body?.trim()) setPendingTpl({ id: "", quick: true, ai: true });
+      else void runDraft();
+      return;
+    }
     if (!preset?.code || presetDone.current === preset.nonce || !templates.data) return;
     presetDone.current = preset.nonce;
     const t = templates.data.find((x) => x.code === preset.code);
@@ -831,9 +861,14 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
           <SelectContent>{(templates.data ?? []).filter((t) => !usesInterviewFields(t) && t.code !== "interview-pick-a-slot").map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
-      {quickReplies.length > 0 && (
+      {(quickReplies.length > 0 || aiOn) && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" aria-label="Quick replies">
-          <span className="shrink-0 text-xs text-muted-foreground">Quick replies:</span>
+          {aiOn && (
+            <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2 text-xs" disabled={drafting} onClick={pickDraft}>
+              {drafting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Writing a draft…</> : <><Sparkles className="h-3.5 w-3.5" /> Draft a reply</>}
+            </Button>
+          )}
+          {quickReplies.length > 0 && <span className="shrink-0 text-xs text-muted-foreground">Quick replies:</span>}
           {quickReplies.map((t) => (
             <Button key={t.id} type="button" size="sm" variant="outline" className="h-7 shrink-0 rounded-full px-2.5 text-xs" onClick={() => pickTemplate(t.id, true)}>{t.name}</Button>
           ))}
@@ -846,7 +881,8 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
           <Checkbox checked={reply} onCheckedChange={(v) => setReply(!!v)} /> Reply in this thread
         </label>
       )}
-      <Textarea ref={bodyRef} rows={8} maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} className="resize-none text-foreground" aria-label="Message" />
+      <Textarea ref={bodyRef} rows={8} maxLength={20000} value={body} onChange={(e) => { setBody(e.target.value); setAiNote(false); }} className="resize-none text-foreground" aria-label="Message" />
+      {aiNote && <p className="text-xs text-muted-foreground">AI draft — check it before sending.</p>}
       <p className="text-xs text-muted-foreground">Your HR signature is added automatically.</p>
       {hasPlaceholders && <p className="text-xs text-destructive">Replace the {"{{placeholders}}"} first</p>}
       {selFiles.length > 0 && (
@@ -894,9 +930,9 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
       <AlertDialog open={!!pendingTpl} onOpenChange={(o) => !o && setPendingTpl(null)}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Replace what you've written?</AlertDialogTitle>
-            <AlertDialogDescription>The subject and message will be replaced with the template.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogDescription>{pendingTpl?.ai ? "The message will be replaced with an AI draft." : "The subject and message will be replaced with the template."}</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Keep mine</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const p = pendingTpl!; setPendingTpl(null); applyTemplate(p.id, p.quick); }}>Replace</AlertDialogAction></AlertDialogFooter>
+            <AlertDialogAction onClick={() => { const p = pendingTpl!; setPendingTpl(null); if (p.ai) void runDraft(); else applyTemplate(p.id, p.quick); }}>Replace</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={askDiscard} onOpenChange={setAskDiscard}>

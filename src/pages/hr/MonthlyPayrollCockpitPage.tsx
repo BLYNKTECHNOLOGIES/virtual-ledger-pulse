@@ -60,6 +60,7 @@ import { useMandatoryRecalcs } from "@/hooks/hrms/useMandatoryRecalcs";
 import { usePendingBankChanges } from "@/hooks/hrms/usePendingBankChanges";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useLatestIncompleteCockpitMonth } from "@/hooks/hrms/useLatestIncompleteCockpitMonth";
 import { COCKPIT_FIRST_TRACKED_MONTH, COCKPIT_PICKER_BACK, COCKPIT_PICKER_FORWARD, generateRecentMonths, isCockpitOpenableMonth } from "@/lib/hrms/cockpitMonths";
 
 const STEP_ICONS: Record<string, any> = {
@@ -132,37 +133,6 @@ function monthOptions(): { value: string; label: string }[] {
     };
   });
 }
-
-/** Find the OLDEST cycle month (from the tracked floor onwards) whose payroll
- *  close is not yet acknowledged — that is the cycle still pending work. Future
- *  months are never candidates; if everything past is closed we land on the
- *  current month. */
-function useLatestIncompleteCockpitMonth() {
-  return useQuery({
-    queryKey: ["hr_cockpit_latest_incomplete_month"],
-    queryFn: async () => {
-      // current → previous 12 months, then oldest-first, floored at the tracked start
-      const candidates = generateRecentMonths(12, 0)
-        .slice()
-        .reverse()
-        .filter((m) => m >= COCKPIT_FIRST_TRACKED_MONTH);
-
-      const results = await Promise.all(
-        candidates.map(async (m) => {
-          const { data, error } = await (supabase as any).rpc("hr_cockpit_month_state", { _month: m });
-          if (error) return { month: m, closed: true }; // don't strand the user on an unreadable month
-          const steps = (data ?? []) as CockpitStep[];
-          const closeStep = steps.find((s) => s.step_key === "close_month");
-          return { month: m, closed: closeStep?.ack_status === "done" };
-        })
-      );
-      const oldestIncomplete = candidates.find((_, idx) => !results[idx].closed);
-      return oldestIncomplete ?? firstOfMonth(new Date());
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
 
 /** System-side (live) state chip — what the data says. */
 function LiveChip({ step }: { step: CockpitStep }) {

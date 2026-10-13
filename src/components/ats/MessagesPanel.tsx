@@ -746,7 +746,9 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
     presetDone.current = preset.nonce;
     const t = templates.data.find((x) => x.code === preset.code);
     if (!t) { toast.error("That template is turned off. Turn it on in ATS → Settings → Email."); return; }
-    pickTemplate(t.id, true);
+    // A restored draft may not be in `body` yet on this render: check the saved draft too.
+    if (body.trim() || readDraft(candidate.id)?.body?.trim()) setPendingTpl({ id: t.id, quick: true });
+    else void applyTemplate(t.id, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset, templates.data]);
 

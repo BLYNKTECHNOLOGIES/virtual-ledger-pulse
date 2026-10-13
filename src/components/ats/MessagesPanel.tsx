@@ -671,8 +671,12 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
     const d = readDraft(candidate.id);
     if (d && (d.body?.trim() || d.subject?.trim())) { if (d.subject) setSubject(d.subject); setBody(d.body ?? ""); }
   }, [candidate.id, preset]);
+  const sentRef = useRef(false);
   useEffect(() => {
+    // After a successful send the composer is cleared; re-enable saving once that has happened.
+    if (sentRef.current) { if (!body && !subject) sentRef.current = false; return; }
     const t = setTimeout(() => {
+      if (sentRef.current) return;
       try {
         if (body.trim()) localStorage.setItem(DRAFT_KEY(candidate.id), JSON.stringify({ subject, body }));
         else localStorage.removeItem(DRAFT_KEY(candidate.id));
@@ -781,6 +785,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
         toast.success("Email sent");
         idRef.current = crypto.randomUUID();
         attemptSig.current = null;
+        sentRef.current = true;
         clearDraft(candidate.id);
         const until = followUpAt(fuChoice);
         if (until) {

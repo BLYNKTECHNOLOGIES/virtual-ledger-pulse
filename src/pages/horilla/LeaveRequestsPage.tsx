@@ -490,7 +490,7 @@ function RejectLeaveButton({ request, onReject, mobile }: { request: any; onReje
   );
 }
 
-export function LeaveActions({ request, statusMutation, onApprove, onReject, mobile = false, managerName }: { request: any; statusMutation: any; onApprove: (r: any) => void; onReject: (r: any) => void; mobile?: boolean; managerName?: string }) {
+function LeaveActions({ request, statusMutation, onApprove, onReject, mobile = false, managerName }: { request: any; statusMutation: any; onApprove: (r: any) => void; onReject: (r: any) => void; mobile?: boolean; managerName?: string }) {
   if (request.status === "requested") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2 items-center" : "flex gap-1 items-center"}>

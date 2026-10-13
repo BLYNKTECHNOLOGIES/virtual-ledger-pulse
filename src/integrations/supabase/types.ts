@@ -6553,6 +6553,7 @@ export type Database = {
           code: string
           created_at: string | null
           description: string | null
+          head_employee_id: string | null
           hierarchy_level: number | null
           icon: string | null
           id: string
@@ -6564,6 +6565,7 @@ export type Database = {
           code: string
           created_at?: string | null
           description?: string | null
+          head_employee_id?: string | null
           hierarchy_level?: number | null
           icon?: string | null
           id?: string
@@ -6575,6 +6577,7 @@ export type Database = {
           code?: string
           created_at?: string | null
           description?: string | null
+          head_employee_id?: string | null
           hierarchy_level?: number | null
           icon?: string | null
           id?: string
@@ -6582,7 +6585,57 @@ export type Database = {
           name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
       }
       documents: {
         Row: {
@@ -34965,6 +35018,15 @@ export type Database = {
         Args: { p_reason?: string; p_revision_id: string }
         Returns: Json
       }
+      hr_department_request_hiring: {
+        Args: {
+          p_number: number
+          p_plan_id: string
+          p_reason: string
+          p_target: string
+        }
+        Returns: Json
+      }
       hr_derive_all_statutory_enrollments: { Args: never; Returns: Json }
       hr_derive_statutory_enrollment_from_history: {
         Args: { p_employee_id: string }
@@ -35301,6 +35363,21 @@ export type Database = {
           p_start: string
         }
         Returns: undefined
+      }
+      hr_my_department_staffing: {
+        Args: never
+        Returns: {
+          department_id: string
+          department_name: string
+          in_training_hc: number
+          on_roll_hc: number
+          plan_id: string
+          position_title: string
+          requests: Json
+          required_hc: number
+          shift_label: string
+          short_hc: number
+        }[]
       }
       hr_my_leave_available: {
         Args: {
@@ -35913,6 +35990,7 @@ export type Database = {
           opening_hc: number
         }[]
       }
+      hr_workforce_budget: { Args: never; Returns: Json }
       hr_workforce_forecast_events: {
         Args: never
         Returns: {

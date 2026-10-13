@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { JobStatusBadge } from "@/components/ats/AtsBits";
 import { useAtsStages } from "@/lib/ats/api";
+import { BUDGET_SOURCE_LABEL, formatInr, useWorkforceBudget } from "@/hooks/hrms/useWorkforceBudget";
 
 interface HiringRequirementDetailDialogProps {
   open: boolean;
@@ -86,6 +87,7 @@ export function HiringRequirementDetailDialog({
     },
   });
 
+  const budget = useWorkforceBudget(open && !!canManage);
   if (!requirement) return null;
   const r: any = live.data ?? requirement;
   const p = pipeline.data?.get(r.id);
@@ -126,6 +128,7 @@ export function HiringRequirementDetailDialog({
           {r.requirement_no}
           <Badge variant="outline" className={REQ_STATUS_CLASS[r.status]}>{REQ_STATUS_LABEL[r.status] ?? r.status}</Badge>
           <Badge variant="outline" className={PRIORITY_CLASS[r.priority]}>{PRIORITY_LABEL[r.priority] ?? r.priority}</Badge>
+          {r.source === "department_request" && <Badge variant="outline">Department request · {r.requested_by_name || "head of department"}</Badge>}
         </span>
       }
       description={`${r.positions?.title ?? "Position"} · ${r.departments?.name ?? "Department"}${r.shift_label ? ` · ${r.shift_label}` : ""}`}
@@ -176,6 +179,20 @@ export function HiringRequirementDetailDialog({
           </div>
           <Progress value={pct} />
         </div>
+
+        {canManage && (() => {
+          const b = budget.data?.requirements.find((x) => x.id === r.id);
+          const range = r.salary_min || r.salary_max
+            ? `${formatInr(r.salary_min ?? r.salary_max)}–${formatInr(r.salary_max ?? r.salary_min)} a month`
+            : b?.per_person != null ? `${formatInr(b.per_person)} a month` : "no salary figure";
+          const people = b?.people ?? stillNeeded;
+          return (
+            <div className="rounded-lg border border-border p-3 text-sm">
+              <p className="text-foreground">Budget: {range} × {people}{b?.per_person != null ? ` ≈ ${formatInr(b.per_person * people)} a month` : ""}</p>
+              <p className="text-xs text-muted-foreground">Basis: {b?.basis ?? (r.salary_min || r.salary_max ? "requirement salary range" : "—")}. {BUDGET_SOURCE_LABEL}. Visible to HRMS managers only.</p>
+            </div>
+          );
+        })()}
 
         <div>
           <p className="mb-2 text-sm font-semibold text-foreground">Funnel {jobs.length > 1 && <span className="text-xs font-normal text-muted-foreground">(all {jobs.length} linked jobs)</span>}</p>

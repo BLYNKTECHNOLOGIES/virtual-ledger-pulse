@@ -68,6 +68,8 @@ import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import TeamLeaveApprovals from '@/components/profile/TeamLeaveApprovals';
 import TeamRegularizationApprovals from '@/components/profile/TeamRegularizationApprovals';
 import MyTeamCard from '@/components/profile/MyTeamCard';
+import MyDepartmentTab from '@/components/profile/MyDepartmentTab';
+import { useMyDepartmentStaffing } from '@/hooks/hrms/useWorkforceBudget';
 import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
 import MyMilestonesCard from '@/components/profile/MyMilestonesCard';
 import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
@@ -594,6 +596,7 @@ export default function UserProfile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('profile');
+  const { data: myDeptLines = [] } = useMyDepartmentStaffing();
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -1027,6 +1030,7 @@ export default function UserProfile() {
 
   const PROFILE_TABS: Array<{ value: string; label: string }> = [
     { value: 'profile', label: 'Profile' },
+    ...(myDeptLines.length > 0 ? [{ value: 'my-department', label: 'My department' }] : []),
     { value: 'tasks', label: 'My Tasks' },
     { value: 'attendance', label: 'Attendance' },
     { value: 'salary', label: 'Salary & PF' },
@@ -1110,6 +1114,12 @@ export default function UserProfile() {
           ))}
         </TabsList>
 
+
+        {myDeptLines.length > 0 && (
+          <TabsContent value="my-department" className="space-y-6">
+            <MyDepartmentTab lines={myDeptLines} />
+          </TabsContent>
+        )}
 
         {/* ═══════ Profile Tab ═══════ */}
         <TabsContent value="profile" className="space-y-6">

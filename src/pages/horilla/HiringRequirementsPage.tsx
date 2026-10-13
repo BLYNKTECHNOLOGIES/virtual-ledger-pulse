@@ -179,6 +179,8 @@ export default function HiringRequirementsPage() {
                         </Badge>
                         {r.replacement_employee_id || r.source === "employee_separation" ? (
                           <Badge variant="outline">Replacement for {repName || "employee"}</Badge>
+                        ) : r.source === "department_request" ? (
+                          <Badge variant="outline" className="border-info/30 bg-info/10 text-info">Department request · {r.requested_by_name || "head"}</Badge>
                         ) : r.source === "capacity_occupancy" ? (
                           <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                             Capacity gap

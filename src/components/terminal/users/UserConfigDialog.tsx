@@ -167,7 +167,8 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
         const assignedBy = getId() || undefined;
         // Remove old roles
         for (const oldRoleId of currentRoleIds) {
-          await supabase.rpc("remove_terminal_role", { p_user_id: userId, p_role_id: oldRoleId });
+          const { error: rmErr } = await supabase.rpc("remove_terminal_role", { p_user_id: userId, p_role_id: oldRoleId });
+          if (rmErr) throw rmErr;
         }
         // Assign new role
         const { error: roleErr } = await supabase.rpc("assign_terminal_role", {

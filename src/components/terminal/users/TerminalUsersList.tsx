@@ -240,7 +240,7 @@ export function TerminalUsersList() {
         p_role_id: selectedRoleId,
         p_assigned_by: assignedBy,
       });
-      if (error) { toast.error("Failed to assign role"); return; }
+      if (error) { toast.error(error.message || "Failed to assign role"); return; }
       toast.success("Role assigned");
       setAssignDialogOpen(false);
       setSelectedUserId("");
@@ -261,7 +261,7 @@ export function TerminalUsersList() {
     if (!roleToRemove) return;
     const { userId, roleId, roleName, username } = roleToRemove;
     const { error } = await supabase.rpc("remove_terminal_role", { p_user_id: userId, p_role_id: roleId });
-    if (error) { toast.error("Failed to remove role"); setRoleToRemove(null); return; }
+    if (error) { toast.error(error.message || "Failed to remove role"); setRoleToRemove(null); return; }
     toast.success(`Removed "${roleName}" from ${username}`);
     setRoleToRemove(null);
     await fetchData();

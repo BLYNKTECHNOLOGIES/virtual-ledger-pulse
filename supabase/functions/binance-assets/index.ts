@@ -348,30 +348,68 @@ serve(async (req) => {
       // ===== GET MY TRADES (Spot trade history from Binance) =====
       case "getMyTrades": {
         const { symbols, startTime, limit: tradeLimit } = payload;
-        const tradingSymbols: string[] = symbols || [
-          "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT",
-          "TRXUSDT", "SHIBUSDT", "TONUSDT", "USDCUSDT", "FDUSDUSDT"
-        ];
+        // Binance myTrades needs a symbol; there is no "all my trades" endpoint.
+        // So we discover every pair that could involve us: all Binance pairs whose
+        // base AND quote are both coins we hold now (spot) or have ever booked.
+        const svcUrl = Deno.env.get("SUPABASE_URL")!;
+        const svc = createClient(svcUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const LEGACY = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT", "TRXUSDT", "SHIBUSDT", "TONUSDT", "USDCUSDT", "FDUSDUSDT"];
+        const symbolInfo = new Map<string, { base: string; quote: string }>();
+        let tradingSymbols: string[] = symbols || [];
+        if (!symbols) {
+          const assets = new Set<string>(["USDT", "USDC", "FDUSD", "BTC", "ETH", "BNB", "XRP", "SOL", "TRX", "SHIB", "TON"]);
+          try {
+            const { data: pos } = await svc.from("wallet_asset_positions").select("asset_code");
+            for (const p of pos || []) if (p.asset_code) assets.add(String(p.asset_code).toUpperCase());
+          } catch (_) { /* best effort */ }
+          try {
+            const spotRes = await fetchWithRetry(`${BINANCE_PROXY_URL}/api/api/v3/account`, { method: "GET", headers: proxyHeaders });
+            const spot = JSON.parse(await spotRes.text());
+            for (const b of spot?.balances || []) {
+              if (parseFloat(b.free || "0") + parseFloat(b.locked || "0") > 0) assets.add(String(b.asset).toUpperCase());
+            }
+          } catch (e) { console.warn("getMyTrades: spot balances unavailable:", (e as Error).message); }
+          try {
+            const exRes = await fetchWithRetry(`${BINANCE_BASE}/api/v3/exchangeInfo?permissions=SPOT`, { method: "GET", headers: {} });
+            const ex = JSON.parse(await exRes.text());
+            for (const s of ex?.symbols || []) {
+              if (assets.has(s.baseAsset) && assets.has(s.quoteAsset)) {
+                symbolInfo.set(s.symbol, { base: s.baseAsset, quote: s.quoteAsset });
+              }
+            }
+          } catch (e) { console.warn("getMyTrades: exchangeInfo unavailable:", (e as Error).message); }
+          tradingSymbols = symbolInfo.size ? Array.from(symbolInfo.keys()) : LEGACY;
+          if (symbolInfo.size) {
+            await svc.from("binance_symbol_map").upsert(
+              Array.from(symbolInfo.entries()).map(([symbol, v]) => ({ symbol, base_asset: v.base, quote_asset: v.quote, updated_at: new Date().toISOString() })),
+              { onConflict: "symbol" },
+            );
+          }
+          console.info(`getMyTrades: ${assets.size} assets → ${tradingSymbols.length} pairs`);
+        }
+
+        // Per-symbol exact cursor (last stored trade id) so no pair is skipped even
+        // after a long gap. Pairs with no history are backfilled for 30 days only.
+        const cursors = new Map<string, number>();
+        try {
+          const { data: cur } = await svc.rpc("spot_trade_cursors", { p_account: EXCHANGE_ACCOUNT_ID });
+          for (const c of (cur || []) as any[]) cursors.set(c.symbol, Number(c.max_trade_id));
+        } catch (_) { /* fall back to startTime */ }
+        const BACKFILL_SINCE = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
         const allTrades: any[] = [];
-        // Binance myTrades caps at 1000 rows/request. A single market order can
-        // fill as many trades (dozens), and a busy window can exceed any single
-        // page — so we MUST paginate, otherwise the tail fills are silently
-        // dropped and conversions under-count. Paginate exactly by `fromId`
-        // (tradeId is monotonic per symbol) until a page returns < pageLimit.
         const pageLimit = Number(tradeLimit) > 0 ? Math.min(Number(tradeLimit), 1000) : 1000;
         const MAX_PAGES = 20; // safety cap: up to 20k trades per symbol per sync
 
         for (const sym of tradingSymbols) {
           try {
-            let fromId: number | null = null;
+            const known = cursors.get(sym);
+            const isNewPair = known === undefined && !LEGACY.includes(sym);
+            let fromId: number | null = known !== undefined ? known + 1 : isNewPair ? 0 : null;
             for (let page = 0; page < MAX_PAGES; page++) {
               const tradeParams: Record<string, string> = { symbol: sym, limit: String(pageLimit) };
-              if (fromId !== null) {
-                // Exact cursor: fetch trades with id >= fromId (ascending).
-                tradeParams.fromId = String(fromId);
-              } else if (startTime) {
-                tradeParams.startTime = String(startTime);
-              }
+              if (fromId !== null) tradeParams.fromId = String(fromId);
+              else if (startTime) tradeParams.startTime = String(startTime);
 
               const qs = new URLSearchParams(tradeParams).toString();
               const url = `${BINANCE_PROXY_URL}/api/api/v3/myTrades?${qs}`;
@@ -381,10 +419,12 @@ serve(async (req) => {
               try { trades = JSON.parse(text); } catch { trades = []; }
               if (!Array.isArray(trades) || trades.length === 0) break;
 
-              for (const t of trades) allTrades.push({ ...t, symbol: sym });
+              for (const t of trades) {
+                if (isNewPair && Number(t.time) < BACKFILL_SINCE) continue;
+                allTrades.push({ ...t, symbol: sym });
+              }
 
-              if (trades.length < pageLimit) break; // last page reached
-              // Advance exact cursor past the highest trade id in this page.
+              if (trades.length < pageLimit) break;
               const maxId = trades.reduce((m: number, t: any) => Math.max(m, Number(t.id) || 0), 0);
               if (!maxId) break;
               fromId = maxId + 1;
@@ -393,6 +433,34 @@ serve(async (req) => {
             console.warn(`Failed to fetch trades for ${sym}:`, (e as Error).message);
           }
         }
+
+        // USDT valuation for trades whose paying coin is not USDT: the Binance
+        // 1-minute close of <QUOTE>USDT (or inverse USDT<QUOTE>) at the trade minute.
+        const rateRows: any[] = [];
+        const seen = new Set<string>();
+        for (const t of allTrades) {
+          const info = symbolInfo.get(t.symbol);
+          const quote = info?.quote || (t.symbol.endsWith("USDT") ? "USDT" : null);
+          if (!quote || quote === "USDT") continue;
+          const minute = Math.floor(Number(t.time) / 60000) * 60000;
+          const key = `${quote}|${minute}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const { data: have } = await svc.from("binance_quote_usdt_rates").select("rate").eq("asset", quote).eq("minute_ms", minute).maybeSingle();
+          if (have) continue;
+          for (const [pair, inverse] of [[`${quote}USDT`, false], [`USDT${quote}`, true]] as [string, boolean][]) {
+            try {
+              const kRes = await fetchWithRetry(`${BINANCE_BASE}/api/v3/klines?symbol=${pair}&interval=1m&startTime=${minute}&limit=1`, { method: "GET", headers: {} });
+              const k = JSON.parse(await kRes.text());
+              const close = Array.isArray(k) && k[0] ? parseFloat(k[0][4]) : NaN;
+              if (Number.isFinite(close) && close > 0) {
+                rateRows.push({ asset: quote, minute_ms: minute, rate: inverse ? 1 / close : close, source_symbol: pair });
+                break;
+              }
+            } catch (_) { /* try inverse */ }
+          }
+        }
+        if (rateRows.length) await svc.from("binance_quote_usdt_rates").upsert(rateRows, { onConflict: "asset,minute_ms" });
 
         allTrades.sort((a, b) => (b.time || 0) - (a.time || 0));
         result = allTrades;

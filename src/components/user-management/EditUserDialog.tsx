@@ -179,11 +179,12 @@ export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleI
 
       if (result?.success !== false) {
         // HRMS badge link: one server step with the same R4 rule (only when it changed).
-        const nextEmployeeId = formData.badge_id.trim() ? linkedEmployee?.id ?? null : null;
-        if (actions.link && nextEmployeeId !== initialEmployeeId) {
+        const nextBadge = formData.badge_id.trim();
+        const nextEmployeeId = nextBadge ? linkedEmployee?.id ?? null : null;
+        if (actions.link && (nextBadge !== (user.badge_id || "").trim() || nextEmployeeId !== initialEmployeeId)) {
           const { error: linkError } = await (supabase as any).rpc("um_link_hr_employee", {
             p_user_id: user.id,
-            p_employee_id: nextEmployeeId,
+            p_badge: nextBadge || null,
           });
           if (linkError) {
             toast({ title: "HRMS link not changed", description: linkError.message, variant: "destructive" });

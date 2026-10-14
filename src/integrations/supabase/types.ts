@@ -37000,6 +37000,7 @@ export type Database = {
         Args: { p_role_id: string; p_uid: string }
         Returns: boolean
       }
+      um_is_reserved_role_name: { Args: { p: string }; Returns: boolean }
       um_is_super_admin: { Args: { p_uid: string }; Returns: boolean }
       um_lifecycle: { Args: never; Returns: Json }
       um_link_hr_employee: {
@@ -37022,6 +37023,7 @@ export type Database = {
         }[]
       }
       um_rank: { Args: { p_uid: string }; Returns: number }
+      um_role_name_key: { Args: { p: string }; Returns: string }
       um_set_user_role: {
         Args: { p_role_id: string; p_user_id: string }
         Returns: Json

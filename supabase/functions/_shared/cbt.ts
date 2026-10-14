@@ -329,6 +329,8 @@ export async function pickQuestions(
     .select("id, difficulty, category_tag, current_version_id, applicable_role_codes")
     .in("type", opts.types)
     .in("status", statuses)
+    // Hiring tests draw only from the Hiring pool plus Shared skill-drill content.
+    .in("pool", ["hiring", "shared"])
     .not("current_version_id", "is", null);
   if (opts.tags.length) query = query.in("category_tag", opts.tags);
   const { data } = await query.limit(2000);

@@ -49,8 +49,10 @@ function DriveDialog({ drive, tests, open, onOpenChange, onSaved }: {
       setForm(blank);
       quizRpc<string>("cbt_new_access_code").then((code) => setForm((f) => ({ ...f, code: f.code || code }))).catch(() => undefined);
     }
+    // Fill only when the dialog opens (or a different drive is opened) — the drives list
+    // re-fetches every 15 s and must not overwrite what HR is typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, drive]);
+  }, [open, drive?.id]);
 
   const regenerate = async () => {
     try { const code = await quizRpc<string>("cbt_new_access_code"); setForm((f) => ({ ...f, code })); }
@@ -133,7 +135,11 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
   const { data, dataUpdatedAt } = useQuery({
     queryKey: ["cbt", "monitor", drive.id],
     queryFn: () => quizRpc<{ server_now: string; rows: MonitorRow[] }>("cbt_drive_monitor", { p_drive_id: drive.id }),
-    refetchInterval: drive.status === "live" ? 5000 : false,
+    // Closed drives keep refreshing while anyone is still registered or testing.
+    refetchInterval: (query) => {
+      const active = (query.state.data?.rows ?? []).some((r) => r.status === "registered" || r.status === "in_progress");
+      return drive.status === "live" || active || drive.testing > 0 || drive.registered > drive.submitted ? 5000 : false;
+    },
   });
   // Server clock: offset measured at fetch time, so countdowns don't trust this PC's clock.
   const offset = data ? new Date(data.server_now).getTime() - dataUpdatedAt : 0;

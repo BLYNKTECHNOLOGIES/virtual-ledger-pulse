@@ -51,28 +51,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Verify caller is Admin/Super Admin ──
-    const { data: roleRows, error: roleError } = await adminClient
-      .from("user_roles")
-      .select("roles:role_id(name)")
-      .eq("user_id", callerId);
+    // ── Verify caller may reset this person's password (UM-2A R4) ──
+    // user_management_manage on people ranked below the caller, HR (user_management_hr_manage)
+    // on anyone ranked below COO, Super Admin unrestricted; never yourself here.
+    const { data: allowed, error: roleError } = await adminClient.rpc("um_can_act", {
+      p_uid: callerId,
+      p_target: userId,
+      p_action: "reset",
+    });
 
     if (roleError) {
-      console.error("Failed to fetch caller roles:", roleError);
+      console.error("Failed to verify reset permission:", roleError);
       return new Response(JSON.stringify({ error: "Failed to verify permissions" }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const roleNames = (roleRows ?? [])
-      .map((row: any) => row?.roles?.name)
-      .filter(Boolean)
-      .map((name: string) => name.toLowerCase());
-
-    const isAdmin = roleNames.includes("admin") || roleNames.includes("super admin") || roleNames.includes("super_admin");
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+    if (allowed !== true) {
+      return new Response(JSON.stringify({ error: "You can't reset the password of this person" }), {
         status: 403,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });

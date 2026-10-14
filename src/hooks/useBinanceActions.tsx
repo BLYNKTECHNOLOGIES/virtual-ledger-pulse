@@ -1,3 +1,4 @@
+import { coalesceRefresh } from '@/lib/coalesce-refresh';
 import { useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pollWhenVisible, pollEvenWhenHidden } from '@/lib/poll-when-visible';
@@ -707,11 +708,11 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
   // waiting for the fallback poll.
   useEffect(() => {
     if (!orderNo) return;
-    const refresh = () => {
+    const refresh = coalesceRefresh(() => {
       queryClient.invalidateQueries({
         queryKey: ['archived-binance-chat-messages', orderNo, accountId ?? null],
       });
-    };
+    }, 1500);
     const channel = supabase
       .channel(`order-chat-${orderNo}-${Math.random().toString(36).slice(2)}`)
       .on(
@@ -735,6 +736,7 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
     window.addEventListener('pageshow', pageShow);
     window.addEventListener('online', online);
     return () => {
+      refresh.cancel();
       void supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', resume);
       window.removeEventListener('pageshow', pageShow);

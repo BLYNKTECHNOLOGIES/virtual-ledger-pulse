@@ -16,7 +16,10 @@ interface Props {
 type ResultStatus = 'pending' | 'success' | 'error';
 interface AdResult { advNo: string; status: ResultStatus; message?: string }
 
-export function BulkStatusDialog({ open, onOpenChange, ads, targetStatus, onComplete }: Props) {
+export function BulkStatusDialog({ open, onOpenChange, ads: selectedAds, targetStatus, onComplete }: Props) {
+  // Only ads not already in the target status need a Binance call.
+  const ads = selectedAds.filter(ad => Number(ad.advStatus) !== Number(targetStatus));
+  const alreadyCount = selectedAds.length - ads.length;
   const updateStatus = useUpdateAdStatus();
   const [step, setStep] = useState<'confirm' | 'executing' | 'done'>('confirm');
   const [results, setResults] = useState<AdResult[]>([]);
@@ -36,8 +39,6 @@ export function BulkStatusDialog({ open, onOpenChange, ads, targetStatus, onComp
     const initial: AdResult[] = ads.map(ad => ({ advNo: ad.advNo, status: 'pending' }));
     setResults(initial);
 
-    // Binance updateAdStatus supports batch advNos, but we process individually
-    // for granular error reporting per ad
     for (let i = 0; i < ads.length; i++) {
       const ad = ads[i];
       try {
@@ -74,6 +75,11 @@ export function BulkStatusDialog({ open, onOpenChange, ads, targetStatus, onComp
                 <p className="text-muted-foreground mt-1">
                   {actionVerb} <strong>{ads.length}</strong> ad{ads.length !== 1 ? 's' : ''} → <strong>{statusLabel}</strong>
                 </p>
+                {alreadyCount > 0 && (
+                  <p className="text-muted-foreground mt-1">
+                    {alreadyCount} selected ad{alreadyCount !== 1 ? 's are' : ' is'} already {statusLabel} and will be skipped.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -104,7 +110,7 @@ export function BulkStatusDialog({ open, onOpenChange, ads, targetStatus, onComp
           {step === 'confirm' && (
             <>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
-              <Button onClick={executeUpdates}>{actionVerb} {ads.length} Ad{ads.length !== 1 ? 's' : ''}</Button>
+              <Button onClick={executeUpdates} disabled={ads.length === 0}>{ads.length === 0 ? `Nothing to ${actionVerb.toLowerCase()}` : `${actionVerb} ${ads.length} Ad${ads.length !== 1 ? 's' : ''}`}</Button>
             </>
           )}
           {step === 'done' && (

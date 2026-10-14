@@ -38,7 +38,11 @@ export const productConversionAdapter: TransactionAdapter = {
         { label: 'Gross USD Value', value: `$${formatSmartDecimal(c.gross_usd_value)}` },
         { label: 'Fee', value: Number(c.fee_amount) > 0 ? `${formatSmartDecimal(c.fee_amount, 9)} ${c.fee_asset} (${c.fee_percentage ?? 0}%)` : '—' },
         { label: 'Net Asset Change', value: `${c.side === 'BUY' ? '+' : '-'}${formatSmartDecimal(c.net_asset_change)} ${c.asset_code}` },
-        { label: 'Net USDT Change', value: `${c.side === 'BUY' ? '-' : '+'}${formatSmartDecimal(c.net_usdt_change)}` },
+        ...(c.quote_asset && c.quote_asset !== 'USDT' ? [
+          { label: `Paid/Received in`, value: `${c.side === 'BUY' ? '-' : '+'}${formatSmartDecimal(c.quote_quantity)} ${c.quote_asset}` },
+          { label: `${c.quote_asset} → USDT rate (trade time)`, value: c.quote_usdt_rate != null ? formatSmartDecimal(c.quote_usdt_rate, 6) : 'Unavailable from Binance' },
+        ] : []),
+        { label: c.quote_asset && c.quote_asset !== 'USDT' ? 'USDT Value' : 'Net USDT Change', value: `${c.side === 'BUY' ? '-' : '+'}${formatSmartDecimal(c.net_usdt_change)}` },
         { label: 'Execution Rate (USDT)', value: c.execution_rate_usdt ? `$${formatSmartDecimal(c.execution_rate_usdt)}` : '—' },
         { label: 'Cost Out (USDT)', value: c.cost_out_usdt ? `$${formatSmartDecimal(c.cost_out_usdt, 4)}` : '—' },
         { label: 'Realized P&L (USDT)', value: c.realized_pnl_usdt != null ? `${Number(c.realized_pnl_usdt) >= 0 ? '+' : ''}$${formatSmartDecimal(c.realized_pnl_usdt, 4)}` : '—' },

@@ -127,10 +127,27 @@ export function PendingConversionsTable() {
                             {c.side}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-medium">{c.asset_code}</TableCell>
+                        <TableCell className="font-medium">
+                          {(c as any).quote_asset && (c as any).quote_asset !== 'USDT'
+                            ? (c.side === 'SELL' ? `${c.asset_code} → ${(c as any).quote_asset}` : `${(c as any).quote_asset} → ${c.asset_code}`)
+                            : c.asset_code}
+                        </TableCell>
                         <TableCell className="text-right font-mono text-xs">{formatSmartDecimal(c.quantity)}</TableCell>
                         <TableCell className="text-right font-mono text-xs">${formatSmartDecimal(c.price_usd, 9)}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">${formatSmartDecimal(c.gross_usd_value)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {(c as any).quote_asset && (c as any).quote_asset !== 'USDT' && (c as any).quote_usdt_rate == null ? (
+                            <span className="text-destructive">Rate unavailable</span>
+                          ) : (
+                            <>
+                              ${formatSmartDecimal(c.gross_usd_value)}
+                              {(c as any).quote_asset && (c as any).quote_asset !== 'USDT' && (
+                                <div className="text-[10px] text-muted-foreground">
+                                  {formatSmartDecimal((c as any).quote_quantity)} {(c as any).quote_asset}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-mono text-xs">
                           {Number(c.fee_amount) > 0 ? `${formatSmartDecimal(c.fee_amount, 9)} ${c.fee_asset}` : '—'}
                         </TableCell>

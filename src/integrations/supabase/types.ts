@@ -4186,6 +4186,51 @@ export type Database = {
           },
         ]
       }
+      binance_quote_usdt_rates: {
+        Row: {
+          asset: string
+          created_at: string
+          minute_ms: number
+          rate: number
+          source_symbol: string
+        }
+        Insert: {
+          asset: string
+          created_at?: string
+          minute_ms: number
+          rate: number
+          source_symbol: string
+        }
+        Update: {
+          asset?: string
+          created_at?: string
+          minute_ms?: number
+          rate?: number
+          source_symbol?: string
+        }
+        Relationships: []
+      }
+      binance_symbol_map: {
+        Row: {
+          base_asset: string
+          quote_asset: string
+          symbol: string
+          updated_at: string
+        }
+        Insert: {
+          base_asset: string
+          quote_asset: string
+          symbol: string
+          updated_at?: string
+        }
+        Update: {
+          base_asset?: string
+          quote_asset?: string
+          symbol?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       binance_sync_metadata: {
         Row: {
           exchange_account_id: string
@@ -7360,6 +7405,9 @@ export type Database = {
           quantity: number
           quantity_gross: number | null
           quantity_net: number | null
+          quote_asset: string
+          quote_quantity: number | null
+          quote_usdt_rate: number | null
           rate_reconciled_at: string | null
           rate_reconciled_by: string | null
           rate_variance_usdt: number | null
@@ -7409,6 +7457,9 @@ export type Database = {
           quantity: number
           quantity_gross?: number | null
           quantity_net?: number | null
+          quote_asset?: string
+          quote_quantity?: number | null
+          quote_usdt_rate?: number | null
           rate_reconciled_at?: string | null
           rate_reconciled_by?: string | null
           rate_variance_usdt?: number | null
@@ -7458,6 +7509,9 @@ export type Database = {
           quantity?: number
           quantity_gross?: number | null
           quantity_net?: number | null
+          quote_asset?: string
+          quote_quantity?: number | null
+          quote_usdt_rate?: number | null
           rate_reconciled_at?: string | null
           rate_reconciled_by?: string | null
           rate_variance_usdt?: number | null
@@ -26615,6 +26669,7 @@ export type Database = {
       }
       spot_trade_history: {
         Row: {
+          base_asset: string | null
           binance_order_id: string | null
           binance_trade_id: string
           commission: number | null
@@ -26630,6 +26685,7 @@ export type Database = {
           is_buyer: boolean | null
           is_maker: boolean | null
           quantity: number
+          quote_asset: string | null
           quote_quantity: number | null
           side: string
           source: string
@@ -26639,6 +26695,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          base_asset?: string | null
           binance_order_id?: string | null
           binance_trade_id?: string
           commission?: number | null
@@ -26654,6 +26711,7 @@ export type Database = {
           is_buyer?: boolean | null
           is_maker?: boolean | null
           quantity: number
+          quote_asset?: string | null
           quote_quantity?: number | null
           side: string
           source?: string
@@ -26663,6 +26721,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          base_asset?: string | null
           binance_order_id?: string | null
           binance_trade_id?: string
           commission?: number | null
@@ -26678,6 +26737,7 @@ export type Database = {
           is_buyer?: boolean | null
           is_maker?: boolean | null
           quantity?: number
+          quote_asset?: string | null
           quote_quantity?: number | null
           side?: string
           source?: string
@@ -34068,6 +34128,14 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: undefined
       }
+      fn_quote_usdt_rate: {
+        Args: { p_asset: string; p_trade_time: number }
+        Returns: number
+      }
+      fn_split_binance_symbol: {
+        Args: { p_symbol: string }
+        Returns: Record<string, unknown>
+      }
       generate_employee_id: {
         Args: { dept: string; designation?: string }
         Returns: string
@@ -36759,6 +36827,13 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       snapshot_ledger_anchor: { Args: never; Returns: number }
+      spot_trade_cursors: {
+        Args: { p_account: string }
+        Returns: {
+          max_trade_id: number
+          symbol: string
+        }[]
+      }
       storage_can_read_sensitive_bucket: {
         Args: { _bucket: string; _owner: string; _uid: string }
         Returns: boolean

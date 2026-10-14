@@ -15,7 +15,8 @@ export function rowToItem(r: Record<string, unknown>) {
 }
 
 
-export type Settings = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Settings = Record<string, any>;
 export const NUMBERS = [
   { key: "retention_days", label: "Keep candidate details for", unit: "days", min: 30, max: 1095 },
   { key: "max_warnings", label: "Warning limit", unit: "warnings", min: 1, max: 20 },

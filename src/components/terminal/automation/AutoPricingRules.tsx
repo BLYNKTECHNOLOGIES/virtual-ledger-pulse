@@ -184,7 +184,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                               <span className="text-muted-foreground">→</span>
                               <span className="text-muted-foreground break-words min-w-0">
                                 {l.status === 'skipped'
-                                  ? (l.reason === 'no_merchant' ? `Merchant not found in top listings` : l.reason === 'no_listings' ? 'No P2P listings available' : l.reason === 'deviation' ? `Price deviation exceeded limit` : l.reason || 'Skipped')
+                                  ? (l.reason === 'no_merchant' ? `Merchant not found in top listings` : l.reason === 'no_listings' ? 'No P2P listings available' : l.reason === 'deviation' || l.reason === 'deviation_exceeded' ? `Price deviation exceeded limit${l.deviation_from_market_pct != null ? ` (${Number(l.deviation_from_market_pct).toFixed(2)}%)` : ''}` : l.reason || 'Skipped')
                                   : (l.error || 'Unknown error')
                                 }
                               </span>
@@ -266,7 +266,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                               {isSkipped
                                                 ? (log.reason === 'no_merchant' ? '⚠ Target merchant not found in top 500 listings'
                                                   : log.reason === 'no_listings' ? '⚠ No P2P listings available for this asset'
-                                                  : log.reason === 'deviation_exceeded' ? '⚠ Competitor price deviates too far from market reference'
+                                                  : log.reason === 'deviation_exceeded' ? `⚠ Competitor price deviates ${log.deviation_from_market_pct != null ? `${Number(log.deviation_from_market_pct).toFixed(2)}% from market reference (limit ${rule.max_deviation_from_market_pct ?? 5}%)` : 'too far from market reference'}`
                                                   : log.reason === 'no_ads' ? '⚠ No ad numbers configured or all excluded'
                                                   // safety_limit_blocked carries the exact limit and the ratio it blocked —
                                                   // showing only the code made it look like the deviation caused the skip.

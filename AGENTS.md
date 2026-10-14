@@ -2,7 +2,7 @@
 
 - Tables wrap to available width; only wide grids set minimum widths.
 
-- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/); read it before editing there.
+- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/, src/components/hrms/quiz/); read it before editing there.
 
 - Frontend brand images resolve through BrandLogo and brandLogos; ERP/HRMS toggles use ThemeContext and Terminal passes its independent theme explicitly, because logo contrast must update with the actual surface rather than unsynchronized DOM theme mutations.
 
@@ -27,4 +27,3 @@
 - Approved leave: employee cancels only before day 1 (IST); HR not in locked periods; cancel/reject refunds net of worked-day restores, drops worked-day rows, unstamps evidence-free days — a withdrawn leave must not stay paid or refund twice.
 - User Management rights live in public.um_* SQL functions (um_my_access feeds the screen); every UI gate reads them, because screen and server must agree.
 - Auth owns sign-in times/logs; ERP-shell heartbeat is self-only for consistent presence. Legacy role_functions are immutable with retained role UUIDs after deletion, preserving history without blocking role removal.
-- Quiz staff actions (drives, resume codes, add time, invalidate, decision override) go only through audited cbt_* SECURITY DEFINER RPCs that check cbt_can_manage, because every HR change to a test must be recorded in cbt_audit_log.

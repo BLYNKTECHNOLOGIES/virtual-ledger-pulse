@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.um_trim_role_name() FROM PUBLIC, anon, authenticated;

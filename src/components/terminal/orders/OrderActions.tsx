@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Lock } from 'lucide-react';
+import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Lock, AlertTriangle } from 'lucide-react';
 import { callBinanceAds, useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
 import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
 import { isSmallTradeOrder } from '@/lib/small-trade';
@@ -78,26 +78,35 @@ export function OrderActions({
     && quickConfirmAmountUpLimit !== undefined
     && isQuickReceiveEligible(totalPrice, quickConfirmAmountUpLimit);
 
-  return (
-    <div data-order-actions className="pt-3 border-t border-border space-y-2">
-      <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
+  const showVerify = needsVerification && opStatus === 'Pending Payment';
+  const showVerified = tradeType === 'SELL' && additionalKycVerify === 2 && opStatus === 'Pending Payment';
+  const showMarkPaid = opStatus === 'Pending Payment' && tradeType === 'BUY';
+  const showRelease = opStatus === 'Pending Release' && tradeType === 'SELL';
+  const showCancel = tradeType === 'BUY' && ['Pending Payment', 'Releasing'].includes(opStatus);
 
-      {needsVerification && opStatus === 'Pending Payment' && (
+  // Nothing applies (e.g. a SELL order still waiting for the buyer): render nothing rather than a bare caption.
+  if (!showVerify && !showVerified && !showMarkPaid && !showRelease && !quickReceiveEligible && !showCancel) return null;
+
+  return (
+    <div data-order-actions className="space-y-2">
+      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Actions</p>
+
+      {showVerify && (
         <VerifyOrderAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
-      {tradeType === 'SELL' && additionalKycVerify === 2 && opStatus === 'Pending Payment' && (
-        <div className="flex items-center gap-1.5 text-trade-buy bg-trade-buy/5 border border-trade-buy/20 rounded-md px-2.5 py-1.5">
+      {showVerified && (
+        <div className="flex items-center gap-1.5 text-trade-buy bg-[hsl(var(--trade-buy,var(--success))/0.05)] border border-[hsl(var(--trade-buy,var(--success))/0.2)] rounded-md px-2.5 py-1.5">
           <UserCheck className="h-3 w-3" />
           <span className="text-[10px] font-medium">Order Verified</span>
         </div>
       )}
 
-      {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
+      {showMarkPaid && (
         <MarkAsPaidAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
-      {opStatus === 'Pending Release' && tradeType === 'SELL' && (
+      {showRelease && (
         <ReleaseCoinAction
           orderNumber={orderNumber}
           exchangeAccountId={exchangeAccountId}
@@ -122,7 +131,7 @@ export function OrderActions({
         />
       )}
 
-      {tradeType === 'BUY' && ['Pending Payment', 'Releasing'].includes(opStatus) && (
+      {showCancel && (
         <CancelOrderAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
     </div>
@@ -157,7 +166,7 @@ function VerifyOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-trade-buy hover:bg-trade-buy/90"
+            className="bg-trade-buy hover:bg-[hsl(var(--trade-buy,var(--success))/0.9)]"
             onClick={() => verifyOrder.mutate({ orderNumber, exchangeAccountId })}
           >
             Confirm & Verify
@@ -352,7 +361,7 @@ export function ReleaseCoinAction({
           <button
             onClick={(e) => e.stopPropagation()}
             disabled={releaseCoin.isPending}
-            className="inline-flex items-center gap-1 text-[10px] font-semibold rounded px-2 py-0.5 border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-60"
           >
             {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
             Release
@@ -382,8 +391,9 @@ export function ReleaseCoinAction({
         </AlertDialogHeader>
 
         {/* Payment confirmation line — verified counterparty name + order amount */}
-        <div className="rounded-md border border-border bg-secondary/40 px-3 py-2">
-          <p className="text-xs text-foreground">
+        <div className="rounded-lg border border-primary/25 bg-primary/5 px-3.5 py-3 space-y-1">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Confirm before releasing</p>
+          <p className="text-sm leading-snug text-foreground">
             I have received a payment
             {amountLabel ? <> of <span className="font-semibold t-mono tabular-nums">{amountLabel}</span></> : null}
             {' from '}
@@ -392,11 +402,11 @@ export function ReleaseCoinAction({
             </span>
           </p>
           {!verifiedCounterpartyName && !isVerifiedNameLoading && (
-            <p className="text-[10px] text-amber-500 mt-0.5">
+            <p className="text-[11px] text-warning">
               Binance did not return a verified name for this order. Confirm the payment in your bank statement before releasing.
             </p>
           )}
-          <p className="text-[10px] text-muted-foreground mt-0.5 t-mono">Order {orderNumber}</p>
+          <p className="text-[10px] text-muted-foreground t-mono">Order {orderNumber}</p>
         </div>
 
 
@@ -545,7 +555,7 @@ function CancelOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
       <AlertDialog open={step === 2} onOpenChange={(open) => { if (!open) handleReset(); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">⚠️ Final Confirmation</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Final Confirmation</AlertDialogTitle>
             <AlertDialogDescription className="font-medium">
               This is your FINAL confirmation. Order #{orderNumber} will be permanently cancelled. Are you absolutely sure?
             </AlertDialogDescription>

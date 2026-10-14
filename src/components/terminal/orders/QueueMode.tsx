@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { OrderDetailWorkspace } from './OrderDetailWorkspace';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -104,15 +104,17 @@ export function QueueMode({ orders, onClose }: Props) {
   if (!current) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-3 md:px-4 py-1.5 border-b border-border bg-card shrink-0">
+        <div className="flex h-10 items-center justify-between px-3 md:px-4 border-b border-border bg-card shrink-0">
           <div className="flex items-center gap-2">
-            <ListChecks className="h-3.5 w-3.5 text-primary" />
-            <span className="text-[11px] t-mono uppercase tracking-wide text-muted-foreground">Queue · 0 of 0</span>
+            <ListChecks className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground">Queue</span>
+            <span className="text-[11px] t-mono text-muted-foreground">0 of 0</span>
           </div>
           <button
             onClick={onClose}
-            className="h-6 px-2 text-[11px] rounded border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="inline-flex h-7 items-center gap-1.5 px-2.5 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
+            <LogOut className="h-3.5 w-3.5" />
             Exit queue
           </button>
         </div>
@@ -126,29 +128,35 @@ export function QueueMode({ orders, onClose }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 md:px-4 py-1.5 border-b border-border bg-card shrink-0">
-        <div className="flex items-center gap-2">
-          <ListChecks className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] t-mono uppercase tracking-wide text-muted-foreground">
-            Queue · {index + 1} of {queue.length}
+      <div className="flex h-10 items-center justify-between gap-3 px-3 md:px-4 border-b border-border bg-primary/5 shrink-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <ListChecks className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-xs font-semibold text-foreground">Queue</span>
+          <span className="text-[11px] t-mono tabular-nums text-muted-foreground">
+            {index + 1} of {queue.length}
           </span>
+          <div className="hidden sm:block h-1 w-24 overflow-hidden rounded-full bg-secondary" aria-hidden="true">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((index + 1) / queue.length) * 100}%` }} />
+          </div>
+          <span className="text-[11px] text-muted-foreground hidden md:inline">· auto-advances on settle</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             onClick={() => step(-1)}
             disabled={index <= 0}
-            className="h-6 px-2 text-[11px] rounded border border-border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 transition-colors"
+            className="inline-flex h-7 items-center gap-1 px-2 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 transition-colors"
           >
+            <ChevronLeft className="h-3.5 w-3.5" />
             Prev
           </button>
           <button
             onClick={() => step(1)}
             disabled={index >= queue.length - 1}
-            className="h-6 px-2 text-[11px] rounded border border-border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 transition-colors"
+            className="inline-flex h-7 items-center gap-1 px-2 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40 transition-colors"
           >
             Next
+            <ChevronRight className="h-3.5 w-3.5" />
           </button>
-          <span className="text-[10px] text-muted-foreground/70 hidden sm:inline">auto-advances on settle</span>
         </div>
       </div>
       <div className="flex-1 overflow-hidden">

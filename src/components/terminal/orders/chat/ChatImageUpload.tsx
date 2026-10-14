@@ -129,30 +129,32 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
       />
 
       {preview && (
-        <div className="absolute bottom-14 left-3 right-3 bg-card border border-border rounded-lg p-2 shadow-lg z-10">
+        <div className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-lg p-2.5 shadow-lg z-10">
           <div className="flex items-start gap-2">
-            <img src={preview} alt="Preview" className="max-h-32 rounded object-contain" />
+            <img src={preview} alt="Preview" className="max-h-36 rounded-md border border-border/60 object-contain" />
             <div className="flex flex-col gap-1 ml-auto">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-5 w-5 shrink-0"
+                className="h-6 w-6 shrink-0"
                 onClick={cancelPreview}
                 disabled={uploading}
+                aria-label="Remove image"
+                title="Remove image"
               >
-                <X className="h-3 w-3" />
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
-          <div className="flex items-center justify-between mt-1.5">
+          <div className="flex items-center justify-between mt-2">
             {uploading ? (
-              <p className="text-[10px] text-muted-foreground">Uploading to Binance...</p>
+              <p className="text-[11px] text-muted-foreground">Uploading to Binance...</p>
             ) : (
-              <p className="text-[10px] text-muted-foreground">Ready to send</p>
+              <p className="text-[11px] text-muted-foreground">Ready to send</p>
             )}
             <Button
               size="sm"
-              className="h-6 text-[10px] px-3"
+              className="h-7 text-xs px-3"
               onClick={handleSendImage}
               disabled={uploading}
             >
@@ -170,6 +172,8 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
+        aria-label="Send an image"
+        title="Send an image"
       >
         {uploading ? (
           <Loader2 className="h-4 w-4 animate-spin" />

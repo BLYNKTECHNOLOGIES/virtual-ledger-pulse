@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Megaphone, Loader2, Send } from 'lucide-react';
@@ -154,13 +154,19 @@ export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advert
           size="icon"
           className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
           title="Attach a live ad"
+          aria-label="Attach a live ad"
         >
-          <Megaphone className="h-3.5 w-3.5" />
+          <Megaphone className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-popover">
         <DialogHeader>
-          <DialogTitle className="text-sm">Share a live ad</DialogTitle>
+          <DialogTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Share a live ad</DialogTitle>
+          <DialogDescription className="text-xs">
+            {onSendCard
+              ? "Shares Binance's own ad card, which the counterparty can tap in the Binance app, or puts the ad details in the message box as plain text."
+              : 'Puts the ad details in the message box for review before sending.'}
+          </DialogDescription>
         </DialogHeader>
 
         <Input
@@ -187,7 +193,7 @@ export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advert
               { key: 'SELL', label: 'Sell ads', list: sellAds, tone: 'text-trade-sell' },
             ] as const).map((section) => (
               <div key={section.key}>
-                <div className="sticky top-0 z-10 -mx-0.5 mb-1.5 flex items-center justify-between bg-background/95 px-0.5 py-1 backdrop-blur">
+                <div className="sticky top-0 z-10 -mx-0.5 mb-1.5 flex items-center justify-between bg-popover/95 px-0.5 py-1 backdrop-blur">
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${section.tone}`}>
                     {section.label}
                   </span>
@@ -200,49 +206,56 @@ export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advert
                 ) : (
                   <div className="space-y-2">
                     {section.list.map((ad) => (
-              <button
+              <div
                 key={ad.advNo}
-                onClick={() => pick(ad)}
-                className="w-full text-left rounded-lg border border-border bg-card hover:bg-accent/40 transition-colors p-2.5"
+                className="overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-primary/40"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold uppercase ${ad.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-                      {ad.tradeType}
-                    </span>
-                    <span className="text-xs font-medium text-foreground">{ad.asset}</span>
-                    <Badge variant="outline" className="text-[9px]">{ad.fiatUnit}</Badge>
-                    {ad.advStatus === BINANCE_AD_STATUS.PRIVATE && (
-                      <Badge variant="outline" className="text-[9px]">Private</Badge>
-                    )}
+                <button
+                  type="button"
+                  onClick={() => pick(ad)}
+                  className="w-full text-left p-2.5 transition-colors hover:bg-accent/40"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold uppercase ${ad.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                        {ad.tradeType}
+                      </span>
+                      <span className="text-xs font-medium text-foreground">{ad.asset}</span>
+                      <Badge variant="outline" className="text-[10px]">{ad.fiatUnit}</Badge>
+                      {ad.advStatus === BINANCE_AD_STATUS.PRIVATE && (
+                        <Badge variant="outline" className="text-[10px]">Private</Badge>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold t-mono tabular-nums text-foreground">{ad.price}</span>
                   </div>
-                  <span className="text-xs t-mono tabular-nums text-foreground">{ad.price}</span>
-                </div>
-                <div className="mt-1 text-[10px] t-mono text-muted-foreground tabular-nums">
-                  Available {String(ad.surplusAmount)} {ad.asset} · Limits {String(ad.minSingleTransAmount)}–{String(ad.maxSingleTransAmount)} {ad.fiatUnit}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-1">
-                  {(ad.tradeMethods || []).slice(0, 4).map((m) => (
-                    <PaymentMethodBadge key={`${ad.advNo}-${m.payId}-${m.identifier}`} identifier={m.identifier} payType={m.payType} />
-                  ))}
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-2 text-[9px] text-primary">
-                  <span className="flex items-center gap-1">
-                    <Send className="h-2.5 w-2.5" /> {onSendCard ? 'Send ad card' : 'Insert into chat'}
-                  </span>
+                  <div className="mt-1 text-[11px] t-mono text-muted-foreground tabular-nums">
+                    Available {String(ad.surplusAmount)} {ad.asset} · Limits {String(ad.minSingleTransAmount)}–{String(ad.maxSingleTransAmount)} {ad.fiatUnit}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                    {(ad.tradeMethods || []).slice(0, 4).map((m) => (
+                      <PaymentMethodBadge key={`${ad.advNo}-${m.payId}-${m.identifier}`} identifier={m.identifier} payType={m.payType} />
+                    ))}
+                  </div>
+                </button>
+                <div className="flex items-center justify-between gap-2 border-t border-border/70 bg-secondary/30 px-2.5 py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => pick(ad)}
+                    className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                  >
+                    <Send className="h-3 w-3" /> {onSendCard ? 'Send ad card' : 'Insert into chat'}
+                  </button>
                   {onSendCard && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); pickAsText(ad); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); pickAsText(ad); } }}
-                      className="text-muted-foreground hover:text-foreground underline"
+                    <button
+                      type="button"
+                      onClick={() => pickAsText(ad)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
                     >
-                      send as text
-                    </span>
+                      Send as text
+                    </button>
                   )}
                 </div>
-              </button>
+              </div>
                     ))}
                   </div>
                 )}

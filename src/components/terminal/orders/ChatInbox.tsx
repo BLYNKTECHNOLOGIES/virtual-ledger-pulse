@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck, Pin, PinOff, Coins, Clock, TrendingUp } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Search, User, CheckCheck, Pin, PinOff, Coins, Clock, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
@@ -19,6 +19,7 @@ import { useChatPins } from '@/hooks/useChatPins';
 import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
 import { formatBandsLabel, isSmallTradeOrder } from '@/lib/small-trade';
 import { selectSmallTradeTargets } from '@/lib/small-trade-targets';
+import { initialsOf } from './initials';
 
 
 export interface ChatConversation {
@@ -445,16 +446,16 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 sm:px-4 py-3 border-b border-border bg-card">
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
+      <div className="flex h-12 shrink-0 items-center gap-2 px-2 sm:px-4 border-b border-border bg-card">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose} aria-label="Back to orders" title="Back to orders">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-        <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">Inbox</span>
+        <span className="text-sm font-semibold text-foreground">Chats</span>
         {totalUnread > 0 && (
-          <Badge className="bg-destructive text-destructive-foreground text-[9px] t-mono h-4 px-1.5 ml-1">
+          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 t-mono text-[10px] font-bold text-destructive-foreground" title={`${totalUnread} unread ${totalUnread === 1 ? 'chat' : 'chats'}`}>
             {totalUnread}
-          </Badge>
+          </span>
         )}
         {totalUnread > 0 && (
           <div className="ml-auto flex items-center gap-1 shrink-0">
@@ -462,7 +463,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[11px] gap-1.5"
+                className="h-8 px-2 text-xs gap-1.5"
                 disabled={markingSmall || markingAll}
                 title={`Marks only low-value trade chats read — ${formatBandsLabel(bands)}. Clients with any bigger order are left untouched.`}
                 onClick={handleMarkSmallTradesRead}
@@ -479,7 +480,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-[11px] gap-1.5"
+              className="h-8 px-2 text-xs gap-1.5"
               disabled={markingAll || markingSmall}
               onClick={handleMarkAllRead}
             >
@@ -493,70 +494,83 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       </div>
 
 
-      {/* Search */}
-      <div className="px-4 py-2 border-b border-border bg-card/50">
-        <div className="relative">
+      {/* Search, tabs and sorting */}
+      <div className="shrink-0 flex flex-col gap-2 px-3 sm:px-4 py-2 border-b border-border bg-card/50 md:flex-row md:items-center">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by nickname, verified name or order number"
+            aria-label="Search chats"
             className="h-8 pl-8 text-xs bg-input border-border"
           />
         </div>
-      </div>
-
-      {/* Tabs + sorting */}
-      <div className="px-3 sm:px-4 py-2 border-b border-border flex items-center gap-2 flex-wrap">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3 sm:px-4">All</TabsTrigger>
-            <TabsTrigger value="unread" className="text-[11px] h-6 px-3 sm:px-4">
-              Unread ({totalUnread})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="ml-auto flex items-center rounded-md bg-secondary p-0.5 shrink-0">
-          <Button
-            variant={sortMode === 'recent' ? 'secondary' : 'ghost'}
-            size="sm"
-            className={`h-6 px-2 text-[11px] gap-1 ${sortMode === 'recent' ? 'bg-background shadow-sm' : ''}`}
-            title="Newest message first"
-            onClick={() => setSortMode('recent')}
-          >
-            <Clock className="h-3 w-3 shrink-0" />
-            Recent
-          </Button>
-          <Button
-            variant={sortMode === 'big' ? 'secondary' : 'ghost'}
-            size="sm"
-            className={`h-6 px-2 text-[11px] gap-1 ${sortMode === 'big' ? 'bg-background shadow-sm' : ''}`}
-            title={`Clients with any order above the small-order range come first — ${formatBandsLabel(bands)}`}
-            onClick={() => setSortMode('big')}
-          >
-            <TrendingUp className="h-3 w-3 shrink-0" />
-            <span className="hidden sm:inline">Big orders first</span>
-            <span className="sm:hidden">Big first</span>
-          </Button>
+        <div className="flex items-center gap-2">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+            <TabsList className="h-8 min-h-0 flex-nowrap gap-0.5 rounded-md border border-border bg-secondary/60 p-0.5">
+              <TabsTrigger value="all" className="h-7 rounded-[5px] px-3 py-0 text-xs font-medium text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
+              <TabsTrigger value="unread" className="h-7 rounded-[5px] px-3 py-0 text-xs font-medium text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                Unread ({totalUnread})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="ml-auto flex h-8 items-center rounded-md border border-border bg-secondary/60 p-0.5 shrink-0">
+            <Button
+              variant={sortMode === 'recent' ? 'secondary' : 'ghost'}
+              size="sm"
+              className={`h-7 px-2 text-xs gap-1 rounded-[5px] ${sortMode === 'recent' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              title="Newest message first"
+              aria-pressed={sortMode === 'recent'}
+              onClick={() => setSortMode('recent')}
+            >
+              <Clock className="h-3 w-3 shrink-0" />
+              Recent
+            </Button>
+            <Button
+              variant={sortMode === 'big' ? 'secondary' : 'ghost'}
+              size="sm"
+              className={`h-7 px-2 text-xs gap-1 rounded-[5px] ${sortMode === 'big' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              title={`Clients with any order above the small-order range come first — ${formatBandsLabel(bands)}`}
+              aria-pressed={sortMode === 'big'}
+              onClick={() => setSortMode('big')}
+            >
+              <TrendingUp className="h-3 w-3 shrink-0" />
+              <span className="hidden sm:inline">Big orders first</span>
+              <span className="sm:hidden">Big first</span>
+            </Button>
+          </div>
         </div>
-
       </div>
 
       {/* Conversation list */}
       <ScrollArea className="flex-1">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <p className="text-xs text-muted-foreground">Loading conversations...</p>
+          <div className="relative divide-y divide-border/60" role="status" aria-live="polite">
+            <span className="sr-only">Loading conversations...</span>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="t-shimmer h-9 w-9 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="t-shimmer h-3 w-40 rounded" />
+                  <div className="t-shimmer h-2.5 w-64 max-w-full rounded" />
+                </div>
+                <div className="t-shimmer h-3 w-12 rounded" />
+              </div>
+            ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-2">
-            <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
-            <p className="text-xs text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
+            <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">
               {tab === 'unread' ? 'No unread messages' : 'No conversations found'}
             </p>
+            {search && <p className="text-xs text-muted-foreground">Try another name or order number</p>}
           </div>
         ) : (
-          <div className="border-t border-border/50">
+          <div>
             {filtered.map((conv) => (
               <ConversationRow
                 key={conv.orderNumber}
@@ -610,26 +624,33 @@ function ConversationRow({
   const statusTextClass =
     statusStyle.badgeClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-muted-foreground';
 
+  const displayName = c.verifiedName || c.counterpartyNickname || 'Unknown';
+  const initials = initialsOf(displayName);
+
   return (
-    <div className={`group relative border-b border-border/50 ${isPinned ? 'bg-primary/5' : ''}`}>
+    <div className={`group relative border-b border-border/60 ${isPinned ? 'bg-primary/5' : ''}`}>
       {/* Unread accent rail */}
       {hasUnread && (
-        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary group-hover:w-1 transition-all shadow-[0_0_10px_hsl(var(--primary)/0.5)] z-10" />
+        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary group-hover:w-1 transition-all z-10" />
       )}
       <div className="flex items-center">
         <button
           onClick={onClick}
-          className="flex-1 min-w-0 text-left px-4 py-3.5 hover:bg-muted/30 transition-colors grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)_200px_110px_20px] items-center gap-x-4"
+          className="flex-1 min-w-0 text-left px-3 sm:px-4 py-3 hover:bg-secondary/40 transition-colors grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)_180px_72px] items-center gap-x-4"
         >
           {/* Col 1: identity */}
-          <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="relative shrink-0">
-              <div className="h-10 w-10 rounded-lg bg-secondary border border-border flex items-center justify-center group-hover:border-primary/30 transition-colors">
-                <User className="h-5 w-5 text-muted-foreground" />
+              <div className={`h-10 w-10 rounded-full border flex items-center justify-center transition-colors ${hasUnread ? 'bg-primary/10 border-primary/30' : 'bg-secondary border-border group-hover:border-primary/30'}`}>
+                {initials ? (
+                  <span className={`text-xs font-semibold ${hasUnread ? 'text-primary' : 'text-muted-foreground'}`}>{initials}</span>
+                ) : (
+                  <User className="h-5 w-5 text-muted-foreground" />
+                )}
               </div>
               {hasUnread && (
                 <div className="absolute -top-1 -right-1 h-4 min-w-[16px] rounded-full bg-primary border-2 border-background flex items-center justify-center px-1">
-                  <span className="text-[9px] font-black text-primary-foreground leading-none">
+                  <span className="text-[10px] font-bold text-primary-foreground leading-none">
                     {c.chatUnreadCount}
                   </span>
                 </div>
@@ -638,19 +659,19 @@ function ConversationRow({
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2 min-w-0">
                 <span className={`text-[13px] text-foreground uppercase tracking-tight truncate ${hasUnread ? 'font-bold' : 'font-semibold'}`}>
-                  {c.verifiedName || c.counterpartyNickname || 'Unknown'}
+                  {displayName}
                 </span>
                 {c.counterpartyNickname && (
-                  <span className="text-[10px] text-muted-foreground/70 t-mono truncate shrink">
+                  <span className="text-[11px] text-muted-foreground t-mono truncate shrink">
                     {c.counterpartyNickname}
                   </span>
                 )}
               </div>
-              <span className={`text-[11px] font-medium uppercase tracking-widest mt-0.5 truncate ${isEnquiry ? 'text-muted-foreground' : statusTextClass}`}>
+              <span className={`text-[11px] font-medium uppercase tracking-wider mt-0.5 truncate ${isEnquiry ? 'text-muted-foreground' : statusTextClass}`}>
                 {isEnquiry ? 'Enquiry · no order' : statusStyle.label}
               </span>
               {c.lastMessagePreview && (
-                <span className={`md:hidden text-[11px] truncate mt-0.5 ${hasUnread ? 'text-foreground' : 'text-muted-foreground'}`}>
+                <span className={`md:hidden text-xs truncate mt-0.5 ${hasUnread ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {c.lastMessageFromSelf ? 'You: ' : ''}{c.lastMessagePreview}
                 </span>
               )}
@@ -658,17 +679,17 @@ function ConversationRow({
           </div>
 
           {/* Col 2: message preview (desktop) */}
-          <div className="hidden md:block min-w-0 pr-6">
+          <div className="hidden md:block min-w-0 pr-4">
             {c.lastMessagePreview ? (
-              <div className={`text-xs truncate ${hasUnread ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
+              <div className={`text-[13px] truncate ${hasUnread ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
                 {c.lastMessageFromSelf && <span className="text-muted-foreground font-medium">You: </span>}
                 {c.lastMessagePreview}
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground/50 italic">No messages yet</div>
+              <div className="text-xs text-muted-foreground/60 italic">No messages yet</div>
             )}
             {seenText && (
-              <span className="block mt-1 text-[10px] text-muted-foreground/70 truncate" title={seenText}>
+              <span className="block mt-1 text-[11px] text-muted-foreground truncate" title={seenText}>
                 {seenText}
               </span>
             )}
@@ -680,13 +701,13 @@ function ConversationRow({
               <>
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    c.tradeType === 'BUY' ? 'text-primary bg-primary/10' : 'text-trade-sell bg-trade-sell/10'
+                    c.tradeType === 'BUY' ? 'text-trade-buy bg-[hsl(var(--trade-buy,var(--success))/0.1)]' : 'text-trade-sell bg-[hsl(var(--trade-sell,var(--destructive))/0.1)]'
                   }`}>
                     {c.tradeType}
                   </span>
                   <span className="text-xs font-semibold text-foreground t-mono tabular-nums">
                     {Number(c.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
-                    <span className="text-[10px] opacity-60">{c.asset}</span>
+                    <span className="text-[10px] text-muted-foreground">{c.asset}</span>
                   </span>
                 </div>
                 <div className="text-[11px] text-muted-foreground font-medium t-mono tabular-nums">
@@ -694,28 +715,23 @@ function ConversationRow({
                 </div>
               </>
             ) : (
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">No order</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">No order</span>
             )}
           </div>
 
           {/* Col 4: time + unread dot (desktop) */}
           <div className="hidden md:flex flex-col items-end">
-            <span className="text-[11px] text-muted-foreground t-mono tabular-nums">{stampLabel}</span>
+            <span className={`text-[11px] t-mono tabular-nums ${hasUnread ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{stampLabel}</span>
             {hasUnread && (
-              <div className="mt-2 h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.8)]" />
+              <div className="mt-2 h-2 w-2 rounded-full bg-primary" />
             )}
-          </div>
-
-          {/* Col 5: chevron (desktop) */}
-          <div className="hidden md:flex justify-end text-muted-foreground/40 group-hover:text-primary transition-colors">
-            <ChevronRight className="h-4 w-4" />
           </div>
 
           {/* Mobile meta (right side) */}
           <div className="md:hidden flex flex-col items-end gap-1 shrink-0">
-            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">{stampLabel}</span>
+            <span className={`text-[11px] t-mono tabular-nums ${hasUnread ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{stampLabel}</span>
             {!isEnquiry && (
-              <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
+              <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
                 {c.tradeType === 'BUY' ? 'B' : 'S'} {Number(c.amount).toFixed(2)} {c.asset}
               </span>
             )}

@@ -121,7 +121,7 @@ export function ChatAdCard({ ad }: { ad: ParsedAdCard }) {
 
         <div className="flex items-center justify-between gap-2 pt-0.5">
           {ad.advNo ? (
-            <Badge variant="outline" className="text-[9px] t-mono font-normal">Ad {ad.advNo}</Badge>
+            <Badge variant="outline" className="text-[10px] t-mono font-normal">Ad {ad.advNo}</Badge>
           ) : <span />}
           {link && (
             <a

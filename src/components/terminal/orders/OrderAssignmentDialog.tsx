@@ -90,15 +90,19 @@ export function OrderAssignmentDialog({
         </DialogHeader>
 
 
-        <div className="space-y-1 text-xs text-muted-foreground pb-2 border-b border-border">
-          <div>Order: <span className="font-mono text-foreground">{orderNumber}</span></div>
-          {tradeType && <div>Type: <Badge variant="outline" className="text-[10px] ml-1">{tradeType}</Badge></div>}
-          {totalPrice && <div>Amount: ₹{totalPrice.toLocaleString('en-IN')}</div>}
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs">
+          {tradeType && (
+            <span className={`inline-flex h-5 items-center rounded px-1.5 t-mono text-[10px] font-semibold uppercase ${tradeType === 'BUY' ? 'bg-[hsl(var(--trade-buy,var(--success))/0.1)] text-trade-buy' : 'bg-[hsl(var(--trade-sell,var(--destructive))/0.1)] text-trade-sell'}`}>
+              {tradeType}
+            </span>
+          )}
+          <span className="t-mono text-foreground">{orderNumber}</span>
+          {totalPrice && <span className="ml-auto t-mono font-semibold text-foreground">₹{totalPrice.toLocaleString('en-IN')}</span>}
         </div>
 
         {currentAssignee && (
-          <div className="flex items-center justify-between bg-muted/10 border border-border rounded-lg p-2.5">
-            <span className="text-xs text-muted-foreground">Currently assigned</span>
+          <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+            <span className="text-xs text-foreground">Currently assigned</span>
             <Button variant="outline" size="sm" className="h-7 text-xs text-destructive" onClick={handleUnassign} disabled={isAssigning}>
               <X className="h-3 w-3 mr-1" /> Unassign
             </Button>
@@ -115,11 +119,11 @@ export function OrderAssignmentDialog({
           </div>
         ) : (
           <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">Select Operations Associate (sorted by workload):</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Select Operations Associate (sorted by workload):</p>
             {operators.map(op => (
               <button
                 key={op.userId}
-                className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border hover:bg-muted/20 transition-colors text-left disabled:opacity-50"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-secondary/40 transition-colors text-left disabled:opacity-50"
                 onClick={() => handleAssign(op.userId)}
                 disabled={isAssigning || op.userId === currentAssignee}
               >
@@ -147,10 +151,10 @@ export function OrderAssignmentDialog({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="text-right">
-                    <div className="text-xs font-mono">{op.activeOrderCount}</div>
-                    <div className="text-[10px] text-muted-foreground">orders</div>
+                    <div className="text-xs t-mono font-semibold">{op.activeOrderCount}</div>
+                    <div className="text-[10px] text-muted-foreground">active</div>
                   </div>
-                  <div className="w-12 h-2 bg-muted/30 rounded-full overflow-hidden">
+                  <div className="w-14 h-1.5 bg-secondary rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary/60 rounded-full transition-all"
                       style={{ width: `${Math.max((op.activeOrderCount / maxWorkload) * 100, 5)}%` }}

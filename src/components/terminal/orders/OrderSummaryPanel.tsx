@@ -1,7 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Clock, CreditCard, Hash, Timer, AlertTriangle, RefreshCw } from 'lucide-react';
+import { User, Clock, CreditCard, Hash, Timer, AlertTriangle, RefreshCw, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from './CounterpartyBadge';
 import { PaymentDetailsCard } from './PaymentDetailsCard';
@@ -31,8 +32,8 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
   const canActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeChip = order.trade_type === 'BUY'
-    ? 'bg-trade-buy/10 text-trade-buy border border-trade-buy/25'
-    : 'bg-trade-sell/10 text-trade-sell border border-trade-sell/25';
+    ? 'bg-[hsl(var(--trade-buy,var(--success))/0.1)] text-trade-buy border border-[hsl(var(--trade-buy,var(--success))/0.25)]'
+    : 'bg-[hsl(var(--trade-sell,var(--destructive))/0.1)] text-trade-sell border border-[hsl(var(--trade-sell,var(--destructive))/0.25)]';
 
 
   // Finalized states from live detail outrank stale cached active states,
@@ -63,10 +64,13 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
     ? new Date(order.binance_create_time).getTime()
     : null;
 
+  const statusStyle = getStatusStyle(opStatus);
+
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between mb-2">
+      {/* Amount + timer */}
+      <div className="px-4 py-3 border-b border-border space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
           <Badge className={`${tradeChip} text-[10px] font-bold uppercase tracking-wide t-mono rounded`}>
             {order.trade_type}
           </Badge>
@@ -77,31 +81,17 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
             isUnavailable={isHistoryUnavailable}
           />
         </div>
-        <h2 className="text-lg font-semibold text-foreground t-mono">
-          ₹{Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </h2>
-        <p className="text-xs text-muted-foreground mt-0.5 t-mono">
-          {Number(order.amount).toFixed(4)} {order.asset} @ ₹{Number(order.unit_price).toLocaleString('en-IN')}
-        </p>
-
-      </div>
-
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        <InfoRow icon={Hash} label="Order ID" value={order.binance_order_number} mono />
-        <InfoRow icon={User} label="Counterparty" value={order.counterparty_nickname} />
-        {counterpartyVerifiedName && (
-          <InfoRow icon={User} label="Verified Name" value={counterpartyVerifiedName} />
-        )}
-        {order.pay_method_name && (
-          <InfoRow icon={CreditCard} label="Payment" value={order.pay_method_name} />
-        )}
-        <InfoRow
-          icon={Clock}
-          label="Created"
-          value={order.binance_create_time
-            ? format(new Date(order.binance_create_time), 'dd MMM yyyy, HH:mm')
-            : '—'}
-        />
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {order.trade_type === 'BUY' ? 'You pay' : 'You receive'}
+          </p>
+          <h2 className={`text-xl font-semibold t-mono tabular-nums leading-tight ${tradeColor}`}>
+            ₹{Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5 t-mono tabular-nums">
+            {Number(order.amount).toFixed(4)} {order.asset} @ ₹{Number(order.unit_price).toLocaleString('en-IN')}
+          </p>
+        </div>
 
         {/* Countdown timer for active orders — uses notifyPayEndTime from Binance (the actual full payment deadline) */}
         {!isTerminal && notifyPayEndTimeMs && (
@@ -117,6 +107,28 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
         {createTimeMs && !isTerminal && !notifyPayEndTimeMs && !notifyPayedExpireMinute && (
           <ElapsedTimer createTime={createTimeMs} />
         )}
+      </div>
+
+      <div className="flex-1 overflow-auto px-4 py-3 space-y-4">
+        {/* Status */}
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5">Status</p>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="outline" className={`h-6 gap-1.5 rounded-full px-2.5 text-xs ${statusStyle.badgeClass}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dotColor}`} />
+              {statusStyle.label}
+            </Badge>
+            {shouldShowAppealStatus && (() => {
+              const appealStyle = getStatusStyle('Under Appeal');
+              return (
+                <Badge variant="outline" className={`h-6 gap-1.5 rounded-full px-2.5 text-xs ${appealStyle.badgeClass}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${appealStyle.dotColor}`} />
+                  {appealStyle.label}
+                </Badge>
+              );
+            })()}
+          </div>
+        </div>
 
         {/* Alternate UPI Request Alert */}
         {hasPendingAltUpi && (
@@ -125,10 +137,10 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
               <RefreshCw className="h-3.5 w-3.5 text-warning" />
               <span className="text-xs font-medium text-warning">Alternate UPI Requested</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">Payer has requested an alternate UPI for this order.</p>
+            <p className="text-[11px] text-muted-foreground">Payer has requested an alternate UPI for this order.</p>
             <Button
               size="sm"
-              className="h-7 text-[10px] w-full"
+              className="h-8 text-xs w-full"
               onClick={() => setShowUpdateDialog(true)}
             >
               Update Payment Method
@@ -145,43 +157,37 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
           />
         )}
 
-        {/* Status */}
-        <div className="pt-3 border-t border-border">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Status</p>
-          {(() => {
-            const style = getStatusStyle(opStatus);
-            return (
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant="outline" className={`text-xs ${style.badgeClass}`}>
-                  {style.label}
-                </Badge>
-                {shouldShowAppealStatus && (() => {
-                  const appealStyle = getStatusStyle('Under Appeal');
-                  return <Badge variant="outline" className={`text-xs ${appealStyle.badgeClass}`}>{appealStyle.label}</Badge>;
-                })()}
-              </div>
-            );
-          })()}
-        </div>
+        {/* Order details */}
+        <dl className="divide-y divide-border/60 rounded-md border border-border">
+          <InfoRow icon={Hash} label="Order ID" value={order.binance_order_number} mono copyable stacked />
+          <InfoRow icon={User} label="Counterparty" value={order.counterparty_nickname} />
+          {counterpartyVerifiedName && (
+            <InfoRow icon={User} label="Verified Name" value={counterpartyVerifiedName} />
+          )}
+          {order.pay_method_name && (
+            <InfoRow icon={CreditCard} label="Payment" value={order.pay_method_name} />
+          )}
+          <InfoRow
+            icon={Clock}
+            label="Created"
+            value={order.binance_create_time
+              ? format(new Date(order.binance_create_time), 'dd MMM yyyy, HH:mm')
+              : '—'}
+          />
+          {/* Ad reference */}
+          {order.binance_adv_no && (
+            <InfoRow icon={Hash} label="Ad Reference" value={order.binance_adv_no} mono stacked />
+          )}
+          {/* Commission */}
+          {order.commission > 0 && (
+            <InfoRow icon={Hash} label="Commission" value={`${Number(order.commission).toFixed(4)} ${order.asset}`} mono />
+          )}
+        </dl>
+      </div>
 
-        {/* Ad reference */}
-        {order.binance_adv_no && (
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Ad Reference</p>
-            <p className="text-xs text-foreground font-mono">{order.binance_adv_no}</p>
-          </div>
-        )}
-
-        {/* Commission */}
-        {order.commission > 0 && (
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Commission</p>
-            <p className="text-xs text-foreground tabular-nums">{Number(order.commission).toFixed(4)} {order.asset}</p>
-          </div>
-        )}
-
-        {/* Order Actions — gated by terminal_orders_actions */}
-        {canActions && (
+      {/* Order Actions — gated by terminal_orders_actions; pinned so they never scroll away */}
+      {canActions && (
+        <div className="shrink-0 border-t border-border bg-card px-4 py-3 empty:hidden">
           <OrderActions
             orderNumber={order.binance_order_number}
             orderStatus={effectiveRawStatus}
@@ -194,8 +200,8 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
             advNo={(liveDetail?.advNo as string | undefined) || undefined}
             counterpartyName={counterpartyVerifiedName}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Update Payment Method Dialog */}
       {altUpiRequest && (
@@ -248,18 +254,25 @@ function CountdownTimer({ expiryTime, payTimeLimitMinutes }: { expiryTime: numbe
     : 'text-foreground';
 
   return (
-    <div className="rounded-md bg-trade-pending/10 border border-trade-pending/20 px-3 py-2">
-      <div className="flex items-center gap-1.5 mb-1">
+    <div
+      className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 ${
+        urgency === 'critical'
+          ? 'bg-destructive/10 border-destructive/25'
+          : 'bg-[hsl(var(--trade-pending,var(--warning))/0.1)] border-[hsl(var(--trade-pending,var(--warning))/0.2)]'
+      }`}
+      role="timer"
+    >
+      <div className="flex items-center gap-1.5 min-w-0">
         {urgency === 'critical' ? (
-          <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
+          <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
         ) : (
-          <Timer className="h-3 w-3 text-muted-foreground shrink-0" />
+          <Timer className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         )}
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <p className="text-[10px] uppercase leading-tight tracking-wide text-muted-foreground">
           {isExpired ? 'Payment Window' : `Time Remaining${payTimeLimitMinutes ? ` · ${payTimeLimitMinutes}min` : ''}`}
         </p>
       </div>
-      <p className={`t-mono text-lg font-semibold ${urgency === 'normal' ? 'text-trade-pending' : colorClass}`}>{remaining}</p>
+      <p className={`shrink-0 t-mono text-base font-semibold tabular-nums ${urgency === 'normal' ? 'text-trade-pending' : colorClass}`}>{remaining}</p>
     </div>
   );
 }
@@ -283,25 +296,55 @@ function ElapsedTimer({ createTime }: { createTime: number }) {
   }, [createTime]);
 
   return (
-    <div className="flex items-start gap-2.5">
-      <Timer className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-      <div className="min-w-0">
-        <p className="text-[10px] text-muted-foreground">Elapsed</p>
-        <p className="text-xs font-medium text-foreground tabular-nums">{elapsed}</p>
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-secondary/40 px-3 py-2">
+      <div className="flex items-center gap-1.5">
+        <Timer className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Elapsed</p>
       </div>
+      <p className="t-mono text-sm font-medium text-foreground tabular-nums">{elapsed}</p>
     </div>
   );
 }
 
-function InfoRow({ icon: Icon, label, value, mono }: { icon: any; label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className={`text-xs text-foreground t-mono ${mono ? '' : ''} break-all`}>{value}</p>
+function InfoRow({ icon: Icon, label, value, mono, copyable, stacked }: { icon: any; label: string; value: string; mono?: boolean; copyable?: boolean; stacked?: boolean }) {
+  const copyButton = copyable ? (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(value);
+        toast.success(`${label} copied`);
+      }}
+      className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+      aria-label={`Copy ${label}`}
+      title={`Copy ${label}`}
+    >
+      <Copy className="h-3 w-3" />
+    </button>
+  ) : null;
+  if (stacked) {
+    return (
+      <div className="px-3 py-2">
+        <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Icon className="h-3 w-3 shrink-0" />
+          {label}
+        </dt>
+        <dd className="mt-0.5 flex items-start justify-between gap-1">
+          <span className={`min-w-0 break-all text-xs text-foreground ${mono ? 't-mono' : ''}`}>{value}</span>
+          {copyButton}
+        </dd>
       </div>
+    );
+  }
+  return (
+    <div className="flex items-start justify-between gap-3 px-3 py-2">
+      <dt className="flex items-center gap-1.5 shrink-0 pt-px text-[11px] text-muted-foreground">
+        <Icon className="h-3 w-3 shrink-0" />
+        {label}
+      </dt>
+      <dd className="flex min-w-0 items-start gap-1 text-right">
+        <span className={`min-w-0 break-all text-xs text-foreground ${mono ? 't-mono' : ''}`}>{value}</span>
+        {copyButton}
+      </dd>
     </div>
   );
-
 }

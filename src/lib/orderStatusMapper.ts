@@ -117,7 +117,7 @@ const STATUS_STYLES: Record<OperationalStatus, Omit<StatusStyle, 'label'>> = {
     dotColor: 'bg-orange-500',
   },
   Completed: {
-    badgeClass: 'border-trade-buy/30 text-trade-buy bg-trade-buy/5',
+    badgeClass: 'border-[hsl(var(--trade-buy,var(--success))/0.3)] text-trade-buy bg-[hsl(var(--trade-buy,var(--success))/0.05)]',
     dotColor: 'bg-trade-buy',
   },
   Cancelled: {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -154,8 +154,9 @@ export function AddTimeDialog({ attemptId, open, onOpenChange }: { attemptId: st
 }
 
 export function ReasonDialog({
-  open, onOpenChange, title, description, confirmLabel, destructive, onConfirm, pending,
+  open, onOpenChange, title, description, confirmLabel, destructive, onConfirm, pending, extra,
 }: {
+  extra?: ReactNode;
   open: boolean; onOpenChange: (o: boolean) => void; title: string; description: string; confirmLabel: string;
   destructive?: boolean; onConfirm: (reason: string) => void; pending?: boolean;
 }) {
@@ -164,6 +165,7 @@ export function ReasonDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) setReason(""); onOpenChange(o); }}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
+        {extra}
         <div><Label htmlFor="reason-text">Reason (required)</Label><Textarea id="reason-text" className="text-foreground" value={reason} onChange={(e) => setReason(e.target.value)} /></div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

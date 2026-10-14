@@ -189,23 +189,21 @@ export function AttemptPanel({ attemptId, onClose, canManage }: { attemptId: str
           confirmLabel="Invalidate" destructive pending={act.isPending}
           onConfirm={(reason) => a && act.mutate({ fn: "cbt_invalidate_attempt", args: { p_attempt_id: a.id, p_reason: reason }, ok: "Attempt invalidated" })}
         />
-        <Sheet open={false} />
-        {dialog === "override" && a && (
-          <ReasonDialog
-            open onOpenChange={(o) => setDialog(o ? "override" : null)}
-            title="Override decision" description="The automatic rules will not change an HR decision until you choose Back to automatic."
-            confirmLabel="Save decision" pending={act.isPending}
-            onConfirm={(reason) => act.mutate({ fn: "cbt_override_decision", args: { p_attempt_id: a.id, p_decision: overrideTo, p_reason: reason }, ok: "Decision saved" })}
-          />
-        )}
-        {dialog === "override" && (
-          <div className="fixed left-1/2 top-[18%] z-[60] w-64 -translate-x-1/2">
-            <Select value={overrideTo} onValueChange={setOverrideTo}>
-              <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
-              <SelectContent className="z-[70]"><SelectItem value="shortlisted">Shortlist</SelectItem><SelectItem value="hold">Hold</SelectItem><SelectItem value="rejected">Reject</SelectItem></SelectContent>
-            </Select>
-          </div>
-        )}
+        <ReasonDialog
+          open={dialog === "override"} onOpenChange={(o) => setDialog(o ? "override" : null)}
+          title="Override decision" description="The automatic rules will not change an HR decision until you choose Back to automatic."
+          confirmLabel="Save decision" pending={act.isPending}
+          extra={
+            <div>
+              <p className="mb-1 text-sm font-medium">New decision</p>
+              <Select value={overrideTo} onValueChange={setOverrideTo}>
+                <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="shortlisted">Shortlist</SelectItem><SelectItem value="hold">Hold</SelectItem><SelectItem value="rejected">Reject</SelectItem></SelectContent>
+              </Select>
+            </div>
+          }
+          onConfirm={(reason) => a && act.mutate({ fn: "cbt_override_decision", args: { p_attempt_id: a.id, p_decision: overrideTo, p_reason: reason }, ok: "Decision saved" })}
+        />
       </SheetContent>
     </Sheet>
   );

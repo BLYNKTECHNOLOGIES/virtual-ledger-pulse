@@ -471,6 +471,28 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     prevCountRef.current = currentOrderMessages.length;
   }, [wsMessages, currentOrderMessages.length, soundEnabled, counterpartyNickname]);
 
+  // While this chat stays open and visible, messages that arrive are seen by the
+  // operator, so mark them read too (debounced). The open-time mark above only
+  // covers messages that existed when the chat was opened.
+  const seenCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!orderNumber || orderNumber.startsWith('INQ-')) return;
+    const count = currentOrderMessages.length;
+    if (seenCountRef.current === null) { seenCountRef.current = count; return; }
+    if (count <= seenCountRef.current) return;
+    const t = setTimeout(() => {
+      if (document.visibilityState !== 'visible') return;
+      seenCountRef.current = count;
+      markOrderChatRead(orderNumber);
+      supabase.rpc('mark_terminal_binance_chat_read', { p_order_number: orderNumber, p_source: 'operator' })
+        .then(({ error }) => { if (error) console.warn('Failed to record team chat read:', error.message); });
+      callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }, exchangeAccountId ?? undefined).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [currentOrderMessages.length, orderNumber, exchangeAccountId, queryClient]);
+  useEffect(() => { seenCountRef.current = null; }, [orderNumber]);
+
   // Initial open: instant-pin to the newest message while anything about the
   // initial content changes (archived fetch, history discovery, prepends).
   const initialContentReady = !archivedLoading && !historyDiscovering && !historyLoading;

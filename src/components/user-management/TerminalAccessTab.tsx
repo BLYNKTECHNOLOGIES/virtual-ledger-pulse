@@ -31,8 +31,8 @@ import {
 import { UserPlus, Terminal, RefreshCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
+import { useSearchParams } from "react-router-dom";
+import { useUmAccess } from "./useUmAccess";
 import { Panel } from "@/components/finance-ui/primitives";
 import { cn } from "@/lib/utils";
 import { Initials, PanelMessage, PanelSkeleton, SearchField, isSystemRole, UM_TABLE } from "./umUi";
@@ -66,11 +66,13 @@ export function TerminalAccessTab() {
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState("");
-  // Same test PermissionGate(["user_management_manage"]) applies, computed once for the whole tab
-  // (a gate per row/chip would each re-fetch the user's permissions).
-  const { hasPermission } = usePermissions();
-  const { isAdmin } = useAuth();
-  const canManage = isAdmin || hasPermission("user_management_manage");
+  // UM-2A S3: controls follow the server's Terminal rule (assign_terminal_role / remove_terminal_role):
+  // only Terminal roles ranked below yours, holding only Terminal access you have.
+  const { access, actionsFor } = useUmAccess();
+  const canManage = !!access?.terminal?.can_assign;
+  const grantable = (roleId: string) => !!access?.terminal?.grantable_role_ids?.includes(roleId);
+  const [searchParams] = useSearchParams();
+  const personParam = searchParams.get("person");
 
   const fetchData = useCallback(async () => {
     try {
@@ -142,6 +144,13 @@ export function TerminalAccessTab() {
     fetchData();
   }, [fetchData]);
 
+  // Opened from Edit user: narrow the list to that person.
+  useEffect(() => {
+    if (!personParam || allUsers.length === 0) return;
+    const u = allUsers.find((x) => x.id === personParam);
+    if (u) setSearchTerm(u.username);
+  }, [personParam, allUsers]);
+
   const handleAssignRole = async () => {
     if (!selectedUserId || !selectedRoleId) {
       toast.error("Please select both a user and a role");
@@ -163,7 +172,7 @@ export function TerminalAccessTab() {
 
       if (error) {
         console.error("Error assigning terminal role:", error);
-        toast.error("Failed to assign terminal role");
+        toast.error(error.message || "Failed to assign terminal role");
         return;
       }
 
@@ -198,7 +207,7 @@ export function TerminalAccessTab() {
 
       if (error) {
         console.error("Error removing terminal role:", error);
-        toast.error("Failed to remove terminal role");
+        toast.error(error.message || "Failed to remove terminal role");
         setRoleToRemove(null);
         return;
       }
@@ -222,11 +231,11 @@ export function TerminalAccessTab() {
   );
 
   const filteredUsersForDialog = allUsers.filter(
-    (u) =>
+    (u) => actionsFor(u.id).terminal && (
       u.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
       (u.first_name && u.first_name.toLowerCase().includes(userSearchTerm.toLowerCase())) ||
-      (u.last_name && u.last_name.toLowerCase().includes(userSearchTerm.toLowerCase()))
+      (u.last_name && u.last_name.toLowerCase().includes(userSearchTerm.toLowerCase())))
   );
 
   const displayName = (firstName: string | null, lastName: string | null, username: string) =>
@@ -260,7 +269,7 @@ export function TerminalAccessTab() {
           )}
         >
           {role.name}
-          {canManage && (
+          {canManage && grantable(role.id) && actionsFor(assignment.userId).terminal && (
             <button
               type="button"
               onClick={() => handleRemoveRole(assignment.userId, role.id, role.name, assignment.username)}
@@ -332,7 +341,7 @@ export function TerminalAccessTab() {
                         <SelectValue placeholder="Choose a Terminal role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableRoles.map((role) => (
+                        {availableRoles.filter((role) => grantable(role.id)).map((role) => (
                           <SelectItem key={role.id} value={role.id}>
                             <div className="flex flex-col">
                               <span>{role.name}</span>

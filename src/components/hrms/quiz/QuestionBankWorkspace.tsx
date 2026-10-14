@@ -229,8 +229,9 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
           icon={CircleHelp}
           title="Question bank is empty"
           description="Add approved questions; unapproved questions are never served to candidates."
-          action={onAddQuestion ? <Button onClick={onAddQuestion}>Add question</Button> : undefined}
+          action={onAddQuestion ? <Button onClick={onAddQuestion}>Add item</Button> : undefined}
         />
+        <QuestionEditor open={editor.open} onOpenChange={(o) => setEditor((e) => ({ ...e, open: o }))} question={editor.q} subjects={subjectList} roleCodes={roleCodes} />
       </div>
     );
   }

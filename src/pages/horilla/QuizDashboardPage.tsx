@@ -26,6 +26,7 @@ import { QuestionBankWorkspace } from "@/components/hrms/quiz/QuestionBankWorksp
 import { QuizOverview } from "@/components/hrms/quiz/QuizOverview";
 import { QuizDrives } from "@/components/hrms/quiz/QuizDrives";
 import { QuizResults } from "@/components/hrms/quiz/QuizResults";
+import { QuizSettings } from "@/components/hrms/quiz/QuizSettings";
 
 
 type QuizView = "overview" | "drives" | "results" | "grading" | "tests" | "questions" | "settings";
@@ -166,23 +167,25 @@ export default function QuizDashboardPage() {
   const canManage = hasAnyPermission(["hrms_quiz_manage", "hrms_quiz_admin"]);
   const canAdmin = hasAnyPermission(["hrms_quiz_admin"]);
   const canEvaluate = hasAnyPermission(["hrms_quiz_evaluate", "hrms_quiz_manage", "hrms_quiz_admin"]);
-  const [dialog, setDialog] = useState<"role" | "question" | null>(null);
+  // Evaluate-only people (no view/manage/admin) see Grading only — blind, nothing else.
+  const canView = hasAnyPermission(["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_admin"]);
+  const visibleView: QuizView = canView ? activeView : "grading";
+  const [dialog, setDialog] = useState<"role" | null>(null);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [gradingRow, setGradingRow] = useState<EvaluationRow | null>(null);
   const [gradingForm, setGradingForm] = useState({ score: "", comments: "" });
   const [roleForm, setRoleForm] = useState({ positionId: "", code: "", shortlist: "65", hold: "50" });
   const [roleActive, setRoleActive] = useState(true);
   const [blueprintSections, setBlueprintSections] = useState<BlueprintSectionForm[]>([]);
-  const emptyQuestion = {
-    type: "mcq", categoryTag: "", difficulty: "medium", prompt: "", marks: "1",
-    options: ["", "", "", ""], correct: "a", numericAnswer: "", tolerance: "0",
-    roleCode: "__any", explanation: "", approve: true,
-  };
-  const [questionForm, setQuestionForm] = useState(emptyQuestion);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["cbt", "staff-workspace"],
+    queryKey: ["cbt", "staff-workspace", canView],
     queryFn: async () => {
+      if (!canView) {
+        const ev = await supabase.from("cbt_written_evaluations").select("*, cbt_attempt_items(response, cbt_question_versions(content))").order("created_at", { ascending: false }).limit(100);
+        if (ev.error) throw ev.error;
+        return { drives: [], candidates: [], attempts: [], questions: [], roles: [], roleSections: [], departments: [], evaluations: ev.data ?? [], settings: null, positions: [] } as any;
+      }
       const [drives, candidates, attempts, questions, roles, roleSections, departments, evaluations, settingsRow, positions] = await Promise.all([
         supabase.from("cbt_drives").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_candidates").select("*").order("created_at", { ascending: false }).limit(100),
@@ -293,54 +296,6 @@ export default function QuizDashboardPage() {
     setDialog("role");
   };
 
-  const optionIds = ["a", "b", "c", "d"];
-  const createQuestion = useMutation({
-    mutationFn: async () => {
-      const marks = Number(questionForm.marks);
-      if (!questionForm.categoryTag.trim()) throw new Error("Enter the category tag used by the section blueprint.");
-      if (!questionForm.prompt.trim()) throw new Error(questionForm.type === "typing_passage" ? "Enter the passage text." : "Enter the question text.");
-      if (questionForm.type === "typing_passage" && questionForm.prompt.trim().split(/\s+/).length < 40) {
-        throw new Error("A typing passage needs at least 40 words.");
-      }
-      if (!Number.isFinite(marks) || marks <= 0) throw new Error("Marks must be greater than zero.");
-      const payload: Record<string, unknown> = {
-        p_type: questionForm.type,
-        p_category_tag: questionForm.categoryTag.trim(),
-        p_difficulty: questionForm.difficulty,
-        p_prompt: questionForm.prompt.trim(),
-        p_marks: marks,
-        p_role_codes: questionForm.roleCode === "__any" ? null : [questionForm.roleCode],
-        p_explanation: questionForm.explanation.trim() || null,
-        p_approve: questionForm.approve,
-      };
-      if (questionForm.type === "mcq") {
-        const options = questionForm.options
-          .map((text, index) => ({ id: optionIds[index], text: text.trim() }))
-          .filter((option) => option.text.length > 0);
-        if (options.length < 2) throw new Error("Enter at least two options.");
-        if (!options.some((option) => option.id === questionForm.correct)) throw new Error("The correct option must have text.");
-        payload.p_options = options;
-        payload.p_correct_option_id = questionForm.correct;
-      } else if (questionForm.type === "numeric") {
-        const answer = Number(questionForm.numericAnswer);
-        const tolerance = Number(questionForm.tolerance || "0");
-        if (!Number.isFinite(answer)) throw new Error("Enter the correct numeric answer.");
-        if (!Number.isFinite(tolerance) || tolerance < 0) throw new Error("Tolerance must be zero or more.");
-        payload.p_numeric_answer = answer;
-        payload.p_numeric_tolerance = tolerance;
-      }
-      const { error } = await supabase.rpc("cbt_create_question" as never, payload as never);
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["cbt", "staff-workspace"] });
-      setDialog(null);
-      setQuestionForm(emptyQuestion);
-      toast({ title: "Question added" });
-    },
-    onError: (error: Error) => toast({ title: "Question not added", description: error.message, variant: "destructive" }),
-  });
-
   const gradeResponse = useMutation({
     mutationFn: async () => {
       if (!gradingRow) throw new Error("Select a written response to grade.");
@@ -397,15 +352,19 @@ export default function QuizDashboardPage() {
     <div className="page-mount space-y-5 p-2 sm:p-3 md:p-0">
       <PageHeader title="Quiz" description="Role-based candidate screening, scoring, evaluation, and test administration." />
 
-      <Tabs value={activeView} onValueChange={changeView}>
-        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
-          <TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
-          <TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="grading">Grading</TabsTrigger>
-          <TabsTrigger value="tests">Tests</TabsTrigger><TabsTrigger value="questions">Question bank</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+      <Tabs value={visibleView} onValueChange={changeView}>
+        {canView ? (
+          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+            <TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="grading">Grading</TabsTrigger>
+            <TabsTrigger value="tests">Tests</TabsTrigger><TabsTrigger value="questions">Question bank</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+        ) : (
+          <TabsList className="w-full justify-start"><TabsTrigger value="grading">Grading</TabsTrigger></TabsList>
+        )}
 
-        <TabsContent value="overview" className="space-y-5">
+        {canView && <><TabsContent value="overview" className="space-y-5">
           <QuizOverview onOpenDrive={(id) => openDrive(id)} onOpenView={changeView} />
         </TabsContent>
 
@@ -415,12 +374,12 @@ export default function QuizDashboardPage() {
 
         <TabsContent value="results" className="space-y-4">
           <QuizResults drives={(data?.drives ?? []).map((d: any) => ({ id: d.id, name: d.name }))} tests={(data?.roles ?? []).map((r: any) => ({ id: r.id, name: r.name }))} canManage={canManage} />
-        </TabsContent>
+        </TabsContent></>}
 
         <TabsContent value="grading" className="space-y-4"><div><h2 className="text-lg font-semibold">Blind written evaluations</h2><p className="text-sm text-muted-foreground">Written responses are graded without exposing candidate identity.</p></div>{!canEvaluate ? noData(ShieldCheck, "Evaluation permission required", "Ask a Quiz administrator for evaluator access.") : !data?.evaluations.length ? noData(ClipboardCheck, "No responses await grading", "Submitted written responses will enter this queue automatically.") : <div className="grid gap-3">{(data.evaluations as EvaluationRow[]).map((row) => { const prompt = row.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"; const answer = row.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"; return <Card key={row.id}><CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div className="min-w-0"><p className="text-sm font-medium">{prompt}</p><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{answer}</p><div className="mt-2 flex flex-wrap items-center gap-2"><Badge variant={row.total === null ? "warning" : "success"}>{row.total === null ? "Awaiting grading" : `${row.total}/20`}</Badge><span className="text-xs text-muted-foreground">Updated {fmtDate(row.updated_at)}</span></div></div><Button variant={row.total === null ? "default" : "outline"} onClick={() => openGrading(row)}>{row.total === null ? "Grade response" : "Review grade"}</Button></CardContent></Card>; })}</div>}
         </TabsContent>
 
-        <TabsContent value="questions" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Subject-wise content with per-question performance — accuracy, wrong answers and option choices.</p></div>{canManage && <Button variant="outline" onClick={() => setDialog("question")}><Plus />Add question</Button>}</div><QuestionBankWorkspace onAddQuestion={canManage ? () => setDialog("question") : undefined} />
+        {canView && <><TabsContent value="questions" className="space-y-4"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Hiring and Staff pools never mix; skill-drill content can be Shared. Only Approved items are served (sandbox drives may also use Needs review).</p></div><QuestionBankWorkspace canManage={canManage} roleCodes={(data?.roles ?? []).map((r: any) => ({ code: r.code, name: r.name }))} />
         </TabsContent>
 
         <TabsContent value="tests" className="space-y-8">
@@ -460,7 +419,7 @@ export default function QuizDashboardPage() {
                   )}
                   {!skill.sections.length && canManage && (
                     <div className="border-t border-border pt-3">
-                      <Button variant="outline" size="sm" onClick={() => changeView("tests")}><Gauge className="h-4 w-4" />Add to a role blueprint</Button>
+                      <Button variant="outline" size="sm" onClick={() => { const first = (data?.roles ?? [])[0]; if (first) openRoleEditor(first); else openNewRole(); }}><Gauge className="h-4 w-4" />Add to a role blueprint</Button>
                     </div>
                   )}
                 </CardContent>
@@ -473,13 +432,12 @@ export default function QuizDashboardPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-4"><div><h2 className="text-lg font-semibold">Quiz settings</h2><p className="text-sm text-muted-foreground">Global candidate-session, warning, and retention controls.</p></div>{data?.settings ? <div className="grid gap-x-8 gap-y-4 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">{[["Company", data.settings.company_name], ["HR contact", data.settings.hr_email], ["Retention", `${data.settings.retention_days} days`], ["Warning limit", data.settings.max_warnings], ["Heartbeat", `${data.settings.heartbeat_seconds} seconds`], ["Abandon after", `${data.settings.abandon_after_minutes} minutes`]].map(([label, value]) => <div key={String(label)}><p className="text-xs font-medium uppercase text-muted-foreground">{label}</p><p className="mt-1 text-sm font-medium">{value}</p></div>)}</div> : noData(Settings, "Settings unavailable", "Quiz settings have not been initialized.")}{!canAdmin && <p className="text-xs text-muted-foreground">Only Quiz administrators can change global settings.</p>}</TabsContent>
+        <TabsContent value="settings" className="space-y-4"><div><h2 className="text-lg font-semibold">Quiz settings</h2><p className="text-sm text-muted-foreground">Company details, candidate-session timing, warnings and retention. Every change is recorded.</p></div><QuizSettings settings={data?.settings ?? null} canAdmin={canAdmin} /></TabsContent></>}
       </Tabs>
 
 
       <Dialog open={dialog === "role"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>{editingRoleId ? "Edit role & blueprint" : "Create role blueprint"}</DialogTitle><DialogDescription>The role identity stays linked to the company position. Configure its cut-offs and ordered test sections here.</DialogDescription></DialogHeader><div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2"><div><Label>Company position</Label><Select disabled={Boolean(editingRoleId)} value={roleForm.positionId} onValueChange={(positionId) => setRoleForm((v) => ({ ...v, positionId }))}><SelectTrigger className="text-foreground"><SelectValue placeholder="Select a position" /></SelectTrigger><SelectContent>{editingRoleId && (data?.roles ?? []).filter((role: any) => role.id === editingRoleId).map((role: any) => <SelectItem key={role.position_id} value={role.position_id}>{role.name}</SelectItem>)}{availablePositions.map((position: any) => <SelectItem key={position.id} value={position.id}>{position.title}{position.departments?.code ? ` — ${position.departments.code}` : ""}</SelectItem>)}</SelectContent></Select>{!editingRoleId && !availablePositions.length && <p className="mt-1 text-xs text-muted-foreground">Every active position already has a role blueprint.</p>}</div><div><Label htmlFor="role-code">Role code</Label><Input id="role-code" className="text-foreground" value={roleForm.code} onChange={(e) => setRoleForm((v) => ({ ...v, code: e.target.value }))} placeholder="Auto-generated if left blank" /></div><div><Label htmlFor="shortlist">Shortlist %</Label><Input id="shortlist" className="text-foreground" type="number" min="0" max="100" value={roleForm.shortlist} onChange={(e) => setRoleForm((v) => ({ ...v, shortlist: e.target.value }))} /></div><div><Label htmlFor="hold">Hold %</Label><Input id="hold" className="text-foreground" type="number" min="0" max="100" value={roleForm.hold} onChange={(e) => setRoleForm((v) => ({ ...v, hold: e.target.value }))} /></div><div><Label>Status</Label><Select value={roleActive ? "active" : "inactive"} onValueChange={(value) => setRoleActive(value === "active")}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent></Select></div></div><div className="space-y-3 border-t border-border pt-4"><div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">Assessment sections</h3><p className="text-xs text-muted-foreground">The displayed order is the candidate’s test order.</p></div><Button type="button" variant="outline" size="sm" onClick={() => setBlueprintSections((sections) => [...sections, emptySection()])}><Plus className="h-4 w-4" />Add section</Button></div>{!blueprintSections.length && <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">No sections configured yet.</p>}{blueprintSections.map((section, index) => <div key={section.id ?? `new-${index}`} className="grid gap-3 rounded-md border border-border p-3"><div className="flex items-center justify-between"><p className="text-sm font-semibold">Section {index + 1}</p><Button type="button" variant="ghost" size="icon" title="Remove section" aria-label={`Remove section ${index + 1}`} onClick={() => setBlueprintSections((sections) => sections.filter((_, position) => position !== index))}><Trash2 className="h-4 w-4" /></Button></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><div><Label>Code</Label><Input className="text-foreground" value={section.sectionCode} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, sectionCode: event.target.value } : value))} placeholder="OBJ" /></div><div><Label>Type</Label><Select value={section.sectionType} onValueChange={(value: BlueprintSectionForm["sectionType"]) => setBlueprintSections((sections) => sections.map((item, position) => position === index ? { ...item, sectionType: value } : item))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="objective">Objective</SelectItem><SelectItem value="written">Written</SelectItem><SelectItem value="typing">Typing</SelectItem><SelectItem value="data_entry">Data entry</SelectItem><SelectItem value="match_pairs">Match pairs</SelectItem><SelectItem value="mental_maths">Skill Box — mental maths</SelectItem><SelectItem value="memory_recall">Skill Box — memory recall</SelectItem><SelectItem value="logical_reasoning">Skill — Logical reasoning</SelectItem><SelectItem value="problem_solving">Skill — Problem solving</SelectItem><SelectItem value="pattern_recognition">Skill — Pattern recognition</SelectItem><SelectItem value="grammar">Skill — Grammar</SelectItem><SelectItem value="vocabulary">Skill — Vocabulary</SelectItem></SelectContent></Select></div>{SKILL_SECTION_TYPES.includes(section.sectionType) && <div><Label>Level</Label><Select value={section.skillLevel || "intermediate"} onValueChange={(value: SkillLevel) => setBlueprintSections((sections) => sections.map((item, position) => position === index ? { ...item, skillLevel: value, ...(LEVEL_PRESETS[item.sectionType]?.[value] ?? {}) } : item))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent>{SKILL_LEVELS.map((lvl) => <SelectItem key={lvl.id} value={lvl.id}>{lvl.label}</SelectItem>)}</SelectContent></Select><p className="mt-1 text-xs text-muted-foreground">Sets the pace, length and pass targets for this drill.</p></div>}<div><Label>Title</Label><Input className="text-foreground" value={section.title} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, title: event.target.value } : value))} /></div><div className="sm:col-span-2 lg:col-span-3"><Label>Question category tags</Label><Input className="text-foreground" value={section.categoryTags} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, categoryTags: event.target.value } : value))} placeholder="aptitude, banking (comma separated)" /></div><div><Label>Questions</Label><Input className="text-foreground" type="number" min="1" value={section.itemCount} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, itemCount: event.target.value } : value))} /></div><div><Label>Minutes</Label><Input className="text-foreground" inputMode="decimal" value={section.durationMinutes} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, durationMinutes: event.target.value } : value))} /></div><div><Label>Weight %</Label><Input className="text-foreground" inputMode="decimal" value={section.weight} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, weight: event.target.value } : value))} /></div><div><Label>Negative mark</Label><Input className="text-foreground" inputMode="decimal" value={section.negativeMark} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, negativeMark: event.target.value } : value))} /></div><div><Label>Minimum score %</Label><Input className="text-foreground" inputMode="decimal" value={section.gateMinScore} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, gateMinScore: event.target.value } : value))} placeholder="Optional" /></div>{section.sectionType === "typing" && <><div><Label>Target net WPM (full marks)</Label><Input className="text-foreground" inputMode="decimal" value={section.fullMarksWpm} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, fullMarksWpm: event.target.value } : value))} placeholder="e.g. 40" /></div><div><Label>Minimum net WPM to pass</Label><Input className="text-foreground" inputMode="decimal" value={section.gateMinNetWpm} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, gateMinNetWpm: event.target.value } : value))} placeholder="Optional" /></div><div><Label>Minimum accuracy %</Label><Input className="text-foreground" inputMode="decimal" value={section.gateMinAccuracy} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, gateMinAccuracy: event.target.value } : value))} placeholder="Optional" /></div><div><Label>Warm-up minutes</Label><Input className="text-foreground" inputMode="decimal" value={section.practiceMinutes} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, practiceMinutes: event.target.value } : value))} placeholder="0" /></div></>}</div></div>)}</div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createRole.isPending} disabled={!roleForm.positionId} onClick={() => createRole.mutate()}>{editingRoleId ? "Save changes" : "Create role"}</Button></DialogFooter></DialogContent></Dialog>
 
-      <Dialog open={dialog === "question"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent className="max-h-[85vh] overflow-y-auto"><DialogHeader><DialogTitle>Add question</DialogTitle><DialogDescription>The answer key is stored privately and is never shown to candidates.</DialogDescription></DialogHeader><div className="grid gap-4"><div className="grid gap-4 sm:grid-cols-2"><div><Label>Question type</Label><Select value={questionForm.type} onValueChange={(value) => setQuestionForm((form) => ({ ...form, type: value }))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mcq">Multiple choice</SelectItem><SelectItem value="numeric">Numeric answer</SelectItem><SelectItem value="written">Written answer</SelectItem><SelectItem value="typing_passage">Typing passage</SelectItem></SelectContent></Select></div><div><Label>Difficulty</Label><Select value={questionForm.difficulty} onValueChange={(value) => setQuestionForm((form) => ({ ...form, difficulty: value }))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="easy">Easy</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="hard">Hard</SelectItem></SelectContent></Select></div></div><div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="question-tag">Category tag</Label><Input id="question-tag" className="text-foreground" value={questionForm.categoryTag} onChange={(event) => setQuestionForm((form) => ({ ...form, categoryTag: event.target.value }))} placeholder="Must match the section blueprint tag, e.g. demo" /></div><div><Label>Applies to role</Label><Select value={questionForm.roleCode} onValueChange={(value) => setQuestionForm((form) => ({ ...form, roleCode: value }))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__any">All roles</SelectItem>{(data?.roles ?? []).map((role: any) => <SelectItem key={role.id} value={role.code}>{role.name} ({role.code})</SelectItem>)}</SelectContent></Select></div></div><div><Label htmlFor="question-prompt">{questionForm.type === "typing_passage" ? "Passage the candidate must type (40 words or more)" : "Question text"}</Label><Textarea id="question-prompt" rows={questionForm.type === "typing_passage" ? 8 : 4} className="text-foreground" value={questionForm.prompt} onChange={(event) => setQuestionForm((form) => ({ ...form, prompt: event.target.value }))} placeholder={questionForm.type === "typing_passage" ? "Paste the passage exactly as it should be typed" : "What the candidate will read"} /></div>{questionForm.type === "mcq" && <div className="grid gap-3">{questionForm.options.map((option, index) => <div key={optionIds[index]} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end"><div><Label htmlFor={`question-option-${optionIds[index]}`}>Option {optionIds[index].toUpperCase()}</Label><Input id={`question-option-${optionIds[index]}`} className="text-foreground" value={option} onChange={(event) => setQuestionForm((form) => ({ ...form, options: form.options.map((value, position) => position === index ? event.target.value : value) }))} placeholder={index < 2 ? "Required" : "Optional"} /></div><Button type="button" variant={questionForm.correct === optionIds[index] ? "default" : "outline"} onClick={() => setQuestionForm((form) => ({ ...form, correct: optionIds[index] }))}>{questionForm.correct === optionIds[index] ? "Correct" : "Mark correct"}</Button></div>)}</div>}{questionForm.type === "numeric" && <div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="question-answer">Correct answer</Label><Input id="question-answer" className="text-foreground" inputMode="decimal" value={questionForm.numericAnswer} onChange={(event) => setQuestionForm((form) => ({ ...form, numericAnswer: event.target.value }))} /></div><div><Label htmlFor="question-tolerance">Allowed difference</Label><Input id="question-tolerance" className="text-foreground" inputMode="decimal" value={questionForm.tolerance} onChange={(event) => setQuestionForm((form) => ({ ...form, tolerance: event.target.value }))} /></div></div>}<div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="question-marks">Marks</Label><Input id="question-marks" className="text-foreground" inputMode="decimal" value={questionForm.marks} onChange={(event) => setQuestionForm((form) => ({ ...form, marks: event.target.value }))} /></div><div><Label>Review status</Label><Select value={questionForm.approve ? "approved" : "needs_review"} onValueChange={(value) => setQuestionForm((form) => ({ ...form, approve: value === "approved" }))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="approved">Approved (can be served)</SelectItem><SelectItem value="needs_review">Needs review</SelectItem></SelectContent></Select></div></div><div><Label htmlFor="question-explanation">Internal note</Label><Textarea id="question-explanation" className="text-foreground" value={questionForm.explanation} onChange={(event) => setQuestionForm((form) => ({ ...form, explanation: event.target.value }))} placeholder="Optional, visible to staff only" /></div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createQuestion.isPending} onClick={() => createQuestion.mutate()}>Add question</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={Boolean(gradingRow)} onOpenChange={(open) => !open && setGradingRow(null)}><DialogContent><DialogHeader><DialogTitle>Grade written response</DialogTitle><DialogDescription>Candidate identity is hidden during evaluation.</DialogDescription></DialogHeader>{gradingRow && <div className="grid gap-4"><div className="rounded-lg border border-border bg-muted/30 p-3"><p className="text-sm font-medium">{gradingRow.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"}</p><p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{gradingRow.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"}</p></div><div><Label htmlFor="written-score">Score out of 20</Label><Input id="written-score" type="number" min="0" max="20" step="0.5" inputMode="decimal" value={gradingForm.score} onChange={(event) => setGradingForm((value) => ({ ...value, score: event.target.value }))} /></div><div><Label htmlFor="written-comments">Evaluator comments</Label><Textarea id="written-comments" value={gradingForm.comments} onChange={(event) => setGradingForm((value) => ({ ...value, comments: event.target.value }))} placeholder="Optional internal comments" /></div></div>}<DialogFooter><Button variant="outline" onClick={() => setGradingRow(null)}>Cancel</Button><Button loading={gradeResponse.isPending} disabled={!gradingForm.score} onClick={() => gradeResponse.mutate()}>Save grade</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );

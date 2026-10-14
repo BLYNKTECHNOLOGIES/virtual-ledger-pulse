@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.50.0";
 import { z } from "npm:zod@3.23.8";
+import { completeErpRevocation, queueAccountRemoval } from "../_shared/hr-erp-revocation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,17 +76,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Registration not found or already processed." }, 404);
     }
 
-    // ── Clean up the created account so the email/phone free up ──
-    if (registration.user_id) {
-      // Remove the auto-created employee row first (FK is ON DELETE RESTRICT)
-      await adminClient.from("employees").delete().eq("user_id", registration.user_id);
-      await adminClient.from("users").delete().eq("id", registration.user_id);
-      await adminClient.auth.admin.deleteUser(registration.user_id).catch((e) =>
-        console.error("auth delete failed (non-fatal):", e)
-      );
-    }
-
-
+    // Decision: the request becomes REJECTED straight away (the Super Admin's
+    // decision is final); any account clean-up still owed is tracked in the shared
+    // removal record and retried by the daily job until the email and phone are free.
     const { error: updateError } = await adminClient
       .from("pending_registrations")
       .update({
@@ -101,7 +94,33 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Could not reject the registration." }, 500);
     }
 
-    return jsonResponse({ success: true });
+    if (!registration.user_id) return jsonResponse({ success: true, cleanupPending: false });
+
+    const uid = registration.user_id;
+    let cleanupError: string | null = null;
+    try {
+      // Same durable path as every other removal (record → clean-up → Auth/Terminal → read-back → retry).
+      await queueAccountRemoval(adminClient, {
+        userId: uid, requestedBy: caller.id, source: "signup_rejection",
+        reason: reason || "Sign-up rejected", registrationId,
+      });
+      // The sign-up's own employee stub (FK to auth is RESTRICT) must go before Auth removal.
+      const { error: empError } = await adminClient.from("employees").delete().eq("user_id", uid);
+      if (empError) throw new Error(`employee record: ${empError.message}`);
+      const { data: left, error: leftError } = await adminClient.from("employees").select("id").eq("user_id", uid);
+      if (leftError) throw new Error(`employee record: ${leftError.message}`);
+      if (left?.length) throw new Error("employee record still present");
+      const result = await completeErpRevocation(adminClient, uid);
+      if (!result.deleted) cleanupError = result.reason || "account clean-up failed";
+    } catch (e) {
+      cleanupError = e instanceof Error ? e.message : String(e);
+      const { data: rec } = await adminClient.from("hr_erp_access_revocations").select("attempts").eq("user_id", uid).maybeSingle();
+      await adminClient.from("hr_erp_access_revocations")
+        .update({ attempts: (rec?.attempts || 0) + 1, last_error: cleanupError, updated_at: new Date().toISOString() })
+        .eq("user_id", uid);
+    }
+
+    return jsonResponse({ success: true, cleanupPending: !!cleanupError, cleanupError });
   } catch (error) {
     console.error("reject-erp-registration error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";

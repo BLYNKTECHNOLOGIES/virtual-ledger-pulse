@@ -2,7 +2,7 @@
 
 - Tables wrap to available width; only wide grids set minimum widths.
 
-- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/, src/components/hrms/quiz/); read it before editing there.
+- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/, hrms/quiz/); read it before editing there.
 
 - Frontend brand images resolve through BrandLogo and brandLogos; ERP/HRMS toggles use ThemeContext and Terminal passes its independent theme explicitly, because logo contrast must update with the actual surface rather than unsynchronized DOM theme mutations.
 

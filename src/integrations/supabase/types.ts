@@ -37527,6 +37527,8 @@ export type Database = {
         | "hrms_quiz_manage"
         | "hrms_quiz_evaluate"
         | "hrms_quiz_admin"
+        | "hrms_lms_view"
+        | "hrms_lms_manage"
       cbt_attempt_status:
         | "registered"
         | "in_progress"
@@ -38019,6 +38021,8 @@ export const Constants = {
         "hrms_quiz_manage",
         "hrms_quiz_evaluate",
         "hrms_quiz_admin",
+        "hrms_lms_view",
+        "hrms_lms_manage",
       ],
       cbt_attempt_status: [
         "registered",

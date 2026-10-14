@@ -297,14 +297,18 @@ export function useUsers() {
       if (credentialsChanged) {
         updatePayload.force_logout_at = new Date().toISOString();
       }
-      const { error: userError } = await supabase
+      const { data: updatedRows, error: userError } = await supabase
         .from('users')
         .update(updatePayload)
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('id');
 
       if (userError) {
         console.error('Update user error:', userError);
         throw userError;
+      }
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("You can't edit this person's account");
       }
 
       // Role change goes through the server step that enforces R3 (and the Terminal Admin rule).

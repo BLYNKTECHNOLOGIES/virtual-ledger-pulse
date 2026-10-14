@@ -457,6 +457,16 @@ export function CbtEntry({ onReady }: { onReady: (state: CbtState) => void }) {
               >
                 Back
               </button>
+              <button
+                type="button"
+                className="w-full text-sm text-muted-foreground underline"
+                onClick={() => {
+                  setError(null);
+                  setStep('resume');
+                }}
+              >
+                I was already taking a test and got disconnected
+              </button>
             </>
           )}
         </CardContent>

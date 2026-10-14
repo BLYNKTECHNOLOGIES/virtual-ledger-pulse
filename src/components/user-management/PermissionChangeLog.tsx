@@ -82,7 +82,7 @@ export function PermissionChangeLog() {
       bodyClassName="p-0 sm:p-0"
       actions={
         logs.length > 0 ? (
-          <Segmented<LogFilter>
+          <Segmented
             label="Show changes"
             value={filter}
             onChange={setFilter}

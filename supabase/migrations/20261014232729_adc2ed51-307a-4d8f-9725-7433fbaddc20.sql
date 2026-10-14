@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.cbt_written_eval_enqueue() FROM PUBLIC, anon, authenticated;

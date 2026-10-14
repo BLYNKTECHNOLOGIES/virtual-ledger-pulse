@@ -138,7 +138,6 @@ export default function QuizDashboardPage() {
         </TabsContent></>}
 
         <TabsContent value="grading" className="space-y-4">{!canEvaluate ? noData(ShieldCheck, "Grading permission required", "Ask a Quiz administrator for grader access.") : <QuizGrading counts={gradingCounts} />}</TabsContent>
-        </TabsContent>
 
         {canView && <><TabsContent value="questions" className="space-y-4"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Hiring and Staff pools never mix; skill-drill content can be Shared. Only Approved items are served (sandbox drives may also use Needs review).</p></div><QuestionBankWorkspace canManage={canManage} roleCodes={(data?.roles ?? []).map((r: any) => ({ code: r.code, name: r.name }))} />
         </TabsContent>

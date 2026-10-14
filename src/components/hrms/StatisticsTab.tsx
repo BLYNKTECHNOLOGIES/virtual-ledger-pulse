@@ -19,6 +19,7 @@ import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/comp
 import { format, startOfMonth, endOfMonth, subDays, differenceInDays, startOfDay, endOfDay, addMonths, addDays } from "date-fns";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
 import { IncomeCategoryDrillDown } from "./IncomeCategoryDrillDown";
+import { countsInExpenseStats } from "@/lib/operatingExpense";
 import { isReversalTransaction } from "@/lib/isReversalTransaction";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -279,7 +280,7 @@ export function StatisticsTab({ renderHeader }: StatisticsTabProps = {}) {
 
       // Reversal / contra entries (e.g. settlement reversals booked as EXPENSE)
       // are ledger corrections, never real expenses.
-      const expenses = (expensesRaw || []).filter(e => !isReversalTransaction(e));
+      const expenses = (expensesRaw || []).filter(e => !isReversalTransaction(e) && countsInExpenseStats(e));
 
       // Calculate core KPIs
       const currentRevenue = salesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;

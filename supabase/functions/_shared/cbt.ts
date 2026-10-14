@@ -6,7 +6,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 export const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-attempt-token, x-session-nonce",
+    "authorization, x-client-info, apikey, content-type, x-attempt-token, x-session-nonce, x-device-id",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -119,6 +119,25 @@ export async function rateLimit(
   await db.from("cbt_rate_limits").update({ count: (data.count as number) + 1 }).eq("key", key);
   return true;
 }
+
+import { limitRules, stepLimit, validDeviceId, type LimitKind } from "./cbt-limits.ts";
+
+/** Hash of the per-browser id the /test page sends (null if absent/invalid). */
+export async function deviceHash(req: Request): Promise<string | null> {
+  const id = validDeviceId(req.headers.get("x-device-id"));
+  return id ? await sha256Hex(`device:${id}`) : null;
+}
+
+/** Device limit first, then the shared-connection ceiling. Returns false when any is exceeded. */
+export async function checkLimits(db: SupabaseClient, kind: LimitKind, ip: string, dev: string | null): Promise<boolean> {
+  for (const r of limitRules(kind, ip, dev)) {
+    if (!(await rateLimit(db, r.key, r.limit, r.windowMinutes))) return false;
+  }
+  return true;
+}
+
+/** Key cleared after a correct code (the browser's own counter only). */
+export const validateClearKey = (ip: string, dev: string | null) => limitRules("validate", ip, dev)[0].key;
 
 // ---------- attempt authentication (S4) ----------
 export type AuthedAttempt = { attempt: Record<string, any>; db: SupabaseClient };

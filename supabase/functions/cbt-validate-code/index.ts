@@ -1,4 +1,4 @@
-import { admin, corsHeaders, fail, json, ipHash, rateLimit } from "../_shared/cbt.ts";
+import { admin, corsHeaders, fail, json, ipHash, deviceHash, checkLimits, validateClearKey } from "../_shared/cbt.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -7,11 +7,12 @@ Deno.serve(async (req) => {
     const { code } = await req.json().catch(() => ({ code: "" }));
     const raw = String(code ?? "").trim().toUpperCase();
     const ip = await ipHash(req);
+    const dev = await deviceHash(req);
 
     if (!/^[A-Z0-9]{6}$/.test(raw)) {
       return fail("bad_code", "That code doesn't match an open test. Check the code and try again.", 400);
     }
-    const allowed = await rateLimit(db, `validate:${ip}`, 5, 15);
+    const allowed = await checkLimits(db, "validate", ip, dev);
     if (!allowed) return fail("locked_out", "Too many tries. Try again in 15 minutes.", 429);
 
     const { data: drive } = await db.from("cbt_drives").select("*").eq("access_code", raw).maybeSingle();
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
     const { data: settings } = await db.from("cbt_settings").select("*").eq("id", true).single();
 
     // successful validation resets the lockout counter for this IP
-    await db.from("cbt_rate_limits").delete().eq("key", `validate:${ip}`);
+    await db.from("cbt_rate_limits").delete().eq("key", validateClearKey(ip, dev));
 
     return json({
       ok: true,

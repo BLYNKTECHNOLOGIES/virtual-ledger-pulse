@@ -70,7 +70,8 @@ Deno.serve(async (req) => {
 
     if (allowed !== true) {
       return new Response(JSON.stringify({ error: "You can't reset the password of this person" }), {
-        status: 403,
+        // 200 so the browser client can read the reason (invoke hides non-2xx bodies).
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }

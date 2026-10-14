@@ -1,11 +1,11 @@
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExpensesIncomesTab } from "./journal/ExpensesIncomesTab";
-import { ContraEntriesTab } from "./journal/ContraEntriesTab";
-import { DirectoryTab } from "./journal/DirectoryTab";
+const ExpensesIncomesTab = lazy(() => import("./journal/ExpensesIncomesTab").then(m => ({ default: m.ExpensesIncomesTab })));
+const ContraEntriesTab = lazy(() => import("./journal/ContraEntriesTab").then(m => ({ default: m.ContraEntriesTab })));
+const DirectoryTab = lazy(() => import("./journal/DirectoryTab").then(m => ({ default: m.DirectoryTab })));
 import { BookOpen, TrendingUp, ArrowRightLeft, List } from "lucide-react";
 
 export function BankJournalEntries() {
@@ -39,15 +39,15 @@ export function BankJournalEntries() {
             </TabsList>
 
             <TabsContent value="expenses-incomes">
-              <ExpensesIncomesTab />
+              <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}><ExpensesIncomesTab /></Suspense>
             </TabsContent>
 
             <TabsContent value="contra-entries">
-              <ContraEntriesTab />
+              <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}><ContraEntriesTab /></Suspense>
             </TabsContent>
 
             <TabsContent value="directory">
-              <DirectoryTab />
+              <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}><DirectoryTab /></Suspense>
             </TabsContent>
           </Tabs>
         </CardContent>

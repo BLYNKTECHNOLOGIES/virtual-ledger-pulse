@@ -1,15 +1,7 @@
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BankAccountManagement } from "@/components/bams/BankAccountManagement";
-import { PaymentMethodManagement } from "@/components/bams/PaymentMethodManagement";
-import { PurchaseManagement } from "@/components/bams/PurchaseManagement";
-import { BankJournalEntries } from "@/components/bams/BankJournalEntries";
-import { PaymentGatewayManagement } from "@/components/bams/PaymentGatewayManagement";
 import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone, AlertCircle, BarChart3, Users } from "lucide-react";
-import { CaseGenerator } from "@/components/bams/CaseGenerator";
-import { AccountSummary } from "@/components/bams/AccountSummary";
-import { BeneficiaryManagement } from "@/components/bams/BeneficiaryManagement";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";
@@ -17,6 +9,17 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
 import { usePermissions } from "@/hooks/usePermissions";
+
+const BankAccountManagement = lazy(() => import("@/components/bams/BankAccountManagement").then(m => ({ default: m.BankAccountManagement })));
+const PaymentMethodManagement = lazy(() => import("@/components/bams/PaymentMethodManagement").then(m => ({ default: m.PaymentMethodManagement })));
+const PurchaseManagement = lazy(() => import("@/components/bams/PurchaseManagement").then(m => ({ default: m.PurchaseManagement })));
+const BankJournalEntries = lazy(() => import("@/components/bams/BankJournalEntries").then(m => ({ default: m.BankJournalEntries })));
+const PaymentGatewayManagement = lazy(() => import("@/components/bams/PaymentGatewayManagement").then(m => ({ default: m.PaymentGatewayManagement })));
+const CaseGenerator = lazy(() => import("@/components/bams/CaseGenerator").then(m => ({ default: m.CaseGenerator })));
+const AccountSummary = lazy(() => import("@/components/bams/AccountSummary").then(m => ({ default: m.AccountSummary })));
+const BeneficiaryManagement = lazy(() => import("@/components/bams/BeneficiaryManagement").then(m => ({ default: m.BeneficiaryManagement })));
+
+const TabFallback = () => <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
 
 export default function BAMS() {
   const navigate = useNavigate();
@@ -132,42 +135,26 @@ export default function BAMS() {
 
             <div className="flex-1 w-full overflow-auto">
               {canFullBams && (
-                <TabsContent value="account-summary" className="w-full h-full">
-                  <AccountSummary />
-                </TabsContent>
+                <TabsContent value="account-summary" className="w-full h-full"><Suspense fallback={<TabFallback />}><AccountSummary /></Suspense></TabsContent>
               )}
               {canFullBams && (
-                <TabsContent value="bank-accounts" className="w-full h-full">
-                  <BankAccountManagement />
-                </TabsContent>
+                <TabsContent value="bank-accounts" className="w-full h-full"><Suspense fallback={<TabFallback />}><BankAccountManagement /></Suspense></TabsContent>
               )}
               {canFullBams && (
-                <TabsContent value="payment-methods" className="w-full h-full">
-                  <PaymentMethodManagement />
-                </TabsContent>
+                <TabsContent value="payment-methods" className="w-full h-full"><Suspense fallback={<TabFallback />}><PaymentMethodManagement /></Suspense></TabsContent>
               )}
               {canFullBams && (
-                <TabsContent value="purchases" className="w-full h-full">
-                  <PurchaseManagement />
-                </TabsContent>
+                <TabsContent value="purchases" className="w-full h-full"><Suspense fallback={<TabFallback />}><PurchaseManagement /></Suspense></TabsContent>
               )}
-              <TabsContent value="journal-entries" className="w-full h-full">
-                <BankJournalEntries />
-              </TabsContent>
+              <TabsContent value="journal-entries" className="w-full h-full"><Suspense fallback={<TabFallback />}><BankJournalEntries /></Suspense></TabsContent>
               {canFullBams && (
-                <TabsContent value="payment-gateway" className="w-full h-full">
-                  <PaymentGatewayManagement />
-                </TabsContent>
+                <TabsContent value="payment-gateway" className="w-full h-full"><Suspense fallback={<TabFallback />}><PaymentGatewayManagement /></Suspense></TabsContent>
               )}
               {canFullBams && (
-                <TabsContent value="case-generator" className="w-full h-full">
-                  <CaseGenerator />
-                </TabsContent>
+                <TabsContent value="case-generator" className="w-full h-full"><Suspense fallback={<TabFallback />}><CaseGenerator /></Suspense></TabsContent>
               )}
               {canFullBams && (
-                <TabsContent value="beneficiary" className="w-full h-full">
-                  <BeneficiaryManagement />
-                </TabsContent>
+                <TabsContent value="beneficiary" className="w-full h-full"><Suspense fallback={<TabFallback />}><BeneficiaryManagement /></Suspense></TabsContent>
               )}
             </div>
           </Tabs>

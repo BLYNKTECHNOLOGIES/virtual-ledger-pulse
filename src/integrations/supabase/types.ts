@@ -36986,7 +36986,7 @@ export type Database = {
       }
       um_is_super_admin: { Args: { p_uid: string }; Returns: boolean }
       um_link_hr_employee: {
-        Args: { p_employee_id: string; p_user_id: string }
+        Args: { p_badge: string; p_user_id: string }
         Returns: Json
       }
       um_my_access: { Args: never; Returns: Json }

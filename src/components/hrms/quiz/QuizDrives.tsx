@@ -138,7 +138,7 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
     // Closed drives keep refreshing while anyone is still registered or testing.
     refetchInterval: (query) => {
       const active = (query.state.data?.rows ?? []).some((r) => r.status === "registered" || r.status === "in_progress");
-      return drive.status === "live" || active || drive.testing > 0 || drive.registered > drive.submitted ? 5000 : false;
+      return drive.status === "live" || active || drive.testing > 0 ? 5000 : false;
     },
   });
   // Server clock: offset measured at fetch time, so countdowns don't trust this PC's clock.
@@ -158,7 +158,7 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">Live monitor</h3>
-        <span className="text-xs text-muted-foreground">{drive.status === "live" ? "Refreshes every 5 seconds" : "Drive is not live"}</span>
+        <span className="text-xs text-muted-foreground">{drive.status === "live" ? "Refreshes every 5 seconds" : rows.some((r) => running(r.status)) ? "Drive closed · refreshing while people finish" : "Drive is not live"}</span>
       </div>
       {!rows.length ? <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">Nobody has registered for this drive yet.</p> : (
         <>
@@ -180,7 +180,7 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
                         {running(r.status) && (
                           <div className="flex gap-1">
                             <Button size="icon" variant="ghost" title="Resume code" aria-label="Resume code" onClick={() => setAction({ kind: "resume", id: r.id })}><KeyRound className="h-4 w-4" /></Button>
-                            <Button size="icon" variant="ghost" title="Add time" aria-label="Add time" onClick={() => setAction({ kind: "time", id: r.id })}><Clock className="h-4 w-4" /></Button>
+                            {r.status === "in_progress" && <Button size="icon" variant="ghost" title="Add time" aria-label="Add time" onClick={() => setAction({ kind: "time", id: r.id })}><Clock className="h-4 w-4" /></Button>}
                             <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setAction({ kind: "invalidate", id: r.id })}>Invalidate</Button>
                           </div>
                         )}
@@ -202,7 +202,7 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
                 {canManage && running(r.status) && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={() => setAction({ kind: "resume", id: r.id })}>Resume code</Button>
-                    <Button size="sm" variant="outline" onClick={() => setAction({ kind: "time", id: r.id })}>Add time</Button>
+                    {r.status === "in_progress" && <Button size="sm" variant="outline" onClick={() => setAction({ kind: "time", id: r.id })}>Add time</Button>}
                     <Button size="sm" variant="outline" className="text-destructive" onClick={() => setAction({ kind: "invalidate", id: r.id })}>Invalidate</Button>
                   </div>
                 )}

@@ -11,8 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
-import { useUmLifecycle, removeAccount, retryRemoval, hasLeftHrms, SOURCE_LABEL, type HrmsState, type RemovalRecord } from "@/components/user-management/useUmLifecycle";
-import { Activity, AlertTriangle, Edit, Key, Lock, Power, RefreshCw, RotateCcw, Settings2, Shield, ShieldAlert, Terminal, Trash2, UserPlus, Users } from "lucide-react";
+import { useUmLifecycle, removeAccount, retryRemoval, hasLeftHrms, todayIst, SOURCE_LABEL, type HrmsState, type RemovalRecord } from "@/components/user-management/useUmLifecycle";
+import { Activity, AlertTriangle, Edit, Key, Lock, MoreHorizontal, Power, RefreshCw, RotateCcw, Settings2, Shield, ShieldAlert, Terminal, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -492,7 +499,6 @@ export default function UserManagement() {
   const userBeingDeleted = users.find((u) => u.id === userToDelete) || null;
   const hrmsOfDeleted = userBeingDeleted ? lifecycle.hrmsFor(userBeingDeleted.id) : null;
   const deletedIsHrmsActive = !!hrmsOfDeleted && !hasLeftHrms(hrmsOfDeleted);
-  const completedRemovals = lifecycle.removals.filter((r) => !!r.completed_at);
   const pendingSignupCleanups = lifecycle.removals.filter((r) => r.source === "signup_rejection" && !r.completed_at);
   const pendingCount = pendingRegistrations.length;
   const tileCount = 2 + (!isHrRestricted ? 1 : 0) + (isSuperAdmin ? 1 : 0);
@@ -527,6 +533,8 @@ export default function UserManagement() {
         </div>
       );
     }
+    const active = user.status === "ACTIVE";
+    const name = personName(user);
     return (
     <div className={cn("flex items-center gap-1", compact ? "flex-wrap" : "justify-end")}>
       {canOpenEdit && (
@@ -535,7 +543,7 @@ export default function UserManagement() {
         size="sm"
         onClick={() => setEditingUser(user)}
         className="h-8 gap-1.5 px-2.5 text-xs"
-        aria-label={`Edit ${personName(user)}`}
+        aria-label={`Edit ${name}`}
       >
         <Edit className="h-3.5 w-3.5" />
         Edit
@@ -546,70 +554,79 @@ export default function UserManagement() {
           variant="ghost"
           size="sm"
           onClick={() => setStatusTarget(user)}
-          className="h-8 gap-1.5 px-2.5 text-xs"
-          aria-label={`${user.status === "ACTIVE" ? "Deactivate" : "Reactivate"} ${personName(user)}`}
-          title={user.status === "ACTIVE" ? "Deactivate — signs them out and blocks ERP and Terminal; reversible" : "Reactivate"}
+          className={cn("h-8 gap-1.5 text-xs", compact ? "px-2.5" : "w-8 p-0 @[64rem]:w-auto @[64rem]:px-2.5")}
+          aria-label={`${active ? "Deactivate" : "Reactivate"} ${name}`}
+          title={active ? "Deactivate: signs them out and blocks the ERP and Terminal. You can reactivate them later." : "Reactivate: they can sign in again"}
         >
-          {user.status === "ACTIVE" ? <Power className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
-          {user.status === "ACTIVE" ? "Deactivate" : "Reactivate"}
+          {active ? <Power className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
+          <span className={compact ? undefined : "hidden @[64rem]:inline"}>{active ? "Deactivate" : "Reactivate"}</span>
         </Button>
       )}
-      {can.reset && (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setResetPasswordUser(user)}
-        className={cn("h-8 gap-1.5 text-xs", compact ? "px-2.5" : "w-8 p-0")}
-        aria-label={`Reset password for ${personName(user)}`}
-        title="Reset password"
-      >
-        <Key className="h-3.5 w-3.5" />
-        {compact && "Reset password"}
-      </Button>
-      )}
-      {can.delete && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleDeleteUser(user)}
-          className={cn("h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive", compact ? "px-2.5" : "w-8 p-0")}
-          aria-label={`Delete ${personName(user)} permanently`}
-          title="Delete permanently"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          {compact && "Delete permanently"}
-        </Button>
+      {(can.reset || can.delete) && (
+        // modal={false}: the dialogs these items open must get focus back cleanly.
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label={`More actions for ${name}`} title="More actions">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {can.reset && (
+              <DropdownMenuItem onSelect={() => setResetPasswordUser(user)} className="gap-2 text-xs">
+                <Key className="h-3.5 w-3.5" /> Reset password
+              </DropdownMenuItem>
+            )}
+            {can.reset && can.delete && <DropdownMenuSeparator />}
+            {can.delete && (
+              <DropdownMenuItem onSelect={() => handleDeleteUser(user)} className="gap-2 text-xs text-destructive focus:bg-destructive/10 focus:text-destructive">
+                <Trash2 className="h-3.5 w-3.5" /> Delete permanently
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
     );
   };
 
-  /** HRMS state and removal state for a linked login (E4). */
+  /**
+   * HRMS and removal state for a login (E4). Only what needs attention is shown:
+   * notice period, already left, or a removal that hasn't finished. A plain
+   * "active in HRMS" login shows nothing extra.
+   */
   const lifecycleNote = (user: DatabaseUser) => {
     const h = lifecycle.hrmsFor(user.id);
     const r = lifecycle.removalFor(user.id);
-    if (!h && !r) return null;
-    const today = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+    const unfinished = r && !r.completed_at ? r : null;
+    const left = !!h && hasLeftHrms(h);
+    const lwd = h?.last_working_day || null;
+    const notice = !!h && !left && h.resignation_status === "notice_period" && !!lwd && lwd >= todayIst();
+    if (!left && !notice && !unfinished) return null;
     return (
-      <div className="mt-1 flex flex-wrap items-center gap-1">
-        {h && (hasLeftHrms(h) ? (
-          <Chip tone="neutral">HRMS: separated</Chip>
-        ) : h.resignation_status === "notice_period" && h.last_working_day && h.last_working_day >= today ? (
-          <Chip tone="warning">Notice · access ends after {fmtDay(h.last_working_day)}</Chip>
-        ) : (
-          <Chip tone="success">HRMS: active</Chip>
-        ))}
-        {r && !r.completed_at && (
-          <>
-            <Chip tone={r.last_error ? "danger" : "warning"}>
-              {r.last_error ? `Removal failed: ${r.last_error}` : "Removal pending"}
+      <div className="mt-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-1">
+          {left && (
+            <Chip tone="neutral" title={lwd ? `Left in HRMS. Last working day ${fmtDay(lwd)}.` : "Inactive in HRMS"}>Left in HRMS</Chip>
+          )}
+          {notice && lwd && (
+            <Chip tone="warning" title={`In notice period. ERP access ends after their last working day, ${fmtDay(lwd)}.`}>
+              Notice period
             </Chip>
-            {lifecycle.canRetry && (
-              <Button variant="link" size="sm" className="h-auto p-0 text-xs" disabled={retrying === user.id} onClick={() => doRetry(user.id)}>
-                {retrying === user.id ? "Retrying…" : "Retry"}
-              </Button>
-            )}
-          </>
+          )}
+          {unfinished && (
+            <Chip tone={unfinished.last_error ? "danger" : "warning"} title={unfinished.last_error ? `Removal failed: ${unfinished.last_error}` : "Removal started. It finishes automatically."}>
+              {unfinished.last_error ? "Removal failed" : "Removal pending"}
+            </Chip>
+          )}
+          {unfinished && lifecycle.canRetry && (
+            <Button variant="link" size="sm" className="h-auto p-0 text-xs" disabled={retrying === user.id} onClick={() => doRetry(user.id)}>
+              {retrying === user.id ? "Retrying…" : "Retry"}
+            </Button>
+          )}
+        </div>
+        {notice && lwd && <p className="text-[11px] text-muted-foreground">Access ends after {fmtDay(lwd)}</p>}
+        {unfinished?.last_error && (
+          <p className="max-w-[12rem] truncate text-[11px] text-destructive" title={unfinished.last_error}>{unfinished.last_error}</p>
         )}
       </div>
     );
@@ -817,13 +834,13 @@ export default function UserManagement() {
                     { value: "ACTIVE", label: "Active", count: statusCount("ACTIVE") },
                     { value: "INACTIVE", label: "Inactive", count: statusCount("INACTIVE") },
                     { value: "SUSPENDED", label: "Suspended", count: statusCount("SUSPENDED") },
-                    { value: "REMOVED", label: "Removed", count: completedRemovals.length },
+                    { value: "REMOVED", label: "Removed", count: lifecycle.removals.length },
                   ]}
                 />
               </div>
 
               {statusFilter === "REMOVED" ? (
-                <RemovedView rows={completedRemovals} loading={lifecycle.isLoading} />
+                <RemovedView rows={lifecycle.removals} loading={lifecycle.isLoading} canRetry={lifecycle.canRetry} retrying={retrying} onRetry={doRetry} />
               ) : isLoading ? (
                 <PanelSkeleton rows={6} />
               ) : filteredUsers.length === 0 ? (
@@ -850,7 +867,7 @@ export default function UserManagement() {
                           <th>Status</th>
                           <th className="hidden @[60rem]:table-cell">Contact</th>
                           <th className="hidden @[60rem]:table-cell">Badge</th>
-                          <th className="hidden @[68rem]:table-cell">Added</th>
+                          <th className="hidden @[80rem]:table-cell">Added</th>
                           {canEditUsers && <th className="w-[1%]"><span className="sr-only">Actions</span></th>}
                         </tr>
                       </thead>
@@ -875,7 +892,7 @@ export default function UserManagement() {
                               {user.phone && <p className="text-xs tabular-nums text-muted-foreground">{user.phone}</p>}
                             </td>
                             <td className="hidden font-mono text-xs @[60rem]:table-cell">{user.badge_id || <span className="text-muted-foreground">—</span>}</td>
-                            <td className="hidden whitespace-nowrap text-xs text-muted-foreground @[68rem]:table-cell">{fmtDay(user.created_at)}</td>
+                            <td className="hidden whitespace-nowrap text-xs text-muted-foreground @[80rem]:table-cell">{fmtDay(user.created_at)}</td>
                             {canEditUsers && <td>{userActions(user)}</td>}
                           </tr>
                         ))}
@@ -1234,44 +1251,90 @@ export default function UserManagement() {
   );
 }
 
-/** E5: read-only list of removed accounts from the shared removal record. */
-function RemovedView({ rows, loading }: { rows: RemovalRecord[]; loading: boolean }) {
+/**
+ * E5: removed accounts from the shared removal record. Removals that haven't
+ * finished come first, because their login row may already be anonymised and
+ * then appears nowhere else on this page.
+ */
+function RemovedView({ rows, loading, canRetry, retrying, onRetry }: {
+  rows: RemovalRecord[];
+  loading: boolean;
+  canRetry: boolean;
+  retrying: string | null;
+  onRetry: (userId: string) => void;
+}) {
   if (loading) return <PanelSkeleton rows={4} />;
   if (rows.length === 0) return <PanelMessage icon={Users} title="No removed accounts yet" />;
-  return (
-    <div className="responsive-list">
-      <div className="responsive-list-table">
-        <table className={UM_TABLE}>
-          <thead>
-            <tr><th>Person</th><th>Removed</th><th>How</th><th>By</th><th>Reason</th></tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.user_id}>
-                <td>
-                  <p className="font-medium text-foreground">{r.target_name || "Unknown"}</p>
-                  {r.target_username && <p className="text-xs text-muted-foreground">@{r.target_username}</p>}
-                </td>
-                <td className="whitespace-nowrap text-xs">{fmtDay(r.completed_at!)} · {fmtTime(r.completed_at!)}</td>
-                <td><Chip tone="neutral">{r.source ? SOURCE_LABEL[r.source] : "—"}</Chip></td>
-                <td className="text-xs">{r.requested_by_name || (r.source === "offboarding" ? "Daily offboarding run" : "—")}</td>
-                <td className="text-xs text-muted-foreground">{r.reason || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  const ordered = [...rows.filter((r) => !r.completed_at), ...rows.filter((r) => !!r.completed_at)];
+  const open = rows.length - rows.filter((r) => !!r.completed_at).length;
+  const by = (r: RemovalRecord) => r.requested_by_name || (r.source === "offboarding" ? "Daily offboarding run" : "—");
+  const how = (r: RemovalRecord) => <Chip tone="neutral">{r.source ? SOURCE_LABEL[r.source] : "—"}</Chip>;
+  const state = (r: RemovalRecord) =>
+    r.completed_at ? (
+      <span className="whitespace-nowrap">{fmtDay(r.completed_at)} · {fmtTime(r.completed_at)}</span>
+    ) : (
+      <div className="space-y-0.5">
+        <Chip tone={r.last_error ? "danger" : "warning"}>{r.last_error ? "Failed" : "Not finished"}</Chip>
+        <p className="whitespace-nowrap text-[11px] text-muted-foreground">
+          Started {fmtDay(r.requested_at)} · {r.attempts} {r.attempts === 1 ? "try" : "tries"}
+        </p>
       </div>
-      <ul className="responsive-list-cards divide-y divide-border">
-        {rows.map((r) => (
-          <li key={r.user_id} className="space-y-1 px-4 py-3">
-            <p className="font-medium text-foreground">{r.target_name || "Unknown"}</p>
-            <p className="text-xs text-muted-foreground">
-              {fmtDay(r.completed_at!)} · {r.source ? SOURCE_LABEL[r.source] : "—"} · {r.requested_by_name || (r.source === "offboarding" ? "Daily offboarding run" : "—")}
-            </p>
-            {r.reason && <p className="text-xs text-muted-foreground">{r.reason}</p>}
-          </li>
-        ))}
-      </ul>
+    );
+  const retry = (r: RemovalRecord) =>
+    !r.completed_at && canRetry ? (
+      <Button variant="outline" size="sm" className="h-8 text-xs" disabled={retrying === r.user_id} onClick={() => onRetry(r.user_id)}>
+        {retrying === r.user_id ? "Retrying…" : "Retry"}
+      </Button>
+    ) : null;
+  return (
+    <div>
+      {open > 0 && (
+        <p className="flex items-start gap-1.5 border-b border-border bg-warning/5 px-4 py-2.5 text-xs text-foreground sm:px-5">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+          {open === 1 ? "1 removal hasn't finished." : `${open} removals haven't finished.`} They are retried automatically every day at 6:30 am IST{canRetry ? ", or use Retry" : ""}.
+        </p>
+      )}
+      <div className="responsive-list">
+        <div className="responsive-list-table">
+          <table className={UM_TABLE}>
+            <thead>
+              <tr><th>Person</th><th>Removed</th><th>How</th><th>By</th><th>Reason</th>{canRetry && open > 0 && <th className="w-[1%]"><span className="sr-only">Retry</span></th>}</tr>
+            </thead>
+            <tbody>
+              {ordered.map((r) => (
+                <tr key={r.user_id}>
+                  <td>
+                    <p className="font-medium text-foreground">{r.target_name || "Unknown"}</p>
+                    {r.target_username && <p className="text-xs text-muted-foreground">@{r.target_username}</p>}
+                  </td>
+                  <td className="text-xs">{state(r)}</td>
+                  <td>{how(r)}</td>
+                  <td className="text-xs">{by(r)}</td>
+                  <td className="text-xs text-muted-foreground">
+                    {r.reason || "—"}
+                    {!r.completed_at && r.last_error && <p className="mt-0.5 text-[11px] text-destructive">Error: {r.last_error}</p>}
+                  </td>
+                  {canRetry && open > 0 && <td>{retry(r)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <ul className="responsive-list-cards divide-y divide-border">
+          {ordered.map((r) => (
+            <li key={r.user_id} className="space-y-1.5 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium text-foreground">{r.target_name || "Unknown"}</p>
+                {how(r)}
+              </div>
+              <div className="text-xs text-muted-foreground">{state(r)}</div>
+              <p className="text-xs text-muted-foreground">By {by(r)}{r.reason ? ` · ${r.reason}` : ""}</p>
+              {!r.completed_at && r.last_error && <p className="text-[11px] text-destructive">Error: {r.last_error}</p>}
+              {retry(r)}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

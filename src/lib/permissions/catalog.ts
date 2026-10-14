@@ -132,6 +132,7 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
     label: 'Reconciliation',
     section: 'Finance',
     permissions: [
+      { id: 'reconciliation_view', name: 'View', description: 'View reconciliation action-required items', tier: 'view' },
       { id: 'shift_reconciliation_create', name: 'Create', description: 'Submit shift reconciliation records', tier: 'special' },
       { id: 'shift_reconciliation_approve', name: 'Approve', description: 'Approve or reject shift reconciliation (maker-checker)', tier: 'approve' },
     ],

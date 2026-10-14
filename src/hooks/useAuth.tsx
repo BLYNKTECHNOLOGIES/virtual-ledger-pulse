@@ -311,28 +311,7 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
         setUser(authenticatedUser);
         writeCompatibilitySession(authenticatedUser);
         
-        // Log login activity with IP
-        try {
-          let ipAddress: string | null = null;
-          try {
-            const ipRes = await fetch('https://api.ipify.org?format=json');
-            const ipData = await ipRes.json();
-            ipAddress = ipData.ip || null;
-          } catch { /* IP fetch is best-effort */ }
-
-          await supabase.rpc('log_user_activity', {
-            _user_id: authenticatedUser.id,
-            _action: 'login',
-            _description: `User logged in as ${authenticatedUser.roles?.join(', ') || 'User'}`,
-            _ip_address: ipAddress,
-            _user_agent: navigator.userAgent,
-            _metadata: { roles: authenticatedUser.roles || [] }
-          });
-
-          await supabase.rpc('update_last_login', { _user_id: authenticatedUser.id });
-        } catch (logErr) {
-          console.warn('[useAuth] Failed to log login activity:', logErr);
-        }
+        // Sign-in time and its single activity entry are recorded by the Auth lifecycle trigger.
 
         toast({
           title: "Success",

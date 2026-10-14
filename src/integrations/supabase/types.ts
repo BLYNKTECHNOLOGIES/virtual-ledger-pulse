@@ -25691,13 +25691,6 @@ export type Database = {
             referencedRelation: "system_functions"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "role_functions_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "roles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       role_kpis: {
@@ -33959,6 +33952,7 @@ export type Database = {
         Returns: undefined
       }
       ensure_onboarding_for_orphans: { Args: never; Returns: number }
+      erp_heartbeat: { Args: never; Returns: undefined }
       escalate_terminal_order: {
         Args: {
           p_escalated_by: string
@@ -36997,6 +36991,7 @@ export type Database = {
         Returns: boolean
       }
       um_delete_role: { Args: { p_role_id: string }; Returns: Json }
+      um_history_options: { Args: never; Returns: Json }
       um_holds_function: {
         Args: { p_function_id: string; p_uid: string }
         Returns: boolean
@@ -37012,6 +37007,20 @@ export type Database = {
         Returns: Json
       }
       um_my_access: { Args: never; Returns: Json }
+      um_online_users: {
+        Args: never
+        Returns: {
+          email: string
+          erp: boolean
+          first_name: string
+          id: string
+          last_name: string
+          last_seen: string
+          status: string
+          terminal: boolean
+          username: string
+        }[]
+      }
       um_rank: { Args: { p_uid: string }; Returns: number }
       um_set_user_role: {
         Args: { p_role_id: string; p_user_id: string }

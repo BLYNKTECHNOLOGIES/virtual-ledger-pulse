@@ -8,17 +8,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PermissionMatrix } from "./PermissionMatrix";
+import { lockedPermissions } from "./EditRoleDialog";
 import { FormSection, StickyFooter } from "./umUi";
 
 
 interface AddRoleDialogProps {
   onAddRole: (roleData: { name: string; description: string; permissions: string[] }) => Promise<{ success: boolean; error?: any }>;
+  /** Permissions the signed-in person holds; a new role can only contain these (UM-2A R2). */
+  heldPermissions: string[];
+  isSuperAdmin?: boolean;
 }
 
 // Permissions come from the single-source catalog (src/lib/permissions/catalog.ts), via PermissionMatrix.
 
 
-export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
+export function AddRoleDialog({ onAddRole, heldPermissions, isSuperAdmin = false }: AddRoleDialogProps) {
+  const locked = isSuperAdmin ? undefined : lockedPermissions(heldPermissions);
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -121,6 +126,7 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
             onChange={(update) => setFormData((prev) => ({ ...prev, permissions: update(prev.permissions) }))}
             templates
             onTemplateApplied={onTemplateApplied}
+            locked={locked}
           />
 
           <StickyFooter>

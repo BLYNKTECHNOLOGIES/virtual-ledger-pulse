@@ -42,9 +42,13 @@ interface EditUserDialogProps {
   actions: UmUserActions;
   /** Roles the signed-in person may give (ranked below them, only access they hold). */
   assignableRoleIds: string[];
+  /** Whether the viewer can open the Terminal access tab (HR can't). */
+  canOpenTerminalTab?: boolean;
+  /** Shown when setting back to Active someone who has already left in HRMS. */
+  leftHrmsWarning?: string | null;
 }
 
-export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleIds }: EditUserDialogProps) {
+export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleIds, canOpenTerminalTab = false, leftHrmsWarning = null }: EditUserDialogProps) {
   // Role changes only when the server allows it for this person (UM-2A R3).
   const restrictSensitive = !actions.role;
   const initialRoleId = user.role?.id || user.role_id || "no_role";
@@ -421,6 +425,12 @@ export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleI
                 After saving, this person is signed out at their next session check (about every 30 seconds) and can't use the ERP until set back to Active.
               </p>
             )}
+            {leftHrmsWarning && formData.status === "ACTIVE" && user.status !== "ACTIVE" && (
+              <p className="flex items-start gap-1.5 text-xs text-warning">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {leftHrmsWarning}
+              </p>
+            )}
           </FormSection>
 
           <FormSection title="P2P Trading Terminal">
@@ -434,11 +444,13 @@ export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleI
                   <p className="text-xs text-muted-foreground">Saving as Admin also gives the Terminal "Admin" role.</p>
                 )}
               </div>
+              {canOpenTerminalTab && (
               <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
                 <Link to={`/user-management?tab=terminal&person=${encodeURIComponent(user.id)}`} onClick={onClose}>
                   <ExternalLink className="h-3.5 w-3.5" /> Open Terminal access
                 </Link>
               </Button>
+              )}
             </div>
           </FormSection>
 

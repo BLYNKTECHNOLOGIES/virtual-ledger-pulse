@@ -1,13 +1,13 @@
 # Project architecture decisions
 
-- Ordinary tables wrap to available width; only wide grids set minimum widths (no horizontal scroll).
+- Tables wrap to available width; only wide grids set minimum widths.
 
 - Subdirectories may have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/); read it before editing there.
 
 - Frontend brand images resolve through BrandLogo and brandLogos; ERP/HRMS toggles use ThemeContext and Terminal passes its independent theme explicitly, because logo contrast must update with the actual surface rather than unsynchronized DOM theme mutations.
 
 - F&F approval stages payroll inputs only; RazorpayX writes and read-back verification belong to the cockpit Inputs Push step, so separation review and payroll execution remain distinct.
-- HRMS revocations share durable server-only ERP/Auth/Terminal deletion with read-back and retries after unlinking; preserve HR records and immutable ledger tombstones. LWD cutoff and biometrics remain independent of F&F; RazorpayX dismissal requires paid F&F plus final-salary proof for the later LWD/F&F month, because no payout API exists.
+- Every login removal (User Management delete, HRMS Deactivate, offboarding, sign-up rejection) goes through one hr_erp_access_revocations record and completeErpRevocation (ERP/Auth/Terminal deletion with read-back and retries after unlinking) — all paths end identically; preserve HR records and immutable ledger tombstones. LWD cutoff and biometrics remain independent of F&F; RazorpayX dismissal requires paid F&F plus final-salary proof for the later LWD/F&F month, because no payout API exists.
 - Loss-of-pay day counting (hr_lop_days_window) uses each day's corrected outcome — HR's explicit day mark (manual_status) first, else the status recomputed from corrected punch times — never a blanket 'approved correction = full day', because a correction can legitimately result in a half day or absence.
 - Watchdog resolutions (manual or automatic) are refused on period-locked days, because a locked period never recomputes and a 'resolved' entry would hide an unapplied result.
 - The comp-off payout step rewrites the month's settlement and credit marks on every run, even when the result is zero, because stale rows otherwise contradict the staged lines.

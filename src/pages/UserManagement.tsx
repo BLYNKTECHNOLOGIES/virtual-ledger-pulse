@@ -9,7 +9,10 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Edit, Key, Lock, RefreshCw, Settings2, Shield, ShieldAlert, Terminal, Trash2, UserPlus, Users } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUmLifecycle, removeAccount, retryRemoval, hasLeftHrms, SOURCE_LABEL, type HrmsState, type RemovalRecord } from "@/components/user-management/useUmLifecycle";
+import { Activity, AlertTriangle, Edit, Key, Lock, Power, RefreshCw, RotateCcw, Settings2, Shield, ShieldAlert, Terminal, Trash2, UserPlus, Users } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,7 +90,7 @@ interface OnlineUser {
 
 /** Role filter value for "people without a role". */
 const NO_ROLE = "__none__";
-type StatusFilter = "all" | "ACTIVE" | "INACTIVE" | "SUSPENDED";
+type StatusFilter = "all" | "ACTIVE" | "INACTIVE" | "SUSPENDED" | "REMOVED";
 /** Old tab names that still open the right tab. */
 const TAB_ALIASES: Record<string, string> = { settings: "online" };
 const USERS_PAGE_SIZE = 50;
@@ -117,6 +120,13 @@ export default function UserManagement() {
   const { data: pendingRegistrations = [], isLoading: isLoadingPending } = usePendingRegistrations(isSuperAdmin);
   // Server-computed rights (UM-2A): every button below appears only when the server will allow it.
   const { access, actionsFor, canManageRole, refetch: refetchAccess } = useUmAccess();
+  // HRMS state + the shared removal record (one record for every removal path).
+  const lifecycle = useUmLifecycle();
+  const queryClient = useQueryClient();
+  const [deleteReason, setDeleteReason] = useState("");
+  const [statusTarget, setStatusTarget] = useState<DatabaseUser | null>(null);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [retrying, setRetrying] = useState<string | null>(null);
 
   // Scroll to top when component mounts or tab changes
   useEffect(() => {
@@ -343,6 +353,34 @@ export default function UserManagement() {
     refetchAccess();
     return result;
   };
+  const leftWarning = (h: HrmsState | null) =>
+    hasLeftHrms(h)
+      ? `This person has already left in HRMS${h?.last_working_day ? ` (last working day ${fmtDay(h.last_working_day)})` : ""}. Offboarding will remove this login again at the next daily run.`
+      : null;
+  const confirmStatusChange = async () => {
+    if (!statusTarget || isChangingStatus) return;
+    setIsChangingStatus(true);
+    try {
+      const next = statusTarget.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+      const result: any = await saveUser(statusTarget.id, { status: next });
+      if (result?.success !== false) setStatusTarget(null);
+    } finally {
+      setIsChangingStatus(false);
+    }
+  };
+  const doRetry = async (userId: string) => {
+    setRetrying(userId);
+    try {
+      const r = await retryRemoval(userId);
+      toast(r.success
+        ? { title: "Removal finished", description: "The login, Auth account and Terminal access are gone." }
+        : { title: "Removal still not finished", description: r.error || "Unknown reason", variant: "destructive" });
+      lifecycle.refetch();
+      fetchUsers();
+    } finally {
+      setRetrying(null);
+    }
+  };
   // Same test PermissionGate(['user_management_manage']) applies; computed once so table rows
   // and phone cards don't each mount their own gate (each gate re-fetches permissions).
   const canManageRoles = isAdmin || hasManagePermission;
@@ -383,6 +421,7 @@ export default function UserManagement() {
       return;
     }
 
+    setDeleteReason("");
     setUserToDelete(user.id);
   };
 
@@ -390,12 +429,21 @@ export default function UserManagement() {
     if (!userToDelete || isDeletingUser) return;
     setIsDeletingUser(true);
     try {
-      const result = await deleteUser(userToDelete);
+      const result = await removeAccount(userToDelete, deleteReason.trim());
       if (result?.success) {
+        toast({ title: "Account removed", description: "Login, Auth account and Terminal access removed. The record is in Users → Removed." });
         setUserToDelete(null);
       } else {
-        console.error('Delete failed:', result?.error);
+        toast({
+          title: result?.pending ? "Removal not finished" : "Couldn't remove the account",
+          description: result?.error || "Unknown reason",
+          variant: "destructive",
+        });
+        if (result?.pending) setUserToDelete(null);
       }
+      lifecycle.refetch();
+      queryClient.invalidateQueries({ queryKey: ["um-access"] });
+      fetchUsers();
     } catch (error) {
       console.error('Exception during delete:', error);
     } finally {
@@ -442,6 +490,10 @@ export default function UserManagement() {
   ].filter(([, n]) => (n as number) > 0).map(([label, n]) => `${n} ${label}`);
   const roleBeingDeleted = roles.find((r) => r.id === roleToDelete) || null;
   const userBeingDeleted = users.find((u) => u.id === userToDelete) || null;
+  const hrmsOfDeleted = userBeingDeleted ? lifecycle.hrmsFor(userBeingDeleted.id) : null;
+  const deletedIsHrmsActive = !!hrmsOfDeleted && !hasLeftHrms(hrmsOfDeleted);
+  const completedRemovals = lifecycle.removals.filter((r) => !!r.completed_at);
+  const pendingSignupCleanups = lifecycle.removals.filter((r) => r.source === "signup_rejection" && !r.completed_at);
   const pendingCount = pendingRegistrations.length;
   const tileCount = 2 + (!isHrRestricted ? 1 : 0) + (isSuperAdmin ? 1 : 0);
 
@@ -489,6 +541,19 @@ export default function UserManagement() {
         Edit
       </Button>
       )}
+      {can.status && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setStatusTarget(user)}
+          className="h-8 gap-1.5 px-2.5 text-xs"
+          aria-label={`${user.status === "ACTIVE" ? "Deactivate" : "Reactivate"} ${personName(user)}`}
+          title={user.status === "ACTIVE" ? "Deactivate — signs them out and blocks ERP and Terminal; reversible" : "Reactivate"}
+        >
+          {user.status === "ACTIVE" ? <Power className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
+          {user.status === "ACTIVE" ? "Deactivate" : "Reactivate"}
+        </Button>
+      )}
       {can.reset && (
       <Button
         variant="ghost"
@@ -508,14 +573,45 @@ export default function UserManagement() {
           size="sm"
           onClick={() => handleDeleteUser(user)}
           className={cn("h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive", compact ? "px-2.5" : "w-8 p-0")}
-          aria-label={`Delete ${personName(user)}`}
-          title="Delete user"
+          aria-label={`Delete ${personName(user)} permanently`}
+          title="Delete permanently"
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {compact && "Delete"}
+          {compact && "Delete permanently"}
         </Button>
       )}
     </div>
+    );
+  };
+
+  /** HRMS state and removal state for a linked login (E4). */
+  const lifecycleNote = (user: DatabaseUser) => {
+    const h = lifecycle.hrmsFor(user.id);
+    const r = lifecycle.removalFor(user.id);
+    if (!h && !r) return null;
+    const today = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-1">
+        {h && (hasLeftHrms(h) ? (
+          <Chip tone="neutral">HRMS: separated</Chip>
+        ) : h.resignation_status === "notice_period" && h.last_working_day && h.last_working_day >= today ? (
+          <Chip tone="warning">Notice · access ends after {fmtDay(h.last_working_day)}</Chip>
+        ) : (
+          <Chip tone="success">HRMS: active</Chip>
+        ))}
+        {r && !r.completed_at && (
+          <>
+            <Chip tone={r.last_error ? "danger" : "warning"}>
+              {r.last_error ? `Removal failed: ${r.last_error}` : "Removal pending"}
+            </Chip>
+            {lifecycle.canRetry && (
+              <Button variant="link" size="sm" className="h-auto p-0 text-xs" disabled={retrying === user.id} onClick={() => doRetry(user.id)}>
+                {retrying === user.id ? "Retrying…" : "Retry"}
+              </Button>
+            )}
+          </>
+        )}
+      </div>
     );
   };
 
@@ -659,7 +755,7 @@ export default function UserManagement() {
         {/* Pending Registrations Tab — Super Admin only */}
         {isSuperAdmin && (
           <TabsContent value="pending" className="mt-0">
-            <PendingRegistrationsTab />
+            <PendingRegistrationsTab pendingCleanups={pendingSignupCleanups} onCleanupChange={() => lifecycle.refetch()} />
           </TabsContent>
         )}
 
@@ -721,11 +817,14 @@ export default function UserManagement() {
                     { value: "ACTIVE", label: "Active", count: statusCount("ACTIVE") },
                     { value: "INACTIVE", label: "Inactive", count: statusCount("INACTIVE") },
                     { value: "SUSPENDED", label: "Suspended", count: statusCount("SUSPENDED") },
+                    { value: "REMOVED", label: "Removed", count: completedRemovals.length },
                   ]}
                 />
               </div>
 
-              {isLoading ? (
+              {statusFilter === "REMOVED" ? (
+                <RemovedView rows={completedRemovals} loading={lifecycle.isLoading} />
+              ) : isLoading ? (
                 <PanelSkeleton rows={6} />
               ) : filteredUsers.length === 0 ? (
                 <PanelMessage icon={Users} title={users.length === 0 ? "No users yet" : "No one matches these filters"}>
@@ -770,7 +869,7 @@ export default function UserManagement() {
                               </div>
                             </td>
                             <td><RoleChip name={user.role?.name} /></td>
-                            <td><UserStatusChip status={user.status} /></td>
+                            <td><UserStatusChip status={user.status} />{lifecycleNote(user)}</td>
                             <td className="hidden @[60rem]:table-cell">
                               <p className="break-all text-foreground">{user.email}</p>
                               {user.phone && <p className="text-xs tabular-nums text-muted-foreground">{user.phone}</p>}
@@ -795,6 +894,7 @@ export default function UserManagement() {
                               <UserStatusChip status={user.status} />
                             </div>
                             <p className="break-all text-xs text-muted-foreground">@{user.username} · {user.email}</p>
+                            {lifecycleNote(user)}
                             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                               <RoleChip name={user.role?.name} />
                               {user.badge_id && <span className="font-mono text-[11px] text-muted-foreground">Badge {user.badge_id}</span>}
@@ -808,7 +908,7 @@ export default function UserManagement() {
                   </ul>
                 </div>
               )}
-              {!isLoading && filteredUsers.length > 0 && (
+              {statusFilter !== "REMOVED" && !isLoading && filteredUsers.length > 0 && (
                 <div className="px-3 pb-3 sm:px-5">
                   <TablePager
                     page={pagedUsers.page}
@@ -992,6 +1092,8 @@ export default function UserManagement() {
           onClose={() => setEditingUser(null)}
           actions={actionsFor(editingUser.id)}
           assignableRoleIds={access?.assignable_role_ids || []}
+          canOpenTerminalTab={allowedTabs.includes("terminal")}
+          leftHrmsWarning={leftWarning(lifecycle.hrmsFor(editingUser.id))}
         />
       )}
 
@@ -1064,8 +1166,19 @@ export default function UserManagement() {
                   <p>Deleting the account and cleaning up linked ERP access. Please wait…</p>
                 ) : (
                   <>
-                    <p>This permanently deletes the login and cleans up linked ERP access. Past orders and ledgers are kept, with the user reference removed.</p>
-                    <p>To stop someone signing in without deleting them, set their status to Inactive instead.</p>
+                    {deletedIsHrmsActive && userBeingDeleted && (
+                      <p className="flex items-start gap-1.5 font-medium text-warning">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        {personName(userBeingDeleted)} is still active in HRMS ({[hrmsOfDeleted?.department, hrmsOfDeleted?.position].filter(Boolean).join(" / ") || "no department / position"}). Offboarding them in HRMS removes access automatically after their last working day.
+                      </p>
+                    )}
+                    <p>This permanently removes the login, the sign-in account and all Terminal access. Past orders and ledgers are kept, with the user reference removed. Their HRMS employee record is kept.</p>
+                    <p>To stop someone signing in without deleting them, use Deactivate instead.</p>
+                    <div className="space-y-1">
+                      <label htmlFor="delete-reason" className="text-xs font-medium text-foreground">Reason (required)</label>
+                      <Textarea id="delete-reason" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)}
+                        maxLength={500} rows={2} className="text-foreground" placeholder="Why is this account being removed?" />
+                    </div>
                   </>
                 )}
               </div>
@@ -1074,7 +1187,7 @@ export default function UserManagement() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeletingUser}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={isDeletingUser}
+              disabled={isDeletingUser || deleteReason.trim().length < 3}
               onClick={(event) => {
                 event.preventDefault();
                 confirmDeleteUser();
@@ -1086,6 +1199,79 @@ export default function UserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!statusTarget} onOpenChange={(open) => !open && !isChangingStatus && setStatusTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {statusTarget ? `${statusTarget.status === "ACTIVE" ? "Deactivate" : "Reactivate"} ${personName(statusTarget)}?` : ""}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {statusTarget?.status === "ACTIVE" ? (
+                  <p>They are signed out at their next session check (about every 30 seconds) and can't use the ERP or the Terminal. You can reactivate them later.</p>
+                ) : (
+                  <p>They can sign in to the ERP again.</p>
+                )}
+                {statusTarget && statusTarget.status !== "ACTIVE" && leftWarning(lifecycle.hrmsFor(statusTarget.id)) && (
+                  <p className="flex items-start gap-1.5 font-medium text-warning">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {leftWarning(lifecycle.hrmsFor(statusTarget.id))}
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isChangingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={isChangingStatus} onClick={(e) => { e.preventDefault(); confirmStatusChange(); }}>
+              {isChangingStatus ? "Saving…" : statusTarget?.status === "ACTIVE" ? "Deactivate" : "Reactivate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/** E5: read-only list of removed accounts from the shared removal record. */
+function RemovedView({ rows, loading }: { rows: RemovalRecord[]; loading: boolean }) {
+  if (loading) return <PanelSkeleton rows={4} />;
+  if (rows.length === 0) return <PanelMessage icon={Users} title="No removed accounts yet" />;
+  return (
+    <div className="responsive-list">
+      <div className="responsive-list-table">
+        <table className={UM_TABLE}>
+          <thead>
+            <tr><th>Person</th><th>Removed</th><th>How</th><th>By</th><th>Reason</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.user_id}>
+                <td>
+                  <p className="font-medium text-foreground">{r.target_name || "Unknown"}</p>
+                  {r.target_username && <p className="text-xs text-muted-foreground">@{r.target_username}</p>}
+                </td>
+                <td className="whitespace-nowrap text-xs">{fmtDay(r.completed_at!)} · {fmtTime(r.completed_at!)}</td>
+                <td><Chip tone="neutral">{r.source ? SOURCE_LABEL[r.source] : "—"}</Chip></td>
+                <td className="text-xs">{r.requested_by_name || (r.source === "offboarding" ? "Daily offboarding run" : "—")}</td>
+                <td className="text-xs text-muted-foreground">{r.reason || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="responsive-list-cards divide-y divide-border">
+        {rows.map((r) => (
+          <li key={r.user_id} className="space-y-1 px-4 py-3">
+            <p className="font-medium text-foreground">{r.target_name || "Unknown"}</p>
+            <p className="text-xs text-muted-foreground">
+              {fmtDay(r.completed_at!)} · {r.source ? SOURCE_LABEL[r.source] : "—"} · {r.requested_by_name || (r.source === "offboarding" ? "Daily offboarding run" : "—")}
+            </p>
+            {r.reason && <p className="text-xs text-muted-foreground">{r.reason}</p>}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

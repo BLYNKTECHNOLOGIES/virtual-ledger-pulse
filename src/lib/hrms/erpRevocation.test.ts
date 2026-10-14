@@ -37,4 +37,15 @@ test("Auth failure cannot report permanent deletion and retains a retry", async 
   expect(result.deleted).toBe(false);
   expect(f.writes[0].attempts).toBe(3);
   expect(f.writes[0].completed_at).toBeUndefined();
+});test("Leftover Terminal role fails the read-back, so the removal stays pending", async () => {
+  const f = fixture();
+  const from = f.svc.from;
+  f.svc.from = (table: string) => {
+    const c = from(table);
+    if (table === "p2p_terminal_user_roles") c.then = (resolve: any) => resolve({ data: [{ user_id: "x" }] });
+    return c;
+  };
+  const result = await completeErpRevocation(f.svc, "77f34a5a-c477-428e-8202-382e0714a478");
+  expect(result.deleted).toBe(false);
+  expect(result.reason).toBe("ERP removal read-back failed");
 });

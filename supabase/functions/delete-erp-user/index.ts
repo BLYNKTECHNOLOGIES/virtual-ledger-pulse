@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.50.0";
 import { z } from "npm:zod@3.23.8";
+import { completeErpRevocation, queueAccountRemoval } from "../_shared/hr-erp-revocation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,9 @@ const corsHeaders = {
 const BodySchema = z.object({
   userId: z.string().uuid("Invalid user id"),
   verifyOnly: z.boolean().optional().default(false),
+  // Retry a pending/failed removal from the shared record (Super Admin / erp_destructive).
+  retry: z.boolean().optional().default(false),
+  reason: z.string().trim().max(500).optional().nullable(),
 });
 
 // Always return 200 with a success flag so the browser client can read the
@@ -58,6 +62,26 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "You cannot delete your own account" });
     }
 
+    // ── Retry: same rights as HRMS Deactivate (Super Admin or erp_destructive), not rank-based ──
+    if (parsed.data.retry) {
+      const [sa, destructive] = await Promise.all([
+        adminClient.rpc("um_is_super_admin", { p_uid: caller.id }),
+        adminClient.rpc("user_has_permission", { user_uuid: caller.id, check_permission: "erp_destructive" }),
+      ]);
+      if (sa.error || destructive.error) return jsonResponse({ success: false, error: "Unable to verify retry permission" });
+      if (sa.data !== true && destructive.data !== true) {
+        return jsonResponse({ success: false, error: "Only a Super Admin or someone with ERP destructive access can retry a removal" });
+      }
+      const { data: rec, error: recError } = await adminClient.from("hr_erp_access_revocations")
+        .select("user_id,completed_at").eq("user_id", parsed.data.userId).maybeSingle();
+      if (recError) return jsonResponse({ success: false, error: recError.message });
+      if (!rec) return jsonResponse({ success: false, error: "No removal record for this account" });
+      if (rec.completed_at) return jsonResponse({ success: true, deleted: true, recordId: rec.user_id });
+      const result = await completeErpRevocation(adminClient, parsed.data.userId);
+      return jsonResponse({ success: result.deleted, deleted: result.deleted, pending: !result.deleted, error: result.deleted ? undefined : result.reason, recordId: parsed.data.userId });
+    }
+
+    // ── Who may delete whom: UM-2A rule only (um_can_act 'delete') ──
     const [superAdminCheck, permissionCheck] = await Promise.all([
       adminClient.rpc("um_is_super_admin", { p_uid: caller.id }),
       parsed.data.verifyOnly
@@ -72,8 +96,7 @@ Deno.serve(async (req) => {
     }
 
     const isSuperAdmin = superAdminCheck.data === true;
-    const isAllowed = isSuperAdmin || permissionCheck.data === true;
-    if (!isAllowed) {
+    if (!(isSuperAdmin || permissionCheck.data === true)) {
       return jsonResponse({
         success: false,
         error: "You can only delete accounts of people ranked below you, and you need full User Management access",
@@ -84,47 +107,42 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, authorized: true, isSuperAdmin });
     }
 
-    const { data: cleanupResult, error: cleanupError } = await adminClient.rpc("delete_user_with_cleanup", {
-      target_user_id: parsed.data.userId,
-    });
-
-    if (cleanupError) {
-      console.error("delete_user_with_cleanup failed:", cleanupError);
-      return jsonResponse({ success: false, error: cleanupError.message || "ERP cleanup failed" });
+    const reason = (parsed.data.reason ?? "").trim();
+    if (reason.length < 3) {
+      return jsonResponse({ success: false, error: "Give a short reason for removing this account" });
     }
 
-    const cleanup = cleanupResult as { success?: boolean; error?: string; user_name?: string; sqlstate?: string; mode?: string } | null;
-    if (!cleanup?.success) {
-      return jsonResponse({
-        success: false,
-        error: cleanup?.error || "ERP cleanup failed",
-        sqlstate: cleanup?.sqlstate,
-      });
-    }
-
-    // Remove Supabase Auth account so the user can no longer log in.
-    const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(parsed.data.userId);
-    if (authDeleteError) {
-      const message = authDeleteError.message || "Auth deletion failed";
-      const isAlreadyGone = message.toLowerCase().includes("not found") || message.toLowerCase().includes("no user");
-      if (!isAlreadyGone) {
-        console.error("Auth user delete failed after ERP cleanup:", authDeleteError);
-        return jsonResponse({
-          success: true,
-          authDeleted: false,
-          userName: cleanup.user_name,
-          mode: cleanup.mode,
-          warning: "User was anonymized, but the Auth account could not be removed. Contact Super Admin if login remains active.",
-        });
+    // Linked HRMS employee (kept; only unlinked by the shared clean-up).
+    const { data: target } = await adminClient.from("users").select("badge_id").eq("id", parsed.data.userId).maybeSingle();
+    let employeeId: string | null = null;
+    {
+      const { data: byUser } = await adminClient.from("hr_employees").select("id").eq("user_id", parsed.data.userId).limit(1);
+      employeeId = byUser?.[0]?.id ?? null;
+      if (!employeeId && target?.badge_id) {
+        const { data: byBadge } = await adminClient.from("hr_employees").select("id").eq("badge_id", target.badge_id).limit(1);
+        employeeId = byBadge?.[0]?.id ?? null;
       }
     }
 
-    return jsonResponse({
-      success: true,
-      authDeleted: !authDeleteError,
-      userName: cleanup.user_name,
-      mode: cleanup.mode,
-    });
+    // ── Same durable path as HRMS Deactivate and offboarding: one record, clean-up,
+    //    Auth + Terminal removal, read-back, automatic retries by the daily job. ──
+    try {
+      await queueAccountRemoval(adminClient, {
+        userId: parsed.data.userId, employeeId, requestedBy: caller.id, source: "user_management", reason,
+      });
+    } catch (e) {
+      return jsonResponse({ success: false, error: e instanceof Error ? e.message : "Could not record the removal" });
+    }
+    // Block sign-in at once, so a removal that has to be retried still keeps them out.
+    await adminClient.from("users").update({ status: "INACTIVE", force_logout_at: new Date().toISOString() }).eq("id", parsed.data.userId);
+    const result = await completeErpRevocation(adminClient, parsed.data.userId);
+    if (!result.deleted) {
+      return jsonResponse({
+        success: false, pending: true, recordId: parsed.data.userId,
+        error: `Removal recorded but not finished: ${result.reason}. It will be retried automatically.`,
+      });
+    }
+    return jsonResponse({ success: true, deleted: true, authDeleted: true, recordId: parsed.data.userId });
   } catch (error) {
     console.error("delete-erp-user error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";

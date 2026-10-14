@@ -82,10 +82,10 @@ export function PermissionChangeLog() {
       bodyClassName="p-0 sm:p-0"
       actions={
         logs.length > 0 ? (
-          <Segmented<LogFilter>
+          <Segmented
             label="Show changes"
             value={filter}
-            onChange={setFilter}
+            onChange={(v) => setFilter(v as LogFilter)}
             options={[
               { value: "all", label: "All", count: logs.length },
               { value: "granted", label: "Granted", count: grantedCount },

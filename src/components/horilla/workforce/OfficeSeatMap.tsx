@@ -27,6 +27,9 @@ export type SeatMapRole = {
   overflow: number;
   occupants: SeatMapOccupant[];
   trainingOnly?: boolean;
+  /** A staffing line planned for this shift with no desk group: people shown, no desks drawn. */
+  noDesk?: boolean;
+  planned?: number;
 };
 
 type OfficeSeatMapProps = {
@@ -138,6 +141,32 @@ export function OfficeSeatMap({
                       {departmentRoles.map((role) => {
                         const firstSeatNumber = seatNumber + 1;
                         seatNumber += role.physicalSeats;
+                        if (role.noDesk) {
+                          const planned = role.planned ?? 0;
+                          const open = Math.max(0, planned - role.occupants.length);
+                          return (
+                            <div key={role.id} className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_72px] md:items-center">
+                              <div className="min-w-0 text-center md:text-left">
+                                <p className="truncate text-xs font-semibold text-foreground">{role.positionTitle}</p>
+                                <p className="mt-0.5 text-[10px] text-warning">Planned · no desk group</p>
+                              </div>
+                              <div className="flex min-h-12 flex-wrap items-center justify-center gap-2">
+                                {role.occupants.map((o, i) => (
+                                  <span key={i} className={`rounded-full border px-2 py-0.5 text-[11px] ${o.onNotice ? "border-warning bg-warning/15 text-warning" : "border-primary/40 bg-primary/10 text-foreground"}`}>
+                                    {o.name}{o.onNotice ? " · notice" : ""}
+                                  </span>
+                                ))}
+                                {Array.from({ length: open }, (_, i) => (
+                                  <span key={`open-${i}`} className="rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground">Open place</span>
+                                ))}
+                              </div>
+                              <div className="text-center font-mono text-[11px] text-muted-foreground md:text-right">
+                                <span className="font-semibold text-foreground">{role.occupants.length}</span>/{planned}
+                                <span className="block text-[10px]">planned · no desks</span>
+                              </div>
+                            </div>
+                          );
+                        }
                         return (
                           <div key={role.id} className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_72px] md:items-center">
                             <div className="min-w-0 text-center md:text-left">

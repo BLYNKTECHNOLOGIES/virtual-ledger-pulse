@@ -1,3 +1,4 @@
+import { coalesceRefresh } from '@/lib/coalesce-refresh';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -125,10 +126,10 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 
   // Live push plus immediate mobile/background recovery.
   useEffect(() => {
-    const refresh = () => {
+    const refresh = coalesceRefresh(() => {
       queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
-    };
+    });
     const channel = supabase
       .channel(`chat-inbox-${crypto.randomUUID()}`)
       .on(
@@ -144,6 +145,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     window.addEventListener('pageshow', refresh);
     window.addEventListener('online', refresh);
     return () => {
+      refresh.cancel();
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', resume);
       window.removeEventListener('pageshow', refresh);

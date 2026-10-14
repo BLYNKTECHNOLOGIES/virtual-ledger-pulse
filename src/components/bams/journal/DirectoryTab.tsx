@@ -153,7 +153,7 @@ export function DirectoryTab() {
     },
   });
   // Fetch all transactions (bank, sales, purchases) - avoiding duplicates
-  const { data: allTransactions, isLoading } = useQuery({
+  const { data: allTransactions, isLoading, isError, refetch } = useQuery({
     queryKey: ['all_transactions'],
     queryFn: async () => {
       // All three queries below use fetchAllPaginated to bypass Supabase's 1000-row default cap.
@@ -840,7 +840,14 @@ export function DirectoryTab() {
           </div>
         </CardHeader>
         <CardContent>
-          {!filteredTransactions || filteredTransactions.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading transactions…</div>
+          ) : isError ? (
+            <div className="text-center py-8 space-y-2">
+              <p className="text-sm text-destructive">Couldn't load transactions — the server was busy or timed out.</p>
+              <Button size="sm" variant="outline" onClick={() => refetch()}>Try again</Button>
+            </div>
+          ) : !filteredTransactions || filteredTransactions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {hasActiveFilters ? "No transactions match the selected filters" : "No transactions found"}
             </div>

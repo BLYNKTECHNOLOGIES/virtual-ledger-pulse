@@ -1,3 +1,4 @@
+import { coalesceRefresh } from '@/lib/coalesce-refresh';
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,10 +37,10 @@ export function useChatInboxUnread() {
   });
 
   useEffect(() => {
-    const refresh = () => {
+    const refresh = coalesceRefresh(() => {
       queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
-    };
+    });
     const channel = supabase
       .channel(`chat-inbox-unread-${crypto.randomUUID()}`)
       .on(
@@ -55,6 +56,7 @@ export function useChatInboxUnread() {
     window.addEventListener('pageshow', refresh);
     window.addEventListener('online', refresh);
     return () => {
+      refresh.cancel();
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', resume);
       window.removeEventListener('pageshow', refresh);

@@ -4281,6 +4281,41 @@ export type Database = {
         }
         Relationships: []
       }
+      cbt_ai_grading_log: {
+        Row: {
+          created_at: string
+          evaluation_id: string | null
+          http_status: number | null
+          id: string
+          model: string | null
+          outcome: string
+        }
+        Insert: {
+          created_at?: string
+          evaluation_id?: string | null
+          http_status?: number | null
+          id?: string
+          model?: string | null
+          outcome: string
+        }
+        Update: {
+          created_at?: string
+          evaluation_id?: string | null
+          http_status?: number | null
+          id?: string
+          model?: string | null
+          outcome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_ai_grading_log_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_written_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cbt_attempt_items: {
         Row: {
           answered_at: string | null
@@ -4692,6 +4727,29 @@ export type Database = {
         }
         Relationships: []
       }
+      cbt_grading_notices: {
+        Row: {
+          attempt_id: string
+          created_at: string
+        }
+        Insert: {
+          attempt_id: string
+          created_at?: string
+        }
+        Update: {
+          attempt_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_grading_notices_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: true
+            referencedRelation: "cbt_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cbt_job_roles: {
         Row: {
           code: string
@@ -5096,6 +5154,10 @@ export type Database = {
       cbt_settings: {
         Row: {
           abandon_after_minutes: number
+          ai_borderline_margin: number
+          ai_confidence_threshold: number
+          ai_daily_cap: number
+          ai_grading_enabled: boolean
           brand_name: string
           company_name: string
           created_at: string
@@ -5115,6 +5177,10 @@ export type Database = {
         }
         Insert: {
           abandon_after_minutes?: number
+          ai_borderline_margin?: number
+          ai_confidence_threshold?: number
+          ai_daily_cap?: number
+          ai_grading_enabled?: boolean
           brand_name?: string
           company_name?: string
           created_at?: string
@@ -5134,6 +5200,10 @@ export type Database = {
         }
         Update: {
           abandon_after_minutes?: number
+          ai_borderline_margin?: number
+          ai_confidence_threshold?: number
+          ai_daily_cap?: number
+          ai_grading_enabled?: boolean
           brand_name?: string
           company_name?: string
           created_at?: string
@@ -5250,30 +5320,60 @@ export type Database = {
       }
       cbt_written_evaluations: {
         Row: {
+          ai_graded_at: string | null
+          ai_last_error: string | null
+          ai_model: string | null
+          ai_next_at: string
+          ai_result: Json | null
+          ai_route_reason: string | null
+          ai_status: string
+          ai_suggested_total: number | null
+          ai_tries: number
           attempt_item_id: string
           comments: string | null
           created_at: string
           evaluator_id: string | null
+          graded_by_kind: string | null
           id: string
           rubric_scores: Json
           total: number | null
           updated_at: string
         }
         Insert: {
+          ai_graded_at?: string | null
+          ai_last_error?: string | null
+          ai_model?: string | null
+          ai_next_at?: string
+          ai_result?: Json | null
+          ai_route_reason?: string | null
+          ai_status?: string
+          ai_suggested_total?: number | null
+          ai_tries?: number
           attempt_item_id: string
           comments?: string | null
           created_at?: string
           evaluator_id?: string | null
+          graded_by_kind?: string | null
           id?: string
           rubric_scores?: Json
           total?: number | null
           updated_at?: string
         }
         Update: {
+          ai_graded_at?: string | null
+          ai_last_error?: string | null
+          ai_model?: string | null
+          ai_next_at?: string
+          ai_result?: Json | null
+          ai_route_reason?: string | null
+          ai_status?: string
+          ai_suggested_total?: number | null
+          ai_tries?: number
           attempt_item_id?: string
           comments?: string | null
           created_at?: string
           evaluator_id?: string | null
+          graded_by_kind?: string | null
           id?: string
           rubric_scores?: Json
           total?: number | null
@@ -34271,6 +34371,20 @@ export type Database = {
         Args: { p_attempt_id: string; p_reason: string; p_seconds: number }
         Returns: Json
       }
+      cbt_ai_claim: { Args: { p_limit?: number }; Returns: Json }
+      cbt_ai_record: {
+        Args: {
+          p_error: string
+          p_eval_id: string
+          p_http?: number
+          p_model: string
+          p_outcome: string
+          p_result: Json
+        }
+        Returns: Json
+      }
+      cbt_ai_route_notice: { Args: { p_eval_id: string }; Returns: undefined }
+      cbt_arm_ai_retry: { Args: never; Returns: undefined }
       cbt_attempt_detail: { Args: { p_attempt_id: string }; Returns: Json }
       cbt_blueprint_readiness: {
         Args: {
@@ -34306,6 +34420,7 @@ export type Database = {
         Returns: string
       }
       cbt_delete_subject: { Args: { p_key: string }; Returns: undefined }
+      cbt_disarm_ai_retry: { Args: never; Returns: undefined }
       cbt_drive_monitor: { Args: { p_drive_id: string }; Returns: Json }
       cbt_drive_readiness: {
         Args: { p_is_sandbox: boolean; p_job_role_ids: string[] }
@@ -34317,9 +34432,16 @@ export type Database = {
         Returns: undefined
       }
       cbt_grade_written_response: {
-        Args: { p_comments?: string; p_evaluation_id: string; p_total: number }
+        Args: {
+          p_accept_ai?: boolean
+          p_comments?: string
+          p_evaluation_id: string
+          p_total: number
+        }
         Returns: undefined
       }
+      cbt_grading_counts: { Args: never; Returns: Json }
+      cbt_grading_queue: { Args: { p_tab?: string }; Returns: Json }
       cbt_import_questions: {
         Args: {
           p_dry_run?: boolean
@@ -34335,15 +34457,18 @@ export type Database = {
         Returns: undefined
       }
       cbt_issue_resume_code: { Args: { p_attempt_id: string }; Returns: Json }
+      cbt_kick_ai_grader: { Args: never; Returns: undefined }
       cbt_new_access_code: { Args: never; Returns: string }
       cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }
       cbt_norm_text: { Args: { p: string }; Returns: string }
+      cbt_notify_graders: { Args: { p_attempt_id: string }; Returns: number }
       cbt_override_decision: {
         Args: { p_attempt_id: string; p_decision: string; p_reason: string }
         Returns: undefined
       }
       cbt_overview: { Args: never; Returns: Json }
+      cbt_projected_total: { Args: { p_attempt_id: string }; Returns: number }
       cbt_purge_rate_limits: { Args: never; Returns: number }
       cbt_purge_try_runs: { Args: never; Returns: number }
       cbt_question_bank_analytics: {

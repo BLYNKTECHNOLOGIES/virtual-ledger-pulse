@@ -119,7 +119,7 @@ const standaloneItems: SidebarGroupItem[] = [
     icon: Settings,
     color: "text-primary",
     bgColor: "bg-primary/10",
-    permissions: ["user_management_view", "user_management_manage"]
+    permissions: ["user_management_view", "user_management_manage", "user_management_hr_manage"]
   },
   {
     id: "compliance",

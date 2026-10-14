@@ -33,7 +33,7 @@ const moreNavItems: MobileNavItem[] = [
   { title: "Clients", url: "/clients", icon: Users, permissions: ["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage"] },
   { title: "RA Dashboard", url: "/ra-dashboard", icon: Headset, permissions: ["ra_dashboard_view"] },
   { title: "Leads", url: "/leads", icon: Users, permissions: ["leads_view", "leads_manage"] },
-  { title: "User Management", url: "/user-management", icon: Users, permissions: ["user_management_view", "user_management_manage"] },
+  { title: "User Management", url: "/user-management", icon: Users, permissions: ["user_management_view", "user_management_manage", "user_management_hr_manage"] },
   { title: "Compliance", url: "/compliance", icon: Package, permissions: ["compliance_view", "compliance_manage"] },
   { title: "Risk Management", url: "/risk-management", icon: Package, permissions: ["risk_management_view", "risk_management_manage"] },
   { title: "HRMS", url: "/hrms", icon: Users, permissions: ["hrms_view", "hrms_manage"] },

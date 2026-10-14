@@ -1,24 +1,29 @@
+import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
+import { ClipboardList, Plus, XCircle } from 'lucide-react';
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
+import { regStageLabel, regCategoryLabel } from '@/utils/regularizationEmail';
+import { SectionBlock, StatusPill, ProfileEmptyState, ProfileSkeleton } from './primitives';
+import { fmtDay, fmtTime, humanize } from './format';
 
 
 interface Props {
   employeeId: string;
+  /** Opens the correction form on the Requests tab. */
+  onRequestCorrection?: (date?: string) => void;
 }
 
-const statusMeta: Record<string, { label: string; icon: any; cls: string }> = {
-  pending: { label: 'Pending', icon: Hourglass, cls: 'bg-warning/10 text-warning' },
-  approved: { label: 'Approved', icon: CheckCircle2, cls: 'bg-success/10 text-success' },
-  rejected: { label: 'Rejected', icon: XCircle, cls: 'bg-destructive/10 text-destructive' },
-  cancelled: { label: 'Cancelled', icon: Ban, cls: 'bg-muted text-muted-foreground' },
-};
+const toneOf = (status: string) =>
+  status === 'approved' ? 'success' : status === 'rejected' ? 'danger' : status === 'cancelled' ? 'neutral' : 'warning';
 
-export default function RegularizationCard({ employeeId }: Props) {
+export default function RegularizationCard({ employeeId, onRequestCorrection }: Props) {
   const qc = useQueryClient();
 
   const { data: requests = [], isLoading } = useQuery({
@@ -52,101 +57,95 @@ export default function RegularizationCard({ employeeId }: Props) {
     onError: (e: any) => toast.error(e.message || 'Failed to cancel'),
   });
 
-  const fmtTime = (ts: string | null) =>
-    ts ? new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? requests : (requests as any[]).slice(0, 5);
+  const lastConfirmId = useRef<string | null>(null);
+  if (confirmId) lastConfirmId.current = confirmId;
+  const confirmReq = (requests as any[]).find((r) => r.id === (confirmId ?? lastConfirmId.current));
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-          <Clock className="h-4 w-4" /> Attendance Regularization
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {isLoading ? (
-          <p className="text-center py-6 text-muted-foreground text-sm">Loading...</p>
-        ) : requests.length === 0 ? (
-          <p className="text-center py-6 px-4 text-muted-foreground text-sm">
-            No requests yet. Use the <strong>Request</strong> button above to raise an attendance regularization.
-          </p>
-        ) : (
-          <>
-            {/* Mobile: stacked cards */}
-            <div className="sm:hidden divide-y">
-              {requests.map((r: any) => {
-                const meta = statusMeta[r.status] || statusMeta.pending;
-                const Icon = meta.icon;
-                return (
-                  <div key={r.id} className="p-4 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm">{r.attendance_date}</span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.cls}`}>
-                        <Icon className="h-3 w-3" /> {meta.label}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span>In <span className="font-mono text-foreground">{fmtTime(r.requested_check_in)}</span></span>
-                      <span>Out <span className="font-mono text-foreground">{fmtTime(r.requested_check_out)}</span></span>
-                    </div>
-                    <p className="text-sm text-foreground break-words">{r.reason}</p>
-                    {r.approver_notes && (
-                      <p className="text-xs text-muted-foreground italic break-words">"{r.approver_notes}"</p>
-                    )}
-                    {r.status === 'pending' && (
-                      <Button size="sm" variant="outline" className="w-full" onClick={() => cancel.mutate(r.id)}>
-                        Cancel request
-                      </Button>
-                    )}
+    <SectionBlock
+      icon={ClipboardList}
+      title="Attendance corrections"
+      description="Requests to fix a missing or wrong punch"
+      flush
+      actions={onRequestCorrection ? (
+        <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => onRequestCorrection()}>
+          <Plus className="h-3.5 w-3.5" /> Fix a punch
+        </Button>
+      ) : undefined}
+    >
+      {isLoading ? (
+        <ProfileSkeleton rows={3} bare />
+      ) : requests.length === 0 ? (
+        <ProfileEmptyState
+          bare
+          className="py-6"
+          title="No correction requests"
+          description='If a punch is missing on a day you worked, use "Fix a punch" to send HR your actual times.'
+        />
+      ) : (
+        <>
+          <ul className="divide-y divide-border">
+            {shown.map((r: any) => {
+              const stage = regStageLabel(r);
+              return (
+                <li key={r.id} className="space-y-1 px-3.5 py-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[13px] font-semibold text-foreground">{fmtDay(r.attendance_date)}</span>
+                    <StatusPill tone={toneOf(r.status) as any}>{stage === r.status ? humanize(r.status) : stage}</StatusPill>
                   </div>
-                );
-              })}
+                  <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                    In {fmtTime(r.requested_check_in)} · Out {fmtTime(r.requested_check_out)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.reason_category ? `${regCategoryLabel(r.reason_category)} · ` : ''}{r.reason || '—'}
+                  </p>
+                  {r.approver_notes && (
+                    <p className={r.status === 'rejected' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>HR: {r.approver_notes}</p>
+                  )}
+                  {r.status === 'pending' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 gap-1 px-2 text-xs text-destructive hover:text-destructive"
+                      onClick={() => setConfirmId(r.id)}
+                      disabled={cancel.isPending}
+                    >
+                      <XCircle className="h-3.5 w-3.5" /> Cancel request
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {(requests as any[]).length > 5 && (
+            <div className="border-t border-border px-3.5 py-2">
+              <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setShowAll((v) => !v)}>
+                {showAll ? 'Show fewer' : `Show all ${(requests as any[]).length}`}
+              </Button>
             </div>
+          )}
+        </>
+      )}
 
-            {/* Desktop: table */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested In</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Requested Out</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Reason</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
-                    <th className="text-right px-4 py-2 font-medium text-muted-foreground">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((r: any) => {
-                    const meta = statusMeta[r.status] || statusMeta.pending;
-                    const Icon = meta.icon;
-                    return (
-                      <tr key={r.id} className="border-b hover:bg-muted/30">
-                        <td className="px-4 py-2 font-medium">{r.attendance_date}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_in)}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_out)}</td>
-                        <td className="px-4 py-2 max-w-xs truncate" title={r.reason}>{r.reason}</td>
-                        <td className="px-4 py-2">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.cls}`}>
-                            <Icon className="h-3 w-3" /> {meta.label}
-                          </span>
-                          {r.approver_notes && (
-                            <p className="text-xs text-muted-foreground mt-1 italic">"{r.approver_notes}"</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {r.status === 'pending' && (
-                            <Button size="sm" variant="ghost" onClick={() => cancel.mutate(r.id)}>Cancel</Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+      <AlertDialog open={!!confirmId} onOpenChange={(o) => { if (!o) setConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this correction request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmReq ? `${fmtDay(confirmReq.attendance_date)}. ` : ''}It is withdrawn and HR will not review it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (confirmId) cancel.mutate(confirmId); setConfirmId(null); }}>
+              Cancel request
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </SectionBlock>
   );
 }

@@ -1,13 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Laptop, PackageOpen } from 'lucide-react';
-import { format } from 'date-fns';
+import { Laptop, PackageOpen, Smartphone, Monitor, KeyRound, Package, History } from 'lucide-react';
+import { SectionBlock, StatusPill, ProfileEmptyState, ProfileSkeleton } from './primitives';
+import { fmtDay, humanize } from './format';
 
 interface Props {
   employeeId: string;
 }
+
+const iconFor = (type?: string | null) => {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('phone') || t.includes('mobile')) return Smartphone;
+  if (t.includes('monitor') || t.includes('screen') || t.includes('desktop')) return Monitor;
+  if (t.includes('key') || t.includes('card') || t.includes('access')) return KeyRound;
+  if (t.includes('laptop')) return Laptop;
+  return Package;
+};
 
 /**
  * Read-only list of company assets currently or previously assigned to the
@@ -31,21 +39,16 @@ export default function MyAssetsTab({ employeeId }: Props) {
   });
 
   if (isLoading) {
-    return <p className="text-muted-foreground text-sm py-8 text-center">Loading assets…</p>;
+    return <ProfileSkeleton rows={3} />;
   }
 
   if (data.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <PackageOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No assets assigned</h3>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            You don't have any company assets on record. If you've been issued a
-            device that isn't listed, please contact HR/IT.
-          </p>
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={PackageOpen}
+        title="No assets assigned"
+        description="You don't have any company assets on record. If you've been issued a device that isn't listed, please contact HR/IT."
+      />
     );
   }
 
@@ -54,63 +57,50 @@ export default function MyAssetsTab({ employeeId }: Props) {
 
   const AssetRow = ({ r }: { r: any }) => {
     const a = r.asset || {};
+    const Icon = iconFor(a.asset_type);
     return (
-      <div className="border border-border rounded-lg p-4 bg-card flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-            <Laptop className="h-5 w-5 text-muted-foreground" />
-          </div>
+      <li className="flex flex-col gap-2 px-3.5 py-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Icon className="h-4 w-4" />
+          </span>
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-foreground truncate">{a.name || 'Unnamed asset'}</p>
+            <p className="text-[13px] font-semibold text-foreground">{a.name || 'Unnamed asset'}</p>
             <p className="text-xs text-muted-foreground">
-              {a.asset_type || 'Asset'}{a.serial_number ? ` · SN ${a.serial_number}` : ''}
+              {a.asset_type ? humanize(a.asset_type) : 'Asset'}{a.serial_number ? <> · SN <span className="font-mono">{a.serial_number}</span></> : ''}
             </p>
-            {r.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.notes}</p>}
+            {r.notes && <p className="mt-1 text-xs text-muted-foreground">{r.notes}</p>}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0">
-          {a.condition && (
-            <Badge variant="outline" className="capitalize">{a.condition}</Badge>
-          )}
-          <Badge variant={r.return_date ? 'secondary' : 'default'} className="capitalize">
-            {r.return_date ? 'Returned' : (r.status || 'Assigned')}
-          </Badge>
+        <div className="flex flex-wrap items-center gap-2 pl-12 sm:pl-0 sm:justify-end">
+          {a.condition && <StatusPill tone="neutral">{humanize(a.condition)}</StatusPill>}
+          <StatusPill tone={r.return_date ? 'neutral' : 'info'}>{r.return_date ? 'Returned' : humanize(r.status || 'Assigned')}</StatusPill>
           <span className="text-xs text-muted-foreground">
-            {r.assigned_date ? format(new Date(r.assigned_date), 'dd MMM yyyy') : '—'}
-            {r.return_date && ` → ${format(new Date(r.return_date), 'dd MMM yyyy')}`}
+            {r.assigned_date ? fmtDay(r.assigned_date) : '—'}
+            {r.return_date && ` → ${fmtDay(r.return_date)}`}
           </span>
         </div>
-      </div>
+      </li>
     );
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Currently assigned ({active.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {active.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">No active assignments.</p>
-          ) : (
-            active.map((r: any) => <AssetRow key={r.id} r={r} />)
-          )}
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <SectionBlock icon={Laptop} title="With you now" actions={<span className="t-secondary">{active.length}</span>} flush>
+        {active.length === 0 ? (
+          <p className="px-3.5 py-4 text-sm text-muted-foreground">No active assignments.</p>
+        ) : (
+          <ul className="divide-y divide-border">{active.map((r: any) => <AssetRow key={r.id} r={r} />)}</ul>
+        )}
+      </SectionBlock>
 
       {past.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Previously held ({past.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {past.map((r: any) => <AssetRow key={r.id} r={r} />)}
-          </CardContent>
-        </Card>
+        <SectionBlock icon={History} title="Previously held" actions={<span className="t-secondary">{past.length}</span>} flush>
+          <ul className="divide-y divide-border">{past.map((r: any) => <AssetRow key={r.id} r={r} />)}</ul>
+        </SectionBlock>
       )}
 
-      <p className="text-xs text-muted-foreground text-center">
+      <p className="text-xs text-muted-foreground">
         Need to return or report an issue with an asset? Contact HR/IT — asset movements are recorded by HR.
       </p>
     </div>

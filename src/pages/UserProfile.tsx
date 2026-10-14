@@ -1,20 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { monthlyCtcOnRecord, workTypeLabel, fullName } from '@/lib/hrms/employeeFields';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { PayslipPdfDownloadButton } from '@/components/hrms/PayslipPdfDownloadButton';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,41 +21,41 @@ import { Switch } from '@/components/ui/switch';
 import { Bot } from 'lucide-react';
 import { useHelpAssistantEnabled } from '@/hooks/useHelpAssistantEnabled';
 
-import { 
-  User, 
-  Building2, 
-  Calendar, 
-  IndianRupee, 
-  TrendingUp, 
-  CreditCard, 
-  Shield, 
-  Clock,
+import {
+  User,
+  Building2,
+  IndianRupee,
+  TrendingUp,
+  CreditCard,
+  Shield,
   FileText,
-  PlusCircle,
   Settings,
-  Mail,
-  Phone,
-  MapPin,
-  Briefcase,
-  Users,
-  DollarSign,
   Receipt,
-  Timer,
-  Wallet,
-
-  CalendarDays,
-  Target,
-  Upload,
   Plus,
   Pencil,
   Trash2,
-  LogOut
+  LogOut,
+  ChevronDown,
+  ClipboardList,
+  CalendarDays,
+  Landmark,
+  Camera,
+  KeyRound,
+  BadgeCheck,
+  Clock,
+  XCircle,
+  FileCheck2,
+  Copy,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast as sonnerToast } from 'sonner';
 import { openStoredDocument } from '@/lib/storedDoc';
 
-import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
+import { UserProfileTasks, useProfileTasks } from '@/components/tasks/UserProfileTasks';
 import AttendanceTab from '@/components/profile/AttendanceTab';
 import MyAssetsTab from '@/components/profile/MyAssetsTab';
 import MyLoansCard from '@/components/profile/MyLoansCard';
@@ -67,27 +64,27 @@ import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import TeamLeaveApprovals from '@/components/profile/TeamLeaveApprovals';
 import TeamRegularizationApprovals from '@/components/profile/TeamRegularizationApprovals';
-import MyTeamCard from '@/components/profile/MyTeamCard';
 import MyDepartmentTab from '@/components/profile/MyDepartmentTab';
 import { useMyDepartmentStaffing } from '@/hooks/hrms/useWorkforceBudget';
-import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
-import MyMilestonesCard from '@/components/profile/MyMilestonesCard';
 import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
 import MyHelpdeskCard from '@/components/profile/MyHelpdeskCard';
 import MySecurityCard from '@/components/profile/MySecurityCard';
-import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
 import { BankChangeRequestCard } from '@/components/profile/BankChangeRequestCard';
-import { useCanonicalPayslips } from '@/hooks/hrms/usePayslips';
-import { formatDistanceToNow } from 'date-fns';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { ProfileNav, buildProfileNav } from '@/components/profile/ProfileNav';
+import { ProfileOverview } from '@/components/profile/ProfileOverview';
+import { useMyPayslips, useTeamLeaveQueue, useTeamRegQueue } from '@/components/profile/hooks';
+import { fmtAgo, fmtDay, fmtDays, fmtINR, fmtMonth, fmtRange, humanize, leaveStage } from '@/components/profile/format';
 import {
   FieldGrid,
   Field,
   SectionBlock,
   MoneyRow,
   StatusPill,
-  statusTone,
+  StatTile,
+  TabIntro,
   ProfileEmptyState,
   ProfileSkeleton,
 } from '@/components/profile/primitives';
@@ -102,6 +99,9 @@ interface BankAccount {
   IFSC?: string;
   branch?: string;
 }
+
+/** "50100234567812" → "5010 0234 5678 12" — easier to read out and check. */
+const groupDigits = (v?: string | null) => String(v || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
 
 // ─── Employee Banking Sub-Component (HRMS bank details) ───
 function EmployeeBankingTab({
@@ -126,8 +126,16 @@ function EmployeeBankingTab({
     enabled: !!employeeId,
   });
 
+  const copy = (text: string, what: string) => {
+    navigator.clipboard?.writeText(text).then(
+      () => sonnerToast.success(`${what} copied`),
+      () => sonnerToast.error('Could not copy'),
+    );
+  };
+
   return (
     <div className="space-y-4">
+      <TabIntro title="Bank details" />
       {isLoading ? (
         <ProfileSkeleton rows={4} />
       ) : bankDetails.length === 0 ? (
@@ -137,23 +145,39 @@ function EmployeeBankingTab({
           description="Your salary bank details have not been added by HR yet. You can request a bank update below."
         />
       ) : (
-        bankDetails.map((bank: any) => (
-          <SectionBlock
-            key={bank.id}
-            title={bank.bank_name || 'Salary Bank Account'}
-            description={bank.branch || undefined}
-            icon={CreditCard}
-          >
-            <FieldGrid wide>
-              {bank.account_number && <Field label="Account Number" value={bank.account_number} mono />}
-              {bank.ifsc_code && <Field label="IFSC Code" value={bank.ifsc_code} mono />}
-              {bank.bank_code_2 && <Field label="Bank Code 2" value={bank.bank_code_2} mono />}
-              {bank.city && <Field label="City" value={bank.city} />}
-              {bank.state && <Field label="State" value={bank.state} />}
-              {bank.country && <Field label="Country" value={bank.country} />}
-            </FieldGrid>
-          </SectionBlock>
-        ))
+        <div className="grid gap-4 lg:grid-cols-2">
+          {bankDetails.map((bank: any) => (
+            <section key={bank.id} className="ds-panel overflow-hidden">
+              <div className="relative border-b border-border bg-gradient-to-br from-primary/[0.08] to-transparent p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="ds-field-label">Salary account</p>
+                    <p className="mt-1 truncate font-display text-lg font-bold text-foreground">{bank.bank_name || 'Salary Bank Account'}</p>
+                    {bank.branch && <p className="t-secondary mt-0.5">{bank.branch}</p>}
+                  </div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Landmark className="h-4 w-4" /></span>
+                </div>
+                {bank.account_number && (
+                  <div className="mt-4 flex items-center justify-between gap-2">
+                    <p className="font-mono text-lg font-semibold tracking-wider text-foreground tabular-nums">{groupDigits(bank.account_number)}</p>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground" onClick={() => copy(String(bank.account_number), 'Account number')}>
+                      <Copy className="h-3.5 w-3.5" /> Copy
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="ds-panel-body">
+                <FieldGrid>
+                  {bank.ifsc_code && <Field label="IFSC code" value={bank.ifsc_code} mono />}
+                  {bank.bank_code_2 && <Field label="Bank code 2" value={bank.bank_code_2} mono />}
+                  {bank.city && <Field label="City" value={bank.city} />}
+                  {bank.state && <Field label="State" value={bank.state} />}
+                  {bank.country && <Field label="Country" value={bank.country} />}
+                </FieldGrid>
+              </div>
+            </section>
+          ))}
+        </div>
       )}
 
       <BankChangeRequestCard employeeId={employeeId} userId={userId} defaultHolderName={holderName} />
@@ -242,76 +266,96 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     );
   };
 
+  const hasBreakdown = !isLoading && rows.length > 0;
+
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {/* Salary Breakdown */}
-      <SectionBlock title="Salary Information" icon={IndianRupee} bodyClassName="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-            <p className="ds-field-label">Annual CTC on record</p>
-            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{monthlyOnRecord != null ? fmt(annualCTC) : 'Not set'}</p>
-          </div>
-          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-            <p className="ds-field-label">Monthly CTC on record</p>
-            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{monthlyOnRecord != null ? fmt(monthlyCTC) : 'Not set'}</p>
-          </div>
-        </div>
+    <div className="space-y-4">
+      <TabIntro title="Salary & PF" description="As payroll (RazorpayX) holds it. Monthly figures are before any loss of pay." />
 
-        {isLoading ? (
-          <ProfileSkeleton rows={4} className="border-0 p-0" />
-        ) : rows.length === 0 ? (
-          <div className="text-center py-6 space-y-1">
-            <p className="t-card-title text-foreground">Component breakdown not published yet</p>
-            <p className="t-secondary max-w-md mx-auto">
-              Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="ds-field-label">Earnings</p>
-                <p className="text-[10px] text-muted-foreground">monthly</p>
-              </div>
-              {earnings.map((r) => renderRow(r, 'earn'))}
-              <MoneyRow label="Gross Earnings" value={fmt(monthlyEarnings)} suffix="/mo" strong />
-            </div>
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatTile label="Annual CTC on record" value={monthlyOnRecord != null ? fmt(annualCTC) : 'Not set'} icon={IndianRupee} />
+        <StatTile label="Monthly CTC on record" value={monthlyOnRecord != null ? fmt(monthlyCTC) : 'Not set'} sub="Annual CTC ÷ 12" />
+        <StatTile
+          label="Gross earnings"
+          value={hasBreakdown ? fmt(monthlyEarnings) : '—'}
+          sub={hasBreakdown ? 'per month, from the components below' : 'Breakdown not published yet'}
+        />
+        <StatTile
+          label="Net pay (approx)"
+          value={hasBreakdown ? fmt(monthlyNet) : '—'}
+          tone={hasBreakdown ? 'success' : 'default'}
+          sub={hasBreakdown ? `after ${fmt(monthlyDeductions)} deductions a month` : 'Shown once HR publishes it'}
+        />
+      </div>
 
-            {deductions.length > 0 && (
-              <div>
-                <p className="ds-field-label mb-1">Deductions</p>
-                {deductions.map((r) => renderRow(r, 'ded'))}
-                <MoneyRow
-                  label="Total Deductions"
-                  value={`−${fmt(monthlyDeductions)}`}
-                  suffix="/mo"
-                  tone="negative"
-                  strong
-                />
-              </div>
-            )}
+      {hasDrift && (
+        <p className="rounded-[var(--radius-card)] border border-warning/30 bg-warning/10 px-3.5 py-2.5 text-xs text-foreground">
+          Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by{' '}
+          {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
+        </p>
+      )}
 
-            <div className="flex items-baseline justify-between gap-3 border-t border-border pt-3">
-              <span className="t-card-title text-foreground">Net Pay (approx)</span>
-              <span className="text-xl font-semibold text-foreground tabular-nums">
-                {fmt(monthlyNet)} <span className="text-xs font-normal text-muted-foreground">/mo</span>
-              </span>
-            </div>
-
-            {hasDrift && (
-              <p className="text-[11px] rounded-md border border-warning/30 bg-warning/10 text-foreground px-2.5 py-2">
-                Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by{' '}
-                {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {/* Salary Breakdown */}
+        <SectionBlock title="Salary structure" icon={IndianRupee} description="Monthly amounts per component" bodyClassName="space-y-4">
+          {isLoading ? (
+            <ProfileSkeleton rows={4} bare className="p-0" />
+          ) : rows.length === 0 ? (
+            <div className="text-center py-6 space-y-1">
+              <p className="t-card-title text-foreground">Component breakdown not published yet</p>
+              <p className="t-secondary max-w-md mx-auto">
+                Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.
               </p>
-            )}
-          </>
-        )}
-      </SectionBlock>
+            </div>
+          ) : (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="ds-field-label">Earnings</p>
+                  <p className="text-[10px] text-muted-foreground">monthly</p>
+                </div>
+                {earnings.map((r) => renderRow(r, 'earn'))}
+                <MoneyRow label="Gross Earnings" value={fmt(monthlyEarnings)} suffix="/mo" strong />
+              </div>
+
+              {deductions.length > 0 && (
+                <div>
+                  <p className="ds-field-label mb-1">Deductions</p>
+                  {deductions.map((r) => renderRow(r, 'ded'))}
+                  <MoneyRow
+                    label="Total Deductions"
+                    value={`−${fmt(monthlyDeductions)}`}
+                    suffix="/mo"
+                    tone="negative"
+                    strong
+                  />
+                </div>
+              )}
+
+              <div className="flex items-baseline justify-between gap-3 rounded-md border border-success/25 bg-success/[0.06] px-3 py-2.5">
+                <span className="t-card-title text-foreground">Net Pay (approx)</span>
+                <span className="font-mono text-lg font-semibold text-foreground tabular-nums">
+                  {fmt(monthlyNet)} <span className="font-sans text-xs font-normal text-muted-foreground">/mo · {fmt(annualNet)} a year</span>
+                </span>
+              </div>
+
+              {employerContribs.length > 0 && (
+                <div>
+                  <p className="ds-field-label mb-1">Paid by the company on top</p>
+                  {employerContribs.map((r) => renderRow(r, 'earn'))}
+                  <MoneyRow label="Employer contributions" value={fmt(monthlyEmployer)} suffix={`/mo · ${fmt(annualEmployer)} a year`} strong />
+                  <p className="t-secondary mt-1">Not part of your take-home; it goes to your PF / ESI accounts.</p>
+                </div>
+              )}
+            </>
+          )}
+        </SectionBlock>
 
 
-      {/* Loans, Salary Advances & Deposits */}
-      <MyLoansCard employeeId={hrEmployee.id} showDeposits />
+        {/* Loans, Salary Advances & Deposits */}
+        <MyLoansCard employeeId={hrEmployee.id} showDeposits />
 
+      </div>
     </div>
   );
 }
@@ -323,24 +367,8 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 // the RazorpayX dashboard for the PDF binary — the RazorpayX API does not
 // expose PDFs, so a fake "Download" button would be dishonest.
 function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badgeId?: string | number | null }) {
-  // ESS reads its own payslips through a security-definer RPC (hr_my_payslips),
-  // which resolves every HR employee row linked to the signed-in user (including
-  // legacy/biometric duplicates sharing the same badge). Falls back to the
-  // canonical view query if the RPC is unavailable.
-  const { data: payslips = [], isLoading, error } = useQuery({
-    queryKey: ['ess_my_payslips', employeeId, badgeId],
-    queryFn: async () => {
-      const { data, error: rpcError } = await (supabase as any).rpc('hr_my_payslips');
-      if (!rpcError && data) return data as any[];
-      const { data: viaView, error: viewError } = await (supabase as any)
-        .from('hr_payslips_v')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('period_month', { ascending: false });
-      if (viewError) throw rpcError ?? viewError;
-      return (viaView ?? []) as any[];
-    },
-  });
+  const { data: payslips = [], isLoading, error } = useMyPayslips(employeeId, badgeId);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   if (isLoading) return <ProfileSkeleton rows={5} />;
 
@@ -374,14 +402,36 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
     />
   );
 
+  // Financial year (April–March) of the latest payslip, for the year-to-date strip.
+  const latest = payslips[0];
+  const fyStartYear = (() => {
+    const d = latest?.period_month ? String(latest.period_month) : '';
+    const y = Number(d.slice(0, 4));
+    const m = Number(d.slice(5, 7));
+    return m >= 4 ? y : y - 1;
+  })();
+  const inFy = payslips.filter((p: any) => {
+    const d = String(p.period_month || '');
+    const y = Number(d.slice(0, 4));
+    const m = Number(d.slice(5, 7));
+    return (m >= 4 ? y : y - 1) === fyStartYear;
+  });
+  const fyNet = inFy.reduce((s: number, p: any) => s + (Number(p.net) || 0), 0);
+  const maxNet = Math.max(1, ...payslips.map((p: any) => Number(p.net) || 0));
+  const expandedId = openId ?? latest?.id ?? null;
+
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="t-section text-foreground">My Payslips</h2>
+      <TabIntro title="Payslips" />
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatTile label={`Latest · ${fmtMonth(latest?.period_month)}`} value={fmt(latest?.net)} tone="success" sub="Net pay on the payslip" icon={Receipt} />
+        <StatTile label="Gross that month" value={fmt(latest?.gross)} sub={latest?.working_days ? `${latest.working_days} working days` : undefined} />
+        <StatTile label={`Net pay · FY ${fyStartYear}–${String(fyStartYear + 1).slice(2)}`} value={fmt(fyNet)} sub={`on ${inFy.length} available payslip${inFy.length === 1 ? '' : 's'}`} />
+        <StatTile label="Average net a month" value={fmt(inFy.length ? fyNet / inFy.length : 0)} sub={`over ${inFy.length} payslip${inFy.length === 1 ? '' : 's'} this financial year`} />
       </div>
 
-
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {payslips.map((p) => {
           const period = p.period_month
             ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -402,98 +452,111 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
             ['Loan EMI', p.loan_emi], ['Advance', p.advance_salary],
           ] as Array<[string, number | null]>).filter(([, v]) => Number(v) > 0);
           const netDeductions = (Number(p.total_deductions) || 0) - oneTimeRecovery;
+          const expanded = expandedId === p.id;
 
           return (
-            <article key={p.id} className="ds-panel overflow-hidden">
-              {/* Header band */}
-              <header className="ds-panel-head flex-wrap">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="t-card-title text-foreground">{period}</h3>
-                    <StatusPill tone={hasReg ? 'success' : 'warning'}>
-                      {hasReg ? 'Detailed' : 'Breakdown pending'}
-                    </StatusPill>
-                  </div>
-                  <p className="t-secondary mt-0.5">
-                    Salary slip{p.working_days ? ` · ${p.working_days} working days` : ''}
-                    {p.pulled_at ? ` · updated ${formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}` : ''}
-                  </p>
-                </div>
-                <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
-              </header>
-
-              <div className="ds-panel-body space-y-4">
-                {/* Net pay + summary strip */}
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center rounded-md border border-border bg-muted/30 px-4 py-3">
-                  <div>
-                    <p className="ds-field-label">Net pay credited</p>
-                    <p className="t-kpi text-foreground mt-0.5">{fmt(p.net)}</p>
-                  </div>
-                  <div className="flex items-center gap-8">
-                    <div className="text-right">
+            <article key={p.id} className={cn('ds-panel overflow-hidden transition-shadow', expanded && 'shadow-[var(--shadow-xs)]')}>
+              {/* Summary row */}
+              <div className="grid gap-3 px-3.5 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+                <button
+                  type="button"
+                  onClick={() => setOpenId(expanded ? '__none__' : p.id)}
+                  aria-expanded={expanded}
+                  className="flex min-w-0 items-start gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ChevronDown className={cn('mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-180')} aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="t-card-title text-foreground">{period}</span>
+                      <StatusPill tone={hasReg ? 'success' : 'warning'}>
+                        {hasReg ? 'Detailed' : 'Breakdown pending'}
+                      </StatusPill>
+                    </span>
+                    <span className="mt-1.5 block h-1.5 w-full max-w-[240px] overflow-hidden rounded-full bg-muted" aria-hidden>
+                      <span className="block h-full rounded-full bg-primary" style={{ width: `${Math.max(4, ((Number(p.net) || 0) / maxNet) * 100)}%` }} />
+                    </span>
+                    <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                      {p.working_days ? `${p.working_days} working days` : 'Salary slip'}
+                      {p.pulled_at ? ` · updated ${fmtAgo(p.pulled_at)}` : ''}
+                    </span>
+                  </span>
+                </button>
+                <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 pl-7 sm:justify-end sm:pl-0">
+                  <div className="grid grid-cols-3 gap-4 sm:flex sm:gap-5">
+                    <div className="sm:text-right">
                       <p className="ds-field-label">Gross</p>
-                      <p className="text-sm font-semibold tabular-nums mt-0.5">{fmt(p.gross)}</p>
+                      <p className="font-mono text-[13px] font-medium tabular-nums text-foreground">{fmt(p.gross)}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="sm:text-right">
                       <p className="ds-field-label">Deductions</p>
-                      <p className="text-sm font-semibold tabular-nums text-destructive mt-0.5">
-                        {hasReg ? `− ${fmt(netDeductions)}` : '—'}
-                      </p>
+                      <p className="font-mono text-[13px] font-medium tabular-nums text-destructive">{hasReg ? `− ${fmt(netDeductions)}` : '—'}</p>
+                    </div>
+                    <div className="sm:text-right">
+                      <p className="ds-field-label">Net pay</p>
+                      <p className="font-mono text-[15px] font-semibold tabular-nums text-foreground">{fmt(p.net)}</p>
                     </div>
                   </div>
+                  <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
                 </div>
-
-                {hasReg ? (
-                  <>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-md border border-border p-3">
-                        <p className="ds-field-label mb-1">Earnings</p>
-                        {earnings.length > 0 ? earnings.map(([k, v]) => <Row key={k} label={k} value={v} />) : (
-                          <p className="t-secondary">No component-wise earnings published.</p>
-                        )}
-                        <div className="border-t border-border mt-1 pt-1">
-                          <MoneyRow label="Total earnings" value={fmt(p.gross)} strong />
-                        </div>
-                      </div>
-
-                      <div className="rounded-md border border-border p-3">
-                        <p className="ds-field-label mb-1">Deductions</p>
-                        {deductions.length > 0 ? deductions.map(([k, v]) => <Row key={k} label={k} value={v} tone="neg" />) : (
-                          <p className="t-secondary">No deductions this month.</p>
-                        )}
-                        <div className="border-t border-border mt-1 pt-1">
-                          <MoneyRow label="Total deductions" value={`− ${fmt(netDeductions)}`} tone="negative" strong />
-                        </div>
-                      </div>
-                    </div>
-
-                    {oneTimeHeads.length > 0 && (
-                      <div className="rounded-md border border-border p-3">
-                        <p className="ds-field-label mb-1">Paid separately</p>
-                        <div className="grid gap-x-6 sm:grid-cols-2">
-                          {oneTimeHeads.map((l) => <Row key={l.label} label={l.label} value={l.amount} />)}
-                        </div>
-                      </div>
-                    )}
-
-                    {(oneTimeRecovery > 0 || Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
-                      <div className="space-y-1.5 t-secondary">
-                        {oneTimeRecovery > 0 && (
-                          <p>
-                            One-time payments totalling {fmt(oneTimeRecovery)} were settled outside this month's salary,
-                            so they appear in the gross above and are subtracted again before net pay. Your regular salary for
-                            the month is {fmt(p.regular_gross)}.
-                          </p>
-                        )}
-                        {(Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
-                          <p>Employer contribution: PF {fmt(p.employer_pf)} · ESI {fmt(p.employer_esi)} (not deducted from net)</p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                ) : null}
-
               </div>
+
+              {expanded && (
+                <div className="space-y-4 border-t border-border bg-muted/[0.15] p-3.5">
+                  {hasReg ? (
+                    <>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-md border border-border bg-card p-3">
+                          <p className="ds-field-label mb-1">Earnings</p>
+                          {earnings.length > 0 ? earnings.map(([k, v]) => <Row key={k} label={k} value={v} />) : (
+                            <p className="t-secondary">No component-wise earnings published.</p>
+                          )}
+                          <div className="border-t border-border mt-1 pt-1">
+                            <MoneyRow label="Total earnings" value={fmt(p.gross)} strong />
+                          </div>
+                        </div>
+
+                        <div className="rounded-md border border-border bg-card p-3">
+                          <p className="ds-field-label mb-1">Deductions</p>
+                          {deductions.length > 0 ? deductions.map(([k, v]) => <Row key={k} label={k} value={v} tone="neg" />) : (
+                            <p className="t-secondary">No deductions this month.</p>
+                          )}
+                          <div className="border-t border-border mt-1 pt-1">
+                            <MoneyRow label="Total deductions" value={`− ${fmt(netDeductions)}`} tone="negative" strong />
+                          </div>
+                        </div>
+                      </div>
+
+                      {oneTimeHeads.length > 0 && (
+                        <div className="rounded-md border border-border bg-card p-3">
+                          <p className="ds-field-label mb-1">Paid separately</p>
+                          <div className="grid gap-x-6 sm:grid-cols-2">
+                            {oneTimeHeads.map((l) => <Row key={l.label} label={l.label} value={l.amount} />)}
+                          </div>
+                        </div>
+                      )}
+
+                      {(oneTimeRecovery > 0 || Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
+                        <div className="space-y-1.5 t-secondary">
+                          {oneTimeRecovery > 0 && (
+                            <p>
+                              One-time payments totalling {fmt(oneTimeRecovery)} were settled outside this month's salary,
+                              so they appear in the gross above and are subtracted again before net pay. Your regular salary for
+                              the month is {fmt(p.regular_gross)}.
+                            </p>
+                          )}
+                          {(Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
+                            <p>Employer contribution: PF {fmt(p.employer_pf)} · ESI {fmt(p.employer_esi)} (not deducted from net)</p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="t-secondary">
+                      Payroll has not shared the component breakdown for this month yet. The net pay above is what was credited.
+                    </p>
+                  )}
+                </div>
+              )}
             </article>
           );
         })}
@@ -521,70 +584,106 @@ function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
     enabled: !!employeeId,
   });
 
-  if (isLoading) return <ProfileSkeleton rows={4} />;
+  const intro = (
+    <TabIntro
+      title="Documents"
+      description="View-only — HR manages these. Contact HR for any change or a new certificate."
+    />
+  );
+
+  if (isLoading) return <div className="space-y-4">{intro}<ProfileSkeleton rows={4} /></div>;
 
   if (docs.length === 0) {
     return (
-      <ProfileEmptyState
-        icon={FileText}
-        title="No documents yet"
-        description="Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here."
-      />
+      <div className="space-y-4">
+        {intro}
+        <ProfileEmptyState
+          icon={FileText}
+          title="No documents yet"
+          description="Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here."
+        />
+      </div>
     );
   }
 
-  const typeLabel = (t: string) => (t || 'document').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const typeLabel = (t: string) => (t || 'document').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/\b(Hr|Pan|Uan|Esic|Pf|Kyc|Gst)\b/g, (m) => m.toUpperCase());
 
   const groups = [
-    { key: 'onboarding', title: 'Submitted at onboarding', items: docs.filter((d: any) => d.source === 'onboarding') },
-    { key: 'issued', title: 'Letters issued to me', items: docs.filter((d: any) => d.source === 'issued') },
-    { key: 'hr_upload', title: 'Uploaded by HR', items: docs.filter((d: any) => !['onboarding', 'issued'].includes(d.source)) },
+    { key: 'issued', title: 'Letters issued to me', icon: FileCheck2, items: docs.filter((d: any) => d.source === 'issued') },
+    { key: 'hr_upload', title: 'Uploaded by HR', icon: FileText, items: docs.filter((d: any) => !['onboarding', 'issued'].includes(d.source)) },
+    { key: 'onboarding', title: 'Submitted at onboarding', icon: BadgeCheck, items: docs.filter((d: any) => d.source === 'onboarding') },
   ].filter(g => g.items.length > 0);
+  const verified = docs.filter((d: any) => d.is_verified).length;
 
   return (
-    <SectionBlock
-      title="My Documents"
-      icon={FileText}
-      description="View-only. Documents are managed by HR — contact HR for any change or new certificate."
-      actions={<span className="t-secondary">{docs.length} file{docs.length === 1 ? '' : 's'}</span>}
-      bodyClassName="p-0"
-    >
+    <div className="space-y-4">
+      {intro}
+      <p className="t-secondary">
+        {docs.length} file{docs.length === 1 ? '' : 's'} · {verified} verified{docs.length - verified > 0 ? ` · ${docs.length - verified} awaiting HR verification` : ''}
+      </p>
       {groups.map(group => (
-        <div key={group.key}>
-          <p className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
-            {group.title} · {group.items.length}
-          </p>
+        <SectionBlock key={group.key} title={group.title} icon={group.icon} actions={<span className="t-secondary">{group.items.length}</span>} flush>
           <ul className="divide-y divide-border">
             {group.items.map((doc: any) => (
-              <li key={doc.id} className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-muted/40 transition-colors">
-                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-foreground truncate">
+              <li key={doc.id} className="flex flex-wrap items-center gap-3 px-3.5 py-2.5 hover:bg-muted/40 transition-colors">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium text-foreground">
                     {doc.document_name || typeLabel(doc.document_type)}
                   </p>
-                  <p className="t-secondary truncate">
+                  <p className="t-secondary">
                     {typeLabel(doc.document_type)}
-                    {doc.uploaded_at ? ` · ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
+                    {doc.uploaded_at ? ` · added ${fmtDay(doc.uploaded_at)}` : ''}
                   </p>
                 </div>
-                <StatusPill tone={doc.is_verified ? 'success' : 'warning'}>
-                  {doc.is_verified ? 'Verified' : 'Pending'}
-                </StatusPill>
-                {doc.file_url ? (
-                  <Button variant="outline" size="sm" onClick={() => { openStoredDocument(doc.file_url).catch((e: any) => sonnerToast.error(e?.message || 'Could not open this document')); }}>
-                    View
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" disabled>Unavailable</Button>
-                )}
+                <div className="flex items-center gap-2">
+                  <StatusPill tone={doc.is_verified ? 'success' : 'warning'}>
+                    {doc.is_verified ? 'Verified' : 'Pending'}
+                  </StatusPill>
+                  {doc.file_url ? (
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => { openStoredDocument(doc.file_url).catch((e: any) => sonnerToast.error(e?.message || 'Could not open this document')); }}>
+                      View
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="h-8" disabled>Unavailable</Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
-        </div>
+        </SectionBlock>
       ))}
-    </SectionBlock>
+    </div>
   );
 
+}
+
+/** Tab values other screens and notifications link to. Old links are mapped onto today's tabs. */
+const PROFILE_TAB_VALUES = [
+  'profile', 'my-department', 'tasks', 'attendance', 'salary', 'payslips', 'banking',
+  'leaves', 'requests', 'documents', 'assets', 'policies', 'helpdesk', 'settings',
+];
+const PROFILE_TAB_ALIASES: Record<string, string> = { approvals: 'requests', team: 'requests' };
+const resolveProfileTab = (tab: string) => {
+  const t = PROFILE_TAB_ALIASES[tab] ?? tab;
+  return PROFILE_TAB_VALUES.includes(t) ? t : 'profile';
+};
+
+/** True on screens wide enough for the side navigation. */
+function useIsWide() {
+  const query = '(min-width: 1280px)';
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  return wide;
 }
 
 
@@ -594,15 +693,14 @@ export default function UserProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState('profile');
-  const { data: myDeptLines = [] } = useMyDepartmentStaffing();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => resolveProfileTab(searchParams.get('tab') ?? 'profile'));
+  const { data: myDeptLines = [], isLoading: deptLoading } = useMyDepartmentStaffing();
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab) setActiveTab(tab);
+    if (tab) setActiveTab(resolveProfileTab(tab));
   }, [searchParams]);
-
   const [isEditingBank, setIsEditingBank] = useState(false);
   const [newBankAccount, setNewBankAccount] = useState({
     account_name: '', account_number: '', bank_name: '', ifsc_code: '', branch: ''
@@ -1028,526 +1126,421 @@ export default function UserProfile() {
     />
   );
 
-  const PROFILE_TABS: Array<{ value: string; label: string }> = [
-    { value: 'profile', label: 'Profile' },
-    ...(myDeptLines.length > 0 ? [{ value: 'my-department', label: 'My department' }] : []),
-    { value: 'tasks', label: 'My Tasks' },
-    { value: 'attendance', label: 'Attendance' },
-    { value: 'salary', label: 'Salary & PF' },
-    { value: 'payslips', label: 'Payslips' },
-    { value: 'banking', label: 'Banking' },
-    { value: 'leaves', label: 'Leaves' },
-    { value: 'requests', label: 'Requests' },
-    { value: 'documents', label: 'Documents' },
-    { value: 'assets', label: 'Assets' },
-    { value: 'policies', label: 'Policies' },
-    { value: 'helpdesk', label: 'Help' },
-    { value: 'settings', label: 'Settings' },
-  ];
+  // ─── Page navigation, counts and shortcuts (presentation only) ───
+  const isWide = useIsWide();
+  const [prefillReg, setPrefillReg] = useState<{ date?: string; nonce: number } | null>(null);
+  const [leaveConfirm, setLeaveConfirm] = useState<{ kind: 'delete' | 'cancel'; req: any } | null>(null);
+  // Keep the last request on screen while the confirm dialog animates out.
+  const lastLeaveConfirm = useRef(leaveConfirm);
+  if (leaveConfirm) lastLeaveConfirm.current = leaveConfirm;
+  const shownConfirm = leaveConfirm ?? lastLeaveConfirm.current;
+
+  const { data: teamLeaveQueue = [] } = useTeamLeaveQueue(hrEmployee?.id);
+  const { data: teamRegQueue = [] } = useTeamRegQueue(hrEmployee?.id);
+  const { data: openTasks = [] } = useProfileTasks('to-me', false);
+  const approvalsWaiting =
+    (teamLeaveQueue as any[]).filter((r) => r.status === 'requested').length +
+    (teamRegQueue as any[]).filter((r) => r.status === 'manager_review').length;
+
+  /** Switch tab and keep it in the URL, so a refresh or a shared link lands on the same section. */
+  const changeTab = (value: string) => {
+    setActiveTab(value);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', value);
+    next.delete('leaveId');
+    next.delete('regId');
+    setSearchParams(next, { replace: true });
+  };
+
+  /** Navigate from inside a section (overview tiles, shortcuts): move focus to the new section's tab. */
+  const goToTab = (value: string) => {
+    changeTab(value);
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('[aria-label="Profile sections"] [role="tab"][data-state="active"]')?.focus();
+    });
+  };
+
+  /** Open the leave form for a NEW request (clears anything left from an earlier edit). */
+  const openNewLeave = () => {
+    setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '', is_half_day: false, half_day_period: 'morning' });
+    setEditingLeaveId(null);
+    setShowLeaveCreate(true);
+  };
+
+  /** Open the attendance-correction form on the Requests tab, optionally for a given day. */
+  const requestCorrection = (date?: string) => {
+    setPrefillReg({ date, nonce: Date.now() });
+    changeTab('requests');
+  };
+
+  const navGroups = buildProfileNav({
+    showDepartment: myDeptLines.length > 0,
+    counts: { requests: approvalsWaiting, tasks: (openTasks as any[]).length },
+  });
 
   const jobTitle = (workInfo as any)?.positions?.title || (workInfo as any)?.job_role || null;
   const deptName = (workInfo as any)?.departments?.name || null;
 
+  const leaveRows = leaveRequests as any[];
+  // Days already asked for but not yet decided — the balance below doesn't subtract them yet.
+  const pendingByType: Record<string, number> = {};
+  for (const r of leaveRows) {
+    if (['requested', 'manager_approved'].includes(r.status)) {
+      pendingByType[r.leave_type_id] = (pendingByType[r.leave_type_id] || 0) + (Number(r.total_days) || 0);
+    }
+  }
+  const paidLeaveTypes = (leaveTypes as any[]).filter((lt) => lt.code !== 'LOP' && lt.is_paid !== false);
+  const paidAvailable = paidLeaveTypes.reduce((sum, lt) => sum + (cumulativeLeaveBalances[lt.id]?.available || 0), 0);
+  const paidPending = paidLeaveTypes.reduce((sum, lt) => sum + (pendingByType[lt.id] || 0), 0);
+
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-[1440px] space-y-4 p-3 sm:space-y-5 sm:p-6">
       {/* ─── Identity header ─── */}
-      <header className="ds-panel overflow-hidden">
-        <div className="h-0.5 w-full bg-primary" />
-        <div className="p-4 sm:p-5 flex items-start gap-4">
-          <Avatar className="h-14 w-14 sm:h-16 sm:w-16 border border-border shrink-0">
-            {user?.avatar_url ? (
-              <img src={user.avatar_url} alt={displayName || 'Profile'} className="object-cover w-full h-full" />
-            ) : (
-              <AvatarFallback className="text-base font-semibold">
-                {displayName ? getInitials(displayName) : 'U'}
-              </AvatarFallback>
+      <ProfileHeader
+        displayName={displayName}
+        avatarUrl={user?.avatar_url}
+        initials={displayName ? getInitials(displayName) : 'U'}
+        isActive={hrEmployee ? hrEmployee.is_active !== false : null}
+        badgeId={hrEmployee?.badge_id}
+        jobTitle={jobTitle}
+        deptName={deptName}
+        shiftName={(workInfo as any)?.shift_name}
+        joiningDate={(workInfo as any)?.joining_date}
+        email={user?.email}
+        phone={hrEmployee?.phone}
+        actions={hrEmployee ? (
+          <>
+            {activeTab !== 'leaves' && (
+              <Button size="sm" className="gap-1.5" onClick={openNewLeave}>
+                <CalendarDays className="h-4 w-4" /> Apply for leave
+              </Button>
             )}
-          </Avatar>
+            {activeTab !== 'attendance' && activeTab !== 'requests' && (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => requestCorrection()}>
+                <ClipboardList className="h-4 w-4" /> Fix a punch
+              </Button>
+            )}
+          </>
+        ) : undefined}
+      />
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="t-page-title text-foreground truncate">{displayName}</h1>
-              {hrEmployee && (
-                <StatusPill tone={hrEmployee.is_active === false ? 'neutral' : 'success'}>
-                  {hrEmployee.is_active === false ? 'Inactive' : 'Active'}
-                </StatusPill>
+      {/* ─── Sections ─── */}
+      <Tabs value={activeTab} onValueChange={changeTab} orientation={isWide ? 'vertical' : 'horizontal'} className="w-full">
+        <div className="xl:grid xl:grid-cols-[228px_minmax(0,1fr)] xl:items-start xl:gap-6">
+          <ProfileNav groups={navGroups} active={activeTab} />
+
+          <div className="min-w-0">
+            <TabsContent value="my-department" className="mt-4 space-y-4 xl:mt-0">
+              <TabIntro title="My department" />
+              {myDeptLines.length > 0 ? (
+                <MyDepartmentTab lines={myDeptLines} />
+              ) : deptLoading ? (
+                <ProfileSkeleton rows={3} />
+              ) : (
+                <ProfileEmptyState icon={Building2} title="No department to manage" description="This section is for department heads." />
               )}
-            </div>
+            </TabsContent>
 
-            <div className="mt-1 flex items-center gap-x-3 gap-y-1 flex-wrap t-secondary">
-              {hrEmployee?.badge_id && <span className="font-mono">#{hrEmployee.badge_id}</span>}
-              {jobTitle && <span className="truncate">{jobTitle}</span>}
-              {deptName && <span className="truncate">{deptName}</span>}
-            </div>
-
-            <div className="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-muted-foreground">
-              {user?.email && (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <Mail className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{user.email}</span>
-                </span>
+            {/* ═══════ Overview (tab value "profile") ═══════ */}
+            <TabsContent value="profile" className="mt-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <ProfileOverview
+                  hrEmployee={hrEmployee}
+                  workInfo={workInfo}
+                  leaveTypes={leaveTypes as any[]}
+                  balances={cumulativeLeaveBalances}
+                  leaveRequests={leaveRows}
+                  onNavigate={goToTab}
+                  onRequestCorrection={requestCorrection}
+                />
               )}
-              {hrEmployee?.phone && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5 shrink-0" />
-                  {hrEmployee.phone}
-                </span>
+            </TabsContent>
+
+
+            {/* ═══════ My Tasks Tab ═══════ */}
+            <TabsContent value="tasks" className="mt-4 space-y-4 xl:mt-0">
+              <TabIntro title="My tasks" />
+              <UserProfileTasks />
+            </TabsContent>
+
+            {/* ═══════ Salary & PF Tab ═══════ */}
+            <TabsContent value="salary" className="mt-4 space-y-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <>
+                  <SalaryPFTab hrEmployee={hrEmployee} />
+                  <SectionBlock title="Compensation History" icon={TrendingUp} description="Every revision to your pay, newest first">
+                    <CompensationHistory employeeId={hrEmployee.id} />
+                  </SectionBlock>
+                </>
               )}
-              {hrEmployee?.gender && (
-                <span className="inline-flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 shrink-0" />
-                  {hrEmployee.gender}
-                </span>
+            </TabsContent>
+
+
+
+            {/* ═══════ Payslips Tab ═══════ */}
+            <TabsContent value="payslips" className="mt-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <EmployeePayslipsTab employeeId={hrEmployee.id} badgeId={hrEmployee.badge_id} />
               )}
-            </div>
-          </div>
-        </div>
-      </header>
+            </TabsContent>
 
-      {/* ─── Tabs ─── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="ds-subnav w-full h-auto p-0 bg-transparent rounded-none justify-start">
-          {PROFILE_TABS.map((t) => (
-            <TabsTrigger key={t.value} value={t.value} className="ds-subnav-item">
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+            {/* ═══════ Banking Tab ═══════ */}
+            <TabsContent value="banking" className="mt-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <EmployeeBankingTab
+                  employeeId={hrEmployee.id}
+                  userId={user?.id}
+                  holderName={[hrEmployee.first_name, hrEmployee.last_name].filter(Boolean).join(' ')}
+                />
+              )}
+            </TabsContent>
 
-
-        {myDeptLines.length > 0 && (
-          <TabsContent value="my-department" className="space-y-6">
-            <MyDepartmentTab lines={myDeptLines} />
-          </TabsContent>
-        )}
-
-        {/* ═══════ Profile Tab ═══════ */}
-        <TabsContent value="profile" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <div className="space-y-4">
-              <AnnouncementsBanner />
-
-              <SectionBlock title="Work Information" icon={Briefcase}>
-                <FieldGrid wide>
-                  <Field label="Badge Id" value={hrEmployee.badge_id ?? '—'} mono />
-                  <Field label="Job Position" value={(workInfo as any)?.positions?.title || (workInfo as any)?.job_role || '—'} />
-                  <Field label="Department" value={(workInfo as any)?.departments?.name || '—'} />
-                  <Field label="Shift" value={(workInfo as any)?.shift_name || '—'} />
-                  <Field label="Work Type" value={workTypeLabel((workInfo as any)?.work_type, '—')} />
-                </FieldGrid>
-              </SectionBlock>
-
-              <SectionBlock title="Identity & Contact" icon={User}>
-                <FieldGrid wide>
-                  <Field
-                    label="Full Name"
-                    hint="KYC-locked"
-                    value={`${hrEmployee.first_name || ''} ${hrEmployee.last_name || ''}`.trim() || '—'}
-                  />
-                  <Field label="Date of Birth" value={hrEmployee.dob || '—'} />
-                  <Field label="Gender" value={hrEmployee.gender || '—'} />
-                  <Field label="Marital Status" value={hrEmployee.marital_status || '—'} />
-                  <Field label="Phone" value={hrEmployee.phone || '—'} />
-                  <Field label="Work Email" value={hrEmployee.email || '—'} />
-                  <Field label="Qualification" value={hrEmployee.qualification || '—'} />
-                  <Field label="Experience" value={hrEmployee.experience || '—'} />
-                </FieldGrid>
-              </SectionBlock>
-
-              <SectionBlock
-                title="Statutory IDs"
-                icon={Shield}
-                description="Digits are masked for privacy. Full values are visible to Payroll / HR only."
-              >
-                {(() => {
-                  const mask = (v?: string | null, keep = 4) => {
-                    if (!v) return '—';
-                    const s = String(v);
-                    if (s.length <= keep) return s;
-                    return `${'•'.repeat(Math.max(4, s.length - keep))}${s.slice(-keep)}`;
-                  };
-                  return (
-                    <FieldGrid wide>
-                      <Field label="PAN" mono value={mask((hrEmployee as any).pan_number, 4)} />
-                      <Field label="UAN (PF Universal)" mono value={mask((hrEmployee as any).uan_number, 4)} />
-                      <Field label="PF Number" mono value={mask((hrEmployee as any).pf_number, 4)} />
-                      <Field label="ESIC Number" mono value={mask((hrEmployee as any).esi_number, 4)} />
-                    </FieldGrid>
-                  );
-                })()}
-              </SectionBlock>
-
-
-              {/* Phase 6 — Team & Reporting */}
-              <MyTeamCard employeeId={hrEmployee.id} workInfo={workInfo} />
-
-              {/* Phase 7 — Company News */}
-              <MyAnnouncementsCard />
-
-              {/* Team Milestones — birthdays & work anniversaries */}
-              <MyMilestonesCard employeeId={hrEmployee.id} workInfo={workInfo} />
-            </div>
-          )}
-        </TabsContent>
-
-
-        {/* ═══════ My Tasks Tab ═══════ */}
-        <TabsContent value="tasks" className="space-y-6">
-          <UserProfileTasks />
-        </TabsContent>
-
-        {/* ═══════ Salary & PF Tab ═══════ */}
-        <TabsContent value="salary" className="space-y-4">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <>
-              <SalaryPFTab hrEmployee={hrEmployee} />
-              <SectionBlock title="Compensation History" icon={TrendingUp}>
-                <CompensationHistory employeeId={hrEmployee.id} />
-              </SectionBlock>
-            </>
-          )}
-        </TabsContent>
-
-
-
-        {/* ═══════ Payslips Tab ═══════ */}
-        <TabsContent value="payslips" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <EmployeePayslipsTab employeeId={hrEmployee.id} badgeId={hrEmployee.badge_id} />
-          )}
-        </TabsContent>
-
-        {/* ═══════ Banking Tab ═══════ */}
-        <TabsContent value="banking" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <EmployeeBankingTab
-              employeeId={hrEmployee.id}
-              userId={user?.id}
-              holderName={[hrEmployee.first_name, hrEmployee.last_name].filter(Boolean).join(' ')}
-            />
-          )}
-        </TabsContent>
-
-        {/* ═══════ Leaves Tab — Horilla-style ═══════ */}
-        <TabsContent value="leaves" className="space-y-4">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <>
-              {/* ─── Header row ─── */}
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="t-section text-foreground">My Leave requests</h2>
-                <div className="flex items-center gap-2">
-                  <Dialog open={showLeaveCreate} onOpenChange={setShowLeaveCreate}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="gap-1.5">
-                        <Plus className="h-4 w-4" /> Create
+            {/* ═══════ Leaves Tab ═══════ */}
+            <TabsContent value="leaves" className="mt-4 space-y-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <>
+                  <TabIntro
+                    title="Leave"
+                    description={`${fmtDays(paidAvailable)} day${paidAvailable === 1 ? '' : 's'} of paid leave left${paidPending > 0 ? ` · ${fmtDays(paidPending)} day${paidPending === 1 ? '' : 's'} waiting for approval` : ''}`}
+                    actions={
+                      <Button size="sm" className="gap-1.5" onClick={openNewLeave}>
+                        <Plus className="h-4 w-4" /> Apply for leave
                       </Button>
-                    </DialogTrigger>
+                    }
+                  />
 
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>New Leave Request</DialogTitle></DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Leave Type *</Label>
-                          <Select value={leaveRequest.leave_type_id} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, leave_type_id: v }))}>
-                            <SelectTrigger><SelectValue placeholder="Select leave type" /></SelectTrigger>
-                            <SelectContent>
-                              {leaveTypes.map((lt: any) => (
-                                <SelectItem key={lt.id} value={lt.id}>
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: lt.color || '#888' }} />
-                                    {lt.name}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="profile-half-day"
-                            checked={leaveRequest.is_half_day}
-                            onCheckedChange={(c) => setLeaveRequest(prev => ({ ...prev, is_half_day: !!c }))}
-                          />
-                          <Label htmlFor="profile-half-day" className="cursor-pointer">Half day</Label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label>{leaveRequest.is_half_day ? 'Date *' : 'Start Date *'}</Label>
-                            <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
-                          </div>
-                          {leaveRequest.is_half_day ? (
-                            <div>
-                              <Label>Session *</Label>
-                              <Select value={leaveRequest.half_day_period} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, half_day_period: v as 'morning' | 'afternoon' }))}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="morning">First half (morning)</SelectItem>
-                                  <SelectItem value="afternoon">Second half (afternoon)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ) : (
-                            <div>
-                              <Label>End Date *</Label>
-                              <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <Label>Reason</Label>
-                          <Textarea value={leaveRequest.reason} onChange={(e) => setLeaveRequest(prev => ({ ...prev, reason: e.target.value }))} placeholder="Enter reason for leave" />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowLeaveCreate(false)}>Cancel</Button>
-                        <Button
-                          onClick={() => applyLeaveMutation.mutate(leaveRequest)}
-                          disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || (!leaveRequest.is_half_day && !leaveRequest.to_date)}
-                        >
-                          {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-
-              <OrgLeaveCalendarCard />
-
-              {/* ─── Leave Balances ─── */}
-              <SectionBlock title="Leave Balances" icon={CalendarDays} bodyClassName="p-0">
-                {leaveTypes.length === 0 ? (
-                  <p className="t-secondary p-4">No leave types configured. Contact HR.</p>
-                ) : (
-                  <div className="ds-table-wrap border-0 rounded-none">
-                    <table className="ds-table">
-                      <thead>
-                        <tr>
-                          <th>Leave Type</th>
-                          <th className="ds-num">Available</th>
-                          <th className="ds-num">Allocated</th>
-                          <th className="ds-num">Taken</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leaveTypes.map((lt: any) => {
-                          const bal = cumulativeLeaveBalances[lt.id];
-                          const allocated = bal?.totalAllocated || 0;
-                          const used = bal?.totalUsed || 0;
-                           const available = bal?.available || 0;
-                          return (
-                            <tr key={lt.id}>
-                              <td>
-                                <span className="flex items-center gap-2 min-w-0">
-                                  <span
-                                    className="h-2 w-2 rounded-full shrink-0"
-                                    style={{ backgroundColor: lt.color || 'hsl(var(--muted-foreground))' }}
-                                  />
-                                  <span className="font-medium truncate">{lt.name}</span>
-                                  {lt.code && <span className="text-muted-foreground text-[11px]">{lt.code}</span>}
-                                </span>
-                              </td>
-                              <td className="ds-num font-semibold">{available.toFixed(1)}</td>
-                              <td className="ds-num">{allocated.toFixed(1)}</td>
-                              <td className="ds-num">{Number(used).toFixed(1)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </SectionBlock>
-
-              {/* ─── Request count ─── */}
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="t-secondary">
-                  {leaveRequests.length > 0 ? `${leaveRequests.length} request(s)` : ''}
-                </span>
-              </div>
-
-
-              {/* ─── Leave Requests Table ─── */}
-              <div className="ds-table-wrap">
-                <table className="ds-table">
-                  <thead>
-                    <tr>
-                      <th>Leave Type</th>
-                      <th>Start</th>
-                      <th>End</th>
-                      <th className="ds-num">Days</th>
-                      <th>Status</th>
-                      <th>Comment</th>
-                      <th className="text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaveRequests.length === 0 ? (
-                      <tr><td colSpan={7} className="text-center py-10 text-muted-foreground">No leave requests yet. Click "Create" to apply for leave.</td></tr>
-                    ) : (
-                      leaveRequests.map((req: any) => {
-                        const lt = getLeaveType(req.leave_type_id);
-                        const isCancellable = ['requested', 'manager_approved', 'approved'].includes(req.status);
-                        const isEditable = req.status === 'requested';
-                        const tone = req.status === 'approved' ? 'success'
-                          : req.status === 'rejected' ? 'danger'
-                          : ['requested', 'manager_approved'].includes(req.status) ? 'warning' : 'neutral';
+                  {/* ─── Leave Balances ─── */}
+                  {leaveTypes.length === 0 ? (
+                    <p className="t-secondary ds-panel p-4">No leave types configured. Contact HR.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                      {leaveTypes.map((lt: any) => {
+                        const bal = cumulativeLeaveBalances[lt.id];
+                        const allocated = bal?.totalAllocated || 0;
+                        const used = bal?.totalUsed || 0;
+                        const available = bal?.available || 0;
+                        const unpaid = lt.code === 'LOP' || lt.is_paid === false;
                         return (
-                          <tr key={req.id}>
-                            <td>
-                              <span className="flex items-center gap-2 min-w-0">
-                                <span
-                                  className="h-2 w-2 rounded-full shrink-0"
-                                  style={{ backgroundColor: lt?.color || 'hsl(var(--muted-foreground))' }}
-                                />
-                                <span className="font-medium truncate">{lt?.name || 'Unknown'}</span>
-                              </span>
-                            </td>
-                            <td className="text-muted-foreground whitespace-nowrap">{req.start_date}</td>
-                            <td className="text-muted-foreground whitespace-nowrap">{req.end_date}</td>
-                            <td className="ds-num font-medium">{req.total_days}</td>
-                            <td>
-                              <StatusPill tone={tone as any}>
-                                {req.status === 'requested' ? 'Requested' : req.status === 'manager_approved' ? 'Awaiting HR' : req.status}
-                              </StatusPill>
-                            </td>
-                            <td className="text-muted-foreground max-w-[180px] truncate">{req.reason || '—'}</td>
-                            <td>
-                              <div className="flex items-center justify-end gap-1">
-                                {isEditable && (
-                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                                    onClick={() => {
-                                      setLeaveRequest({
-                                        leave_type_id: req.leave_type_id,
-                                        from_date: req.start_date,
-                                        to_date: req.end_date,
-                                        reason: req.reason || '',
-                                        is_half_day: !!req.is_half_day,
-                                        half_day_period: req.half_day_period || 'morning',
-                                      });
-                                      setEditingLeaveId(req.id);
-                                      setShowLeaveCreate(true);
-                                    }}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                                {isEditable && (
-                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                    onClick={() => deleteLeaveRequestMutation.mutate(req.id)}
-                                    disabled={deleteLeaveRequestMutation.isPending}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                                {isCancellable && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
-                                    disabled={cancelLeaveMutation.isPending}
-                                  >
-                                    Cancel
-                                  </Button>
-                                )}
-                                {!isCancellable && !isEditable && <span className="text-xs text-muted-foreground">—</span>}
-                              </div>
-                            </td>
-                          </tr>
+                          <StatTile
+                            key={lt.id}
+                            accent={lt.color || undefined}
+                            label={<span className="normal-case tracking-normal text-[12px] font-semibold text-foreground">{lt.name}{lt.code ? <span className="ml-1.5 font-mono text-[11px] font-medium text-muted-foreground">{lt.code}</span> : null}</span>}
+                            value={unpaid ? <span className="text-muted-foreground">—</span> : <>{fmtDays(available)} <span className="text-sm font-semibold text-muted-foreground">day{available === 1 ? '' : 's'} left</span></>}
+                            sub={unpaid
+                              ? `Unpaid — no balance needed${used ? ` · ${fmtDays(used)} taken` : ''}`
+                              : `${fmtDays(allocated)} allocated · ${fmtDays(used)} taken`}
+                          >
+                            {!unpaid && (pendingByType[lt.id] || 0) > 0 && (
+                              <p className="mt-1 text-xs font-medium text-warning">
+                                {fmtDays(pendingByType[lt.id])} day{pendingByType[lt.id] === 1 ? '' : 's'} waiting for approval — not taken off yet
+                              </p>
+                            )}
+                          </StatTile>
                         );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      })}
+                    </div>
+                  )}
 
-              <UpcomingHolidaysCard />
-            </>
-          )}
-        </TabsContent>
+                  <div className="grid grid-cols-1 gap-4 min-[1440px]:grid-cols-3">
+                    {/* ─── Leave Requests ─── */}
+                    <SectionBlock
+                      className="min-[1440px]:col-span-2"
+                      title="My leave requests"
+                      icon={CalendarDays}
+                      description={leaveRows.length > 0 ? `${leaveRows.length} request${leaveRows.length === 1 ? '' : 's'}, newest first` : undefined}
+                      flush
+                    >
+                      {leaveRows.length === 0 ? (
+                        <ProfileEmptyState
+                          bare
+                          icon={CalendarDays}
+                          title="No leave requests yet"
+                          description='Use "Apply for leave" to ask for time off.'
+                        />
+                      ) : (
+                        <ul className="divide-y divide-border">
+                          {leaveRows.map((req: any) => {
+                            const lt = getLeaveType(req.leave_type_id);
+                            const isCancellable = ['requested', 'manager_approved', 'approved'].includes(req.status);
+                            const isEditable = req.status === 'requested';
+                            const stage = leaveStage(req.status, req.manager_status);
+                            const unpaidDays = Number(req.unpaid_days) || 0;
+                            return (
+                              <li key={req.id} className="flex flex-col gap-2 px-3.5 py-3 sm:flex-row sm:items-start sm:gap-4">
+                                <div className="flex min-w-0 flex-1 gap-3">
+                                  <span
+                                    className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+                                    style={{ backgroundColor: lt?.color || 'hsl(var(--muted-foreground))' }}
+                                    aria-hidden
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      <span className="text-[13px] font-semibold text-foreground">{lt?.name || 'Unknown'}</span>
+                                      <StatusPill tone={stage.tone}>{stage.label}</StatusPill>
+                                    </div>
+                                    <p className="mt-0.5 text-[13px] text-foreground">
+                                      {fmtRange(req.start_date, req.end_date)}
+                                      <span className="text-muted-foreground">
+                                        {' · '}{fmtDays(req.total_days)} day{Number(req.total_days) === 1 ? '' : 's'}
+                                        {req.is_half_day ? ` · ${req.half_day_period === 'afternoon' ? 'second half' : 'first half'}` : ''}
+                                      </span>
+                                    </p>
+                                    {req.reason && <p className="t-secondary mt-1">“{req.reason}”</p>}
+                                    {req.status === 'rejected' && req.rejection_reason && (
+                                      <p className="mt-1 text-xs text-destructive">Reason for rejection: {req.rejection_reason}</p>
+                                    )}
+                                    {req.manager_remarks && req.manager_remarks !== req.rejection_reason && (
+                                      <p className="mt-1 text-xs text-muted-foreground">Manager: {req.manager_remarks}</p>
+                                    )}
+                                    {req.status === 'approved' && unpaidDays > 0 && (
+                                      <p className="mt-1 text-xs text-warning">{fmtDays(Number(req.paid_days) || 0)} day(s) paid · {fmtDays(unpaidDays)} unpaid</p>
+                                    )}
+                                  </div>
+                                </div>
+                                {(isEditable || isCancellable) && (
+                                  <div className="flex shrink-0 items-center gap-1.5 pl-[22px] sm:pl-0">
+                                    {isEditable && (
+                                      <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-muted-foreground hover:text-foreground"
+                                        onClick={() => {
+                                          setLeaveRequest({
+                                            leave_type_id: req.leave_type_id,
+                                            from_date: req.start_date,
+                                            to_date: req.end_date,
+                                            reason: req.reason || '',
+                                            is_half_day: !!req.is_half_day,
+                                            half_day_period: req.half_day_period || 'morning',
+                                          });
+                                          setEditingLeaveId(req.id);
+                                          setShowLeaveCreate(true);
+                                        }}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" /> Edit
+                                      </Button>
+                                    )}
+                                    {isEditable && (
+                                      <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-destructive hover:text-destructive"
+                                        onClick={() => setLeaveConfirm({ kind: 'delete', req })}
+                                        disabled={deleteLeaveRequestMutation.isPending}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                                      </Button>
+                                    )}
+                                    {isCancellable && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 gap-1 text-xs"
+                                        onClick={() => setLeaveConfirm({ kind: 'cancel', req })}
+                                        disabled={cancelLeaveMutation.isPending}
+                                      >
+                                        <XCircle className="h-3.5 w-3.5" /> Cancel
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </SectionBlock>
 
-        {/* ═══════ Requests Tab ═══════ */}
-        <TabsContent value="requests" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <>
-              <TeamLeaveApprovals
-                employeeId={hrEmployee.id}
-                highlightedRequestId={searchParams.get('leaveId')}
-              />
-              <TeamRegularizationApprovals
-                employeeId={hrEmployee.id}
-                highlightedRequestId={searchParams.get('regId')}
-              />
-              <MyRequestsHub
-                employeeId={hrEmployee.id}
-                userId={user?.id}
-                defaultHolderName={[hrEmployee.first_name, hrEmployee.last_name].filter(Boolean).join(' ')}
-              />
-            </>
-          )}
-        </TabsContent>
+                    <div className="min-w-0 space-y-4">
+                      <OrgLeaveCalendarCard />
+                      <UpcomingHolidaysCard />
+                    </div>
+                  </div>
+                </>
+              )}
+            </TabsContent>
 
-        {/* ═══════ Documents Tab ═══════ */}
-        <TabsContent value="documents" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <EmployeeDocumentsTab employeeId={hrEmployee.id} />
-          )}
-        </TabsContent>
+            {/* ═══════ Requests Tab ═══════ */}
+            <TabsContent value="requests" className="mt-4 space-y-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <>
+                  <TabIntro
+                    title="Requests"
+                    description={approvalsWaiting > 0
+                      ? `${approvalsWaiting} request${approvalsWaiting === 1 ? '' : 's'} from your team ${approvalsWaiting === 1 ? 'needs' : 'need'} your decision. Your own requests are below.`
+                      : 'Everything you have asked for — leave, attendance corrections and bank changes — and where it stands.'}
+                  />
+                  <TeamLeaveApprovals
+                    employeeId={hrEmployee.id}
+                    highlightedRequestId={searchParams.get('leaveId')}
+                  />
+                  <TeamRegularizationApprovals
+                    employeeId={hrEmployee.id}
+                    highlightedRequestId={searchParams.get('regId')}
+                  />
+                  <MyRequestsHub
+                    employeeId={hrEmployee.id}
+                    userId={user?.id}
+                    defaultHolderName={[hrEmployee.first_name, hrEmployee.last_name].filter(Boolean).join(' ')}
+                    openRegularization={prefillReg}
+                    onRegularizationOpened={() => setPrefillReg(null)}
+                  />
+                </>
+              )}
+            </TabsContent>
 
-        {/* ═══════ Assets Tab ═══════ */}
-        <TabsContent value="assets" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <MyAssetsTab employeeId={hrEmployee.id} />
-          )}
-        </TabsContent>
+            {/* ═══════ Documents Tab ═══════ */}
+            <TabsContent value="documents" className="mt-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <EmployeeDocumentsTab employeeId={hrEmployee.id} />
+              )}
+            </TabsContent>
+
+            {/* ═══════ Assets Tab ═══════ */}
+            <TabsContent value="assets" className="mt-4 space-y-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <>
+                  <TabIntro title="Assets" />
+                  <MyAssetsTab employeeId={hrEmployee.id} />
+                </>
+              )}
+            </TabsContent>
 
 
 
-        {/* ═══════ Attendance Tab ═══════ */}
-        <TabsContent value="attendance" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <AttendanceTab employeeId={hrEmployee.id} />
-          )}
-        </TabsContent>
+            {/* ═══════ Attendance Tab ═══════ */}
+            <TabsContent value="attendance" className="mt-4 xl:mt-0">
+              {!hrEmployee ? (
+                <NoEmployeeProfile />
+              ) : (
+                <AttendanceTab employeeId={hrEmployee.id} onRequestCorrection={requestCorrection} />
+              )}
+            </TabsContent>
 
-        {/* ═══════ Settings Tab ═══════ */}
-        <TabsContent value="settings" className="space-y-8">
-          {/* Profile Preferences */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Profile Preferences</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" /> Profile Image</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-20 w-20 border-2 border-border">
+            {/* ═══════ Settings Tab ═══════ */}
+            <TabsContent value="settings" className="mt-4 space-y-4 xl:mt-0">
+              <TabIntro title="Settings" />
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <SectionBlock title="Profile photo" icon={Camera} description="Shown in the menu, on tasks and to your team">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <Avatar className="h-20 w-20 shrink-0 border-2 border-border">
                       {avatarPreview ? (
                         <img src={avatarPreview} alt="Preview" className="object-cover w-full h-full" />
                       ) : user?.avatar_url ? (
                         <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
                       ) : (
-                        <AvatarFallback className="text-2xl font-bold">
+                        <AvatarFallback className="bg-primary/10 text-2xl font-bold text-primary">
                           {displayName ? getInitials(displayName) : 'U'}
                         </AvatarFallback>
                       )}
@@ -1557,122 +1550,205 @@ export default function UserProfile() {
                       <div {...avatarDropzone} className={cn("rounded-md transition-colors", avatarDragActive && "ring-2 ring-primary bg-primary/10 p-1")}>
                         <Input id="avatar" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleAvatarChange} disabled={uploadAvatarMutation.isPending} />
                       </div>
-                      <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max size 5MB.</p>
+                      <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max size 5MB. You can also drop an image here.</p>
                     </div>
                   </div>
                   {avatarFile && (
-                    <div className="flex gap-2">
+                    <div className="mt-4 flex gap-2">
                       <Button onClick={() => { toast({ title: "Processing...", description: "Uploading profile image...", duration: 3000 }); uploadAvatarMutation.mutate(avatarFile); }} disabled={uploadAvatarMutation.isPending} className="flex-1">
                         {uploadAvatarMutation.isPending ? 'Uploading...' : 'Upload Image'}
                       </Button>
                       <Button variant="outline" onClick={() => { setAvatarFile(null); setAvatarPreview(null); }} disabled={uploadAvatarMutation.isPending}>Cancel</Button>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </SectionBlock>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" /> Change Username</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2"><Label className="text-xs">Current Username</Label><Input value={user?.username || ''} disabled /></div>
-                  <div className="space-y-2"><Label htmlFor="newUsername" className="text-xs">New Username</Label><Input id="newUsername" value={settingsData.newUsername} onChange={(e) => setSettingsData(prev => ({ ...prev, newUsername: e.target.value }))} placeholder="Enter new username" /></div>
-                  <Button onClick={() => {
-                    if (!settingsData.newUsername.trim()) { toast({ title: "Error", description: "Please enter a new username", variant: "destructive", duration: 5000 }); return; }
-                    if (settingsData.newUsername === user?.username) { toast({ title: "Error", description: "New username must be different", variant: "destructive", duration: 5000 }); return; }
-                    toast({ title: "Processing...", description: "Updating username...", duration: 3000 });
-                    updateUsernameMutation.mutate(settingsData.newUsername);
-                  }} disabled={updateUsernameMutation.isPending} className="w-full">
-                    {updateUsernameMutation.isPending ? 'Updating...' : 'Update Username'}
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+                <SectionBlock title="Username" icon={User} description="Used to sign in together with your password">
+                  <div className="space-y-3">
+                    <div className="space-y-1.5"><Label className="text-xs">Current Username</Label><Input value={user?.username || ''} disabled /></div>
+                    <div className="space-y-1.5"><Label htmlFor="newUsername" className="text-xs">New Username</Label><Input id="newUsername" value={settingsData.newUsername} onChange={(e) => setSettingsData(prev => ({ ...prev, newUsername: e.target.value }))} placeholder="Enter new username" /></div>
+                    <Button onClick={() => {
+                      if (!settingsData.newUsername.trim()) { toast({ title: "Error", description: "Please enter a new username", variant: "destructive", duration: 5000 }); return; }
+                      if (settingsData.newUsername === user?.username) { toast({ title: "Error", description: "New username must be different", variant: "destructive", duration: 5000 }); return; }
+                      toast({ title: "Processing...", description: "Updating username...", duration: 3000 });
+                      updateUsernameMutation.mutate(settingsData.newUsername);
+                    }} disabled={updateUsernameMutation.isPending} className="w-full sm:w-auto">
+                      {updateUsernameMutation.isPending ? 'Updating...' : 'Update Username'}
+                    </Button>
+                  </div>
+                </SectionBlock>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base"><Bot className="h-4 w-4" /> AI Assistant</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="assistant-toggle" className="text-sm">Floating AI assistant</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Shows the assistant mascot button in the corner of every page. Turning it off hides it on this device — you can still open the assistant from the menu.
+                <SectionBlock title="Password" icon={KeyRound} description="Reset with a one-time code sent to your registered email">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      We email a verification code to <span className="font-medium text-foreground">{user?.email || 'your registered email'}</span>.
                     </p>
+                    <Button onClick={() => setShowResetPassword(true)} className="shrink-0">
+                      Reset Password
+                    </Button>
                   </div>
-                  <Switch
-                    id="assistant-toggle"
-                    checked={assistantEnabled}
-                    onCheckedChange={(v) => {
-                      setHelpAssistantEnabled(v);
-                      toast({ title: v ? 'AI assistant enabled' : 'AI assistant disabled', duration: 2500 });
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </section>
+                </SectionBlock>
 
-
-          {/* Security */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Security</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base"><Shield className="h-4 w-4" /> Reset Password</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Reset your password using a one-time verification code sent to your registered email.
-                  </p>
-                  <Button onClick={() => setShowResetPassword(true)} className="w-full">
-                    Reset Password
-                  </Button>
-                </CardContent>
-              </Card>
-              {user?.id && <MySecurityCard userId={user.id} badgeId={hrEmployee?.badge_id} />}
-            </div>
-          </section>
-
-          {/* Session */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Session</h3>
-            <Card className="border-destructive/30">
-              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-destructive font-medium">
-                    <LogOut className="h-4 w-4" /> Log Out
+                <SectionBlock title="AI Assistant" icon={Bot}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="assistant-toggle" className="text-sm">Floating AI assistant</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Shows the assistant mascot button in the corner of every page. Turning it off hides it on this device — you can still open the assistant from the menu.
+                      </p>
+                    </div>
+                    <Switch
+                      id="assistant-toggle"
+                      checked={assistantEnabled}
+                      onCheckedChange={(v) => {
+                        setHelpAssistantEnabled(v);
+                        toast({ title: v ? 'AI assistant enabled' : 'AI assistant disabled', duration: 2500 });
+                      }}
+                    />
                   </div>
-                  <p className="text-sm text-muted-foreground">Sign out of your account on this device. You will need to log in again.</p>
-                </div>
-                <Button
-                  variant="destructive"
-                  className="sm:w-auto w-full"
-                  onClick={() => { logout(); navigate('/'); }}
-                >
-                  <LogOut className="h-4 w-4 mr-2" /> Log Out
-                </Button>
-              </CardContent>
-            </Card>
-          </section>
-        </TabsContent>
+                </SectionBlock>
 
-        {/* ═══════ Policies Tab ═══════ */}
-        <TabsContent value="policies" className="space-y-6">
-          {user?.id && <MyPoliciesCard userId={user.id} />}
-        </TabsContent>
+                {user?.id && <MySecurityCard userId={user.id} badgeId={hrEmployee?.badge_id} />}
 
-        {/* ═══════ Helpdesk Tab ═══════ */}
-        <TabsContent value="helpdesk" className="space-y-6">
-          {user?.id && <MyHelpdeskCard userId={user.id} />}
-        </TabsContent>
+                {/* Session */}
+                <SectionBlock title="Log out" icon={LogOut} className="!border-destructive/30">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">Sign out of your account on this device. You will need to log in again.</p>
+                    <Button
+                      variant="destructive"
+                      className="sm:w-auto w-full shrink-0"
+                      onClick={() => { logout(); navigate('/'); }}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" /> Log Out
+                    </Button>
+                  </div>
+                </SectionBlock>
+              </div>
+            </TabsContent>
 
+            {/* ═══════ Policies Tab ═══════ */}
+            <TabsContent value="policies" className="mt-4 space-y-4 xl:mt-0">
+              <TabIntro title="Policies" />
+              {user?.id && <MyPoliciesCard userId={user.id} />}
+            </TabsContent>
 
-
+            {/* ═══════ Helpdesk Tab ═══════ */}
+            <TabsContent value="helpdesk" className="mt-4 space-y-4 xl:mt-0">
+              <TabIntro title="Help desk" />
+              {user?.id && <MyHelpdeskCard userId={user.id} />}
+            </TabsContent>
+          </div>
+        </div>
       </Tabs>
+
+      {/* ─── Leave form (opened from the header, the overview and the Leave tab) ─── */}
+      <Dialog open={showLeaveCreate} onOpenChange={setShowLeaveCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingLeaveId ? 'Edit leave request' : 'New Leave Request'}</DialogTitle>
+            <DialogDescription>Your manager reviews it first, then HR gives the final approval.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Leave Type *</Label>
+              <Select value={leaveRequest.leave_type_id} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, leave_type_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select leave type" /></SelectTrigger>
+                <SelectContent>
+                  {leaveTypes.map((lt: any) => (
+                    <SelectItem key={lt.id} value={lt.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: lt.color || '#888' }} />
+                        {lt.name}
+                        {cumulativeLeaveBalances[lt.id] && lt.code !== 'LOP' && (
+                          <span className="text-xs text-muted-foreground">· {fmtDays(cumulativeLeaveBalances[lt.id].available)} left</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="profile-half-day"
+                checked={leaveRequest.is_half_day}
+                onCheckedChange={(c) => setLeaveRequest(prev => ({ ...prev, is_half_day: !!c }))}
+              />
+              <Label htmlFor="profile-half-day" className="cursor-pointer">Half day</Label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <Label>{leaveRequest.is_half_day ? 'Date *' : 'Start Date *'}</Label>
+                <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
+              </div>
+              {leaveRequest.is_half_day ? (
+                <div className="min-w-0">
+                  <Label>Session *</Label>
+                  <Select value={leaveRequest.half_day_period} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, half_day_period: v as 'morning' | 'afternoon' }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="morning">First half (morning)</SelectItem>
+                      <SelectItem value="afternoon">Second half (afternoon)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="min-w-0">
+                  <Label>End Date *</Label>
+                  <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
+                </div>
+              )}
+            </div>
+            <div>
+              <Label>Reason</Label>
+              <Textarea value={leaveRequest.reason} onChange={(e) => setLeaveRequest(prev => ({ ...prev, reason: e.target.value }))} placeholder="Enter reason for leave" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLeaveCreate(false)}>Cancel</Button>
+            <Button
+              onClick={() => applyLeaveMutation.mutate(leaveRequest)}
+              disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || (!leaveRequest.is_half_day && !leaveRequest.to_date)}
+            >
+              {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Confirm delete / cancel of a leave request ─── */}
+      <AlertDialog open={!!leaveConfirm} onOpenChange={(o) => { if (!o) setLeaveConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{shownConfirm?.kind === 'delete' ? 'Delete this leave request?' : 'Cancel this leave?'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {shownConfirm?.req
+                ? `${getLeaveType(shownConfirm.req.leave_type_id)?.name || 'Leave'} · ${fmtRange(shownConfirm.req.start_date, shownConfirm.req.end_date)}. `
+                : ''}
+              {shownConfirm?.kind === 'delete'
+                ? 'It has not been decided yet, so it is removed from your list.'
+                : shownConfirm?.req?.status === 'approved'
+                  ? 'It is already approved — cancelling gives the days back to your balance.'
+                  : 'It is withdrawn and no longer waits for approval.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                const c = leaveConfirm;
+                if (!c) return;
+                if (c.kind === 'delete') deleteLeaveRequestMutation.mutate(c.req.id);
+                else cancelLeaveMutation.mutate({ requestId: c.req.id, wasApproved: c.req.status === 'approved' });
+                setLeaveConfirm(null);
+              }}
+            >
+              {shownConfirm?.kind === 'delete' ? 'Delete' : 'Cancel leave'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ForgotPasswordDialog
         open={showResetPassword}

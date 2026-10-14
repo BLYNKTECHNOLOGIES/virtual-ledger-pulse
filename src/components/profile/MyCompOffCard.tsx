@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gift, CheckCircle2, Clock3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Gift } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { SectionBlock, ProfileEmptyState, ProfileSkeleton } from './primitives';
+import { fmtDay, fmtDays, fmtMonthShort, humanize, istToday } from './format';
 
 interface MyCompOffCardProps {
   employeeId: string;
@@ -11,6 +15,8 @@ interface MyCompOffCardProps {
  * Employee-facing comp-off ledger. Credits are auto-granted by the
  * `hr_grant_sunday_work_credit` trigger — HR handles redemption/allocation, so
  * this view surfaces earned, redeemed, and expiring balances read-only.
+ * Comp-off leave can only use credits earned in the same month; older
+ * unsettled credits are paid out by payroll instead.
  */
 export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
   const { data: credits = [], isLoading } = useQuery({
@@ -28,91 +34,89 @@ export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
     enabled: !!employeeId,
   });
 
-  const today = new Date().toISOString().slice(0, 10);
-  const thisMonth = today.slice(0, 7);
+  const [showAll, setShowAll] = useState(false);
+  const thisMonth = istToday().slice(0, 7);
+  const VOIDED = 'voided_no_attendance_evidence';
+  const OUTCOME: Record<string, string> = {
+    encashed: 'Encashed',
+    offset_lop: 'Set off against loss of pay',
+    settled_in_payroll: 'Settled in payroll',
+    [VOIDED]: 'Voided — no attendance evidence',
+  };
   const totals = credits.reduce(
     (acc: any, c: any) => {
       const d = Number(c.credit_days || 0);
       acc.earned += d;
-      if (c.settled_period_month) {
+      if (c.settlement_outcome === VOIDED) {
+        acc.voided += d;
+      } else if (c.settled_period_month) {
         acc.settled += d;
+      } else if (String(c.credit_date || '').slice(0, 7) === thisMonth) {
+        acc.thisMonth += d;
       } else {
-        acc.available += d;
+        acc.earlier += d;
       }
-      if (String(c.credit_date || '').slice(0, 7) === thisMonth) acc.thisMonth += d;
       return acc;
     },
-    { earned: 0, available: 0, settled: 0, thisMonth: 0 }
+    { earned: 0, thisMonth: 0, earlier: 0, settled: 0, voided: 0 }
   );
+  const list = showAll ? credits : (credits as any[]).slice(0, 6);
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Gift className="h-4 w-4 text-primary" /> Comp-off Balance
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">Open this cycle</p>
-            <p className="text-2xl font-bold text-success">{totals.available.toFixed(1)}</p>
+    <SectionBlock icon={Gift} title="Comp-off" description="Days earned for working a week off or holiday" flush>
+      {isLoading ? (
+        <ProfileSkeleton rows={3} bare />
+      ) : credits.length === 0 ? (
+        <ProfileEmptyState bare className="py-6" title="No comp-off credits yet" description="Sunday work is auto-credited by the attendance engine." />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+            <Figure label="This month's credits" value={totals.thisMonth} tone="text-success" />
+            <Figure label="Earlier, awaiting settlement" value={totals.earlier} />
+            <Figure label="Settled" value={totals.settled} tone="text-muted-foreground" />
           </div>
-          <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">Earned this month</p>
-            <p className="text-2xl font-bold text-foreground">{totals.thisMonth.toFixed(1)}</p>
-          </div>
-          <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">Earned (total)</p>
-            <p className="text-2xl font-bold text-foreground">{totals.earned.toFixed(1)}</p>
-          </div>
-          <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">Settled / encashed</p>
-            <p className="text-2xl font-bold text-info">{totals.settled.toFixed(1)}</p>
-          </div>
-        </div>
-
-
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground text-center py-4">Loading…</p>
-        ) : credits.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No comp-off credits yet. Sunday work is auto-credited by the attendance engine.
-          </p>
-        ) : (
-          <div className="border border-border rounded-lg divide-y divide-border/60">
-            {credits.slice(0, 10).map((c: any) => {
-              const settled = !!c.settled_period_month;
+          <ul className="divide-y divide-border">
+            {list.map((c: any) => {
+              const sameMonth = String(c.credit_date || '').slice(0, 7) === thisMonth;
+              const state = c.settlement_outcome === VOIDED
+                ? OUTCOME[VOIDED]
+                : c.settled_period_month
+                  ? `${OUTCOME[c.settlement_outcome] || 'Settled'} · ${fmtMonthShort(c.settled_period_month)}`
+                  : sameMonth ? "This month's credit" : 'Awaiting settlement';
               return (
-                <div key={c.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    {settled ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-info" />
-                    ) : (
-                      <Gift className="h-3.5 w-3.5 text-success" />
-                    )}
-
-                    <span className="font-medium text-foreground">{c.credit_date}</span>
-                    <span className="text-xs text-muted-foreground">
-                      · {c.credit_type || 'Sunday work'}
-                    </span>
+                <li key={c.id} className="flex items-center justify-between gap-3 px-3.5 py-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-foreground">{fmtDay(c.credit_date)}</p>
+                    <p className="text-xs text-muted-foreground">{c.credit_type ? humanize(c.credit_type) : 'Sunday work'} · {state}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {c.settled_period_month
-                        ? `Settled ${String(c.settled_period_month).slice(0, 7)}`
-                        : 'Open this month'}
-                    </span>
-                    <span className="font-semibold text-foreground">+{Number(c.credit_days).toFixed(1)}d</span>
-                  </div>
-                </div>
+                  <span className={cn('shrink-0 font-mono text-[13px] font-semibold tabular-nums', !c.settled_period_month && sameMonth ? 'text-success' : 'text-muted-foreground')}>
+                    +{fmtDays(Number(c.credit_days || 0))}d
+                  </span>
+                </li>
               );
             })}
-          </div>
-        )}
+          </ul>
+          {(credits as any[]).length > 6 && (
+            <div className="border-t border-border px-3.5 py-2">
+              <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setShowAll((v) => !v)}>
+                {showAll ? 'Show fewer' : `Show all ${(credits as any[]).length}`}
+              </Button>
+            </div>
+          )}
+          <p className="border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
+            {fmtDays(totals.earned)} day{totals.earned === 1 ? '' : 's'} earned in total{totals.voided ? ` (${fmtDays(totals.voided)} voided)` : ''}. Comp-off leave can only use credits earned in the same month; earlier ones are settled by payroll.
+          </p>
+        </>
+      )}
+    </SectionBlock>
+  );
+}
 
-
-      </CardContent>
-    </Card>
+function Figure({ label, value, tone }: { label: string; value: number; tone?: string }) {
+  return (
+    <div className="px-3 py-2.5 text-center">
+      <p className={cn('font-display text-lg font-bold tabular-nums text-foreground', tone)}>{fmtDays(value)}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+    </div>
   );
 }

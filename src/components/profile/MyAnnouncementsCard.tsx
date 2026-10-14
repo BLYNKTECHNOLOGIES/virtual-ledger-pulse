@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Megaphone, Pin, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Megaphone, Pin, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { SectionBlock, StatusPill, ProfileSkeleton } from './primitives';
+import { fmtAgo, humanize } from './format';
 
 const READ_KEY = 'ess.announcements.read.v1';
 
@@ -81,85 +81,60 @@ export default function MyAnnouncementsCard() {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Megaphone className="h-4 w-4 text-primary" /> Company News
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="text-[10px] h-5 px-1.5">
-                {unreadCount} new
-              </Badge>
-            )}
-          </CardTitle>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs h-7">
+    <SectionBlock
+      icon={Megaphone}
+      title="Company news"
+      flush
+      actions={
+        unreadCount > 0 ? (
+          <div className="flex items-center gap-2">
+            <StatusPill tone="info">{unreadCount} new</StatusPill>
+            <Button variant="ghost" size="sm" onClick={markAllRead} className="h-7 px-2 text-xs">
               Mark all read
             </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Loading…</p>
-        ) : announcements.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            No announcements right now.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {(announcements as any[]).map((a) => {
-              const isOpen = expanded.has(a.id);
-              const isUnread = !read.has(a.id);
-              return (
-                <div
-                  key={a.id}
-                  className={`border rounded-lg transition-colors ${
-                    isUnread ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggle(a.id)}
-                    className="w-full flex items-start gap-3 p-3 text-left"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {a.is_pinned && <Pin className="h-3 w-3 text-warning shrink-0" />}
-                        <p
-                          className={`text-sm truncate ${
-                            isUnread ? 'font-bold text-foreground' : 'font-medium text-foreground/90'
-                          }`}
-                        >
-                          {a.title}
-                        </p>
-                        {a.category && (
-                          <Badge variant="outline" className="text-[10px] h-4 px-1">
-                            {a.category}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                    {isOpen ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                  </button>
-                  {isOpen && a.content && (
-                    <div className="px-3 pb-3 text-sm text-foreground/90 whitespace-pre-wrap border-t border-border/50 pt-2">
-                      {a.content}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        ) : undefined
+      }
+    >
+      {isLoading ? (
+        <ProfileSkeleton rows={2} bare />
+      ) : announcements.length === 0 ? (
+        <p className="px-3.5 py-4 text-sm text-muted-foreground">No announcements right now.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {(announcements as any[]).map((a) => {
+            const isOpen = expanded.has(a.id);
+            const isUnread = !read.has(a.id);
+            return (
+              <li key={a.id} className={cn(isUnread && 'bg-primary/[0.04]')}>
+                <button
+                  type="button"
+                  onClick={() => toggle(a.id)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-start gap-2.5 px-3.5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:outline-none"
+                >
+                  <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', isUnread ? 'bg-primary' : 'bg-transparent')} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className={cn('text-[13px] text-foreground', isUnread ? 'font-semibold' : 'font-medium', !isOpen && 'line-clamp-2')}>
+                      {a.is_pinned && <Pin className="mr-1 inline h-3 w-3 text-warning" />}
+                      {a.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {a.category ? `${humanize(a.category)} · ` : ''}{fmtAgo(a.created_at)}
+                    </p>
+                  </div>
+                  <ChevronDown className={cn('mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-180')} />
+                </button>
+                {isOpen && a.content && (
+                  <div className="whitespace-pre-wrap px-3.5 pb-3 pl-[30px] text-sm text-foreground/90">
+                    {a.content}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionBlock>
   );
 }

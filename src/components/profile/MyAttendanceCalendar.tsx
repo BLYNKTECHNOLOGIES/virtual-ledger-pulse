@@ -1,14 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import {
-  ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock,
-  CheckCircle2, XCircle, Circle, PieChart, Palmtree, PartyPopper, Coffee, Timer,
-  type LucideIcon,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, LogIn, LogOut, Clock, Timer, ClipboardList } from 'lucide-react';
 import {
   startOfMonth,
   endOfMonth,
@@ -22,133 +17,30 @@ import {
 import { useComplianceSettings, isWeeklyOff } from '@/hooks/hrms/useComplianceSettings';
 import { useAttendanceDayRange, resolveDayStatus, type AttendanceDay } from '@/hooks/hrms/useAttendanceDay';
 import { cn } from '@/lib/utils';
+import { StatusPill } from './primitives';
+import { DAY_META, LEGEND_ORDER, type DayKey } from './attendanceMeta';
+import { fmtMinutes, fmtTime } from './format';
 
 interface Props {
   employeeId: string;
+  /** Month to show. When given, the parent owns month navigation. */
+  month?: Date;
+  onMonthChange?: (d: Date) => void;
+  /** Offered on past days that look wrong (missing punch-out, absent). */
+  onRequestCorrection?: (date: string) => void;
+  /** The page already shows a live "Today" card, so don't repeat today's punches here. */
+  todayShownElsewhere?: boolean;
+  /** Extra check before offering a correction (e.g. a request already exists, or HR holds the day). */
+  correctionAllowed?: (date: string, row?: AttendanceDay) => boolean;
 }
 
-type LegendKey =
-  | 'present'
-  | 'half_day'
-  | 'absent'
-  | 'on_leave'
-  | 'holiday'
-  | 'week_off'
-  | 'incomplete'
-  | 'in_progress'
-  | 'no_punch'
-  | 'upcoming';
+type LegendKey = DayKey;
+const LEGEND = DAY_META;
 
-const LEGEND: Record<
-  LegendKey,
-  {
-    label: string;
-    short: string;
-    hint?: string;
-    icon: LucideIcon;
-    dot: string;
-    cell: string;
-    text: string;
-    glow?: string;
-  }
-> = {
-  present: {
-    label: 'Present',
-    short: 'P',
-    hint: 'Marked present',
-    icon: CheckCircle2,
-    dot: 'bg-emerald-500',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    cell: 'bg-emerald-500/15 border-emerald-500/50',
-    glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(16,185,129,0.35)]',
-  },
-  half_day: {
-    label: 'Half Day',
-    short: '½',
-    hint: 'Half day credited',
-    icon: PieChart,
-    dot: 'bg-amber-500',
-    text: 'text-amber-700 dark:text-amber-300',
-    cell: 'bg-amber-500/20 border-amber-500/50',
-    glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(251,191,36,0.35)]',
-  },
-  absent: {
-    label: 'Absent',
-    short: 'A',
-    hint: 'Marked absent',
-    icon: XCircle,
-    dot: 'bg-rose-500',
-    text: 'text-rose-700 dark:text-rose-300',
-    cell: 'bg-rose-500/15 border-rose-500/50',
-    glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(244,63,94,0.35)]',
-  },
-  on_leave: {
-    label: 'On Leave',
-    short: 'L',
-    hint: 'Approved leave',
-    icon: Palmtree,
-    dot: 'bg-violet-500',
-    text: 'text-violet-700 dark:text-violet-300',
-    cell: 'bg-violet-500/15 border-violet-500/50',
-  },
-  holiday: {
-    label: 'Holiday',
-    short: 'H',
-    hint: 'Company holiday',
-    icon: PartyPopper,
-    dot: 'bg-sky-500',
-    text: 'text-sky-700 dark:text-sky-300',
-    cell: 'bg-sky-500/15 border-sky-500/50',
-  },
-  week_off: {
-    label: 'Week Off',
-    short: 'W',
-    hint: 'Weekly off',
-    icon: Coffee,
-    dot: 'bg-slate-400',
-    text: 'text-muted-foreground',
-    cell: 'bg-muted/50 border-border',
-  },
-  incomplete: {
-    label: 'Incomplete',
-    short: '!',
-    hint: 'Punch-out missing — pending HR review',
-    icon: Timer,
-    dot: 'bg-orange-500',
-    text: 'text-orange-700 dark:text-orange-300',
-    cell: 'bg-orange-500/20 border-orange-500/50',
-  },
-  in_progress: {
-    label: 'In Progress',
-    short: '•',
-    hint: 'Shift still running',
-    icon: Timer,
-    dot: 'bg-orange-400',
-    text: 'text-orange-700 dark:text-orange-300',
-    cell: 'bg-orange-500/10 border-orange-500/40',
-  },
-  no_punch: {
-    label: 'No Punch',
-    short: '—',
-    hint: 'No punch recorded',
-    icon: Circle,
-    dot: 'bg-muted-foreground/40',
-    text: 'text-muted-foreground',
-    cell: 'bg-background border-dashed border-border',
-  },
-  upcoming: {
-    label: 'Upcoming',
-    short: '',
-    icon: Circle,
-    dot: 'bg-transparent',
-    text: 'text-muted-foreground/60',
-    cell: 'bg-background border-border/40',
-  },
-};
-
-
-export default function MyAttendanceCalendar({ employeeId }: Props) {
-  const [cursor, setCursor] = useState(() => new Date());
+export default function MyAttendanceCalendar({ employeeId, month, onMonthChange, onRequestCorrection, todayShownElsewhere, correctionAllowed }: Props) {
+  const [ownCursor, setOwnCursor] = useState(() => new Date());
+  const cursor = month ?? ownCursor;
+  const setCursor = (d: Date) => (onMonthChange ? onMonthChange(d) : setOwnCursor(d));
   const [selected, setSelected] = useState<string | null>(() =>
     format(new Date(), 'yyyy-MM-dd'),
   );
@@ -162,7 +54,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
   const { data: compliance } = useComplianceSettings();
 
   // V1: single sanctioned reader — same shape HR overview and Day Detail see.
-  const { data: dayRows = [] } = useAttendanceDayRange(
+  const { data: dayRows = [], isLoading } = useAttendanceDayRange(
     [employeeId],
     format(monthStart, 'yyyy-MM-dd'),
     format(monthEnd, 'yyyy-MM-dd'),
@@ -267,94 +159,58 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
     setSelected(format(new Date(), 'yyyy-MM-dd'));
   };
 
+  const selDate = selected ? new Date(`${selected}T00:00:00`) : null;
+  const canCorrect = !!(selectedRec && selected && onRequestCorrection &&
+    ['incomplete', 'absent', 'no_punch'].includes(selectedRec.key) && !isAfter(startOfDay(selDate as Date), startOfDay(new Date())) &&
+    (!correctionAllowed || correctionAllowed(selected, selectedRec.row)));
+
   return (
-    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-primary/[0.03] shadow-sm">
-      {/* Decorative header band */}
-      <div className="relative px-4 md:px-5 pt-4 pb-3 border-b border-border/60 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent overflow-hidden">
-        <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
-        <div className="relative flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/20">
-              <CalendarDays className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">My Attendance</p>
-              <p className="text-sm md:text-base font-bold text-foreground truncate">
-                {format(cursor, 'MMMM yyyy')}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-primary/10"
-              onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
-              aria-label="Previous month"
-            >
+    <section className="ds-panel overflow-hidden">
+      <header className="ds-panel-head flex-wrap">
+        <div className="flex min-w-0 items-center gap-2">
+          <CalendarDays className="h-4 w-4 shrink-0 text-primary" />
+          <h3 className="t-card-title truncate text-foreground">{format(cursor, 'MMMM yyyy')}</h3>
+          {attendanceRate > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">· {attendanceRate}% attendance</span>
+          )}
+        </div>
+        {!month && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} aria-label="Previous month">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <button
-              onClick={goToday}
-              className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-            >
-              Today
-            </button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-primary/10"
-              onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
-              aria-label="Next month"
-            >
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={goToday}>Today</Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} aria-label="Next month">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </div>
+        )}
+      </header>
 
-        {/* Attendance rate strip */}
-        <div className="relative mt-3 flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
-            <Sparkles className="h-3 w-3 text-primary" />
-            <span className="tabular-nums">{attendanceRate}%</span>
-            <span className="text-muted-foreground font-normal">attendance</span>
-          </div>
-          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 via-primary to-emerald-500 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${attendanceRate}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4 md:p-5 space-y-4">
+      <div className="space-y-4 p-3 sm:p-4">
         {/* Weekday header */}
-        <div className="grid grid-cols-7 gap-1 md:gap-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest">
-          {['S','M','T','W','T','F','S'].map((d, i) => (
-            <div key={i} className={cn('text-center py-1', (i === 0 || i === 6) && 'text-primary/60')}>{d}</div>
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-[11px] font-semibold text-muted-foreground">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+            <div key={d} className="text-center">{d}</div>
           ))}
         </div>
 
         {/* Day cells */}
-        <div className="grid grid-cols-7 gap-1 md:gap-1.5">
+        <div className={cn('grid grid-cols-7 gap-1 sm:gap-1.5', isLoading && 'opacity-60')} aria-busy={isLoading}>
           {Array.from({ length: startDay }).map((_, i) => <div key={`p-${i}`} />)}
-          {days.map((d, idx) => {
+          {days.map((d) => {
             const iso = format(d, 'yyyy-MM-dd');
             const rec = map[iso];
             const legend = LEGEND[rec.key];
-            const today = isToday(d);
-            const isSel = selected === iso;
             return (
               <DayCell
                 key={iso}
                 iso={iso}
                 date={d}
-                idx={idx}
                 rec={rec}
                 legend={legend}
-                isToday={today}
-                isSelected={isSel}
+                isToday={isToday(d)}
+                isSelected={selected === iso}
                 onSelect={() => setSelected(iso)}
               />
             );
@@ -362,75 +218,34 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
         </div>
 
         {/* Selected day detail */}
-        {selectedRec && selected && (
-          <div
-            key={selected}
-            className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 to-muted/10 p-3.5 animate-fade-in"
-          >
-            <div className="flex items-center justify-between gap-2 mb-2">
+        {selectedRec && selected ? (
+          <div key={selected} className="rounded-md border border-border bg-muted/30 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {isToday(new Date(selected)) ? 'Today' : format(new Date(selected), 'EEEE')}
-                </p>
-                <p className="text-sm font-bold text-foreground truncate">
-                  {format(new Date(selected), 'dd MMM yyyy')}
-                </p>
+                <p className="ds-field-label">{selDate && isToday(selDate) ? 'Today' : format(selDate as Date, 'EEEE')}</p>
+                <p className="text-sm font-semibold text-foreground">{format(selDate as Date, 'dd MMM yyyy')}</p>
               </div>
-              <span
-                className={cn(
-                  'px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0 flex items-center gap-1.5',
-                  LEGEND[selectedRec.key].cell,
-                  LEGEND[selectedRec.key].text,
-                )}
-              >
-                {(() => { const I = LEGEND[selectedRec.key].icon; return <I className="h-3 w-3 shrink-0" />; })()}
-                {LEGEND[selectedRec.key].label}
-              </span>
+              <StatusPill tone={LEGEND[selectedRec.key].tone}>{LEGEND[selectedRec.key].label}</StatusPill>
             </div>
-            {LEGEND[selectedRec.key].hint && (
-              <p className="text-[11px] text-muted-foreground">{LEGEND[selectedRec.key].hint}</p>
-            )}
             {selectedRec.meta?.name && (
-              <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">{selectedRec.meta.name}</p>
+              <p className="mt-1 text-xs font-medium text-foreground">{selectedRec.meta.name}</p>
+            )}
+            {LEGEND[selectedRec.key].hint && selectedRec.key !== 'upcoming' && (
+              <p className="mt-0.5 text-xs text-muted-foreground">{LEGEND[selectedRec.key].hint}</p>
             )}
 
-            {(selectedRec.meta?.first_in || selectedRec.meta?.check_in) && (
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                <div className="rounded-lg bg-background/60 border border-border/50 p-2">
-                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground uppercase font-semibold">
-                    <LogIn className="h-3 w-3 text-emerald-500" /> In
-                  </div>
-                  <p className="text-xs font-mono font-bold text-foreground mt-0.5">
-                    {new Date(selectedRec.meta.first_in || selectedRec.meta.check_in).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-background/60 border border-border/50 p-2">
-                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground uppercase font-semibold">
-                    <LogOut className="h-3 w-3 text-info" /> Out
-                  </div>
-                  <p className="text-xs font-mono font-bold text-foreground mt-0.5">
-                    {selectedRec.meta.last_out || selectedRec.meta.check_out
-                      ? new Date(selectedRec.meta.last_out || selectedRec.meta.check_out).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })
-                      : '—'}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-background/60 border border-border/50 p-2">
-                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground uppercase font-semibold">
-                    <Clock className="h-3 w-3 text-primary" /> Worked
-                  </div>
-                  <p className="text-xs font-bold text-foreground mt-0.5">
-                    {selectedRec.meta.net_work_minutes
-                      ? `${(selectedRec.meta.net_work_minutes / 60).toFixed(1)}h`
-                      : selectedRec.meta.total_hours
-                        ? `${Number(selectedRec.meta.total_hours).toFixed(1)}h`
-                        : '—'}
-                  </p>
-                </div>
+            {todayShownElsewhere && selDate && isToday(selDate) ? (
+              <p className="mt-1.5 text-xs text-muted-foreground">Today's punches are in the Today card above. Pick another day to see its details.</p>
+            ) : selectedRec.meta?.first_in && (
+              <div className="mt-2.5 grid grid-cols-3 gap-2">
+                <DetailFact icon={LogIn} label="In" value={fmtTime(selectedRec.meta.first_in)} />
+                <DetailFact icon={LogOut} label="Out" value={fmtTime(selectedRec.meta.last_out)} />
+                <DetailFact icon={Clock} label="Worked" value={fmtMinutes(selectedRec.meta.net_work_minutes, selectedRec.meta.total_hours ? `${Number(selectedRec.meta.total_hours).toFixed(1)}h` : '—')} />
               </div>
             )}
             {selectedRec.timing && (
-              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 rounded-md px-2 py-1">
-                <Timer className="h-3 w-3 shrink-0 mt-0.5" />
+              <p className="mt-2 flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/10 px-2 py-1 text-[11px] text-warning">
+                <Timer className="mt-0.5 h-3 w-3 shrink-0" />
                 <span>
                   {[
                     (selectedRec.meta?.late_by_minutes ?? 0) > 0 && `Late by ${selectedRec.meta.late_by_minutes} min`,
@@ -442,62 +257,57 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
                     </span>
                   )}
                 </span>
-              </div>
+              </p>
+            )}
+            {selectedRec.row && (Number(selectedRec.row.lop_contribution ?? 0) > 0 || selectedRec.row.watchdog_held || (selectedRec.row.suppressed_count ?? 0) > 0) && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {[
+                  Number(selectedRec.row.lop_contribution ?? 0) > 0 && <span key="lop" className="text-destructive">Loss of pay {Number(selectedRec.row.lop_contribution).toFixed(2)} day</span>,
+                  selectedRec.row.watchdog_held && <span key="held" className="text-destructive">Held for HR review</span>,
+                  (selectedRec.row.suppressed_count ?? 0) > 0 && <span key="sup">{selectedRec.row.suppressed_count} extra punch(es) ignored</span>,
+                ].filter(Boolean).reduce((acc: any[], el, i) => (i ? [...acc, ' · ', el] : [el]), [])}
+              </p>
+            )}
+            {canCorrect && (
+              <Button size="sm" variant="outline" className="mt-2.5 h-8 gap-1.5 bg-card" onClick={() => onRequestCorrection!(selected)}>
+                <ClipboardList className="h-3.5 w-3.5" /> Fix a punch on this day
+              </Button>
             )}
           </div>
+        ) : (
+          <p className="rounded-md border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground">Pick a day to see its punches.</p>
         )}
 
         {/* Legend */}
-        <div className="pt-2 border-t border-border/60 space-y-2">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2">
-            {(Object.keys(LEGEND) as LegendKey[]).filter(k => k !== 'upcoming').map(k => {
-              const I = LEGEND[k].icon;
-              return (
-                <div key={k} className="flex items-center gap-1.5 text-[11px]">
-                  <span
-                    className={cn(
-                      'h-4 w-4 rounded-md border shrink-0 flex items-center justify-center',
-                      LEGEND[k].cell,
-                      LEGEND[k].text,
-                    )}
-                  >
-                    <I className="h-2.5 w-2.5" />
-                  </span>
-                  <span className="text-muted-foreground truncate">{LEGEND[k].label}</span>
-                  <span className="ml-auto text-foreground font-bold tabular-nums">{counts[k] || 0}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-1.5 text-[11px] rounded-md bg-warning/10 border border-warning/25 px-2 py-1">
-            <Timer className="h-3 w-3 shrink-0 text-warning" />
-            <span className="text-muted-foreground">
-              Amber corner mark = late in / early out, but the day is still counted by its status colour
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5 border-t border-border pt-3">
+          {LEGEND_ORDER.map(k => (
+            <span key={k} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className={cn('h-3 w-3 rounded-[4px] border', LEGEND[k].cell)} />
+              {LEGEND[k].label}
             </span>
-            <span className="ml-auto text-foreground font-bold tabular-nums">{timingFlagged}</span>
-          </div>
+          ))}
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning ring-2 ring-warning/25" />
+            Late in / early out{timingFlagged ? ` (${timingFlagged})` : ''} — the day still counts by its colour
+          </span>
         </div>
-
       </div>
-    </Card>
+    </section>
+  );
+}
+
+function DetailFact({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-card px-2.5 py-1.5">
+      <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><Icon className="h-3 w-3" /> {label}</div>
+      <p className="mt-0.5 font-mono text-[13px] font-semibold tabular-nums text-foreground">{value}</p>
+    </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Day cell with rich hover (desktop) / tap (mobile) detail popover     */
+/* Day cell: hover shows a detail popover (mouse); tap selects (touch)  */
 /* ------------------------------------------------------------------ */
-
-function fmtIST(ts?: string | null) {
-  if (!ts) return null;
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(d);
-}
 
 function istDateOf(ts?: string | null) {
   if (!ts) return null;
@@ -506,15 +316,11 @@ function istDateOf(ts?: string | null) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
 }
 
-function hoursLabel(minutes?: number | null) {
-  const m = Math.max(0, Math.round(Number(minutes ?? 0)));
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
-}
+const canHover = () => typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
 
 function DayCell({
   iso,
   date,
-  idx,
   rec,
   legend,
   isToday: today,
@@ -523,7 +329,6 @@ function DayCell({
 }: {
   iso: string;
   date: Date;
-  idx: number;
   rec: { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay; timing?: 'late' | 'early' | 'both' | null };
   legend: (typeof LEGEND)[LegendKey];
   isToday: boolean;
@@ -532,10 +337,9 @@ function DayCell({
 }) {
   const [open, setOpen] = useState(false);
   const row = rec.row;
-  const inT = fmtIST(row?.first_in);
-  const outT = fmtIST(row?.last_out);
+  const inT = row?.first_in ? fmtTime(row.first_in) : null;
+  const outT = row?.last_out ? fmtTime(row.last_out) : null;
   const outNextDay = !!(row?.last_out && istDateOf(row.last_out) !== iso);
-  const Icon = legend.icon;
   const timingText =
     rec.timing === 'both' ? 'late in and early out'
     : rec.timing === 'late' ? 'late in'
@@ -543,77 +347,51 @@ function DayCell({
     : null;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => setOpen(o && canHover())}>
       <PopoverTrigger asChild>
         <button
-          onClick={() => {
-            onSelect();
-            setOpen((o) => !o);
-          }}
-          onMouseEnter={() => {
-            if (window.matchMedia('(hover: hover)').matches) setOpen(true);
-          }}
-          onMouseLeave={() => {
-            if (window.matchMedia('(hover: hover)').matches) setOpen(false);
-          }}
-          style={{ animationDelay: `${idx * 12}ms` }}
+          type="button"
+          onClick={onSelect}
+          onMouseEnter={() => { if (canHover()) setOpen(true); }}
+          onMouseLeave={() => { if (canHover()) setOpen(false); }}
           className={cn(
-            'group relative aspect-square rounded-xl border text-[11px] md:text-xs font-semibold',
-            'flex flex-col items-center justify-center gap-0.5',
-            'transition-all duration-300 ease-out will-change-transform',
-            'hover:-translate-y-0.5 hover:scale-[1.04] active:scale-95',
-            'animate-fade-in',
+            'relative flex h-11 flex-col items-center justify-center gap-0.5 rounded-md border text-[12px] font-semibold transition-shadow sm:h-12 lg:h-14',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             legend.cell,
             legend.text,
-            today && !isSelected && 'ring-2 ring-primary/70 ring-offset-1 ring-offset-background',
-            isSelected && cn('scale-[1.08] ring-2 ring-primary z-10', legend.glow),
+            today && 'ring-1 ring-primary',
+            isSelected && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
           )}
+          aria-pressed={isSelected}
           aria-label={`${format(date, 'EEE, MMM d')} — ${legend.label}${timingText ? ` (${timingText})` : ''}`}
         >
-          <span className="tabular-nums leading-none text-[12px] md:text-[13px]">{date.getDate()}</span>
-          {rec.key !== 'upcoming' && (
-            <span className="flex items-center gap-0.5 leading-none">
-              <Icon className="h-2.5 w-2.5 md:h-3 md:w-3 shrink-0" />
-              <span className="text-[9px] md:text-[10px] font-bold leading-none">{legend.short}</span>
-            </span>
+          <span className="tabular-nums leading-none">{date.getDate()}</span>
+          {rec.key !== 'upcoming' && rec.key !== 'no_punch' && (
+            <span className="text-[10px] font-bold leading-none opacity-80">{legend.short}</span>
           )}
           {rec.timing && (
-            <span
-              className="absolute bottom-0.5 right-0.5 flex items-center justify-center h-3 w-3 rounded-full bg-warning/25 text-warning ring-1 ring-warning/50"
-              title={`Marked ${legend.label} — ${timingText}`}
-            >
-              <Timer className="h-2 w-2" />
-            </span>
+            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-warning ring-2 ring-warning/25" title={`Marked ${legend.label} — ${timingText}`} />
           )}
           {today && (
-            <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-primary animate-pulse" />
+            <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
           )}
         </button>
-
       </PopoverTrigger>
       <PopoverContent
         side="top"
         align="center"
-        className="w-[230px] p-2.5 z-50"
+        className="w-[240px] p-2.5 z-50"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="space-y-1.5 text-[11px] leading-snug">
-          <div className="font-semibold text-foreground">{format(date, 'EEE, dd MMM yyyy')}</div>
-          <div
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-bold',
-              legend.cell,
-              legend.text,
-            )}
-          >
-            <Icon className="h-3 w-3 shrink-0" />
-            {legend.label}
+        <div className="space-y-1.5 text-xs leading-snug">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-foreground">{format(date, 'EEE, dd MMM yyyy')}</span>
           </div>
-
-          {rec.label && <div className="text-sky-600 dark:text-sky-300">{rec.label}</div>}
+          <StatusPill tone={legend.tone}>{legend.label}</StatusPill>
+          {rec.label && <div className="text-foreground">{rec.label}</div>}
 
           {inT || outT ? (
-            <div className="tabular-nums text-foreground">
+            <div className="font-mono tabular-nums text-foreground">
               {inT || '--:--'} <span className="text-muted-foreground">→</span> {outT || '--:--'}
               {outNextDay && <span className="ml-1 text-muted-foreground">+1d</span>}
             </div>
@@ -623,15 +401,15 @@ function DayCell({
 
           {row && (row.worked_minutes > 0 || (row.session_count ?? 0) > 0) && (
             <div className="tabular-nums text-muted-foreground">
-              Worked {hoursLabel(row.worked_minutes)}
+              Worked {fmtMinutes(row.worked_minutes, '0m')}
               {(row.session_count ?? 0) > 0 &&
                 ` · ${row.session_count} session${row.session_count === 1 ? '' : 's'}`}
             </div>
           )}
 
           {rec.timing && (
-            <div className="rounded-md bg-warning/10 border border-warning/30 px-1.5 py-1 text-warning">
-              <div className="flex items-center gap-1 tabular-nums font-semibold">
+            <div className="rounded-md border border-warning/30 bg-warning/10 px-1.5 py-1 text-warning">
+              <div className="flex items-center gap-1 font-semibold tabular-nums">
                 <Timer className="h-3 w-3 shrink-0" />
                 {(row?.late_minutes ?? 0) > 0 && `Late ${row?.late_minutes}m`}
                 {(row?.late_minutes ?? 0) > 0 && (row?.early_minutes ?? 0) > 0 && ' · '}
@@ -645,13 +423,12 @@ function DayCell({
             </div>
           )}
 
-
           {row && Number(row.lop_contribution ?? 0) > 0 && (
-            <div className="text-destructive">LOP {Number(row.lop_contribution).toFixed(2)} day</div>
+            <div className="text-destructive">Loss of pay {Number(row.lop_contribution).toFixed(2)} day</div>
           )}
-          {row?.watchdog_held && <div className="text-destructive">Held — watchdog</div>}
+          {row?.watchdog_held && <div className="text-destructive">Held for HR review</div>}
           {row && (row.suppressed_count ?? 0) > 0 && (
-            <div className="text-muted-foreground">{row.suppressed_count} punch(es) suppressed</div>
+            <div className="text-muted-foreground">{row.suppressed_count} extra punch(es) ignored</div>
           )}
         </div>
       </PopoverContent>

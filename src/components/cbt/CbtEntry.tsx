@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CbtError, cbtCall, noteServerNow, saveSession } from '@/lib/cbt/api';
+import { CbtError, cbtCall, noteServerNow, rememberDriveCode, rememberedDriveCode, saveSession } from '@/lib/cbt/api';
+
+// Real drives run on office computers only; phones/tablets are turned away before registering.
+function isHandheld(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua)) return true;
+  // iPadOS reports as Mac; touch-only pointer gives it away
+  return Boolean(window.matchMedia?.('(pointer: coarse)').matches && !window.matchMedia?.('(any-pointer: fine)').matches);
+}
 import type { CbtState } from '@/lib/cbt/types';
 
 type Drive = {
@@ -34,7 +43,8 @@ export function CbtEntry({ onReady }: { onReady: (state: CbtState) => void }) {
   const [step, setStep] = useState<'code' | 'form' | 'resume'>('code');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(() => rememberedDriveCode() ?? '');
+  const [handheldBlocked, setHandheldBlocked] = useState(false);
   const [drive, setDrive] = useState<Drive | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
   const [brand, setBrand] = useState<{ brand_name?: string; company_name?: string; privacy_url?: string | null; terms_url?: string | null; hr_email?: string | null; retention_days?: number | null }>({});
@@ -53,12 +63,18 @@ export function CbtEntry({ onReady }: { onReady: (state: CbtState) => void }) {
   });
   const [resumeForm, setResumeForm] = useState({ mobile: '', resume_code: '' });
 
-  const validateCode = async () => {
+  const validateCode = async (override?: string) => {
+    const value = (override ?? code).trim().toUpperCase();
     setBusy(true);
     setError(null);
     try {
-      const res = await cbtCall<any>('cbt-validate-code', { code: code.trim().toUpperCase() }, { authed: false });
+      const res = await cbtCall<any>('cbt-validate-code', { code: value }, { authed: false });
       noteServerNow(res.server_now);
+      rememberDriveCode(value);
+      if (!res.drive?.is_sandbox && isHandheld()) {
+        setHandheldBlocked(true);
+        return;
+      }
       setDrive(res.drive);
       setRoles(res.roles ?? []);
       setBrand(res.settings ?? {});
@@ -70,6 +86,16 @@ export function CbtEntry({ onReady }: { onReady: (state: CbtState) => void }) {
       setBusy(false);
     }
   };
+
+  // /test?code=XXXXXX (HR's "Open on this PC" link) goes straight to the form.
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (autoTried.current) return;
+    autoTried.current = true;
+    const remembered = rememberedDriveCode();
+    if (remembered && /^[A-Z0-9]{6}$/.test(remembered)) void validateCode(remembered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const register = async () => {
     setBusy(true);
@@ -147,6 +173,21 @@ export function CbtEntry({ onReady }: { onReady: (state: CbtState) => void }) {
     form.shift_availability.length > 0 &&
     form.consent;
 
+  if (handheldBlocked) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Please use an office computer</CardTitle>
+            <CardDescription>
+              This test runs on a laptop or desktop computer only. Please ask HR to seat you at one of the office PCs.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-xl">
       <Card>
@@ -187,7 +228,7 @@ export function CbtEntry({ onReady }: { onReady: (state: CbtState) => void }) {
                   className="text-center font-mono text-2xl tracking-[0.4em] text-foreground"
                 />
               </div>
-              <Button className="w-full" disabled={code.length !== 6 || busy} onClick={validateCode}>
+              <Button className="w-full" disabled={code.length !== 6 || busy} onClick={() => validateCode()}>
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Continue
               </Button>

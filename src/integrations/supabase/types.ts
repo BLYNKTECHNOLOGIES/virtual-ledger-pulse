@@ -34212,6 +34212,11 @@ export type Database = {
         Args: { p_reason?: string; p_revision_id: string }
         Returns: undefined
       }
+      cbt_add_section_time: {
+        Args: { p_attempt_id: string; p_reason: string; p_seconds: number }
+        Returns: Json
+      }
+      cbt_attempt_detail: { Args: { p_attempt_id: string }; Returns: Json }
       cbt_bump_served: { Args: { p_question_id: string }; Returns: undefined }
       cbt_can_admin: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_evaluate: { Args: { _user_id?: string }; Returns: boolean }
@@ -34235,6 +34240,12 @@ export type Database = {
         }
         Returns: string
       }
+      cbt_drive_monitor: { Args: { p_drive_id: string }; Returns: Json }
+      cbt_drive_readiness: {
+        Args: { p_is_sandbox: boolean; p_job_role_ids: string[] }
+        Returns: Json
+      }
+      cbt_drives_list: { Args: never; Returns: Json }
       cbt_finalize_attempt: {
         Args: { p_attempt_id: string }
         Returns: undefined
@@ -34243,9 +34254,20 @@ export type Database = {
         Args: { p_comments?: string; p_evaluation_id: string; p_total: number }
         Returns: undefined
       }
+      cbt_invalidate_attempt: {
+        Args: { p_attempt_id: string; p_reason: string }
+        Returns: undefined
+      }
+      cbt_issue_resume_code: { Args: { p_attempt_id: string }; Returns: Json }
+      cbt_new_access_code: { Args: never; Returns: string }
       cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }
       cbt_norm_text: { Args: { p: string }; Returns: string }
+      cbt_override_decision: {
+        Args: { p_attempt_id: string; p_decision: string; p_reason: string }
+        Returns: undefined
+      }
+      cbt_overview: { Args: never; Returns: Json }
       cbt_purge_rate_limits: { Args: never; Returns: number }
       cbt_question_bank_analytics: {
         Args: never
@@ -34280,7 +34302,40 @@ export type Database = {
         Args: { p_attempt_id: string }
         Returns: undefined
       }
+      cbt_restore_auto_decision: {
+        Args: { p_attempt_id: string }
+        Returns: undefined
+      }
+      cbt_results: {
+        Args: {
+          p_decision?: string
+          p_drive_id?: string
+          p_from?: string
+          p_include_sandbox?: boolean
+          p_job_role_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+          p_to?: string
+        }
+        Returns: Json
+      }
       cbt_retention_purge: { Args: never; Returns: number }
+      cbt_save_drive: {
+        Args: {
+          p_access_code: string
+          p_drive_id: string
+          p_ends_at: string
+          p_is_sandbox: boolean
+          p_job_role_ids: string[]
+          p_mode: string
+          p_name: string
+          p_show_scores: boolean
+          p_starts_at: string
+        }
+        Returns: Json
+      }
       cbt_save_role_blueprint: {
         Args: {
           p_code?: string
@@ -34299,6 +34354,10 @@ export type Database = {
         Returns: undefined
       }
       cbt_section_config: { Args: { p_section_id: string }; Returns: Json }
+      cbt_set_drive_status: {
+        Args: { p_drive_id: string; p_status: string }
+        Returns: Json
+      }
       cbt_sweep_attempt: { Args: { p_attempt_id: string }; Returns: undefined }
       cbt_sweep_expired: { Args: never; Returns: number }
       check_in_terminal_appeal_case: {

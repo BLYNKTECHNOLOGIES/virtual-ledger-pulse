@@ -303,6 +303,25 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                                   <p className="text-[11px] text-muted-foreground">Competitor price</p>
                                                   <p className="mt-1 font-semibold tabular-nums break-words">{comp > 0 ? money(comp) : '—'}</p>
                                                   {idx > 0 && comp > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Ratio {(comp / idx * 100).toFixed(2)}%</p>}
+                                                  {(() => {
+                                                    // Deviation from the market reference, shown as amount AND
+                                                    // percentage so the size of the gap is readable at a glance.
+                                                    const mkt = Number(log.market_reference_price || 0);
+                                                    const devPct = log.deviation_from_market_pct != null ? Number(log.deviation_from_market_pct) : null;
+                                                    if (comp <= 0 || (mkt <= 0 && devPct == null)) return null;
+                                                    const diff = mkt > 0 ? comp - mkt : null;
+                                                    const pctText = devPct != null
+                                                      ? devPct.toFixed(2)
+                                                      : diff != null && mkt > 0 ? Math.abs(diff / mkt * 100).toFixed(2) : null;
+                                                    const overLimit = devPct != null && devPct > (rule.max_deviation_from_market_pct ?? 5);
+                                                    return (
+                                                      <p className={`mt-1 text-[11px] tabular-nums ${overLimit ? 'text-warning' : 'text-muted-foreground'}`}>
+                                                        {diff != null && Math.abs(diff) > 0
+                                                          ? `${diff > 0 ? '+' : '−'}₹${Math.abs(diff).toLocaleString('en-IN', fd)} (${pctText}%) vs market`
+                                                          : `${pctText}% vs market reference`}
+                                                      </p>
+                                                    );
+                                                  })()}
                                                 </div>
                                                 <div className="min-w-0">
                                                   <p className="text-[11px] text-muted-foreground">{isApplied ? estimated ? 'Your price · est.' : 'Your price' : 'Required price · est.'}</p>

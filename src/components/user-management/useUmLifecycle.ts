@@ -76,7 +76,8 @@ export function useUmLifecycle(enabled = true) {
 }
 
 /** Permanent removal through the shared server path (record, clean-up, read-back, retries). */
-export async function removeAccount(userId: string, reason: string) {
+type RemovalResult = { success: boolean; error?: string; pending?: boolean; recordId?: string };
+export async function removeAccount(userId: string, reason: string): Promise<RemovalResult> {
   const { data, error } = await supabase.functions.invoke("delete-erp-user", { body: { userId, reason } });
   if (error) return { success: false, error: error.message || "Removal failed" };
   return data as { success: boolean; error?: string; pending?: boolean; recordId?: string };

@@ -22642,6 +22642,7 @@ export type Database = {
           kra_code: string
           module_versions: Json
           plan_id: string | null
+          previous: Json | null
           remarks: string | null
           status: string
           updated_at: string
@@ -22655,6 +22656,7 @@ export type Database = {
           kra_code: string
           module_versions?: Json
           plan_id?: string | null
+          previous?: Json | null
           remarks?: string | null
           status?: string
           updated_at?: string
@@ -22668,6 +22670,7 @@ export type Database = {
           kra_code?: string
           module_versions?: Json
           plan_id?: string | null
+          previous?: Json | null
           remarks?: string | null
           status?: string
           updated_at?: string
@@ -37548,6 +37551,16 @@ export type Database = {
         }[]
       }
       lms_import_catalogue: { Args: { _payload: Json }; Returns: Json }
+      lms_shift_plan: {
+        Args: {
+          _days: number
+          _from_day?: number
+          _mode: string
+          _plan_id: string
+          _retest?: boolean
+        }
+        Returns: Json
+      }
       lock_payer_order: {
         Args: { p_order_number: string; p_payer_user_id: string }
         Returns: Json

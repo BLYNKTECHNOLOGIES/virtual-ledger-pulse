@@ -1,5 +1,5 @@
 import { z } from "https://esm.sh/zod@3.23.8";
-import { admin, buildState, constantTimeEqual, corsHeaders, fail, ipHash, json, randomToken, rateLimit, sha256Hex } from "../_shared/cbt.ts";
+import { admin, buildState, constantTimeEqual, corsHeaders, fail, ipHash, json, randomToken, deviceHash, checkLimits, sha256Hex } from "../_shared/cbt.ts";
 
 const Schema = z.object({
   code: z.string().length(6),
@@ -12,7 +12,8 @@ Deno.serve(async (req) => {
   try {
     const db = admin();
     const ip = await ipHash(req);
-    if (!(await rateLimit(db, `resume:${ip}`, 5, 15))) {
+    const dev = await deviceHash(req);
+    if (!(await checkLimits(db, "resume", ip, dev))) {
       return fail("locked_out", "Too many tries. Try again in 15 minutes.", 429);
     }
     const parsed = Schema.safeParse(await req.json().catch(() => ({})));

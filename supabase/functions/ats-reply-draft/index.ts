@@ -5,7 +5,6 @@
 import { requireAuth } from '../_shared/require-auth.ts'
 import { rateLimit } from '../_shared/cbt.ts'
 import { stripQuoted } from '../_shared/ats-intent.ts'
-import { createResponsesCall } from '../_shared/copilot-responses.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +31,19 @@ export function scrub(text: string): string {
 
 const SYSTEM = (company: string, first: string) =>
   `You write short email replies for the HR team of ${company} to a job candidate. Rules: 1) Reply to what the candidate last wrote. 2) Use only the facts given; never invent dates, times, salary, selection decisions, offers or promises. If a time is needed and none is given, ask the candidate for two or three times that suit them. 3) If the candidate wrote in Hinglish, reply in simple Hinglish; otherwise reply in simple, polite English. 4) Start with 'Dear ${first},'. 5) At most 120 words. 6) No signature and no sender name: the signature is added automatically; end with 'Warm regards,'. 7) Plain text only. Return strict JSON: {"body": string}.`
+
+export const DRAFT_MODEL = 'google/gemini-3-flash-preview'
+export const draftRequest = (company: string, first: string, userMsg: string) => ({
+  model: DRAFT_MODEL,
+  messages: [{ role: 'system', content: SYSTEM(company, first) }, { role: 'user', content: userMsg }],
+  response_format: {
+    type: 'json_schema',
+    json_schema: {
+      name: 'reply_draft', strict: true,
+      schema: { type: 'object', properties: { body: { type: 'string' } }, required: ['body'], additionalProperties: false },
+    },
+  },
+})
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -119,17 +131,24 @@ Deno.serve(async (req) => {
 
     const key = Deno.env.get('LOVABLE_API_KEY')
     if (!key) { log('no_key'); return json({ error: 'ai_failed' }, 500) }
-    const call = createResponsesCall(req, { baseURL: 'https://ai.gateway.lovable.dev/v1', apiKey: key, model: 'openai/gpt-6-astra' }, [
-      { role: 'system', content: SYSTEM(facts.company_name || 'our company', facts.first_name || 'Candidate') },
-      { role: 'user', content: userMsg },
-    ])
+    // Gemini on the Lovable AI gateway (same model and endpoint as staff-chat); strict JSON reply.
     let text: string
     try {
-      text = await call.result.text
-    } catch (e) {
-      const status = Number((e as any)?.statusCode || (e as any)?.status)
-      log('gateway_error', { status: status || 0, emails: thread.length })
-      return status === 429 || status === 402 ? json({ error: 'ai_busy' }, 429) : json({ error: 'ai_failed' }, 502)
+      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        signal: req.signal,
+        body: JSON.stringify(draftRequest(facts.company_name || 'our company', facts.first_name || 'Candidate', userMsg)),
+      })
+      if (!resp.ok) {
+        log('gateway_error', { status: resp.status, emails: thread.length })
+        return resp.status === 429 || resp.status === 402 ? json({ error: 'ai_busy' }, 429) : json({ error: 'ai_failed' }, 502)
+      }
+      const out = await resp.json()
+      text = String(out?.choices?.[0]?.message?.content ?? '')
+    } catch (_e) {
+      log('gateway_error', { status: 0, emails: thread.length })
+      return json({ error: 'ai_failed' }, 502)
     }
     let parsed: any
     try {

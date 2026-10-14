@@ -8,6 +8,16 @@ const ANON_KEY =
 const TOKEN_KEY = 'cbt.attempt.token';
 const NONCE_KEY = 'cbt.attempt.nonce';
 
+const DEVICE_KEY = 'cbt.device.id';
+/** Per-browser id so rate limits treat each office PC separately (not the shared connection). */
+export function deviceId(): string {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem(DEVICE_KEY, id); }
+    return id;
+  } catch { return ''; }
+}
+
 export type CbtSession = { token: string; nonce: string };
 
 export function saveSession(token: string, nonce: string) {
@@ -50,6 +60,8 @@ export async function cbtCall<T = any>(
     apikey: ANON_KEY,
     Authorization: `Bearer ${ANON_KEY}`,
   };
+  const dev = deviceId();
+  if (dev) headers['x-device-id'] = dev;
   if (opts.authed !== false) {
     const session = loadSession();
     if (!session) throw new CbtError('no_token', 'Your test session has ended. Please contact HR.', 401, {});

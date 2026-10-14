@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { SectionBlock } from "./primitives";
 import {
   Dialog,
   DialogContent,
@@ -203,84 +203,72 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName, d
   return (
     <>
     {!dialogOnly && (
-    <Card className="border-border/60">
-      <CardContent className="p-4 md:p-5 space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Landmark className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-medium text-foreground">Salary bank account change</p>
-              <p className="text-sm text-muted-foreground">
-                Submit new account details with a cancelled cheque, passbook or statement. HR verifies and updates payroll.
-              </p>
-            </div>
-          </div>
-          <Button
-            className="w-full sm:w-auto"
-            onClick={() => setOpen(true)}
-            disabled={!!openRequest}
-          >
-            Request bank change
-          </Button>
+    <SectionBlock
+      icon={Landmark}
+      title="Change salary account"
+      description="Send new account details with a cancelled cheque, passbook or statement. HR verifies, then payroll confirms."
+      flush
+      actions={
+        <Button size="sm" onClick={() => setOpen(true)} disabled={!!openRequest}>
+          Request bank change
+        </Button>
+      }
+    >
+      {openRequest && (
+        <div className="flex items-start gap-2 border-b border-border bg-muted/40 px-3.5 py-2.5 text-sm">
+          <Clock className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+          <span className="text-muted-foreground">
+            You already have a request in progress. You can raise a new one once this is closed.
+          </span>
         </div>
+      )}
 
-        {openRequest && (
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
-            <Clock className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground">
-              You already have a request in progress. You can raise a new one once this is closed.
-            </span>
-          </div>
-        )}
-
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading requests…</p>
-        ) : requests.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No bank change requests yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {requests.map((r: any) => {
-              const meta = BANK_CHANGE_STATUS_META[r.status] || BANK_CHANGE_STATUS_META.pending;
-              return (
-                <div key={r.id} className="rounded-lg border border-border p-3 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">
-                      {r.bank_name} · ****{String(r.account_number).slice(-4)}
-                    </p>
-                    <Badge variant="outline" className={cn("whitespace-nowrap", meta.className)}>
-                      {r.status === "approved" ? <ShieldCheck className="h-3 w-3 mr-1" /> : null}
-                      {r.status === "razorpay_failed" ? <AlertTriangle className="h-3 w-3 mr-1" /> : null}
-                      {meta.label}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{meta.hint}</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground font-mono">
-                    <span>IFSC {String(r.ifsc_code).toUpperCase()}</span>
-                    <span>Raised {format(new Date(r.created_at), "dd MMM yyyy")}</span>
-                    {r.razorpay_verified_at && (
-                      <span>Payroll confirmed {format(new Date(r.razorpay_verified_at), "dd MMM yyyy")}</span>
-                    )}
-                  </div>
-                  {r.hr_notes && <p className="text-xs text-foreground">HR note: {r.hr_notes}</p>}
-                  {r.status === "pending" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => cancelRequest.mutate(r.id)}
-                      disabled={cancelRequest.isPending}
-                    >
-                      Cancel request
-                    </Button>
+      {isLoading ? (
+        <p className="px-3.5 py-4 text-sm text-muted-foreground">Loading requests…</p>
+      ) : requests.length === 0 ? (
+        <p className="px-3.5 py-4 text-sm text-muted-foreground">No bank change requests yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {requests.map((r: any) => {
+            const meta = BANK_CHANGE_STATUS_META[r.status] || BANK_CHANGE_STATUS_META.pending;
+            return (
+              <li key={r.id} className="space-y-1.5 px-3.5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[13px] font-semibold text-foreground">
+                    {r.bank_name} · <span className="font-mono">****{String(r.account_number).slice(-4)}</span>
+                  </p>
+                  <Badge variant="outline" className={cn("whitespace-nowrap", meta.className)}>
+                    {r.status === "approved" ? <ShieldCheck className="h-3 w-3 mr-1" /> : null}
+                    {r.status === "razorpay_failed" ? <AlertTriangle className="h-3 w-3 mr-1" /> : null}
+                    {meta.label}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{meta.hint}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>IFSC <span className="font-mono text-foreground">{String(r.ifsc_code).toUpperCase()}</span></span>
+                  <span>Raised {format(new Date(r.created_at), "dd MMM yyyy")}</span>
+                  {r.razorpay_verified_at && (
+                    <span>Payroll confirmed {format(new Date(r.razorpay_verified_at), "dd MMM yyyy")}</span>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                {r.hr_notes && <p className="text-xs text-foreground">HR note: {r.hr_notes}</p>}
+                {r.status === "pending" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => cancelRequest.mutate(r.id)}
+                    disabled={cancelRequest.isPending}
+                  >
+                    Withdraw request
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionBlock>
     )}
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>

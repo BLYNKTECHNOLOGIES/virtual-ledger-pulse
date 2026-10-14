@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, CalendarClock } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { SectionBlock, ProfileSkeleton } from './primitives';
+import { fmtRange } from './format';
 
 /**
  * Read-only "who's out this week" glance for employees. Sources approved
  * leaves overlapping the current 7-day window from `hr_leave_requests`, joined
  * to `hr_employees` and `hr_leave_types` for names / colors.
+ * Only shows the leave the signed-in person is allowed to see.
  */
 export default function OrgLeaveCalendarCard() {
   const today = new Date();
@@ -32,55 +34,37 @@ export default function OrgLeaveCalendarCard() {
   });
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Users className="h-4 w-4 text-primary" /> Who's out this week
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground text-center py-3">Loading…</p>
-        ) : leaves.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-3">
-            Full team available this week
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {leaves.map((l: any) => {
-              const emp = l.hr_employees;
-              const lt = l.hr_leave_types;
-              const name =
-                `${emp?.first_name || ''} ${emp?.last_name || ''}`.trim() ||
-                emp?.badge_id ||
-                'Colleague';
-              return (
-                <div
-                  key={l.id}
-                  className="flex items-center justify-between gap-3 border border-border/60 rounded-md px-3 py-2 text-sm"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: lt?.color || '#888' }}
-                    />
-                    <span className="font-medium text-foreground truncate">{name}</span>
-                    <span className="text-xs text-muted-foreground truncate">
-                      · {lt?.name || 'Leave'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-                    <CalendarClock className="h-3 w-3" />
-                    <span className="font-mono">
-                      {l.start_date} → {l.end_date}
-                    </span>
-                  </div>
+    <SectionBlock icon={Users} title="Who's out this week" description="Approved leave you can see, next 7 days" flush>
+      {isLoading ? (
+        <ProfileSkeleton rows={2} bare />
+      ) : leaves.length === 0 ? (
+        <p className="px-3.5 py-4 text-sm text-muted-foreground">No approved leave in the next 7 days.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {leaves.map((l: any) => {
+            const emp = l.hr_employees;
+            const lt = l.hr_leave_types;
+            const name =
+              `${emp?.first_name || ''} ${emp?.last_name || ''}`.trim() ||
+              emp?.badge_id ||
+              'Colleague';
+            return (
+              <li key={l.id} className="flex items-start gap-2.5 px-3.5 py-2.5">
+                <span
+                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: lt?.color || '#888' }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium text-foreground">{name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {lt?.name || 'Leave'} · {fmtRange(l.start_date, l.end_date)}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionBlock>
   );
 }

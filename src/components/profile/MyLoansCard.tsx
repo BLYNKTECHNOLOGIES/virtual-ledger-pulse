@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Wallet, IndianRupee, PiggyBank } from 'lucide-react';
+import { Wallet, PiggyBank } from 'lucide-react';
+import { SectionBlock, StatusPill, ProfileSkeleton } from './primitives';
+import { fmtDay, humanize } from './format';
 
 interface MyLoansCardProps {
   employeeId: string;
@@ -61,20 +62,12 @@ function DepositCard({ deposit }: { deposit: any }) {
           : `₹${Number(deposit.deduction_value).toLocaleString('en-IN')}/month`;
 
   return (
-    <div className="border border-border rounded-lg p-4 space-y-3">
+    <div className="rounded-md border border-border p-3.5 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold">{DEPOSIT_TYPE_LABEL[deposit.deposit_type || 'security']}</p>
-        <span
-          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            deposit.is_fully_collected
-              ? 'bg-success/10 text-success'
-              : deposit.is_paused
-                ? 'bg-muted text-muted-foreground'
-                : 'bg-warning/10 text-warning'
-          }`}
-        >
+        <p className="text-[13px] font-semibold text-foreground">{DEPOSIT_TYPE_LABEL[deposit.deposit_type || 'security']}</p>
+        <StatusPill tone={deposit.is_fully_collected ? 'success' : deposit.is_paused ? 'neutral' : 'warning'}>
           {deposit.is_fully_collected ? 'Fully Collected' : deposit.is_paused ? 'Paused' : 'Collecting'}
-        </span>
+        </StatusPill>
       </div>
 
       {deposit.deposit_type === 'error_recovery' &&
@@ -82,7 +75,7 @@ function DepositCard({ deposit }: { deposit: any }) {
           <div className="text-xs text-muted-foreground space-y-0.5">
             {deposit.incident_date && (
               <p>
-                Incident date: <span className="text-foreground">{deposit.incident_date}</span>
+                Incident date: <span className="text-foreground">{fmtDay(deposit.incident_date)}</span>
               </p>
             )}
             {deposit.incident_reference && (
@@ -98,21 +91,21 @@ function DepositCard({ deposit }: { deposit: any }) {
           </div>
         )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-xs text-muted-foreground">Total</p>
-          <p className="text-sm font-semibold">{fmtInr(deposit.total_deposit_amount)}</p>
+          <p className="text-[11px] text-muted-foreground">Total</p>
+          <p className="font-mono text-sm font-semibold tabular-nums">{fmtInr(deposit.total_deposit_amount)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Collected</p>
-          <p className="text-sm font-semibold text-success">{fmtInr(deposit.collected_amount)}</p>
+          <p className="text-[11px] text-muted-foreground">Collected</p>
+          <p className="font-mono text-sm font-semibold tabular-nums text-success">{fmtInr(deposit.collected_amount)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Current Balance</p>
-          <p className="text-sm font-semibold text-primary">{fmtInr(deposit.current_balance)}</p>
+          <p className="text-[11px] text-muted-foreground">Current Balance</p>
+          <p className="font-mono text-sm font-semibold tabular-nums text-primary">{fmtInr(deposit.current_balance)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Deduction Mode</p>
+          <p className="text-[11px] text-muted-foreground">Deduction Mode</p>
           <p className="text-sm font-medium">{modeLabel}</p>
         </div>
       </div>
@@ -135,7 +128,7 @@ function DepositCard({ deposit }: { deposit: any }) {
                   <span className={`font-medium ${txTypeColor[t.transaction_type] || 'text-foreground'}`}>
                     {txTypeLabel[t.transaction_type] || t.transaction_type}
                   </span>
-                  <span className="text-muted-foreground">{t.transaction_date}</span>
+                  <span className="text-muted-foreground">{fmtDay(t.transaction_date)}</span>
                 </div>
                 <span className={`font-medium ${Number(t.amount) >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {Number(t.amount) >= 0 ? '+' : ''}₹{Math.abs(Number(t.amount)).toLocaleString('en-IN')}
@@ -223,138 +216,110 @@ export default function MyLoansCard({ employeeId, showDeposits }: MyLoansCardPro
     : [];
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Wallet className="h-4 w-4 text-primary" /> Loans &amp; Salary Advances
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-lg border border-border bg-muted/30">
-            <p className="text-xs text-muted-foreground">Total outstanding</p>
-            <p className="text-xl font-bold text-destructive">{fmtInr(totals.outstanding)}</p>
-          </div>
-          <div className="p-3 rounded-lg border border-border bg-muted/30">
-            <p className="text-xs text-muted-foreground">EMI / month</p>
-            <p className="text-xl font-bold text-foreground">{fmtInr(totals.emi)}</p>
-          </div>
+    <SectionBlock
+      icon={Wallet}
+      title={showDeposits ? 'Loans, advances & deposits' : 'Loans & salary advances'}
+      description="Recovered through payroll. To request an advance, contact HR."
+      bodyClassName="space-y-4"
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-md border border-border bg-muted/30 p-3">
+          <p className="text-[11px] text-muted-foreground">Total outstanding</p>
+          <p className={`font-display text-xl font-bold tabular-nums ${totals.outstanding > 0 ? 'text-destructive' : 'text-foreground'}`}>{fmtInr(totals.outstanding)}</p>
         </div>
+        <div className="rounded-md border border-border bg-muted/30 p-3">
+          <p className="text-[11px] text-muted-foreground">EMI / month</p>
+          <p className="font-display text-xl font-bold tabular-nums text-foreground">{fmtInr(totals.emi)}</p>
+        </div>
+      </div>
 
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground text-center py-4">Loading…</p>
-        ) : loans.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No loans or salary advances on record. To request an advance, contact HR.
-          </p>
-        ) : (
-          <>
-            {/* Desktop */}
-            <div className="hidden md:block border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b">
-                  <tr>
-                    <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Type</th>
-                    <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Disbursed</th>
-                    <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Principal</th>
-                    <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Outstanding</th>
-                    <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">EMI</th>
-                    <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loans.map((l: any) => (
-                    <tr key={l.id} className="border-b border-border/40 hover:bg-muted/30">
-                      <td className="px-3 py-2 capitalize text-foreground">
-                        {l.advance_type || l.loan_type || 'Loan'}
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground">{l.disbursement_date || '—'}</td>
-                      <td className="px-3 py-2 text-right font-mono">{fmtInr(l.amount)}</td>
-                      <td className="px-3 py-2 text-right font-mono text-destructive">
-                        {fmtInr(l.outstanding_balance)}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono">{fmtInr(l.emi_amount)}</td>
-                      <td className="px-3 py-2 capitalize text-xs">{l.status}</td>
-                    </tr>
+      {isLoading ? (
+        <ProfileSkeleton rows={2} bare className="p-0" />
+      ) : loans.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No loans or salary advances on record. To request an advance, contact HR.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {loans.map((l: any) => {
+            const principal = Number(l.amount || 0);
+            const outstanding = Number(l.outstanding_balance || 0);
+            const repaidPct = principal > 0 ? Math.min(100, Math.max(0, Math.round(((principal - outstanding) / principal) * 100))) : 0;
+            return (
+              <li key={l.id} className="space-y-2 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-foreground">
+                    {humanize(l.advance_type || l.loan_type || 'Loan')}
+                  </span>
+                  <StatusPill tone={l.status === 'active' ? 'info' : l.status === 'closed' || l.status === 'completed' ? 'success' : 'neutral'}>{humanize(l.status)}</StatusPill>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Principal</p>
+                    <p className="font-mono font-semibold tabular-nums text-foreground">{fmtInr(l.amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Outstanding</p>
+                    <p className={`font-mono font-semibold tabular-nums ${outstanding > 0 ? 'text-destructive' : 'text-foreground'}`}>{fmtInr(l.outstanding_balance)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">EMI</p>
+                    <p className="font-mono font-semibold tabular-nums text-foreground">{fmtInr(l.emi_amount)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Progress value={repaidPct} className="h-1.5 flex-1" />
+                  <span className="shrink-0 text-[11px] text-muted-foreground">{repaidPct}% repaid · disbursed {fmtDay(l.disbursement_date)}</span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {repayments.length > 0 && (
+        <div>
+          <p className="ds-field-label mb-1.5">Recent repayments</p>
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {repayments.map((r: any) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-sm">
+                <span className="text-foreground">
+                  {fmtDay(r.repayment_date)}
+                  <span className="text-xs text-muted-foreground"> · {humanize(r.repayment_type || 'payroll')}</span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="font-mono font-semibold tabular-nums text-foreground">{fmtInr(r.amount)}</span>
+                  <span className="text-xs text-muted-foreground">balance {fmtInr(r.balance_after)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasDeposits && (
+        <div className="space-y-4 border-t border-border pt-4">
+          <div className="flex items-center gap-2">
+            <PiggyBank className="h-4 w-4 text-primary" />
+            <p className="t-card-title text-foreground">Deposits</p>
+          </div>
+          {[
+            ['Security Deposit', securityDeposits],
+            ['Error Recovery', recoveryDeposits],
+          ].map(([label, list]: any) =>
+            list.length === 0 ? null : (
+              <div key={label}>
+                <p className="ds-field-label mb-2">{label}</p>
+                <div className="space-y-3">
+                  {list.map((d: any) => (
+                    <DepositCard key={d.id} deposit={d} />
                   ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Mobile */}
-            <div className="md:hidden space-y-2">
-              {loans.map((l: any) => (
-                <div key={l.id} className="border border-border rounded-lg p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground capitalize">
-                      {l.advance_type || l.loan_type || 'Loan'}
-                    </span>
-                    <span className="text-xs capitalize text-muted-foreground">{l.status}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Outstanding</span>
-                    <span className="font-mono text-destructive">{fmtInr(l.outstanding_balance)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">EMI</span>
-                    <span className="font-mono">{fmtInr(l.emi_amount)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Disbursed</span>
-                    <span>{l.disbursement_date || '—'}</span>
-                  </div>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {repayments.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Recent repayments</p>
-            <div className="border border-border rounded-lg divide-y divide-border/60">
-              {repayments.map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <IndianRupee className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-foreground">{r.repayment_date}</span>
-                    <span className="text-xs text-muted-foreground capitalize">
-                      · {r.repayment_type || 'payroll'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono font-semibold text-foreground">{fmtInr(r.amount)}</span>
-                    <span className="text-xs text-muted-foreground">bal {fmtInr(r.balance_after)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {hasDeposits && (
-          <div className="border-t border-border pt-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <PiggyBank className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">Deposits</p>
-            </div>
-            {[
-              ['Security Deposit', securityDeposits],
-              ['Error Recovery', recoveryDeposits],
-            ].map(([label, list]: any) =>
-              list.length === 0 ? null : (
-                <div key={label}>
-                  <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">{label}</p>
-                  <div className="space-y-3">
-                    {list.map((d: any) => (
-                      <DepositCard key={d.id} deposit={d} />
-                    ))}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </SectionBlock>
   );
 }

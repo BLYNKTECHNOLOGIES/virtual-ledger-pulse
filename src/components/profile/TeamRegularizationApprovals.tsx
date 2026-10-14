@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -16,6 +14,9 @@ import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 import { cn } from '@/lib/utils';
 import { useDirectReports } from '@/hooks/useDirectReports';
 import { CurrentAttendanceSnapshot } from '@/components/hrms/CurrentAttendanceSnapshot';
+import { SectionBlock, StatusPill } from './primitives';
+import { useTeamRegQueue } from './hooks';
+import { fmtDay, fmtTime as fmtTimeIST } from './format';
 
 
 interface Props {
@@ -37,16 +38,8 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
   const regsWithHr = (reports || []).reduce((s, r) => s + (r.pending_reg_with_hr || 0), 0);
 
 
-  const { data: requests = [], isLoading, isError, error } = useQuery({
-    queryKey: ['ess_team_reg_approvals', employeeId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .rpc('hr_manager_regularization_queue');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!employeeId,
-  });
+  // Shared with the page's nav badge (same key and query).
+  const { data: requests = [], isLoading, isError, error } = useTeamRegQueue(employeeId);
 
   useEffect(() => {
     if (!highlightedRequestId || requests.length === 0) return;
@@ -91,29 +84,25 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
 
   if (isError) {
     return (
-      <Card className="border-destructive/40">
-        <CardContent className="py-4 text-sm text-destructive">
-          Attendance approvals could not be loaded. {error instanceof Error ? error.message : 'Please refresh and try again.'}
-        </CardContent>
-      </Card>
+      <div className="ds-panel !border-destructive/40 px-3.5 py-3 text-sm text-destructive">
+        Attendance approvals could not be loaded. {error instanceof Error ? error.message : 'Please refresh and try again.'}
+      </div>
     );
   }
 
-  if (!isLoading && requests.length === 0) {
+  if (isLoading) return null;
+
+  if (requests.length === 0) {
     if (regsWithHr > 0) {
       return (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ClipboardCheck className="h-4 w-4 text-primary" /> Team Attendance Regularizations
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
+        <div className="ds-panel flex items-start gap-3 px-3.5 py-3">
+          <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <p className="text-sm text-muted-foreground">
             Nothing needs your review right now. {regsWithHr} request{regsWithHr > 1 ? 's' : ''} from your
             team {regsWithHr > 1 ? 'are' : 'is'} still with HR — {regsWithHr > 1 ? 'they' : 'it'} will appear
             here once HR forwards {regsWithHr > 1 ? 'them' : 'it'} to you.
-          </CardContent>
-        </Card>
+          </p>
+        </div>
       );
     }
     return null;
@@ -123,94 +112,90 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
   const pendingCount = (requests as any[]).filter((r) => r.status === 'manager_review').length;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ClipboardCheck className="h-4 w-4 text-primary" /> Team Attendance Regularizations
-          <Badge variant="secondary" className="text-[10px]">{pendingCount} pending</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
-        ) : (
-          (requests as any[]).map((r) => {
-            const name = r.employee_name || '';
-            const actionable = r.status === 'manager_review';
-            return (
-              <div
-                key={r.id}
-                id={`regularization-request-${r.id}`}
-                className={cn(
-                  "border border-border rounded-lg p-3 space-y-2",
-                  highlightedRequestId === r.id && "border-primary ring-2 ring-primary/20 bg-primary/5",
-                )}
-              >
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {name || 'Employee'}{' '}
-                       <span className="text-muted-foreground text-xs">{r.badge_id}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.attendance_date} · In {fmtTime(r.requested_check_in)} · Out {fmtTime(r.requested_check_out)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {regCategoryLabel(r.reason_category)}{r.reason ? ` · ${r.reason}` : ''}
-                    </p>
-                    {r.manager_remarks && (
-                      <p className="text-xs text-muted-foreground mt-1 italic">Your remarks: "{r.manager_remarks}"</p>
-                    )}
-                  </div>
-                  <Badge variant={actionable ? 'secondary' : 'outline'} className="text-[10px]">
-                    {actionable ? 'Awaiting you' : 'Sent back to HR'}
-                  </Badge>
-                </div>
-
-                <CurrentAttendanceSnapshot employeeId={r.employee_id} date={r.attendance_date} />
-
-                {actionable && (
-                  <>
-                    <Textarea
-                      rows={2}
-                      placeholder="Remarks for HR (optional)"
-                      value={remarks[r.id] || ''}
-                      onChange={(e) => setRemarks((p) => ({ ...p, [r.id]: e.target.value }))}
-                      className="text-sm text-foreground"
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="text-destructive">
-                            <XCircle className="h-4 w-4 mr-1" /> Reject
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Reject this regularization?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              HR will see your rejection and take the final call.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Back</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => decide.mutate({ req: r, approve: false })}>
-                              Reject
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ req: r, approve: true })}>
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
-                      </Button>
-                    </div>
-                  </>
+    <SectionBlock
+      icon={ClipboardCheck}
+      title="Team attendance corrections"
+      description="HR asks for your recommendation; HR still makes the final call."
+      actions={<StatusPill tone={pendingCount ? 'warning' : 'neutral'}>{pendingCount} waiting for you</StatusPill>}
+      bodyClassName="space-y-3"
+    >
+      {(requests as any[]).map((r) => {
+        const name = r.employee_name || '';
+        const actionable = r.status === 'manager_review';
+        return (
+          <div
+            key={r.id}
+            id={`regularization-request-${r.id}`}
+            className={cn(
+              "rounded-md border border-border p-3 space-y-2.5",
+              actionable ? 'bg-card' : 'bg-muted/30',
+              highlightedRequestId === r.id && "border-primary ring-2 ring-primary/20 bg-primary/5",
+            )}
+          >
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-foreground">
+                  {name || 'Employee'}{' '}
+                  {r.badge_id && <span className="ml-1 rounded bg-muted px-1.5 font-mono text-[11px] font-medium text-muted-foreground">#{r.badge_id}</span>}
+                </p>
+                <p className="mt-0.5 text-[13px] text-foreground">
+                  {fmtDay(r.attendance_date)}
+                  <span className="font-mono text-xs text-muted-foreground"> · In {fmtTimeIST(r.requested_check_in)} · Out {fmtTimeIST(r.requested_check_out)}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {regCategoryLabel(r.reason_category)}{r.reason ? ` · ${r.reason}` : ''}
+                </p>
+                {r.manager_remarks && (
+                  <p className="text-xs text-muted-foreground mt-1 italic">Your remarks: "{r.manager_remarks}"</p>
                 )}
               </div>
-            );
-          })
-        )}
-      </CardContent>
-    </Card>
+              <StatusPill tone={actionable ? 'warning' : 'neutral'}>
+                {actionable ? 'Awaiting you' : 'Sent back to HR'}
+              </StatusPill>
+            </div>
+
+            <CurrentAttendanceSnapshot employeeId={r.employee_id} date={r.attendance_date} />
+
+            {actionable && (
+              <>
+                <Textarea
+                  rows={2}
+                  placeholder="Remarks for HR (optional)"
+                  value={remarks[r.id] || ''}
+                  onChange={(e) => setRemarks((p) => ({ ...p, [r.id]: e.target.value }))}
+                  className="text-sm text-foreground"
+                />
+                <div className="flex gap-2 justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-8 text-destructive">
+                        <XCircle className="h-4 w-4 mr-1" /> Reject
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reject this regularization?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          HR will see your rejection and take the final call.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Back</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => decide.mutate({ req: r, approve: false })}>
+                          Reject
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  <Button size="sm" className="h-8" disabled={decide.isPending} onClick={() => decide.mutate({ req: r, approve: true })}>
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </SectionBlock>
   );
 }

@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { SectionBlock, StatusPill, ProfileSkeleton } from './primitives';
 import { Cake, PartyPopper, Sparkles } from 'lucide-react';
 
 interface Props {
@@ -116,79 +115,54 @@ export default function MyMilestonesCard({ employeeId }: Props) {
     `${(f || '').charAt(0)}${(l || '').charAt(0)}`.toUpperCase() || '?';
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <PartyPopper className="h-4 w-4 text-primary" /> Team Milestones
-          <span className="text-[11px] font-normal text-muted-foreground ml-auto">
-            Next 30 days
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <p className="text-xs text-muted-foreground">Loading…</p>
-        ) : items.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No birthdays or work anniversaries in the next 30 days.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {items.map((it) => {
-              const isBd = it.kind === 'birthday';
-              const isToday = it.daysUntil === 0;
-              return (
-                <div
-                  key={it.id}
-                  className={`flex items-center gap-3 p-2.5 rounded-lg border ${
-                    isToday
-                      ? 'border-primary/40 bg-primary/5'
-                      : 'border-border/60 bg-card'
-                  }`}
-                >
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback
-                      className={
-                        isBd
-                          ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400 text-xs'
-                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs'
-                      }
-                    >
-                      {initials(it.first_name, it.last_name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
-                      {`${it.first_name || ''} ${it.last_name || ''}`.trim() || it.badge_id}
-                      {isToday && (
-                        <Sparkles className="h-3 w-3 text-primary flex-shrink-0" />
-                      )}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                      {isBd ? (
-                        <>
-                          <Cake className="h-3 w-3" /> Birthday
-                        </>
-                      ) : (
-                        <>
-                          <PartyPopper className="h-3 w-3" /> {it.years}
-                          {it.years === 1 ? ' year' : ' years'} at the company
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={isToday ? 'default' : 'outline'}
-                    className="text-[10px] flex-shrink-0"
-                  >
-                    {it.dayLabel}
-                  </Badge>
+    <SectionBlock
+      icon={PartyPopper}
+      title="Celebrations"
+      description="Birthdays and work anniversaries in the next 30 days"
+      flush
+    >
+      {isLoading ? (
+        <ProfileSkeleton rows={2} bare />
+      ) : items.length === 0 ? (
+        <p className="px-3.5 py-4 text-sm text-muted-foreground">
+          No birthdays or work anniversaries in the next 30 days.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {items.map((it) => {
+            const isBd = it.kind === 'birthday';
+            const isToday = it.daysUntil === 0;
+            return (
+              <li key={it.id} className={`flex items-center gap-3 px-3.5 py-2.5 ${isToday ? 'bg-primary/[0.05]' : ''}`}>
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className={isToday ? 'bg-primary/15 text-primary text-[11px] font-semibold' : 'bg-muted text-foreground text-[11px]'}>
+                    {initials(it.first_name, it.last_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-foreground">
+                    {`${it.first_name || ''} ${it.last_name || ''}`.trim() || it.badge_id}
+                    {isToday && <Sparkles className="h-3 w-3 flex-shrink-0 text-primary" />}
+                  </p>
+                  <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                    {isBd ? (
+                      <>
+                        <Cake className="h-3 w-3" /> Birthday
+                      </>
+                    ) : (
+                      <>
+                        <PartyPopper className="h-3 w-3" /> {it.years}
+                        {it.years === 1 ? ' year' : ' years'} at the company
+                      </>
+                    )}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                <StatusPill tone={isToday ? 'info' : 'neutral'} className="shrink-0">{it.dayLabel}</StatusPill>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionBlock>
   );
 }

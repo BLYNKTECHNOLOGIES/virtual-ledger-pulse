@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -161,6 +161,8 @@ export function ReasonDialog({
   destructive?: boolean; onConfirm: (reason: string) => void; pending?: boolean;
 }) {
   const [reason, setReason] = useState("");
+  // Each opening starts blank, so a reason typed for one person never carries to the next.
+  useEffect(() => { if (open) setReason(""); }, [open]);
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) setReason(""); onOpenChange(o); }}>
       <DialogContent className="max-w-md">

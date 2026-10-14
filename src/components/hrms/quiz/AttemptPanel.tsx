@@ -15,7 +15,7 @@ type Section = {
   id: string; order_index: number; section_code: string; section_type: string; title: string; status: string;
   started_at: string | null; deadline_at: string | null; submitted_at: string | null;
   raw_score: number | null; max_score: number | null; normalized_score: number | null; gate_passed: boolean | null;
-  gate_min_score: number | string | null; weight: number | string | null; duration_seconds: number | null;
+  gate_min_score: number | string | null; gate_min_net_wpm?: number | string | null; gate_min_accuracy?: number | string | null; weight: number | string | null; duration_seconds: number | null;
   metrics: Record<string, any> | null; extra_seconds: number;
   items_total: number; items_correct: number; items_wrong: number; items_skipped: number;
   written: { prompt: string | null; answer: string | null; grade: number | null; comments: string | null }[] | null;
@@ -114,7 +114,7 @@ export function AttemptPanel({ attemptId, onClose, canManage }: { attemptId: str
             {canManage && (
               <div className="flex flex-wrap gap-2">
                 {running && <Button size="sm" variant="outline" onClick={() => setDialog("resume")}><KeyRound className="h-4 w-4" />Resume code</Button>}
-                {running && <Button size="sm" variant="outline" onClick={() => setDialog("time")}><Clock className="h-4 w-4" />Add time</Button>}
+                {a.status === "in_progress" && <Button size="sm" variant="outline" onClick={() => setDialog("time")}><Clock className="h-4 w-4" />Add time</Button>}
                 {finished && a.status !== "invalidated" && <Button size="sm" variant="outline" onClick={() => setDialog("override")}>Override decision</Button>}
                 {finished && a.decision_source === "manual" && (
                   <Button size="sm" variant="outline" loading={act.isPending} onClick={() => act.mutate({ fn: "cbt_restore_auto_decision", args: { p_attempt_id: a.id }, ok: "Back to automatic decision" })}><Undo2 className="h-4 w-4" />Back to automatic</Button>
@@ -148,7 +148,10 @@ export function AttemptPanel({ attemptId, onClose, canManage }: { attemptId: str
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>Score <span className="font-medium tabular-nums text-foreground">{s.normalized_score ?? "—"}</span></span>
-                    <span>Pass mark {s.gate_min_score ?? "none"}</span>
+                    {s.section_type === "typing" ? (
+                      <span>Pass mark {s.gate_min_net_wpm == null && s.gate_min_accuracy == null && s.gate_min_score == null ? "none"
+                        : [s.gate_min_net_wpm != null ? `${s.gate_min_net_wpm} net WPM` : null, s.gate_min_accuracy != null ? `${s.gate_min_accuracy}% accuracy` : null, s.gate_min_score != null ? `score ${s.gate_min_score}` : null].filter(Boolean).join(" · ")}</span>
+                    ) : <span>Pass mark {s.gate_min_score ?? "none"}</span>}
                     <span>Weight {s.weight ?? 0}</span>
                     <span>Time used {timeUsed(s)} of {clock(Number(s.duration_seconds ?? 0) + Number(s.extra_seconds ?? 0))}{s.extra_seconds ? ` (+${Math.round(s.extra_seconds / 60)} min added)` : ""}</span>
                   </div>

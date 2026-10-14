@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle, BookOpenCheck, ChevronDown, ChevronRight, CircleHelp, Search, Target, TrendingDown,
+  AlertTriangle, Archive, BookOpenCheck, CheckCircle2, FileSpreadsheet, Pencil, Plus, RotateCcw, Tags, ChevronDown, ChevronRight, CircleHelp, Search, Target, TrendingDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { QuestionEditor, POOL_LABEL, TYPE_LABEL, type EditableQuestion, type ItemType, type Subject } from "./QuestionEditor";
+import { QuestionImport } from "./QuestionImport";
+import { SubjectsManager } from "./SubjectsManager";
+import { quizRpc, useInvalidateQuiz } from "./quizShared";
 
 export type QuestionAnalyticsRow = {
   question_id: string;
   type: string;
   category_tag: string;
+  subject_name: string | null;
+  pool: string;
+  version_count: number;
+  current_served: boolean;
+  content: Record<string, any> | null;
+  answer_key: Record<string, any> | null;
   difficulty: string;
   status: string;
   times_served: number | null;
@@ -70,8 +81,30 @@ const accuracyTone = (accuracy: number | null) => {
 
 type SortKey = "hardest" | "most_served" | "newest" | "alphabetical";
 
-export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () => void }) {
+export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boolean; roleCodes: { code: string; name: string }[] }) {
+  const { toast } = useToast();
+  const invalidate = useInvalidateQuiz();
   const [search, setSearch] = useState("");
+  const [pool, setPool] = useState("__all");
+  const [type, setType] = useState("__all");
+  const [editor, setEditor] = useState<{ open: boolean; q: EditableQuestion | null }>({ open: false, q: null });
+  const [importing, setImporting] = useState(false);
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
+  const { data: subjectList = [] } = useQuery({
+    queryKey: ["cbt", "subjects"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cbt_subjects" as never).select("*").order("display_name");
+      if (error) throw error;
+      return (data ?? []) as unknown as Subject[];
+    },
+  });
+  const subjectName = (key: string) => subjectList.find((x) => x.key === key)?.display_name ?? pretty(key || "Untagged");
+  const setStatusAct = useMutation({
+    mutationFn: (v: { id: string; action: "approve" | "retire" | "restore" | "submit" }) => quizRpc<string>("cbt_set_question_status", { p_question_id: v.id, p_action: v.action }),
+    onSuccess: (to) => { toast({ title: `Now ${pretty(to)}` }); setDetail(null); void invalidate(); },
+    onError: (e: Error) => toast({ title: "Status not changed", description: e.message, variant: "destructive" }),
+  });
+  const onAddQuestion = canManage ? () => setEditor({ open: true, q: null }) : undefined;
   const [subject, setSubject] = useState("__all");
   const [difficulty, setDifficulty] = useState("__all");
   const [status, setStatus] = useState("__all");
@@ -91,7 +124,7 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
   const rows = data ?? [];
 
   const subjects = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.category_tag).filter(Boolean))).sort(),
+    () => Array.from(new Set(rows.map((row) => row.category_tag).filter(Boolean))).sort((a, b) => subjectName(a).localeCompare(subjectName(b))),
     [rows],
   );
 
@@ -99,13 +132,15 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
     const needle = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (subject !== "__all" && row.category_tag !== subject) return false;
+      if (pool !== "__all" && row.pool !== pool) return false;
+      if (type !== "__all" && row.type !== type) return false;
       if (difficulty !== "__all" && row.difficulty !== difficulty) return false;
       if (status !== "__all" && row.status !== status) return false;
       if (!needle) return true;
-      return [row.prompt, row.category_tag, row.type, row.explanation]
+      return [row.prompt, row.category_tag, row.subject_name, row.type, row.explanation]
         .some((value) => String(value ?? "").toLowerCase().includes(needle));
     });
-  }, [rows, search, subject, difficulty, status]);
+  }, [rows, search, subject, difficulty, status, pool, type]);
 
   const sortRows = (list: QuestionAnalyticsRow[]) =>
     [...list].sort((a, b) => {
@@ -194,8 +229,9 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
           icon={CircleHelp}
           title="Question bank is empty"
           description="Add approved questions; unapproved questions are never served to candidates."
-          action={onAddQuestion ? <Button onClick={onAddQuestion}>Add question</Button> : undefined}
+          action={onAddQuestion ? <Button onClick={onAddQuestion}>Add item</Button> : undefined}
         />
+        <QuestionEditor open={editor.open} onOpenChange={(o) => setEditor((e) => ({ ...e, open: o }))} question={editor.q} subjects={subjectList} roleCodes={roleCodes} />
       </div>
     );
   }
@@ -221,6 +257,12 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
         ))}
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {canManage && <Button onClick={() => setEditor({ open: true, q: null })}><Plus className="h-4 w-4" />Add item</Button>}
+        {canManage && <Button variant="outline" onClick={() => setImporting(true)}><FileSpreadsheet className="h-4 w-4" />Import from Excel</Button>}
+        <Button variant="outline" onClick={() => setSubjectsOpen(true)}><Tags className="h-4 w-4" />Subjects</Button>
+      </div>
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative w-full lg:w-72">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -231,7 +273,21 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
             <SelectTrigger className="w-[190px] text-foreground"><SelectValue placeholder="Subject" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all">All subjects</SelectItem>
-              {subjects.map((tag) => <SelectItem key={tag} value={tag}>{pretty(tag)}</SelectItem>)}
+              {subjects.map((tag) => <SelectItem key={tag} value={tag}>{subjectName(tag)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={pool} onValueChange={setPool}>
+            <SelectTrigger className="w-[140px] text-foreground"><SelectValue placeholder="Pool" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">All pools</SelectItem>
+              <SelectItem value="hiring">Hiring</SelectItem><SelectItem value="staff">Staff</SelectItem><SelectItem value="shared">Shared</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="w-[170px] text-foreground"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">All types</SelectItem>
+              {(Object.keys(TYPE_LABEL) as ItemType[]).map((t) => <SelectItem key={t} value={t}>{TYPE_LABEL[t]}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={difficulty} onValueChange={setDifficulty}>
@@ -282,7 +338,7 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
                   <div className="min-w-0">
                     <p className="line-clamp-2 text-sm font-medium">{row.prompt ?? "(no text)"}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {pretty(row.category_tag || "Untagged")} · {pretty(row.difficulty)} · {row.answered_items} answered · {row.wrong_items} wrong
+                      {subjectName(row.category_tag)} · {pretty(row.difficulty)} · {row.answered_items} answered · {row.wrong_items} wrong
                     </p>
                   </div>
                   <span className={`shrink-0 text-sm tabular-nums ${accuracyTone(row.accuracy)}`}>{row.accuracy}% correct</span>
@@ -309,7 +365,7 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
                     </span>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">{pretty(group.name)}</p>
+                        <p className="font-semibold">{subjectName(group.name)}</p>
                         <Badge variant="muted">{group.total} question{group.total === 1 ? "" : "s"}</Badge>
                         {group.pending > 0 && <Badge variant="warning">{group.pending} awaiting approval</Badge>}
                       </div>
@@ -337,6 +393,7 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
                         <TableRow>
                           <TableHead>Question</TableHead>
                           <TableHead>Type</TableHead>
+                          <TableHead>Pool</TableHead>
                           <TableHead>Difficulty</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead numeric>Served</TableHead>
@@ -351,7 +408,8 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
                             <TableCell className="max-w-[420px]">
                               <p className="line-clamp-2 font-medium">{row.prompt ?? "(no text)"}</p>
                             </TableCell>
-                            <TableCell>{pretty(row.type)}</TableCell>
+                            <TableCell>{TYPE_LABEL[row.type as ItemType] ?? pretty(row.type)}{(row.version_no ?? 1) > 1 && <span className="ml-1 text-xs text-muted-foreground">v{row.version_no}</span>}</TableCell>
+                            <TableCell>{POOL_LABEL[row.pool] ?? row.pool}</TableCell>
                             <TableCell><Badge variant={difficultyVariant(row.difficulty)}>{pretty(row.difficulty)}</Badge></TableCell>
                             <TableCell><Badge variant={statusVariant(row.status)}>{pretty(row.status)}</Badge></TableCell>
                             <TableCell numeric>{row.served_items}</TableCell>
@@ -380,12 +438,24 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
           <DialogHeader>
             <DialogTitle>Question detail</DialogTitle>
             <DialogDescription>
-              {detail ? `${pretty(detail.category_tag || "Untagged")} · ${pretty(detail.type)} · ${pretty(detail.difficulty)} · version ${detail.version_no ?? 1}` : ""}
+              {detail ? `${subjectName(detail.category_tag)} · ${POOL_LABEL[detail.pool] ?? detail.pool} · ${TYPE_LABEL[detail.type as ItemType] ?? pretty(detail.type)} · ${pretty(detail.difficulty)} · version ${detail.version_no ?? 1} of ${detail.version_count ?? 1}` : ""}
             </DialogDescription>
           </DialogHeader>
           {detail && (
             <div className="space-y-4">
+              {canManage && (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setEditor({ open: true, q: detail as unknown as EditableQuestion }); setDetail(null); }}><Pencil className="h-4 w-4" />Edit</Button>
+                  {(detail.status === "draft" || detail.status === "needs_review") && <Button size="sm" loading={setStatusAct.isPending} onClick={() => setStatusAct.mutate({ id: detail.question_id, action: "approve" })}><CheckCircle2 className="h-4 w-4" />Approve</Button>}
+                  {detail.status === "draft" && <Button size="sm" variant="outline" onClick={() => setStatusAct.mutate({ id: detail.question_id, action: "submit" })}>Send for review</Button>}
+                  {detail.status !== "retired" && <Button size="sm" variant="outline" className="text-destructive" onClick={() => setStatusAct.mutate({ id: detail.question_id, action: "retire" })}><Archive className="h-4 w-4" />Retire</Button>}
+                  {detail.status === "retired" && <Button size="sm" variant="outline" onClick={() => setStatusAct.mutate({ id: detail.question_id, action: "restore" })}><RotateCcw className="h-4 w-4" />Restore</Button>}
+                </div>
+              )}
               <p className="whitespace-pre-wrap text-sm font-medium">{detail.prompt ?? "(no text)"}</p>
+              {detail.type === "match_pair" && detail.content && <p className="whitespace-pre-wrap rounded-md border border-border p-2 font-mono text-xs">A: {detail.content.left}{"\n"}B: {detail.content.right}{"\n"}{detail.answer_key?.pair_is_match ? "Match" : `No match${detail.answer_key?.explanation ? ` — ${detail.answer_key.explanation}` : ""}`}</p>}
+              {detail.type === "data_entry_record" && detail.content?.record && <dl className="grid grid-cols-2 gap-1 rounded-md border border-border p-2 font-mono text-xs">{Object.entries(detail.content.record).map(([k, v]) => <div key={k} className="contents"><dt className="text-muted-foreground">{k}</dt><dd>{String(v)}</dd></div>)}</dl>}
+              {detail.type === "written" && detail.answer_key?.rubric && <div className="rounded-md border border-border p-2 text-xs"><p className="font-semibold">Marking guide</p>{(detail.answer_key.rubric.covers ?? detail.answer_key.rubric.criteria?.map((c: any) => c.name) ?? []).map((c: string) => <p key={c}>✓ {c}</p>)}{(detail.answer_key.rubric.must_not ?? []).map((c: string) => <p key={c}>✗ {c}</p>)}</div>}
 
               {Array.isArray(detail.options) && detail.options.length > 0 && (
                 <div className="space-y-2">
@@ -448,6 +518,10 @@ export function QuestionBankWorkspace({ onAddQuestion }: { onAddQuestion?: () =>
           )}
         </DialogContent>
       </Dialog>
+      <QuestionEditor open={editor.open} onOpenChange={(o) => setEditor((e) => ({ ...e, open: o }))} question={editor.q} subjects={subjectList} roleCodes={roleCodes} />
+      <QuestionImport open={importing} onOpenChange={setImporting} subjects={subjectList} />
+      <SubjectsManager open={subjectsOpen} onOpenChange={setSubjectsOpen} subjects={subjectList} canManage={canManage}
+        counts={rows.reduce<Record<string, number>>((m, r) => { m[r.category_tag] = (m[r.category_tag] ?? 0) + 1; return m; }, {})} />
     </div>
   );
 }

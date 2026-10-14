@@ -4883,6 +4883,7 @@ export type Database = {
           current_version_id: string | null
           difficulty: Database["public"]["Enums"]["cbt_difficulty"]
           id: string
+          pool: string
           status: Database["public"]["Enums"]["cbt_question_status"]
           stimulus_id: string | null
           times_served: number
@@ -4899,6 +4900,7 @@ export type Database = {
           current_version_id?: string | null
           difficulty?: Database["public"]["Enums"]["cbt_difficulty"]
           id?: string
+          pool?: string
           status?: Database["public"]["Enums"]["cbt_question_status"]
           stimulus_id?: string | null
           times_served?: number
@@ -4915,6 +4917,7 @@ export type Database = {
           current_version_id?: string | null
           difficulty?: Database["public"]["Enums"]["cbt_difficulty"]
           id?: string
+          pool?: string
           status?: Database["public"]["Enums"]["cbt_question_status"]
           stimulus_id?: string | null
           times_served?: number
@@ -4935,6 +4938,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cbt_stimuli"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_questions_subject_fk"
+            columns: ["category_tag"]
+            isOneToOne: false
+            referencedRelation: "cbt_subjects"
+            referencedColumns: ["key"]
           },
         ]
       }
@@ -5157,6 +5167,39 @@ export type Database = {
           id?: string
           status?: Database["public"]["Enums"]["cbt_question_status"]
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cbt_subjects: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_name: string
+          is_retired: boolean
+          key: string
+          pool: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name: string
+          is_retired?: boolean
+          key: string
+          pool: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name?: string
+          is_retired?: boolean
+          key?: string
+          pool?: string
           updated_at?: string
         }
         Relationships: []
@@ -34217,6 +34260,7 @@ export type Database = {
         Returns: Json
       }
       cbt_attempt_detail: { Args: { p_attempt_id: string }; Returns: Json }
+      cbt_build_item: { Args: { p: Json; p_type: string }; Returns: Json }
       cbt_bump_served: { Args: { p_question_id: string }; Returns: undefined }
       cbt_can_admin: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_evaluate: { Args: { _user_id?: string }; Returns: boolean }
@@ -34240,6 +34284,7 @@ export type Database = {
         }
         Returns: string
       }
+      cbt_delete_subject: { Args: { p_key: string }; Returns: undefined }
       cbt_drive_monitor: { Args: { p_drive_id: string }; Returns: Json }
       cbt_drive_readiness: {
         Args: { p_is_sandbox: boolean; p_job_role_ids: string[] }
@@ -34253,6 +34298,16 @@ export type Database = {
       cbt_grade_written_response: {
         Args: { p_comments?: string; p_evaluation_id: string; p_total: number }
         Returns: undefined
+      }
+      cbt_import_questions: {
+        Args: {
+          p_dry_run?: boolean
+          p_pool: string
+          p_rows: Json
+          p_status: string
+          p_subject: string
+        }
+        Returns: Json
       }
       cbt_invalidate_attempt: {
         Args: { p_attempt_id: string; p_reason: string }
@@ -34273,13 +34328,16 @@ export type Database = {
         Args: never
         Returns: {
           accuracy: number
+          answer_key: Json
           answered_items: number
           applicable_role_codes: string[]
           avg_marks: number
           category_tag: string
+          content: Json
           correct_items: number
           correct_option_id: string
           created_at: string
+          current_served: boolean
           difficulty: string
           explanation: string
           last_served_at: string
@@ -34287,20 +34345,40 @@ export type Database = {
           numeric_answer: number
           option_tally: Json
           options: Json
+          pool: string
           prompt: string
           question_id: string
           served_items: number
           skipped_items: number
           status: string
+          subject_name: string
           times_served: number
           type: string
+          version_count: number
           version_no: number
           wrong_items: number
+        }[]
+      }
+      cbt_question_history: { Args: { p_question_id: string }; Returns: Json }
+      cbt_question_rescore_targets: {
+        Args: { p_question_id: string }
+        Returns: {
+          attempt_id: string
+          decision: string
+          decision_source: string
+          public_ref: string
+          status: string
+          total_score: number
+          version_no: number
         }[]
       }
       cbt_rescore_attempt: {
         Args: { p_attempt_id: string }
         Returns: undefined
+      }
+      cbt_rescore_question_attempts: {
+        Args: { p_attempt_ids: string[]; p_question_id: string }
+        Returns: number
       }
       cbt_restore_auto_decision: {
         Args: { p_attempt_id: string }
@@ -34336,6 +34414,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cbt_save_question: {
+        Args: { p: Json; p_question_id: string }
+        Returns: Json
+      }
       cbt_save_role_blueprint: {
         Args: {
           p_code?: string
@@ -34345,6 +34427,15 @@ export type Database = {
           p_role_id?: string
           p_sections?: Json
           p_shortlist_cutoff?: number
+        }
+        Returns: string
+      }
+      cbt_save_subject: {
+        Args: {
+          p_description?: string
+          p_display_name: string
+          p_key: string
+          p_pool: string
         }
         Returns: string
       }
@@ -34358,8 +34449,17 @@ export type Database = {
         Args: { p_drive_id: string; p_status: string }
         Returns: Json
       }
+      cbt_set_question_status: {
+        Args: { p_action: string; p_question_id: string; p_reason?: string }
+        Returns: string
+      }
+      cbt_set_subject_retired: {
+        Args: { p_key: string; p_retired: boolean }
+        Returns: undefined
+      }
       cbt_sweep_attempt: { Args: { p_attempt_id: string }; Returns: undefined }
       cbt_sweep_expired: { Args: never; Returns: number }
+      cbt_update_settings: { Args: { p: Json }; Returns: Json }
       check_in_terminal_appeal_case: {
         Args: { p_case_id: string; p_note?: string }
         Returns: undefined

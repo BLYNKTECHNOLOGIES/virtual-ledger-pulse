@@ -49,8 +49,10 @@ function DriveDialog({ drive, tests, open, onOpenChange, onSaved }: {
       setForm(blank);
       quizRpc<string>("cbt_new_access_code").then((code) => setForm((f) => ({ ...f, code: f.code || code }))).catch(() => undefined);
     }
+    // Fill only when the dialog opens (or a different drive is opened) — the drives list
+    // re-fetches every 15 s and must not overwrite what HR is typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, drive]);
+  }, [open, drive?.id]);
 
   const regenerate = async () => {
     try { const code = await quizRpc<string>("cbt_new_access_code"); setForm((f) => ({ ...f, code })); }
@@ -133,7 +135,11 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
   const { data, dataUpdatedAt } = useQuery({
     queryKey: ["cbt", "monitor", drive.id],
     queryFn: () => quizRpc<{ server_now: string; rows: MonitorRow[] }>("cbt_drive_monitor", { p_drive_id: drive.id }),
-    refetchInterval: drive.status === "live" ? 5000 : false,
+    // Closed drives keep refreshing while anyone is still registered or testing.
+    refetchInterval: (query) => {
+      const active = (query.state.data?.rows ?? []).some((r) => r.status === "registered" || r.status === "in_progress");
+      return drive.status === "live" || active || drive.testing > 0 ? 5000 : false;
+    },
   });
   // Server clock: offset measured at fetch time, so countdowns don't trust this PC's clock.
   const offset = data ? new Date(data.server_now).getTime() - dataUpdatedAt : 0;
@@ -152,7 +158,7 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">Live monitor</h3>
-        <span className="text-xs text-muted-foreground">{drive.status === "live" ? "Refreshes every 5 seconds" : "Drive is not live"}</span>
+        <span className="text-xs text-muted-foreground">{drive.status === "live" ? "Refreshes every 5 seconds" : rows.some((r) => running(r.status)) ? "Drive closed · refreshing while people finish" : "Drive is not live"}</span>
       </div>
       {!rows.length ? <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">Nobody has registered for this drive yet.</p> : (
         <>
@@ -174,7 +180,7 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
                         {running(r.status) && (
                           <div className="flex gap-1">
                             <Button size="icon" variant="ghost" title="Resume code" aria-label="Resume code" onClick={() => setAction({ kind: "resume", id: r.id })}><KeyRound className="h-4 w-4" /></Button>
-                            <Button size="icon" variant="ghost" title="Add time" aria-label="Add time" onClick={() => setAction({ kind: "time", id: r.id })}><Clock className="h-4 w-4" /></Button>
+                            {r.status === "in_progress" && <Button size="icon" variant="ghost" title="Add time" aria-label="Add time" onClick={() => setAction({ kind: "time", id: r.id })}><Clock className="h-4 w-4" /></Button>}
                             <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setAction({ kind: "invalidate", id: r.id })}>Invalidate</Button>
                           </div>
                         )}
@@ -196,7 +202,7 @@ function Monitor({ drive, canManage }: { drive: DriveRow; canManage: boolean }) 
                 {canManage && running(r.status) && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={() => setAction({ kind: "resume", id: r.id })}>Resume code</Button>
-                    <Button size="sm" variant="outline" onClick={() => setAction({ kind: "time", id: r.id })}>Add time</Button>
+                    {r.status === "in_progress" && <Button size="sm" variant="outline" onClick={() => setAction({ kind: "time", id: r.id })}>Add time</Button>}
                     <Button size="sm" variant="outline" className="text-destructive" onClick={() => setAction({ kind: "invalidate", id: r.id })}>Invalidate</Button>
                   </div>
                 )}

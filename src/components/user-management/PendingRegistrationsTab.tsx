@@ -26,6 +26,8 @@ import { Panel } from "@/components/finance-ui/primitives";
 import { fmtAgo, fmtDay, fmtTime } from "@/components/profile/format";
 import { DetailList, Initials, PanelMessage, PanelSkeleton, SearchField, UM_TABLE } from "./umUi";
 import { usePendingRegistrations, type PendingRegistration } from "./usePendingRegistrations";
+import { retryRemoval, type RemovalRecord } from "./useUmLifecycle";
+import { AlertTriangle } from "lucide-react";
 
 interface Role {
   id: string;
@@ -33,7 +35,12 @@ interface Role {
   description: string | null;
 }
 
-export function PendingRegistrationsTab() {
+export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange }: {
+  /** Rejected sign-ups whose account clean-up is still owed (shared removal record). */
+  pendingCleanups?: RemovalRecord[];
+  onCleanupChange?: () => void;
+} = {}) {
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [approvalDialog, setApprovalDialog] = useState<PendingRegistration | null>(null);
   const [rejectionDialog, setRejectionDialog] = useState<PendingRegistration | null>(null);
@@ -176,11 +183,20 @@ export function PendingRegistrationsTab() {
       }
       return data;
     },
-    onSuccess: () => {
-      toast({
-        title: "Registration Rejected",
-        description: "The registration request has been rejected.",
-      });
+    onSuccess: (data: any) => {
+      if (data?.cleanupPending) {
+        toast({
+          title: "Rejected, with clean-up pending",
+          description: `Rejected, but the sign-up's account could not be removed: ${data.cleanupError || "unknown reason"}. It is retried automatically until the email and phone are free.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Registration Rejected",
+          description: "The registration was rejected and its account removed, so the email and phone can be used again.",
+        });
+      }
+      onCleanupChange?.();
       queryClient.invalidateQueries({ queryKey: ["pending-registrations"] });
       setRejectionDialog(null);
       setRejectionReason("");
@@ -262,6 +278,39 @@ export function PendingRegistrationsTab() {
 
   return (
     <>
+      {pendingCleanups.length > 0 && (
+        <Panel
+          title="Rejected sign-ups — clean-up pending"
+          description="These sign-ups are rejected, but their account isn't fully removed yet, so the email and phone are still taken. The daily job retries automatically."
+          className="mb-4"
+        >
+          <ul className="space-y-2">
+            {pendingCleanups.map((r) => (
+              <li key={r.user_id} className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-warning/40 bg-warning/5 p-3">
+                <div className="min-w-0 text-sm">
+                  <p className="font-medium text-foreground">{r.target_name || r.target_username || "Sign-up"}{r.target_email ? ` · ${r.target_email}` : ""}</p>
+                  <p className="flex items-start gap-1.5 text-xs text-warning">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {r.last_error ? `Could not be removed: ${r.last_error}` : "Removal pending"} · {r.attempts} attempt{r.attempts === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="h-8 text-xs" disabled={retryingId === r.user_id}
+                  onClick={async () => {
+                    setRetryingId(r.user_id);
+                    const res = await retryRemoval(r.user_id);
+                    setRetryingId(null);
+                    toast(res.success
+                      ? { title: "Account removed", description: "The email and phone can be used again." }
+                      : { title: "Still not removed", description: res.error || "Unknown reason", variant: "destructive" });
+                    onCleanupChange?.();
+                  }}>
+                  {retryingId === r.user_id ? "Retrying…" : "Retry now"}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
       <Panel
         title="Sign-up approvals"
         description="People who registered on the sign-up page. Approving turns on their login with the role, department and position you choose."

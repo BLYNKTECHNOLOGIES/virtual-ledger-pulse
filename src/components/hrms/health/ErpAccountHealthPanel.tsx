@@ -129,11 +129,14 @@ export function ErpAccountHealthPanel() {
     if (!row.user_id || !row.emp_badge_id) return;
     setBusy(`${row.user_id}-badge`);
     try {
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("users")
         .update({ badge_id: row.emp_badge_id, updated_at: new Date().toISOString() })
-        .eq("id", row.user_id);
+        .eq("id", row.user_id)
+        .select("id");
       if (error) throw error;
+      // RLS (UM-2A um_can_act) can silently match 0 rows — never report a false success.
+      if (!data?.length) { toast.error("You can't change this person's ERP account"); return; }
       toast.success(`Badge ${row.emp_badge_id} linked to the ERP account`);
       refresh();
     } catch (e: any) {
@@ -155,8 +158,9 @@ export function ErpAccountHealthPanel() {
         patch.first_name = parts.shift() || null;
         patch.last_name = parts.join(" ") || null;
       }
-      const { error } = await (supabase as any).from("users").update(patch).eq("id", row.user_id);
+      const { data, error } = await (supabase as any).from("users").update(patch).eq("id", row.user_id).select("id");
       if (error) throw error;
+      if (!data?.length) { toast.error("You can't change this person's ERP account"); return; }
       toast.success(`${FIELD_LABEL[row.field] ?? row.field} adopted from HRMS`);
       refresh();
     } catch (e: any) {

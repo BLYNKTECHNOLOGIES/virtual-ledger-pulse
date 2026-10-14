@@ -1,10 +1,11 @@
 # Workforce capacity integrity
 
 ## UM-2C
-- [ ] Centralize exact sign-in logging and self-only ERP presence; verify SQL isolation and Auth parity.
-- [ ] Preserve fitted Users layout while showing last sign-in and ERP/Terminal presence.
-- [ ] Trim role names, fold functions without access changes, make legacy functions read-only.
-- [ ] Add full server-paged history filters; verify tests, SQL invariants, and available browser checks.
+- [x] Centralize exact sign-in logging and self-only ERP presence; verify SQL isolation and Auth parity.
+- [x] Preserve fitted Users columns while showing last sign-in and ERP/Terminal presence.
+- [x] Trim role names, fold functions without access changes, make legacy functions read-only.
+- [x] Add full server-paged history filters; verify tests, SQL invariants, and public browser checks.
+- [ ] Verify signed-in Users widths at 1024/1280/1440 and screenshots of Users, Online now, History, Edit role (blocked: external unmanaged Supabase session unavailable).
 
 ## ATS job details formatting
 - [x] Rename Benefits to candidate-visible Notes across editor, job detail and activity labels; widen/reorganize editor with larger full-width writing fields, verify actual isolated form at 1280/1125/390 widths and editable Notes/list controls (no live save).

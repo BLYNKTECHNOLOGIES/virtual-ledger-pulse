@@ -656,7 +656,7 @@ export default function UserManagement() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Segmented<StatusFilter>
+                <Segmented
                   label="Filter by status"
                   value={statusFilter}
                   onChange={setStatusFilter}

@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { getSessionUserId } from "@/lib/session-cache";
 import { useAuth } from "@/hooks/useAuth";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
-import { AlertTriangle, Loader2, Lock, UserCheck } from "lucide-react";
+import { AlertTriangle, ExternalLink, Loader2, Lock, UserCheck } from "lucide-react";
+import { Link } from "react-router-dom";
+import type { UmUserActions } from "./useUmAccess";
 import { FormSection, Initials, RoleChip, StickyFooter, UserStatusChip, personName } from "./umUi";
 
 interface TerminalRole {
@@ -38,11 +38,15 @@ interface EditUserDialogProps {
   user: DatabaseUser;
   onSave: (userId: string, userData: any) => Promise<any>;
   onClose: () => void;
-  /** HR-restricted editors cannot change role or terminal access */
-  restrictSensitive?: boolean;
+  /** What the server allows the signed-in person to do to this account (um_my_access). */
+  actions: UmUserActions;
+  /** Roles the signed-in person may give (ranked below them, only access they hold). */
+  assignableRoleIds: string[];
 }
 
-export function EditUserDialog({ user, onSave, onClose, restrictSensitive = false }: EditUserDialogProps) {
+export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleIds }: EditUserDialogProps) {
+  // Role changes only when the server allows it for this person (UM-2A R3).
+  const restrictSensitive = !actions.role;
   const initialRoleId = user.role?.id || user.role_id || "no_role";
 
   const [formData, setFormData] = useState({
@@ -57,10 +61,9 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
   });
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [terminalAccess, setTerminalAccess] = useState(false);
-  const [currentTerminalRoleId, setCurrentTerminalRoleId] = useState<string | null>(null);
-  const [terminalRoleId, setTerminalRoleId] = useState<string>("");
+  const [currentTerminalRoleIds, setCurrentTerminalRoleIds] = useState<string[]>([]);
   const [terminalRoles, setTerminalRoles] = useState<TerminalRole[]>([]);
+  const [initialEmployeeId, setInitialEmployeeId] = useState<string | null>(null);
   const [linkedEmployee, setLinkedEmployee] = useState<LinkedEmployee | null>(null);
   const [isCheckingBadge, setIsCheckingBadge] = useState(false);
   const { toast } = useToast();
@@ -78,10 +81,8 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
 
     const fetchTerminalAccess = async () => {
       const { data, error } = await supabase.rpc('get_terminal_user_roles', { p_user_id: user.id });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
-        setTerminalAccess(true);
-        setCurrentTerminalRoleId(data[0].role_id);
-        setTerminalRoleId(data[0].role_id);
+      if (!error && data && Array.isArray(data)) {
+        setCurrentTerminalRoleIds(data.map((r: any) => r.role_id));
       }
     };
 
@@ -109,6 +110,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
 
       if (!employeeErr && employeeRow) {
         setLinkedEmployee(employeeRow);
+        setInitialEmployeeId(employeeRow.id);
       }
 
       if (!userErr && userRow?.badge_id) {
@@ -176,19 +178,16 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
       const result = await onSave(user.id, submitData);
 
       if (result?.success !== false) {
-        // If badge matches an hr_employee, update user_id on hr_employees
-        // First, clear any old hr_employee links for this user
-        await (supabase as any)
-          .from('hr_employees')
-          .update({ user_id: null })
-          .eq('user_id', user.id);
-
-        // Then set the new link if a matching employee was found
-        if (linkedEmployee) {
-          await (supabase as any)
-            .from('hr_employees')
-            .update({ user_id: user.id })
-            .eq('id', linkedEmployee.id);
+        // HRMS badge link: one server step with the same R4 rule (only when it changed).
+        const nextEmployeeId = formData.badge_id.trim() ? linkedEmployee?.id ?? null : null;
+        if (actions.link && nextEmployeeId !== initialEmployeeId) {
+          const { error: linkError } = await (supabase as any).rpc("um_link_hr_employee", {
+            p_user_id: user.id,
+            p_employee_id: nextEmployeeId,
+          });
+          if (linkError) {
+            toast({ title: "HRMS link not changed", description: linkError.message, variant: "destructive" });
+          }
         }
 
         logActionWithCurrentUser({
@@ -209,39 +208,8 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
           });
         }
 
-        // Handle terminal access changes — skipped entirely for HR-restricted editors
-        if (!restrictSensitive) {
-          const hadAccess = !!currentTerminalRoleId;
-          if (terminalAccess && !hadAccess) {
-            const selectedErpRole = roles.find(r => r.id === formData.role_id);
-            const adminTerminalRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
-            const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin' && adminTerminalRole
-              ? adminTerminalRole.id
-              : terminalRoleId;
-            const assignedBy = getSessionUserId() || undefined;
-            await supabase.rpc("assign_terminal_role", {
-              p_user_id: user.id,
-              p_role_id: autoTerminalRoleId,
-              p_assigned_by: assignedBy,
-            });
-          } else if (!terminalAccess && hadAccess) {
-            await supabase.rpc("remove_terminal_role", {
-              p_user_id: user.id,
-              p_role_id: currentTerminalRoleId!,
-            });
-          } else if (terminalAccess && hadAccess && terminalRoleId !== currentTerminalRoleId) {
-            await supabase.rpc("remove_terminal_role", {
-              p_user_id: user.id,
-              p_role_id: currentTerminalRoleId!,
-            });
-            const assignedBy = getSessionUserId() || undefined;
-            await supabase.rpc("assign_terminal_role", {
-              p_user_id: user.id,
-              p_role_id: terminalRoleId,
-              p_assigned_by: assignedBy,
-            });
-          }
-        }
+        // Terminal access is granted or removed in User Management → Terminal access (UM-2A S3).
+        // A new ERP Admin without Terminal access gets the Terminal "Admin" role on the server.
 
         // The "User updated" toast comes from useUsers.updateUser (onSave) — not repeated here.
 
@@ -272,11 +240,16 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
 
   const credentialsEdited = formData.username !== user.username || formData.email !== user.email;
   const deactivating = formData.status !== user.status && (formData.status === "INACTIVE" || formData.status === "SUSPENDED");
-  // Mirrors handleSubmit: a new ERP Admin without Terminal access gets the Terminal "Admin" role automatically.
+  // Mirrors um_set_user_role: a new ERP Admin without Terminal access gets the Terminal "Admin" role.
   const autoAdminTerminal =
-    !currentTerminalRoleId &&
+    currentTerminalRoleIds.length === 0 &&
+    formData.role_id !== initialRoleId &&
     roles.find((r) => r.id === formData.role_id)?.name?.toLowerCase() === "admin" &&
     terminalRoles.some((r) => r.name.toLowerCase() === "admin");
+  const roleOptions = roles.filter((r) => r.id === initialRoleId || assignableRoleIds.includes(r.id));
+  const currentTerminalNames = currentTerminalRoleIds
+    .map((id) => terminalRoles.find((r) => r.id === id)?.name)
+    .filter(Boolean) as string[];
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -301,6 +274,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
                 <Label htmlFor="first_name">First name</Label>
                 <Input
                   id="first_name"
+                  disabled={!actions.details}
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                   placeholder="First name"
@@ -310,6 +284,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
                 <Label htmlFor="last_name">Last name</Label>
                 <Input
                   id="last_name"
+                  disabled={!actions.details}
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                   placeholder="Last name"
@@ -319,6 +294,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
                 <Label htmlFor="username">Username</Label>
                 <Input
                   id="username"
+                  disabled={!actions.details}
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   placeholder="Username"
@@ -329,6 +305,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  disabled={!actions.details}
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -340,6 +317,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
+                  disabled={!actions.details}
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="Phone number"
@@ -360,6 +338,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
               <Label htmlFor="badge_id">Badge ID</Label>
               <Input
                 id="badge_id"
+                disabled={!actions.link}
                 value={formData.badge_id}
                 onChange={(e) => setFormData({ ...formData, badge_id: e.target.value })}
                 placeholder="e.g. EMP001"
@@ -391,28 +370,22 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
             {restrictSensitive && (
               <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                 <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Role and Terminal access can only be changed by someone with full User Management access.
+                {user.role?.name
+                  ? "You can't change this person's role. Roles can only be given by someone ranked above both the person and the role, who also has all of the role's access."
+                  : "You can't change this person's role."}
               </p>
             )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {!restrictSensitive && (
               <div className="space-y-1.5">
                 <Label htmlFor="role">ERP role</Label>
-                <Select value={formData.role_id} onValueChange={(value) => {
-                  setFormData({ ...formData, role_id: value });
-                  const selectedRole = roles.find(r => r.id === value);
-                  if (selectedRole?.name?.toLowerCase() === 'admin') {
-                    setTerminalAccess(true);
-                    const adminRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
-                    if (adminRole) setTerminalRoleId(adminRole.id);
-                  }
-                }}>
+                <Select value={formData.role_id} onValueChange={(value) => setFormData({ ...formData, role_id: value })}>
                   <SelectTrigger id="role">
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="no_role">No role</SelectItem>
-                    {roles.map((role) => (
+                    {roleOptions.map((role) => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.name}
                       </SelectItem>
@@ -424,7 +397,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
 
               <div className="space-y-1.5">
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' })}>
+                <Select disabled={!actions.status} value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' })}>
                   <SelectTrigger id="status">
                     <SelectValue />
                   </SelectTrigger>
@@ -449,39 +422,24 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
             )}
           </FormSection>
 
-          {!restrictSensitive && (
           <FormSection title="P2P Trading Terminal">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <Label htmlFor="terminal-access" className="text-sm font-medium">Terminal access</Label>
-                <p className="text-xs text-muted-foreground">Lets this person open the P2P Trading Terminal.</p>
-              </div>
-              <Switch
-                id="terminal-access"
-                checked={terminalAccess}
-                onCheckedChange={setTerminalAccess}
-              />
-            </div>
-            {terminalAccess && (
-              <div className="space-y-1.5">
-                <Label htmlFor="terminal-role">Terminal role</Label>
-                <Select value={terminalRoleId} onValueChange={setTerminalRoleId}>
-                  <SelectTrigger id="terminal-role">
-                    <SelectValue placeholder="Choose a Terminal role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {terminalRoles.map((tr) => (
-                      <SelectItem key={tr.id} value={tr.id}>{tr.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!terminalRoleId && !autoAdminTerminal && (
-                  <p className="text-xs text-warning">Choose a Terminal role, otherwise access is not granted.</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm text-foreground">
+                  {currentTerminalNames.length > 0 ? currentTerminalNames.join(", ") : "No Terminal access"}
+                </p>
+                <p className="text-xs text-muted-foreground">Terminal access is given or removed on the Terminal access tab.</p>
+                {autoAdminTerminal && (
+                  <p className="text-xs text-muted-foreground">Saving as Admin also gives the Terminal "Admin" role.</p>
                 )}
               </div>
-            )}
+              <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                <Link to={`/user-management?tab=terminal&person=${encodeURIComponent(user.id)}`} onClick={onClose}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Open Terminal access
+                </Link>
+              </Button>
+            </div>
           </FormSection>
-          )}
 
           <StickyFooter>
             <Button type="button" variant="outline" onClick={onClose}>

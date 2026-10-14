@@ -131,7 +131,12 @@ export default function AttendanceCalendarPage() {
 
   // Monthly stats — working days only, exactly the days the payroll/LOP engine counts.
   const monthStats = useMemo(() => {
-    const rows = (engineDays as AttendanceDay[]).filter(countsTowardAttendance);
+    // Only days that have happened (IST) count — future working days of the
+    // month must not dilute the present rate.
+    const todayIst = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+    const rows = (engineDays as AttendanceDay[])
+      .filter(countsTowardAttendance)
+      .filter((d) => String(d.date) <= todayIst);
     const st = rows.map((d) => resolveDayStatus(d));
     const present = st.filter((s) => s === "present").length;
     const half = st.filter((s) => s === "half_day").length;

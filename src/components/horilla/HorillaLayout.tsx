@@ -51,7 +51,7 @@ export function HorillaLayout() {
 
   return (
     <PermissionGate
-      permissions={["hrms_view", "hrms_manage"]}
+      permissions={["hrms_view", "hrms_manage", "hrms_lms_view", "hrms_lms_manage"]}
       fallback={
         <div className="min-h-screen bg-muted/40 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">

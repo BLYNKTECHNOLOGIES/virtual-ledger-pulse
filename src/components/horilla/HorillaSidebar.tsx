@@ -26,6 +26,7 @@ import {
   UserSearch,
   ScrollText,
   X,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchHrmsRoute } from "@/lib/hrmsPrefetch";
@@ -226,6 +227,25 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: "LEARNING",
+    items: [
+      {
+        label: "LMS",
+        icon: GraduationCap,
+        path: "/hrms/lms",
+        children: [
+          { label: "Dashboard", path: "/hrms/lms" },
+          { label: "Trainees", path: "/hrms/lms?view=plans" },
+          { label: "Module Library", path: "/hrms/lms?view=library" },
+          { label: "Seats", path: "/hrms/lms?view=seats" },
+          { label: "KRA Catalogue", path: "/hrms/lms?view=kras" },
+          { label: "Training Matrix", path: "/hrms/lms?view=matrix" },
+          { label: "Settings", path: "/hrms/lms?view=settings" },
+        ],
+      },
+    ],
+  },
+  {
     title: "INSIGHTS",
     items: [
       { label: "Reports", icon: BarChart3, path: "/hrms/reports" },
@@ -266,6 +286,7 @@ export function hrmsNavLabel(pathname: string, search = ""): string | null {
 // Every HRMS route is gated by the umbrella keys only.
 const HRMS_ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/hrms/quiz": ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_evaluate", "hrms_quiz_admin"],
+  "/hrms/lms": ["hrms_lms_view", "hrms_lms_manage"],
 };
 
 
@@ -309,8 +330,8 @@ export function HorillaSidebar({
   };
 
   const canAccessPath = useCallback((path: string) => {
-    const permissions = HRMS_ROUTE_PERMISSIONS[path.split("?")[0]] || ["hrms_view", "hrms_manage"];
-    return hasAnyPermission(expandPermissions(permissions));
+    const own = HRMS_ROUTE_PERMISSIONS[path.split("?")[0]];
+    return own ? hasAnyPermission(expandPermissions(own)) : hasAnyPermission(["hrms_view", "hrms_manage"]);
   }, [hasAnyPermission]);
 
   const visibleNavGroups = useMemo<NavGroup[]>(

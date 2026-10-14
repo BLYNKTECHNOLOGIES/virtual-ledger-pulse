@@ -13684,30 +13684,51 @@ export type Database = {
         Row: {
           attempts: number
           completed_at: string | null
-          employee_id: string
+          employee_id: string | null
           last_error: string | null
+          reason: string | null
+          registration_id: string | null
           requested_at: string
           requested_by: string | null
+          requested_by_name: string | null
+          source: string | null
+          target_email: string | null
+          target_name: string | null
+          target_username: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           attempts?: number
           completed_at?: string | null
-          employee_id: string
+          employee_id?: string | null
           last_error?: string | null
+          reason?: string | null
+          registration_id?: string | null
           requested_at?: string
           requested_by?: string | null
+          requested_by_name?: string | null
+          source?: string | null
+          target_email?: string | null
+          target_name?: string | null
+          target_username?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           attempts?: number
           completed_at?: string | null
-          employee_id?: string
+          employee_id?: string | null
           last_error?: string | null
+          reason?: string | null
+          registration_id?: string | null
           requested_at?: string
           requested_by?: string | null
+          requested_by_name?: string | null
+          source?: string | null
+          target_email?: string | null
+          target_name?: string | null
+          target_username?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -36985,6 +37006,7 @@ export type Database = {
         Returns: boolean
       }
       um_is_super_admin: { Args: { p_uid: string }; Returns: boolean }
+      um_lifecycle: { Args: never; Returns: Json }
       um_link_hr_employee: {
         Args: { p_badge: string; p_user_id: string }
         Returns: Json

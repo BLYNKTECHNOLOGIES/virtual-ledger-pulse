@@ -392,7 +392,7 @@ export default function CapacitySeatsPage() {
     const selectedShiftPeople = filteredPeople.filter(
       (person) => activeMapShiftId === "unassigned" ? !person.shift_id : !!person.shift_id && selectedShiftIds.includes(person.shift_id),
     );
-    return filtered
+    const seatRoles = filtered
       .filter((seat) => {
         if (isTrainingShiftView) return !!seat.is_training_only;
         if (seat.is_training_only) return !!seat.shift_id && selectedShiftIds.includes(seatShift(seat)!);
@@ -435,12 +435,50 @@ export default function CapacitySeatsPage() {
           trainingOnly: !!seat.is_training_only,
         };
       })
-      .filter((role) => role.physicalSeats > 0)
-      .sort((a, b) =>
-        a.departmentName.localeCompare(b.departmentName) ||
-        a.positionTitle.localeCompare(b.positionTitle),
-      );
-  }, [activeMapShiftId, filtered, filteredPeople, plannedSeatShifts, shiftBreakdown, seatMatchesPerson, trainingShiftIds, seatShift]);
+      .filter((role) => role.physicalSeats > 0);
+
+    // Staffing lines planned for this shift with no desk group still belong on the
+    // map (people + planned places, no desks drawn), otherwise a planned role
+    // such as one that sits outside the desk plan silently disappears.
+    const noDeskRoles = isTrainingShiftView || activeMapShiftId === "unassigned" ? [] : (headcountPlans as any[])
+      .filter((plan) => plan.is_active !== false && !plan.seat_capacity_id && Number(plan.required_hc) > 0)
+      .filter((plan) => {
+        const ids = [plan.shift_id, ...(plan.eligible_shift_ids || [])].filter(Boolean).map((id: string) => planningShiftId(allShifts, id));
+        return ids.some((id) => !!id && selectedShiftIds.includes(id));
+      })
+      .filter((plan) => filters.departmentId === "all" || plan.department_id === filters.departmentId)
+      .map((plan) => {
+        const roleIds: string[] = plan.eligible_position_ids?.length ? plan.eligible_position_ids : [plan.position_id];
+        if (filters.positionId !== "all" && !roleIds.includes(filters.positionId)) return null;
+        const sitters = (people as SeatPerson[])
+          .filter((person) => !traineeIds.has(person.employee_id) && person.department_id === plan.department_id
+            && !!person.job_position_id && roleIds.includes(person.job_position_id)
+            && !!person.shift_id && selectedShiftIds.includes(person.shift_id))
+          .sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
+        const titleOf = (id: string) => (lookups?.positions || []).find((position) => position.id === id)?.title;
+        return {
+          id: `plan-${plan.id}`,
+          departmentName: (lookups?.departments || []).find((d: any) => d.id === plan.department_id)?.name || "Unassigned department",
+          positionTitle: roleIds.map(titleOf).filter(Boolean).join(" / ") || "Role",
+          physicalSeats: 0,
+          occupiedSeats: sitters.length,
+          overflow: 0,
+          noDesk: true,
+          planned: Number(plan.required_hc) || 0,
+          occupants: sitters.map((person) => ({
+            name: employeeName(person),
+            onNotice: isOnNotice(person),
+            position: person.job_position_id ? titleOf(person.job_position_id) ?? null : null,
+          })),
+        };
+      })
+      .filter(Boolean) as any[];
+
+    return [...seatRoles, ...noDeskRoles].sort((a, b) =>
+      a.departmentName.localeCompare(b.departmentName) ||
+      a.positionTitle.localeCompare(b.positionTitle),
+    );
+  }, [activeMapShiftId, filtered, filteredPeople, plannedSeatShifts, shiftBreakdown, seatMatchesPerson, trainingShiftIds, seatShift, headcountPlans, allShifts, filters.departmentId, filters.positionId, people, traineeIds, lookups?.positions, lookups?.departments]);
 
   return (
     <div className="space-y-4 p-3 md:p-6">

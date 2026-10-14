@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Edit, Key, RefreshCw, Settings2, Shield, ShieldAlert, Terminal, Trash2, UserPlus, Users } from "lucide-react";
+import { Activity, Edit, Key, Lock, RefreshCw, Settings2, Shield, ShieldAlert, Terminal, Trash2, UserPlus, Users } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +33,7 @@ import { FunctionsTab } from "@/components/user-management/FunctionsTab";
 import { PermissionChangeLog } from "@/components/user-management/PermissionChangeLog";
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
 import { usePendingRegistrations } from "@/components/user-management/usePendingRegistrations";
+import { useUmAccess, errorText } from "@/components/user-management/useUmAccess";
 import {
   Chip,
   Initials,
@@ -114,6 +115,8 @@ export default function UserManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Same query (and cache entry) as the Approvals tab — only Super Admins review sign-ups.
   const { data: pendingRegistrations = [], isLoading: isLoadingPending } = usePendingRegistrations(isSuperAdmin);
+  // Server-computed rights (UM-2A): every button below appears only when the server will allow it.
+  const { access, actionsFor, canManageRole, refetch: refetchAccess } = useUmAccess();
 
   // Scroll to top when component mounts or tab changes
   useEffect(() => {
@@ -274,6 +277,7 @@ export default function UserManagement() {
       }
 
       await fetchRoles();
+      refetchAccess();
       return { success: true, data };
     } catch (error) {
       console.error('Error creating role:', error);
@@ -297,6 +301,7 @@ export default function UserManagement() {
       }
 
       await fetchRoles();
+      refetchAccess();
       return { success: true };
     } catch (error) {
       console.error('Error updating role:', error);
@@ -309,19 +314,17 @@ export default function UserManagement() {
 
   const deleteRole = async (roleId: string) => {
     try {
-      const { error } = await supabase
-        .from('roles')
-        .delete()
-        .eq('id', roleId);
-
+      // Server step enforces S6: in-use roles, system roles and roles at/above you are refused.
+      const { error } = await (supabase as any).rpc('um_delete_role', { p_role_id: roleId });
       if (error) {
-        console.error('Error deleting role:', error);
+        toast({ title: "Role not deleted", description: errorText(error, "The role could not be deleted"), variant: "destructive" });
         return;
       }
-
+      toast({ title: "Role deleted" });
       await fetchRoles();
+      refetchAccess();
     } catch (error) {
-      console.error('Error deleting role:', error);
+      toast({ title: "Role not deleted", description: errorText(error, "The role could not be deleted"), variant: "destructive" });
     } finally {
       setRoleToDelete(null);
     }
@@ -334,6 +337,12 @@ export default function UserManagement() {
   // HR-restricted: can edit user details & delete non-admins, but NOT roles/terminal/approvals
   const isHrRestricted = hasHrManage && !hasManagePermission && !isSuperAdmin;
   const canEditUsers = hasManagePermission || hasHrManage || isSuperAdmin;
+  const canCreateRoles = !!access?.can_delegate;
+  const saveUser = async (userId: string, data: any) => {
+    const result = await updateUser(userId, data);
+    refetchAccess();
+    return result;
+  };
   // Same test PermissionGate(['user_management_manage']) applies; computed once so table rows
   // and phone cards don't each mount their own gate (each gate re-fetches permissions).
   const canManageRoles = isAdmin || hasManagePermission;
@@ -365,11 +374,10 @@ export default function UserManagement() {
       return;
     }
 
-    // HR-restricted staff cannot delete Admin or Super Admin accounts
-    if (isHrRestricted && isProtectedRole(user.role?.name)) {
+    if (!actionsFor(user.id).delete) {
       toast({
-        title: "Protected user",
-        description: "You cannot delete Admin or Super Admin accounts",
+        title: "Not allowed",
+        description: "You can only delete accounts of people ranked below you",
         variant: "destructive",
       });
       return;
@@ -456,8 +464,20 @@ export default function UserManagement() {
     );
   }
 
-  const userActions = (user: DatabaseUser, compact = false) => (
+  const userActions = (user: DatabaseUser, compact = false) => {
+    const can = actionsFor(user.id);
+    const canOpenEdit = can.details || can.status || can.link || can.role;
+    if (!canOpenEdit && !can.reset && !can.delete) {
+      return (
+        <div className={cn("flex items-center gap-1 text-xs text-muted-foreground", compact ? "" : "justify-end")}
+          title="This person ranks at or above you, so their account is read-only for you">
+          <Lock className="h-3.5 w-3.5" /> Read-only
+        </div>
+      );
+    }
+    return (
     <div className={cn("flex items-center gap-1", compact ? "flex-wrap" : "justify-end")}>
+      {canOpenEdit && (
       <Button
         variant="outline"
         size="sm"
@@ -468,6 +488,8 @@ export default function UserManagement() {
         <Edit className="h-3.5 w-3.5" />
         Edit
       </Button>
+      )}
+      {can.reset && (
       <Button
         variant="ghost"
         size="sm"
@@ -479,7 +501,8 @@ export default function UserManagement() {
         <Key className="h-3.5 w-3.5" />
         {compact && "Reset password"}
       </Button>
-      {!(isHrRestricted && isProtectedRole(user.role?.name)) && (
+      )}
+      {can.delete && (
         <Button
           variant="ghost"
           size="sm"
@@ -493,7 +516,40 @@ export default function UserManagement() {
         </Button>
       )}
     </div>
-  );
+    );
+  };
+
+  const roleActions = (role: Role, compact = false) => {
+    if (!canManageRoles && !canCreateRoles) return null;
+    if (!canManageRole(role.id)) {
+      return (
+        <div className={cn("flex items-center gap-1 text-xs text-muted-foreground", compact ? "" : "justify-end")}
+          title="This role ranks at or above yours, so it is read-only for you">
+          <Lock className="h-3.5 w-3.5" /> Read-only
+        </div>
+      );
+    }
+    return (
+      <div className={cn("flex gap-1", compact ? "flex-wrap" : "justify-end")}>
+        <Button variant="outline" size="sm" onClick={() => setEditingRole(role)} className="h-8 gap-1.5 px-2.5 text-xs">
+          <Edit className="h-3.5 w-3.5" /> Edit
+        </Button>
+        {!isProtectedRole(role.name.trim()) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setRoleToDelete(role.id)}
+            className={cn("h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive", compact ? "px-2.5" : "w-8 p-0")}
+            aria-label={`Delete the ${role.name.trim()} role`}
+            title="Delete role"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {compact && "Delete"}
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-4 p-3 sm:space-y-5 sm:p-6">
@@ -617,7 +673,7 @@ export default function UserManagement() {
                   ? "Everyone with an ERP login."
                   : isHrRestricted
                     ? "Everyone with an ERP login. Use Edit to update a person's details."
-                    : "Everyone with an ERP login. Use Edit to change a person's details, role or Terminal access."
+                    : "Everyone with an ERP login. Use Edit to change a person's details or role. Terminal access is on its own tab."
               }
               bodyClassName="p-0 sm:p-0"
               actions={
@@ -781,9 +837,9 @@ export default function UserManagement() {
                     <RefreshCw className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Refresh</span>
                   </Button>
-                  <PermissionGate permissions={['user_management_manage']} showFallback={false}>
-                    <AddRoleDialog onAddRole={createRole} />
-                  </PermissionGate>
+                  {canCreateRoles && (
+                    <AddRoleDialog onAddRole={createRole} heldPermissions={access?.held_permissions || []} isSuperAdmin={!!access?.is_super_admin} />
+                  )}
                 </>
               }
             >
@@ -826,23 +882,7 @@ export default function UserManagement() {
                             </td>
                             <td><TierChips permissions={role.permissions} /></td>
                             <td>
-                              {canManageRoles && (
-                                <div className="flex justify-end gap-1">
-                                  <Button variant="outline" size="sm" onClick={() => setEditingRole(role)} className="h-8 gap-1.5 px-2.5 text-xs">
-                                    <Edit className="h-3.5 w-3.5" /> Edit
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setRoleToDelete(role.id)}
-                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                    aria-label={`Delete the ${role.name.trim()} role`}
-                                    title="Delete role"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              )}
+                              {roleActions(role)}
                             </td>
                           </tr>
                         ))}
@@ -863,19 +903,7 @@ export default function UserManagement() {
                           <Button variant="outline" size="sm" onClick={() => setViewingRoleUsers(role)} className="h-8 gap-1.5 px-2.5 text-xs">
                             <Users className="h-3.5 w-3.5" /> {plural(role.user_count, "person", "people")}
                           </Button>
-                          {canManageRoles && (<>
-                            <Button variant="outline" size="sm" onClick={() => setEditingRole(role)} className="h-8 gap-1.5 px-2.5 text-xs">
-                              <Edit className="h-3.5 w-3.5" /> Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setRoleToDelete(role.id)}
-                              className="h-8 gap-1.5 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" /> Delete
-                            </Button>
-                          </>)}
+                          {roleActions(role, true)}
                         </div>
                       </li>
                     ))}
@@ -915,7 +943,7 @@ export default function UserManagement() {
                       <p className="text-xs text-muted-foreground" title={`${fmtDay(user.last_seen)}, ${fmtTime(user.last_seen)} IST`}>
                         Active {fmtAgo(user.last_seen)}
                       </p>
-                      {isSuperAdmin && (
+                      {actionsFor(user.id).reset && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -960,9 +988,10 @@ export default function UserManagement() {
         <EditUserDialog
           key={editingUser.id}
           user={editingUser}
-          onSave={updateUser}
+          onSave={saveUser}
           onClose={() => setEditingUser(null)}
-          restrictSensitive={isHrRestricted}
+          actions={actionsFor(editingUser.id)}
+          assignableRoleIds={access?.assignable_role_ids || []}
         />
       )}
 
@@ -971,6 +1000,9 @@ export default function UserManagement() {
           role={editingRole}
           onSave={updateRole}
           onClose={() => setEditingRole(null)}
+          heldPermissions={access?.held_permissions || []}
+          heldFunctionIds={access?.held_function_ids || []}
+          isSuperAdmin={!!access?.is_super_admin}
         />
       )}
 

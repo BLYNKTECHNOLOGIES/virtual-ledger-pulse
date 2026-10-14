@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,14 @@ interface PermissionMatrixProps {
   /** Show the quick templates row (a template replaces the selection). */
   templates?: boolean;
   onTemplateApplied?: (templateName: string) => void;
+  /**
+   * Permissions the signed-in person may not change (they don't hold them, UM-2A R2).
+   * Their ticks stay exactly as they are; templates and "All / Clear" skip them.
+   */
+  locked?: Set<string>;
 }
+
+export const LOCKED_PERMISSION_HINT = "Only someone who has this access can change it";
 
 /**
  * The role permission picker, rendered from the single-source catalog: one row
@@ -23,7 +30,8 @@ interface PermissionMatrixProps {
  * tier colours. Used by both "New role" and "Edit role". Selection state is
  * owned by the parent; this component never saves anything.
  */
-export function PermissionMatrix({ value, onChange, templates, onTemplateApplied }: PermissionMatrixProps) {
+export function PermissionMatrix({ value, onChange, templates, onTemplateApplied, locked }: PermissionMatrixProps) {
+  const isLocked = (id: string) => !!locked?.has(id);
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
   const [permissionSearch, setPermissionSearch] = useState("");
 
@@ -45,11 +53,13 @@ export function PermissionMatrix({ value, onChange, templates, onTemplateApplied
       .filter(Boolean) as typeof entries;
   }, [permissionSearch]);
 
-  const toggleAllInModule = (ids: string[], checked: boolean) => {
+  const toggleAllInModule = (allIds: string[], checked: boolean) => {
+    const ids = allIds.filter((id) => !isLocked(id));
     onChange((prev) => (checked ? Array.from(new Set([...prev, ...ids])) : prev.filter((p) => !ids.includes(p))));
   };
 
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
+    if (isLocked(permissionId)) return;
     onChange((prev) => (checked ? [...prev, permissionId] : prev.filter((p) => p !== permissionId)));
   };
 
@@ -63,7 +73,10 @@ export function PermissionMatrix({ value, onChange, templates, onTemplateApplied
   };
 
   const applyTemplate = (template: typeof ROLE_TEMPLATES[0]) => {
-    onChange(() => template.getPermissions());
+    onChange((prev) => [
+      ...template.getPermissions().filter((p) => !isLocked(p)),
+      ...prev.filter((p) => isLocked(p)),
+    ]);
     onTemplateApplied?.(template.name);
   };
 
@@ -73,6 +86,11 @@ export function PermissionMatrix({ value, onChange, templates, onTemplateApplied
         <div>
           <p className="text-sm font-semibold text-foreground">Permissions</p>
           <p className="text-xs text-muted-foreground">{value.length} selected</p>
+          {locked && locked.size > 0 && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" aria-hidden /> Locked: {LOCKED_PERMISSION_HINT.toLowerCase()}.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-1.5" aria-label="Colour key">
           {TIER_ORDER.filter((t) => t !== "special").map((t) => {
@@ -120,7 +138,8 @@ export function PermissionMatrix({ value, onChange, templates, onTemplateApplied
                 {modules.map(([key, module]) => {
                   const isCollapsed = collapsedModules.has(key) && !permissionSearch.trim();
                   const modulePermCount = module.permissions.filter((p) => value.includes(p.id)).length;
-                  const allChecked = modulePermCount === module.permissions.length;
+                  const changeable = module.permissions.filter((p) => !isLocked(p.id));
+                  const allChecked = changeable.every((p) => value.includes(p.id));
                   return (
                     <div key={key} className="bg-card">
                     <div className={cn("h-full", key === "destructive" && "bg-destructive/[0.06]")}>
@@ -144,6 +163,7 @@ export function PermissionMatrix({ value, onChange, templates, onTemplateApplied
                             size="sm"
                             className="h-7 px-2 text-xs"
                             onClick={() => toggleAllInModule(module.permissions.map((p) => p.id), !allChecked)}
+                            disabled={changeable.length === 0}
                           >
                             {allChecked ? "Clear" : "All"}
                           </Button>
@@ -154,21 +174,26 @@ export function PermissionMatrix({ value, onChange, templates, onTemplateApplied
                           {module.permissions.map((perm) => {
                             const tier = TIER_META[perm.tier] || TIER_META.special;
                             const isChecked = value.includes(perm.id);
+                            const lockedHere = isLocked(perm.id);
                             return (
                               <label
                                 key={perm.id}
-                                title={perm.description}
+                                title={lockedHere ? `${LOCKED_PERMISSION_HINT}. ${perm.description}` : perm.description}
                                 className={cn(
-                                  "flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-[13px] transition-colors",
+                                  "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[13px] transition-colors",
+                                  lockedHere ? "cursor-not-allowed opacity-70" : "cursor-pointer",
                                   isChecked ? tier.badge : "border-border bg-background text-muted-foreground hover:text-foreground",
                                 )}
                               >
                                 <Checkbox
                                   checked={isChecked}
                                   onCheckedChange={(checked) => handlePermissionChange(perm.id, checked as boolean)}
+                                  disabled={lockedHere}
+                                  aria-label={lockedHere ? `${perm.name} — ${LOCKED_PERMISSION_HINT}` : undefined}
                                   className="h-3.5 w-3.5"
                                 />
                                 {perm.name}
+                                {lockedHere && <Lock className="h-3 w-3 text-muted-foreground" aria-hidden />}
                               </label>
                             );
                           })}

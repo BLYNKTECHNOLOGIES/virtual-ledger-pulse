@@ -113,7 +113,7 @@ export function TerminalStandbyUsers({ onAssigned }: { onAssigned?: () => void }
         p_assigned_by: getSessionUserId() || undefined,
       });
       if (error) {
-        toast.error("Failed to assign role");
+        toast.error(error.message || "Failed to assign role");
         return;
       }
       toast.success("Terminal role assigned — standby lifted");

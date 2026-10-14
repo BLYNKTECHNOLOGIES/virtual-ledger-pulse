@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Info, Loader2, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
@@ -28,7 +29,8 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, isAdmin, hasRole, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { hasPermission: hasPerm, isLoading: permsLoading } = usePermissions();
 
   const [formData, setFormData] = useState({
     username: "",
@@ -77,11 +79,12 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const canCreateUsers = () => {
 
     // Don't show permission denied while still loading
-    if (authLoading) {
+    if (authLoading || permsLoading) {
       return false;
     }
 
-    const hasPermission = isAdmin || hasRole('user_management') || hasRole('admin');
+    // UM-2A R6: same test the server applies (create_user_with_password requires user_management_manage).
+    const hasPermission = isAdmin || hasPerm('user_management_manage');
 
     return hasPermission;
   };
@@ -201,7 +204,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   }
 
   if (!userCanCreate) {
-    const why = "Your role can't add users here yet. Ask an Admin to create the account.";
+    const why = "Adding users needs full User Management access. Ask someone who has it to create the account.";
     return (
       <span title={why} className="inline-flex">
         <Button size="sm" className="h-8 gap-1.5" disabled aria-describedby="add-user-locked">

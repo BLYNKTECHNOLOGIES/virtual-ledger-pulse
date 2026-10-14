@@ -51,37 +51,37 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "Unauthorized. Please log in again." });
     }
 
-    // Authorize the validated caller explicitly, then perform privileged cleanup
-    // with a fresh service client. Forwarding the browser JWT to the cleanup RPC
-    // made authorization depend on PostgREST session propagation and caused valid
-    // Super Admins to be evaluated as an anonymous actor.
-    const [superAdminCheck, adminCheck, permissionCheck] = await Promise.all([
-      adminClient.rpc("has_role", { _user_id: caller.id, _role: "Super Admin" }),
-      adminClient.rpc("has_role", { _user_id: caller.id, _role: "Admin" }),
-      adminClient.rpc("user_has_permission", {
-        user_uuid: caller.id,
-        check_permission: "user_management_hr_manage",
-      }),
+    // Authorize the validated caller explicitly (UM-2A R4: user_management_manage on
+    // people ranked below the caller; Super Admin unrestricted; never yourself),
+    // then perform privileged cleanup with the service client.
+    if (caller.id === parsed.data.userId) {
+      return jsonResponse({ success: false, error: "You cannot delete your own account" });
+    }
+
+    const [superAdminCheck, permissionCheck] = await Promise.all([
+      adminClient.rpc("um_is_super_admin", { p_uid: caller.id }),
+      parsed.data.verifyOnly
+        ? adminClient.rpc("has_permission", { _user_id: caller.id, _permission: "user_management_manage" })
+        : adminClient.rpc("um_can_act", { p_uid: caller.id, p_target: parsed.data.userId, p_action: "delete" }),
     ]);
 
-    const authorizationError = superAdminCheck.error || adminCheck.error || permissionCheck.error;
+    const authorizationError = superAdminCheck.error || permissionCheck.error;
     if (authorizationError) {
       console.error("delete authorization check failed:", authorizationError);
       return jsonResponse({ success: false, error: "Unable to verify delete permission" });
     }
 
     const isSuperAdmin = superAdminCheck.data === true;
-    const isAllowed = isSuperAdmin || adminCheck.data === true || permissionCheck.data === true;
+    const isAllowed = isSuperAdmin || permissionCheck.data === true;
     if (!isAllowed) {
-      return jsonResponse({ success: false, error: "Insufficient permissions to delete ERP users" });
+      return jsonResponse({
+        success: false,
+        error: "You can only delete accounts of people ranked below you, and you need full User Management access",
+      });
     }
 
     if (parsed.data.verifyOnly) {
       return jsonResponse({ success: true, authorized: true, isSuperAdmin });
-    }
-
-    if (caller.id === parsed.data.userId) {
-      return jsonResponse({ success: false, error: "You cannot delete your own account" });
     }
 
     const { data: cleanupResult, error: cleanupError } = await adminClient.rpc("delete_user_with_cleanup", {

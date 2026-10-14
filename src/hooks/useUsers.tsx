@@ -34,7 +34,7 @@ export function useUsers() {
   const [users, setUsers] = useState<DatabaseUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { user, isAdmin, hasRole } = useAuth();
+  const { user } = useAuth();
 
   const fetchUsers = async () => {
     try {
@@ -140,10 +140,7 @@ export function useUsers() {
         throw new Error('You must be logged in to create users');
       }
 
-      // Check if user has admin permissions
-      if (!isAdmin && !hasRole('admin') && !hasRole('user_management')) {
-        throw new Error('You do not have permission to create users');
-      }
+      // Permission is checked by the server (create_user_with_password requires user_management_manage).
 
       // Use the secure create_user_with_password function
       const { data, error } = await supabase.rpc('create_user_with_password', {
@@ -184,15 +181,15 @@ export function useUsers() {
 
       // If a role_id was specified, assign the role
       if (userData.role_id && newUserId) {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: newUserId,
-            role_id: userData.role_id
-          });
+        // Same server step and rules as changing a role later (UM-2A R3).
+        const { error: roleError } = await (supabase as any).rpc('um_set_user_role', {
+          p_user_id: newUserId,
+          p_role_id: userData.role_id,
+        });
 
         if (roleError) {
           console.warn('Role assignment failed:', roleError);
+          toast({ title: "Role not given", description: roleError.message, variant: "destructive" });
         }
       }
 
@@ -264,10 +261,8 @@ export function useUsers() {
         throw new Error('You must be logged in to update users');
       }
 
-      // Check if user has admin permissions
-      if (!isAdmin && !hasRole('admin') && !hasRole('user_management')) {
-        throw new Error('You do not have permission to update users');
-      }
+      // Who may change what is decided by the server (UM-2A R3/R4): users RLS + column guard
+      // for details/status/badge, um_set_user_role for the role.
 
       // Check if username or email is being changed — need to force re-login so new session picks up the new details
       let credentialsChanged = false;
@@ -293,7 +288,6 @@ export function useUsers() {
           last_name: userData.last_name,
           phone: userData.phone,
           status: userData.status,
-          role_id: userData.role_id,
           updated_at: new Date().toISOString()
         };
       if (userData.badge_id !== undefined) {
@@ -303,37 +297,30 @@ export function useUsers() {
       if (credentialsChanged) {
         updatePayload.force_logout_at = new Date().toISOString();
       }
-      const { error: userError } = await supabase
+      const { data: updatedRows, error: userError } = await supabase
         .from('users')
         .update(updatePayload)
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('id');
 
       if (userError) {
         console.error('Update user error:', userError);
         throw userError;
       }
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("You can't edit this person's account");
+      }
 
-      // Handle role assignment if role_id is provided
-      if (userData.role_id !== undefined) {
-        // First, remove existing role assignments
-        await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId);
-
-        // Then add new role if specified
-        if (userData.role_id) {
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: userId,
-              role_id: userData.role_id
-            });
-
-          if (roleError) {
-            console.warn('Role assignment failed:', roleError);
-            // Don't throw here, user was updated successfully
-          }
+      // Role change goes through the server step that enforces R3 (and the Terminal Admin rule).
+      const currentRoleId = existingUser ? (existingUser.role?.id || existingUser.role_id || null) : undefined;
+      if (userData.role_id !== undefined && (userData.role_id || null) !== currentRoleId) {
+        const { error: roleError } = await (supabase as any).rpc('um_set_user_role', {
+          p_user_id: userId,
+          p_role_id: userData.role_id || null,
+        });
+        if (roleError) {
+          fetchUsers();
+          throw new Error(`Details saved, but the role was not changed: ${roleError.message}`);
         }
       }
 

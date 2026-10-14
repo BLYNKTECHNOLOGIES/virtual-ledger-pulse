@@ -36962,6 +36962,45 @@ export type Database = {
         }
         Returns: undefined
       }
+      um_can_act: {
+        Args: { p_action: string; p_target: string; p_uid: string }
+        Returns: boolean
+      }
+      um_can_delegate: { Args: { p_uid: string }; Returns: boolean }
+      um_can_manage_role: {
+        Args: { p_role_id: string; p_uid: string }
+        Returns: boolean
+      }
+      um_can_set_role: {
+        Args: { p_new_role: string; p_target: string; p_uid: string }
+        Returns: boolean
+      }
+      um_delete_role: { Args: { p_role_id: string }; Returns: Json }
+      um_holds_function: {
+        Args: { p_function_id: string; p_uid: string }
+        Returns: boolean
+      }
+      um_holds_role_perms: {
+        Args: { p_role_id: string; p_uid: string }
+        Returns: boolean
+      }
+      um_is_super_admin: { Args: { p_uid: string }; Returns: boolean }
+      um_link_hr_employee: {
+        Args: { p_badge: string; p_user_id: string }
+        Returns: Json
+      }
+      um_my_access: { Args: never; Returns: Json }
+      um_rank: { Args: { p_uid: string }; Returns: number }
+      um_set_user_role: {
+        Args: { p_role_id: string; p_user_id: string }
+        Returns: Json
+      }
+      um_terminal_level: { Args: { p_uid: string }; Returns: number }
+      um_terminal_refusal: {
+        Args: { p_role_id: string; p_target: string; p_uid: string }
+        Returns: string
+      }
+      um_terminal_unrestricted: { Args: { p_uid: string }; Returns: boolean }
       unassign_terminal_order: {
         Args: { p_order_number: string; p_performed_by: string }
         Returns: undefined

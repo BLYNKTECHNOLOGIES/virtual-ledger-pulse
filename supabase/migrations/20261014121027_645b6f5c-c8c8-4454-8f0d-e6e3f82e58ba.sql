@@ -1,0 +1,1 @@
+ALTER FUNCTION public.um_users_update_guard() SECURITY INVOKER;

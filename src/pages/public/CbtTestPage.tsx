@@ -246,7 +246,10 @@ export default function CbtTestPage() {
   );
 
   // ---------- auto-submit when the server deadline passes ----------
+  // HR may have added time since the last heartbeat: re-read the server state first and
+  // submit only if the server's deadline (plus grace) has really passed.
   const autoSubmitting = useRef(false);
+  const graceSeconds = Number(state?.settings?.deadline_grace_seconds ?? 5);
   useEffect(() => {
     if (!running || !current || remaining === null) return;
     if (remaining > 0) {
@@ -255,9 +258,35 @@ export default function CbtTestPage() {
     }
     if (autoSubmitting.current) return;
     autoSubmitting.current = true;
-    setNotice('Time is up for this section. Your answers were submitted.');
-    void submitSection(current.id);
-  }, [remaining, running, current, submitSection]);
+    const sectionId = current.id;
+    void (async () => {
+      let fresh: CbtState | null = null;
+      try {
+        fresh = await cbtCall<CbtState>('cbt-get-state');
+      } catch {
+        fresh = null;
+      }
+      if (fresh) {
+        const sec = fresh.current_section;
+        if (sec?.id === sectionId && sec.status === 'in_progress' && sec.deadline_at) {
+          noteServerNow(fresh.server_now);
+          const end = new Date(sec.deadline_at).getTime() + graceSeconds * 1000;
+          if (end > serverNow() + graceSeconds * 1000) {
+            // Deadline moved (time added): keep going with the new deadline.
+            applyState(fresh);
+            autoSubmitting.current = false;
+            return;
+          }
+        } else {
+          // Server already closed it (sweep) — just show the new state.
+          applyState(fresh);
+          return;
+        }
+      }
+      setNotice('Time is up for this section. Your answers were submitted.');
+      void submitSection(sectionId);
+    })();
+  }, [remaining, running, current, submitSection, applyState, graceSeconds]);
 
   const requestFullscreen = async () => {
     // Phones and tablets either refuse full screen or trap the keyboard behind it,
@@ -462,10 +491,19 @@ export default function CbtTestPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              The timer starts the moment you press Start. You cannot pause or come back to this section later.
+              The timer starts when you press Start, or by itself when the countdown below reaches zero. You cannot
+              pause or come back to this section later.
             </p>
-            {current.section_type !== 'typing' && current.entered_at && (
-              <AutoStartCountdown enteredAt={current.entered_at} seconds={Number(settings.transition_seconds ?? 60)} />
+            {current.entered_at && (
+              // Same rules as the server sweep: typing waits its warm-up time + 60 s; others wait the transition time.
+              <AutoStartCountdown
+                enteredAt={current.entered_at}
+                seconds={
+                  current.section_type === 'typing'
+                    ? Number(current.practice_seconds ?? 0) + 60
+                    : Number(settings.transition_seconds ?? 60)
+                }
+              />
             )}
             {current.section_type === 'typing' && (
               <p className="text-sm text-muted-foreground">

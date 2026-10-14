@@ -146,7 +146,7 @@ const standaloneItems: SidebarGroupItem[] = [
     icon: UserCheck,
     color: "text-primary",
     bgColor: "bg-primary/10",
-    permissions: ["hrms_view", "hrms_manage"]
+    permissions: ["hrms_view", "hrms_manage", "hrms_lms_view", "hrms_lms_manage"]
   },
   {
     id: "tasks",

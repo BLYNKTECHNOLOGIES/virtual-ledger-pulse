@@ -36,7 +36,7 @@ const moreNavItems: MobileNavItem[] = [
   { title: "User Management", url: "/user-management", icon: Users, permissions: ["user_management_view", "user_management_manage", "user_management_hr_manage"] },
   { title: "Compliance", url: "/compliance", icon: Package, permissions: ["compliance_view", "compliance_manage"] },
   { title: "Risk Management", url: "/risk-management", icon: Package, permissions: ["risk_management_view", "risk_management_manage"] },
-  { title: "HRMS", url: "/hrms", icon: Users, permissions: ["hrms_view", "hrms_manage"] },
+  { title: "HRMS", url: "/hrms", icon: Users, permissions: ["hrms_view", "hrms_manage", "hrms_lms_view", "hrms_lms_manage"] },
   { title: "Tax Management", url: "/accounting", icon: Package, permissions: ["tax_management_view", "tax_management_manage"] },
   { title: "P&L", url: "/profit-loss", icon: TrendingUp, permissions: ["profit_loss_view"] },
   { title: "Financials", url: "/financials", icon: Package, permissions: ["financials_view", "financials_manage"] },

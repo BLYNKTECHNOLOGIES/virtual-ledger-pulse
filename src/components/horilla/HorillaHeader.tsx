@@ -10,6 +10,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { useDebounce } from "@/hooks/useDebounce";
 import { requestDeepLinkFromNotification } from "@/lib/hrms/requestRegistry";
 import { useThemeMode } from "@/contexts/ThemeContext";
+import { usePermissions } from "@/hooks/usePermissions";
 
 /** Icon + colour tone per HR notification kind (presentation only). */
 function notificationTone(n: any) {
@@ -54,6 +55,9 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const debouncedQ = useDebounce(searchQ, 200);
+  // Employee search is for HR users; an LMS-only trainer (no HRMS keys) doesn't get it.
+  const { hasAnyPermission, isLoading: permsLoading } = usePermissions();
+  const canSearch = permsLoading || hasAnyPermission(["hrms_view", "hrms_manage"]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -65,7 +69,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
   const { data: searchResults = [], isFetching: searching } = useQuery({
     queryKey: ["hrms_header_search", debouncedQ],
-    enabled: debouncedQ.trim().length >= 2,
+    enabled: canSearch && debouncedQ.trim().length >= 2,
     queryFn: async () => {
       const q = debouncedQ.trim();
       const like = `%${q}%`;
@@ -199,6 +203,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
           <Menu className="h-5 w-5" />
         </button>
 
+        {canSearch ? (
         <div ref={searchRef} className="relative w-full min-w-0 sm:w-72 sm:max-w-none">
           <div className="flex min-w-0 items-center rounded-lg border border-border bg-background px-2 py-1.5 transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 sm:px-3">
             <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
@@ -245,6 +250,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
             </div>
           )}
         </div>
+        ) : null}
 
       </div>
 

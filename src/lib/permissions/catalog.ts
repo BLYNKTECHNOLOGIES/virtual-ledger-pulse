@@ -227,6 +227,14 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
       { id: 'hrms_quiz_admin', name: 'Admin', description: 'Administer Quiz settings, approvals and protected actions', tier: 'special', routes: ['/hrms/quiz'] },
     ],
   },
+  hrms_lms: {
+    label: 'HRMS LMS',
+    section: 'People',
+    permissions: [
+      { id: 'hrms_lms_view', name: 'View', description: 'Open the LMS: training plans, module library, class screen and training matrix (read-only)', tier: 'view', routes: ['/hrms/lms'] },
+      { id: 'hrms_lms_manage', name: 'Manage', description: 'Run training: create plans, record tests and sign-offs, certify KRAs, manage modules, files, seats and LMS settings', tier: 'manage', routes: ['/hrms/lms'] },
+    ],
+  },
 
   tasks: {
     label: 'Tasks',
@@ -360,11 +368,12 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   kyc_approvals_manage: ['kyc_approvals_view'],
   video_kyc_manage: ['video_kyc_view'],
   // HRMS is intentionally NOT sub-divided: a single HR owner manages everything.
-  hrms_view: ['payroll_view'],
-  hrms_manage: ['hrms_view', 'hrms_razorpay_sync', 'payroll_view', 'payroll_manage'],
+  hrms_view: ['payroll_view', 'hrms_lms_view'],
+  hrms_manage: ['hrms_view', 'hrms_razorpay_sync', 'payroll_view', 'payroll_manage', 'hrms_lms_manage'],
   hrms_quiz_manage: ['hrms_quiz_view', 'hrms_quiz_evaluate'],
   hrms_quiz_evaluate: ['hrms_quiz_view'],
   hrms_quiz_admin: ['hrms_quiz_view', 'hrms_quiz_manage', 'hrms_quiz_evaluate'],
+  hrms_lms_manage: ['hrms_lms_view'],
   // Backward compatibility: legacy sub-module grants still stored on roles keep
   // working by mapping straight onto the umbrella keys.
   hrms_employees_view: ['hrms_view'],

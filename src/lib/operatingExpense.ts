@@ -57,3 +57,21 @@ export const isOperatingExpenseRow = (t: {
   is_reversed?: boolean | null;
   reverses_transaction_id?: string | null;
 }): boolean => !isCogsExpenseCategory(t?.category) && !isContraExpense(t);
+
+/**
+ * Tax pass-through payments (TDS deposited on behalf of counterparties).
+ * They are booked as EXPENSE bank rows so the bank balance is right, but they
+ * are not the company's own cost. Listings/directories still show them; every
+ * statistic, chart, total and P&L figure must leave them out.
+ * Matches a category of "TDS" or one whose last " > " segment is "TDS".
+ */
+export const isTaxPassThroughCategory = (category?: string | null): boolean => {
+  const c = String(category || "").trim();
+  if (!c) return false;
+  const last = c.split(">").pop()!.trim().toLowerCase();
+  return last === "tds";
+};
+
+/** True when an EXPENSE row may count in statistics (excludes TDS pass-through). */
+export const countsInExpenseStats = (t: { category?: string | null }): boolean =>
+  !isTaxPassThroughCategory(t?.category);

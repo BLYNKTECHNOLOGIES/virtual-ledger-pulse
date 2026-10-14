@@ -1,3 +1,4 @@
+import { countsInExpenseStats } from "@/lib/operatingExpense";
 import { isReversalTransaction } from "@/lib/isReversalTransaction";
 import { StatGridSkeleton, ChartSkeleton, TableSkeleton } from "@/components/shared/skeletons";
 import React, { useEffect, useMemo, useState } from 'react';
@@ -309,12 +310,12 @@ export default function ProfitLoss() {
           .from('bank_transactions')
           .select('id, amount, category, description, transaction_date, reference_number')
           .eq('transaction_type', 'EXPENSE')
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Payment Gateway Settlement","Settlement")')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset","Payment Gateway Settlement","Settlement")')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr)
       );
       // Reversal / contra entries (incl. settlement reversals) are ledger corrections, not expenses.
-      const expenseData = (expenseDataRaw || []).filter((t: any) => !isReversalTransaction(t));
+      const expenseData = (expenseDataRaw || []).filter((t: any) => !isReversalTransaction(t) && countsInExpenseStats(t));
 
       // Fetch operating income (excluding core trading operations and settlements which are part of sales cycle) — paginated
       const incomeData = await fetchAllPaginated<any>(

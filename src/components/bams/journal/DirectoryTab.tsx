@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { isOperatingExpenseRow } from "@/lib/operatingExpense";
+import { isOperatingExpenseRow, countsInExpenseStats } from "@/lib/operatingExpense";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -386,7 +386,7 @@ export function DirectoryTab() {
       // only real OpEx spend, matching that figure exactly.
       if (opexOnly) {
         if (transaction.source !== 'BANK' || transaction.transaction_type !== 'EXPENSE') return false;
-        if (!isOperatingExpenseRow(transaction)) return false;
+        if (!isOperatingExpenseRow(transaction) || !countsInExpenseStats(transaction)) return false;
       }
       return true;
     });

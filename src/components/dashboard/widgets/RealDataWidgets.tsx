@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { isReversalTransaction } from '@/lib/isReversalTransaction';
+import { countsInExpenseStats } from '@/lib/operatingExpense';
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { EXCLUDED_LEGACY_PURCHASE_ORDER_IDS, resolveCarriedPurchaseRate } from "@/lib/carryForwardPurchaseRate";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -250,14 +251,14 @@ export function ExpenseBreakdownWidget() {
       const excludeCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const catMap: Record<string, number> = {};
       (data || []).forEach((t: any) => {
-        if (isReversalTransaction(t)) return;
+        if (isReversalTransaction(t) || !countsInExpenseStats(t)) return;
         const cat = normalizeExpenseCategory(t.category, t.description);
         if (excludeCategories.includes(cat)) return;
         catMap[cat] = (catMap[cat] || 0) + Math.abs(Number(t.amount));
       });
       const categories = Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8);
       const totalExpense = Object.values(catMap).reduce((s, v) => s + v, 0);
-      const recentItems = (data || []).filter((t: any) => !isReversalTransaction(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).slice(0, 5).map((t: any) => ({
+      const recentItems = (data || []).filter((t: any) => !isReversalTransaction(t) && countsInExpenseStats(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).slice(0, 5).map((t: any) => ({
         desc: t.description || t.category || 'Expense',
         amount: Math.abs(Number(t.amount)),
         date: t.transaction_date,
@@ -906,7 +907,7 @@ export function CashFlowWidget() {
       // Map operational expenses (excluding Purchase, OPENING_BALANCE, ADJUSTMENT)
       const excludeExpenseCats = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       (txns || []).forEach((t: any) => {
-        if (isReversalTransaction(t)) return;
+        if (isReversalTransaction(t) || !countsInExpenseStats(t)) return;
         const entry = dayMap[t.transaction_date];
         if (!entry) return;
 
@@ -975,7 +976,7 @@ export function ExpenseTrendsWidget() {
         }
         const results = await Promise.all(months.map(async m => {
           const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description, reference_number').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end));
-          const total = (data || []).filter((t: any) => !isReversalTransaction(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          const total = (data || []).filter((t: any) => !isReversalTransaction(t) && countsInExpenseStats(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: m.label, expense: total };
         }));
         const currentMonth = results[results.length - 1]?.expense || 0;
@@ -992,7 +993,7 @@ export function ExpenseTrendsWidget() {
         }
         const results = await Promise.all(days.map(async day => {
           const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description, reference_number').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start));
-          const total = (data || []).filter((t: any) => !isReversalTransaction(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          const total = (data || []).filter((t: any) => !isReversalTransaction(t) && countsInExpenseStats(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: day.label, expense: total };
         }));
         const today = results[results.length - 1]?.expense || 0;

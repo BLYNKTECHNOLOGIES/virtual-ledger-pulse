@@ -1,4 +1,4 @@
-import { COGS_CATEGORY_IN_FILTER, isOperatingExpenseRow } from "@/lib/operatingExpense";
+import { COGS_CATEGORY_IN_FILTER, isOperatingExpenseRow, countsInExpenseStats } from "@/lib/operatingExpense";
 import { Fragment, useMemo, useState } from "react";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -197,7 +197,7 @@ export default function Financials() {
 
       // Reversal / contra entries and audit-only adjustment buckets are ledger corrections, not expenses.
       const operatingExpenses = (operatingExpensesRaw || []).filter((t: any) =>
-        isOperatingExpenseRow(t) && !(t.bank_account_id && adjustmentBankIds.has(t.bank_account_id))
+        isOperatingExpenseRow(t) && countsInExpenseStats(t) && !(t.bank_account_id && adjustmentBankIds.has(t.bank_account_id))
       );
 
       // Get recent transactions
@@ -230,6 +230,7 @@ export default function Financials() {
       (cashFlowRows || []).forEach((tx) => {
         if (!tx.transaction_date) return;
         if (tx.bank_account_id && adjustmentBankIds.has(tx.bank_account_id)) return;
+        if (tx.transaction_type === 'EXPENSE' && !countsInExpenseStats(tx)) return;
         const d = new Date(`${String(tx.transaction_date).slice(0, 10)}T00:00:00`);
         const key = bucketMode === 'day' ? format(d, 'yyyy-MM-dd') : format(d, 'yyyy-MM');
         const label = bucketMode === 'day' ? format(d, 'dd MMM') : format(d, 'MMM yy');

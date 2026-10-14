@@ -907,7 +907,7 @@ export function CashFlowWidget() {
       // Map operational expenses (excluding Purchase, OPENING_BALANCE, ADJUSTMENT)
       const excludeExpenseCats = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       (txns || []).forEach((t: any) => {
-        if (isReversalTransaction(t)) return;
+        if (isReversalTransaction(t) || !countsInExpenseStats(t)) return;
         const entry = dayMap[t.transaction_date];
         if (!entry) return;
 

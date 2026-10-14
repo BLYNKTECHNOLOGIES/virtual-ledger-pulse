@@ -22580,6 +22580,910 @@ export type Database = {
           },
         ]
       }
+      lms_certifications: {
+        Row: {
+          certified_at: string
+          certified_by: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          kra_code: string
+          module_versions: Json
+          plan_id: string | null
+          remarks: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          certified_at?: string
+          certified_by?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          kra_code: string
+          module_versions?: Json
+          plan_id?: string | null
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          certified_at?: string
+          certified_by?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          kra_code?: string
+          module_versions?: Json
+          plan_id?: string | null
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "lms_certifications_kra_code_fkey"
+            columns: ["kra_code"]
+            isOneToOne: false
+            referencedRelation: "lms_kras"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "lms_certifications_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "lms_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_kras: {
+        Row: {
+          catalogue_status: string
+          code: string
+          created_at: string
+          department_code: string
+          department_name: string
+          description: string | null
+          description_url: string | null
+          is_active: boolean
+          layer_code: string
+          layer_name: string
+          name: string
+          platform: string | null
+          sort_order: number
+          subdepartment_code: string
+          subdepartment_name: string
+          updated_at: string
+        }
+        Insert: {
+          catalogue_status?: string
+          code: string
+          created_at?: string
+          department_code: string
+          department_name: string
+          description?: string | null
+          description_url?: string | null
+          is_active?: boolean
+          layer_code: string
+          layer_name: string
+          name: string
+          platform?: string | null
+          sort_order?: number
+          subdepartment_code: string
+          subdepartment_name: string
+          updated_at?: string
+        }
+        Update: {
+          catalogue_status?: string
+          code?: string
+          created_at?: string
+          department_code?: string
+          department_name?: string
+          description?: string | null
+          description_url?: string | null
+          is_active?: boolean
+          layer_code?: string
+          layer_name?: string
+          name?: string
+          platform?: string | null
+          sort_order?: number
+          subdepartment_code?: string
+          subdepartment_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lms_module_assets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          external_url: string | null
+          id: string
+          kind: string
+          language: string
+          mime_type: string | null
+          module_id: string
+          size_bytes: number | null
+          sort_order: number
+          storage_path: string | null
+          title: string
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          external_url?: string | null
+          id?: string
+          kind: string
+          language?: string
+          mime_type?: string | null
+          module_id: string
+          size_bytes?: number | null
+          sort_order?: number
+          storage_path?: string | null
+          title: string
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          external_url?: string | null
+          id?: string
+          kind?: string
+          language?: string
+          mime_type?: string | null
+          module_id?: string
+          size_bytes?: number | null
+          sort_order?: number
+          storage_path?: string | null
+          title?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_module_assets_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "lms_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_module_checklist: {
+        Row: {
+          created_at: string
+          id: string
+          is_critical: boolean
+          item: string
+          module_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_critical?: boolean
+          item: string
+          module_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_critical?: boolean
+          item?: string
+          module_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_module_checklist_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "lms_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_module_kras: {
+        Row: {
+          kra_code: string
+          module_id: string
+        }
+        Insert: {
+          kra_code: string
+          module_id: string
+        }
+        Update: {
+          kra_code?: string
+          module_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_module_kras_kra_code_fkey"
+            columns: ["kra_code"]
+            isOneToOne: false
+            referencedRelation: "lms_kras"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "lms_module_kras_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "lms_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_modules: {
+        Row: {
+          code: string
+          content_md: string | null
+          created_at: string
+          department_code: string | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          module_type: string
+          owner_name: string | null
+          platform: string | null
+          production: Json
+          quiz_tag: string | null
+          sort_order: number
+          status: string
+          subdepartment_code: string | null
+          summary: string | null
+          title: string
+          trainer_notes: string | null
+          updated_at: string
+          updated_by: string | null
+          version: string
+          version_notes: string | null
+          version_published_at: string | null
+        }
+        Insert: {
+          code: string
+          content_md?: string | null
+          created_at?: string
+          department_code?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          module_type: string
+          owner_name?: string | null
+          platform?: string | null
+          production?: Json
+          quiz_tag?: string | null
+          sort_order?: number
+          status?: string
+          subdepartment_code?: string | null
+          summary?: string | null
+          title: string
+          trainer_notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: string
+          version_notes?: string | null
+          version_published_at?: string | null
+        }
+        Update: {
+          code?: string
+          content_md?: string | null
+          created_at?: string
+          department_code?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          module_type?: string
+          owner_name?: string | null
+          platform?: string | null
+          production?: Json
+          quiz_tag?: string | null
+          sort_order?: number
+          status?: string
+          subdepartment_code?: string | null
+          summary?: string | null
+          title?: string
+          trainer_notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: string
+          version_notes?: string | null
+          version_published_at?: string | null
+        }
+        Relationships: []
+      }
+      lms_plan_items: {
+        Row: {
+          checklist: Json
+          completed_at: string | null
+          created_at: string
+          critical_ok: boolean | null
+          day_no: number
+          demo_done: boolean
+          id: string
+          item_type: string
+          live_critical_error: boolean | null
+          live_errors: number | null
+          live_orders: number | null
+          module_id: string | null
+          module_version: string | null
+          plan_id: string
+          quiz_reference: string | null
+          recorded_by: string | null
+          remarks: string | null
+          score_pct: number | null
+          signoff_at: string | null
+          signoff_by_employee_id: string | null
+          signoff_result: string | null
+          sort_order: number
+          status: string
+          test_attempt: number | null
+          test_kind: string | null
+          test_passed: boolean | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          checklist?: Json
+          completed_at?: string | null
+          created_at?: string
+          critical_ok?: boolean | null
+          day_no: number
+          demo_done?: boolean
+          id?: string
+          item_type: string
+          live_critical_error?: boolean | null
+          live_errors?: number | null
+          live_orders?: number | null
+          module_id?: string | null
+          module_version?: string | null
+          plan_id: string
+          quiz_reference?: string | null
+          recorded_by?: string | null
+          remarks?: string | null
+          score_pct?: number | null
+          signoff_at?: string | null
+          signoff_by_employee_id?: string | null
+          signoff_result?: string | null
+          sort_order?: number
+          status?: string
+          test_attempt?: number | null
+          test_kind?: string | null
+          test_passed?: boolean | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          checklist?: Json
+          completed_at?: string | null
+          created_at?: string
+          critical_ok?: boolean | null
+          day_no?: number
+          demo_done?: boolean
+          id?: string
+          item_type?: string
+          live_critical_error?: boolean | null
+          live_errors?: number | null
+          live_orders?: number | null
+          module_id?: string | null
+          module_version?: string | null
+          plan_id?: string
+          quiz_reference?: string | null
+          recorded_by?: string | null
+          remarks?: string | null
+          score_pct?: number | null
+          signoff_at?: string | null
+          signoff_by_employee_id?: string | null
+          signoff_result?: string | null
+          sort_order?: number
+          status?: string
+          test_attempt?: number | null
+          test_kind?: string | null
+          test_passed?: boolean | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_plan_items_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "lms_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "lms_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_signoff_by_employee_id_fkey"
+            columns: ["signoff_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_signoff_by_employee_id_fkey"
+            columns: ["signoff_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_signoff_by_employee_id_fkey"
+            columns: ["signoff_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_signoff_by_employee_id_fkey"
+            columns: ["signoff_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_signoff_by_employee_id_fkey"
+            columns: ["signoff_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_signoff_by_employee_id_fkey"
+            columns: ["signoff_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plan_items_signoff_by_employee_id_fkey"
+            columns: ["signoff_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
+      lms_plan_kras: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          kra_code: string
+          plan_id: string
+          remarks: string | null
+          status: string
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          kra_code: string
+          plan_id: string
+          remarks?: string | null
+          status?: string
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          kra_code?: string
+          plan_id?: string
+          remarks?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_plan_kras_kra_code_fkey"
+            columns: ["kra_code"]
+            isOneToOne: false
+            referencedRelation: "lms_kras"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "lms_plan_kras_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "lms_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_plans: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          extension_days: number
+          id: string
+          language: string
+          module_days: number
+          notes: string | null
+          outcome: string | null
+          plan_type: string
+          seat_id: string | null
+          start_date: string
+          started_at: string | null
+          status: string
+          supervisor_employee_id: string | null
+          title: string
+          total_days: number
+          trainer_employee_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          extension_days?: number
+          id?: string
+          language?: string
+          module_days: number
+          notes?: string | null
+          outcome?: string | null
+          plan_type?: string
+          seat_id?: string | null
+          start_date: string
+          started_at?: string | null
+          status?: string
+          supervisor_employee_id?: string | null
+          title: string
+          total_days: number
+          trainer_employee_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          extension_days?: number
+          id?: string
+          language?: string
+          module_days?: number
+          notes?: string | null
+          outcome?: string | null
+          plan_type?: string
+          seat_id?: string | null
+          start_date?: string
+          started_at?: string | null
+          status?: string
+          supervisor_employee_id?: string | null
+          title?: string
+          total_days?: number
+          trainer_employee_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_plans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_plans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "lms_seats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_plans_supervisor_employee_id_fkey"
+            columns: ["supervisor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_supervisor_employee_id_fkey"
+            columns: ["supervisor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_supervisor_employee_id_fkey"
+            columns: ["supervisor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_supervisor_employee_id_fkey"
+            columns: ["supervisor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_plans_supervisor_employee_id_fkey"
+            columns: ["supervisor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_supervisor_employee_id_fkey"
+            columns: ["supervisor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_supervisor_employee_id_fkey"
+            columns: ["supervisor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_trainer_employee_id_fkey"
+            columns: ["trainer_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_trainer_employee_id_fkey"
+            columns: ["trainer_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_trainer_employee_id_fkey"
+            columns: ["trainer_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_trainer_employee_id_fkey"
+            columns: ["trainer_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_plans_trainer_employee_id_fkey"
+            columns: ["trainer_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_trainer_employee_id_fkey"
+            columns: ["trainer_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "lms_plans_trainer_employee_id_fkey"
+            columns: ["trainer_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
+      lms_seat_kras: {
+        Row: {
+          kra_code: string
+          seat_id: string
+        }
+        Insert: {
+          kra_code: string
+          seat_id: string
+        }
+        Update: {
+          kra_code?: string
+          seat_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_seat_kras_kra_code_fkey"
+            columns: ["kra_code"]
+            isOneToOne: false
+            referencedRelation: "lms_kras"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "lms_seat_kras_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "lms_seats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_seats: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department_code: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          position_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department_code?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          position_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department_code?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          position_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_seats_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_settings: {
+        Row: {
+          catalogue_imported_at: string | null
+          catalogue_version: string | null
+          default_language: string
+          extension_days: number
+          id: boolean
+          max_attempts: number
+          module_days: number
+          pass_mark: number
+          programme_days: number
+          test_days: number[]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          catalogue_imported_at?: string | null
+          catalogue_version?: string | null
+          default_language?: string
+          extension_days?: number
+          id?: boolean
+          max_attempts?: number
+          module_days?: number
+          pass_mark?: number
+          programme_days?: number
+          test_days?: number[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          catalogue_imported_at?: string | null
+          catalogue_version?: string | null
+          default_language?: string
+          extension_days?: number
+          id?: boolean
+          max_attempts?: number
+          module_days?: number
+          pass_mark?: number
+          programme_days?: number
+          test_days?: number[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       mpi_critical_violations: {
         Row: {
           acknowledged: boolean
@@ -36447,6 +37351,22 @@ export type Database = {
           permissions: string[]
         }[]
       }
+      lms_can_manage: { Args: { _user_id?: string }; Returns: boolean }
+      lms_can_view: { Args: { _user_id?: string }; Returns: boolean }
+      lms_employee_directory: {
+        Args: never
+        Returns: {
+          badge_id: string
+          department_name: string
+          full_name: string
+          id: string
+          is_active: boolean
+          joining_date: string
+          position_title: string
+          training_completion_date: string
+        }[]
+      }
+      lms_import_catalogue: { Args: { _payload: Json }; Returns: Json }
       lock_payer_order: {
         Args: { p_order_number: string; p_payer_user_id: string }
         Returns: Json

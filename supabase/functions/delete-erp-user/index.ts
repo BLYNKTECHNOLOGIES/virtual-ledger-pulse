@@ -133,6 +133,8 @@ Deno.serve(async (req) => {
     } catch (e) {
       return jsonResponse({ success: false, error: e instanceof Error ? e.message : "Could not record the removal" });
     }
+    // Block sign-in at once, so a removal that has to be retried still keeps them out.
+    await adminClient.from("users").update({ status: "INACTIVE", force_logout_at: new Date().toISOString() }).eq("id", parsed.data.userId);
     const result = await completeErpRevocation(adminClient, parsed.data.userId);
     if (!result.deleted) {
       return jsonResponse({

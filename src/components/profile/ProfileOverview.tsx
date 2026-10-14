@@ -14,9 +14,11 @@ import { SectionBlock, FieldGrid, Field, StatTile } from './primitives';
 import { DAY_META, dayKeyOf, type DayKey } from './attendanceMeta';
 import { useMyPayslips, useMyRegularizations, useTeamLeaveQueue, useTeamRegQueue } from './hooks';
 import { fmtDay, fmtDays, fmtINR, fmtMinutes, fmtMonthShort, fmtRange, fmtTime, fmtWeekday, istToday, tenure } from './format';
+import { OPEN_LEAVE_STATUSES, isPaidLeaveType } from './leave';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const OPEN_REG = ['pending', 'manager_review', 'manager_reviewed'];
-const OPEN_LEAVE = ['requested', 'manager_approved'];
+const OPEN_LEAVE = OPEN_LEAVE_STATUSES;
 
 const mask = (v?: string | null, keep = 4) => {
   if (!v) return '—';
@@ -34,6 +36,7 @@ export function ProfileOverview({
   workInfo,
   leaveTypes,
   balances,
+  balanceState = 'ready',
   leaveRequests,
   onNavigate,
   onRequestCorrection,
@@ -41,7 +44,9 @@ export function ProfileOverview({
   hrEmployee: any;
   workInfo: any;
   leaveTypes: any[];
-  balances: Record<string, { totalAllocated: number; totalUsed: number; available: number }>;
+  /** Per leave type; `available` is the database's figure (already net of pending requests), null while loading. */
+  balances: Record<string, { totalAllocated: number; totalUsed: number; available: number | null }>;
+  balanceState?: 'loading' | 'ready' | 'error';
   leaveRequests: any[];
   onNavigate: (tab: string) => void;
   onRequestCorrection: (date?: string) => void;
@@ -60,6 +65,8 @@ export function ProfileOverview({
   const { data: leaveQueue = [] } = useTeamLeaveQueue(employeeId);
   const { data: regQueue = [] } = useTeamRegQueue(employeeId);
   const { data: myTasks = [] } = useProfileTasks('to-me', false);
+  const { hasAnyPermission } = usePermissions();
+  const canOpenHrms = hasAnyPermission(['hrms_view', 'hrms_manage']);
 
   // ── Today ──
   const todayKey: DayKey = dayKeyOf(todayRow as AttendanceDay | null);
@@ -75,10 +82,11 @@ export function ProfileOverview({
   })();
 
   // ── Leave ──
-  const paidTypes = leaveTypes.filter((lt: any) => lt.code !== 'LOP' && lt.is_paid !== false);
+  const paidTypes = leaveTypes.filter(isPaidLeaveType);
+  const balancesReady = balanceState === 'ready' && paidTypes.length > 0;
   const totalAvailable = paidTypes.reduce((s: number, lt: any) => s + (balances[lt.id]?.available || 0), 0);
   const pendingLeave = leaveRequests.filter((r: any) => OPEN_LEAVE.includes(r.status)).length;
-  // Requested but undecided days aren't deducted from the balance yet — say so next to it.
+  // Requested but undecided days: the database already sets them aside, so they are listed, not subtracted again.
   const pendingDays = leaveRequests
     .filter((r: any) => OPEN_LEAVE.includes(r.status) && paidTypes.some((lt: any) => lt.id === r.leave_type_id))
     .reduce((s: number, r: any) => s + (Number(r.total_days) || 0), 0);
@@ -112,7 +120,8 @@ export function ProfileOverview({
 
   return (
     <div className="space-y-4">
-      <AnnouncementsBanner />
+      {/* "View all" opens the HRMS page, so only people who can open HRMS get the link. */}
+      <AnnouncementsBanner viewAllHref={canOpenHrms ? '/hrms/announcements' : null} />
 
       {needsAttention.length > 0 && (
         <section className="ds-panel !border-warning/40 !bg-warning/[0.06]">
@@ -153,7 +162,9 @@ export function ProfileOverview({
         />
         <StatTile
           label="Leave balance"
-          value={<>{fmtDays(totalAvailable)} <span className="text-sm font-semibold text-muted-foreground">day{totalAvailable === 1 ? '' : 's'}</span></>}
+          value={balancesReady
+            ? <>{fmtDays(totalAvailable)} <span className="text-sm font-semibold text-muted-foreground">day{totalAvailable === 1 ? '' : 's'}</span></>
+            : <span className="text-muted-foreground">{balanceState === 'error' ? '—' : '…'}</span>}
           icon={CalendarDays}
           onClick={() => onNavigate('leaves')}
           sub={
@@ -162,12 +173,12 @@ export function ProfileOverview({
                 {paidTypes.map((lt: any) => (
                   <span key={lt.id} className="inline-flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: lt.color || 'hsl(var(--muted-foreground))' }} />
-                    {lt.code || lt.name} {fmtDays(balances[lt.id]?.available || 0)}
+                    {lt.code || lt.name} {balances[lt.id]?.available == null ? (balanceState === 'loading' ? '…' : '—') : fmtDays(balances[lt.id]?.available || 0)}
                   </span>
                 ))}
               </span>
               {pendingDays > 0 && (
-                <span className="text-warning">{fmtDays(pendingDays)} day{pendingDays === 1 ? '' : 's'} waiting for approval · {fmtDays(Math.max(0, totalAvailable - pendingDays))} left after</span>
+                <span className="text-warning">+ {fmtDays(pendingDays)} day{pendingDays === 1 ? '' : 's'} waiting for approval</span>
               )}
               {nextLeave ? <span>Next leave: {fmtRange(nextLeave.start_date, nextLeave.end_date)}</span>
                 : pendingDays === 0 && pendingLeave > 0 ? <span>{pendingLeave} request{pendingLeave === 1 ? '' : 's'} pending</span> : null}

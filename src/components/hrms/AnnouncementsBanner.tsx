@@ -37,7 +37,11 @@ function saveDismissed(ids: Set<string>) {
   }
 }
 
-export function AnnouncementsBanner() {
+/**
+ * `viewAllHref` — where "View all" goes. Defaults to the HRMS announcements
+ * page; pass null to hide the link for people who can't open HRMS.
+ */
+export function AnnouncementsBanner({ viewAllHref = "/hrms/announcements" }: { viewAllHref?: string | null } = {}) {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed());
 
@@ -101,14 +105,16 @@ export function AnnouncementsBanner() {
             <Megaphone className="h-4 w-4 text-[#E8604C]" />
             <h3 className="text-sm font-semibold text-foreground">Announcements</h3>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-muted-foreground"
-            onClick={() => navigate("/hrms/announcements")}
-          >
-            View all <ArrowRight className="h-3 w-3 ml-1" />
-          </Button>
+          {viewAllHref && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground"
+              onClick={() => navigate(viewAllHref)}
+            >
+              View all <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          )}
         </div>
         <div className="space-y-2">
           {visible.map((a: any) => (

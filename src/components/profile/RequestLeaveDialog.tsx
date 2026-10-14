@@ -7,12 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarPlus } from 'lucide-react';
+import { AlertTriangle, CalendarPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendLeaveEmail } from '@/utils/leaveEmail';
+import { invalidateLeaveCaches, useMyLeaveAvailable } from './hooks';
+import { fmtDay, fmtDays, istToday } from './format';
+import { isPaidLeaveType } from './leave';
 
 interface Props {
   employeeId: string;
@@ -23,26 +26,32 @@ interface Props {
   hideTrigger?: boolean;
 }
 
+const EMPTY_FORM = {
+  start_date: '',
+  end_date: '',
+  is_half_day: false,
+  half_day_period: 'morning',
+  reason: '',
+  contact_during_leave: '',
+};
+
 /**
- * ESS — Employee raises a leave request from the ERP profile.
- * Routes to the reporting manager first, then HR (two-stage approval).
- * The employee picks the leave type; paid types need the full earned balance
- * (enforced again in the database). Loss of Pay days show as Absent.
+ * ESS — the one leave form on the profile (header, Overview, Leave tab and
+ * Requests all open it). Routes to the reporting manager first, then HR.
+ * Paid types need the full balance for the dates (enforced again in the
+ * database); Loss of Pay days show as Absent. The day count is the database's
+ * own (weekly offs and holidays excluded), so what the employee sees here is
+ * what gets stored.
  */
 export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenChange, hideTrigger }: Props) {
   const qc = useQueryClient();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
-  const setOpen = onOpenChange ?? setInternalOpen;
+  const setOpenRaw = onOpenChange ?? setInternalOpen;
   const [leaveTypeId, setLeaveTypeId] = useState('');
-  const [form, setForm] = useState({
-    start_date: '',
-    end_date: '',
-    is_half_day: false,
-    half_day_period: 'morning',
-    reason: '',
-    contact_during_leave: '',
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  // Leave can't start before the current month (validate_leave_request_dates).
+  const earliest = `${istToday().slice(0, 8)}01`;
 
   const { data: weeklyOffs = [] } = useQuery({
     queryKey: ['ess_weekly_off', employeeId],
@@ -65,8 +74,9 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
     return d.length ? d : [0];
   }, [weeklyOffs]);
 
-  const workingDays = useMemo(() => {
-    if (form.is_half_day) return 0.5;
+  /** Browser estimate — used only if the database count can't be read. */
+  const estimatedDays = useMemo(() => {
+    if (form.is_half_day) return form.start_date ? 0.5 : 0;
     if (!form.start_date || !form.end_date) return 0;
     const s = new Date(`${form.start_date}T00:00:00`);
     const e = new Date(`${form.end_date}T00:00:00`);
@@ -78,18 +88,47 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
     return n;
   }, [form.start_date, form.end_date, form.is_half_day, offDays]);
 
+  const endDate = form.is_half_day ? form.start_date : form.end_date || form.start_date;
+  const beforeEarliest = !!form.start_date && form.start_date < earliest;
+  // Longer than a year is a typing slip (e.g. a half-typed year), not a leave.
+  const tooLong = !!form.start_date && !!endDate && endDate >= form.start_date
+    && (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${form.start_date}T00:00:00Z`)) / 86400000 > 366;
+  const datesReady = !!form.start_date && !beforeEarliest && !tooLong
+    && (form.is_half_day || (!!form.end_date && form.end_date >= form.start_date));
+
+  // The same count the database stores on submit.
+  const { data: dbDays, isFetching: daysLoading, isError: daysError } = useQuery({
+    queryKey: ['ess_leave_days', employeeId, form.start_date, endDate, form.is_half_day],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('hr_my_leave_days', {
+        p_start: form.start_date, p_end: endDate, p_half: form.is_half_day,
+      });
+      if (error) throw error;
+      return Number(data ?? 0);
+    },
+    enabled: !!employeeId && datesReady,
+    retry: false,
+  });
+  // The database's count; the browser estimate only if that lookup failed (the insert still recounts).
+  const isEstimate = datesReady && dbDays === undefined && daysError;
+  const workingDays = !datesReady ? 0 : dbDays ?? (daysError ? estimatedDays : 0);
+
   const { data: leaveTypes = [] } = useQuery({
     queryKey: ['ess_leave_types'],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from('hr_leave_types').select('id, name, code, is_paid')
+        .from('hr_leave_types').select('id, name, code, is_paid, color')
         .eq('is_active', true).in('code', ['CL', 'CO', 'SL', 'LOP']).order('name');
-      return (data || []) as { id: string; name: string; code: string; is_paid: boolean }[];
+      return (data || []) as { id: string; name: string; code: string; is_paid: boolean; color?: string | null }[];
     },
   });
+  const paidIds = leaveTypes.filter(isPaidLeaveType).map((t) => t.id);
+  const { data: leftToday = {} } = useMyLeaveAvailable(employeeId, paidIds);
+
   const selectedType = leaveTypes.find((t) => t.id === leaveTypeId);
-  const isLop = !!selectedType && (selectedType.code === 'LOP' || !selectedType.is_paid);
-  const endDate = form.is_half_day ? form.start_date : form.end_date || form.start_date;
+  const isLop = !!selectedType && !isPaidLeaveType(selectedType);
+  // Comp-off can only be used inside the month it was earned, so it can't span two months.
+  const coSpansMonths = selectedType?.code === 'CO' && datesReady && form.start_date.slice(0, 7) !== endDate.slice(0, 7);
 
   const { data: available, isFetching: balLoading } = useQuery({
     queryKey: ['ess_leave_available', employeeId, leaveTypeId, form.start_date, endDate],
@@ -102,7 +141,18 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
     },
     enabled: !!employeeId && !!leaveTypeId && !isLop && !!form.start_date,
   });
-  const shortBalance = !isLop && available !== undefined && workingDays > available;
+  // Judge the balance only on the database's day count; with an estimate the insert decides.
+  const shortBalance = !isLop && !isEstimate && available !== undefined && workingDays > available;
+
+  const reset = () => {
+    setForm(EMPTY_FORM);
+    setLeaveTypeId('');
+  };
+  /** Closing always discards the draft, so "Apply for leave" opens a blank form. */
+  const setOpen = (v: boolean) => {
+    setOpenRaw(v);
+    if (!v) reset();
+  };
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -159,42 +209,58 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
     },
     onSuccess: () => {
       toast.success('Leave request submitted');
-      setForm({
-        start_date: '', end_date: '', is_half_day: false,
-        half_day_period: 'morning', reason: '', contact_during_leave: '',
-      });
-      setLeaveTypeId('');
       setOpen(false);
-      qc.invalidateQueries({ queryKey: ['ess_hub_leaves', employeeId] });
-      qc.invalidateQueries({ queryKey: ['hr_leave_requests', employeeId] });
+      invalidateLeaveCaches(qc, employeeId);
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to submit leave request'),
   });
+
+  const daysText = !datesReady
+    ? '—'
+    : daysLoading && dbDays === undefined
+      ? '…'
+      : `${isEstimate ? 'About ' : ''}${fmtDays(workingDays)} working day${workingDays === 1 ? '' : 's'}`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
         <DialogTrigger asChild>
           <Button size="sm" variant="outline" className="gap-1.5">
-            <CalendarPlus className="h-4 w-4" /> Request Leave
+            <CalendarPlus className="h-4 w-4" /> Apply for leave
           </Button>
         </DialogTrigger>
       )}
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Request Leave</DialogTitle>
+          <DialogTitle>Apply for leave</DialogTitle>
+          <DialogDescription>Your reporting manager reviews it first, then HR gives the final approval.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           <div>
-            <Label>Leave type *</Label>
+            <Label htmlFor="ess-leave-type">Leave type *</Label>
             <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
-              <SelectTrigger className="text-foreground w-full"><SelectValue placeholder="Choose leave type" /></SelectTrigger>
+              <SelectTrigger id="ess-leave-type" className="w-full text-foreground"><SelectValue placeholder="Choose leave type" /></SelectTrigger>
               <SelectContent>
-                {leaveTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                {leaveTypes.map((t) => {
+                  const left = leftToday[t.id];
+                  return (
+                    <SelectItem key={t.id} value={t.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: t.color || 'hsl(var(--muted-foreground))' }} />
+                        {t.name}
+                        {isPaidLeaveType(t) && left != null && (
+                          <span className="text-xs text-muted-foreground">· {fmtDays(left)} left</span>
+                        )}
+                        {!isPaidLeaveType(t) && <span className="text-xs text-muted-foreground">· unpaid</span>}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
+
           <div className="flex items-center gap-2">
             <Checkbox
               id="ess-half-day"
@@ -204,35 +270,38 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
             <Label htmlFor="ess-half-day" className="cursor-pointer">Half day</Label>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="min-w-0">
-              <Label>From *</Label>
+              <Label htmlFor="ess-leave-from">{form.is_half_day ? 'Date *' : 'From *'}</Label>
               <Input
+                id="ess-leave-from"
                 type="date"
-                className="text-foreground w-full min-w-0"
+                className="w-full min-w-0 text-foreground"
+                min={earliest}
                 value={form.start_date}
                 onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
               />
             </div>
             {!form.is_half_day ? (
               <div className="min-w-0">
-                <Label>To *</Label>
+                <Label htmlFor="ess-leave-to">To *</Label>
                 <Input
+                  id="ess-leave-to"
                   type="date"
-                  className="text-foreground w-full min-w-0"
-                  min={form.start_date || undefined}
+                  className="w-full min-w-0 text-foreground"
+                  min={form.start_date || earliest}
                   value={form.end_date}
                   onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
                 />
               </div>
             ) : (
               <div className="min-w-0">
-                <Label>Period</Label>
+                <Label htmlFor="ess-leave-session">Session</Label>
                 <Select value={form.half_day_period} onValueChange={(v) => setForm((p) => ({ ...p, half_day_period: v }))}>
-                  <SelectTrigger className="text-foreground w-full min-w-0"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="ess-leave-session" className="w-full min-w-0 text-foreground"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="morning">Morning</SelectItem>
-                    <SelectItem value="afternoon">Afternoon</SelectItem>
+                    <SelectItem value="morning">First half (morning)</SelectItem>
+                    <SelectItem value="afternoon">Second half (afternoon)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -240,10 +309,11 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
           </div>
 
           <div>
-            <Label>Reason *</Label>
+            <Label htmlFor="ess-leave-reason">Reason *</Label>
             <Textarea
+              id="ess-leave-reason"
               rows={3}
-              className="text-foreground w-full"
+              className="w-full text-foreground"
               value={form.reason}
               placeholder="Why do you need this leave?"
               onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
@@ -251,9 +321,10 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
           </div>
 
           <div>
-            <Label>Contact number during leave</Label>
+            <Label htmlFor="ess-leave-contact">Contact number during leave</Label>
             <Input
-              className="text-foreground w-full"
+              id="ess-leave-contact"
+              className="w-full text-foreground"
               value={form.contact_during_leave}
               placeholder="Optional"
               inputMode="tel"
@@ -261,19 +332,43 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
             />
           </div>
 
-          <p className="text-xs text-foreground">
-            Working days requested: <strong>{workingDays || '—'}</strong>
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5 text-[13px]">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span className="font-semibold text-foreground" data-testid="leave-days">{daysText}</span>
+              <span className="text-xs text-muted-foreground">{isEstimate ? 'Estimate — the final count is checked on submit' : "Weekly offs and holidays don't count"}</span>
+            </div>
             {selectedType && !isLop && form.start_date && (
-              <> · {selectedType.name} available: <strong>{balLoading ? '…' : available ?? '—'}</strong></>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selectedType.name} available for these dates: <strong className="text-foreground">{balLoading ? '…' : available !== undefined ? fmtDays(available) : '—'}</strong>
+              </p>
             )}
-          </p>
-          {isLop && (
-            <p className="text-xs text-muted-foreground">These days are unpaid and will show as Absent on your calendar.</p>
+            {isLop && (
+              <p className="mt-1 text-xs text-muted-foreground">Unpaid — these days show as Absent on your calendar.</p>
+            )}
+          </div>
+
+          {beforeEarliest && (
+            <p className="flex items-start gap-1.5 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>Leave can't start before {fmtDay(earliest)}. For an earlier day, ask HR.</span>
+            </p>
+          )}
+          {tooLong && (
+            <p className="flex items-start gap-1.5 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>That range is longer than a year — check the dates.</span>
+            </p>
           )}
           {shortBalance && (
-            <p className="text-xs text-destructive">
-              You have only {available} day(s) of {selectedType?.name} available but selected {workingDays} working day(s).
-              Apply for {available} day(s) as {selectedType?.name} and the rest as Loss of Pay, or change your dates.
+            <p className="flex items-start gap-1.5 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {coSpansMonths
+                  ? 'Comp-off can only be used in the month it was earned, so it can’t run into the next month. Split the leave at the month end.'
+                  : !available
+                    ? `You have no ${selectedType?.name} left for these dates. Apply as Loss of Pay, or pick other dates.`
+                    : `You have ${fmtDays(available)} day${available === 1 ? '' : 's'} of ${selectedType?.name} for these dates but picked ${fmtDays(workingDays)} working day${workingDays === 1 ? '' : 's'}. Apply for ${fmtDays(available)} as ${selectedType?.name} and the rest as Loss of Pay, or change your dates.`}
+              </span>
             </p>
           )}
         </div>
@@ -282,7 +377,7 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
           <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Close</Button>
           <Button
             className="w-full sm:w-auto"
-            disabled={submit.isPending || !leaveTypeId || shortBalance || balLoading || !form.start_date || !form.reason.trim() || workingDays <= 0}
+            disabled={submit.isPending || !leaveTypeId || shortBalance || balLoading || daysLoading || !datesReady || !form.reason.trim() || workingDays <= 0}
             onClick={() => submit.mutate()}
           >
             {submit.isPending ? 'Submitting…' : 'Submit request'}

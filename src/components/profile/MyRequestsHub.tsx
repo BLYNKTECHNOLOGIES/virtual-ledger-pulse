@@ -27,8 +27,9 @@ import {
   validateRegularizationWindow,
 } from '@/lib/regularizationWindow';
 import { SectionBlock, StatusPill, ProfileEmptyState, ProfileSkeleton, type StatusTone } from './primitives';
-import { useMyRegularizations } from './hooks';
+import { invalidateLeaveCaches, useMyRegularizations } from './hooks';
 import { fmtDay, fmtDays, fmtRange, fmtTime, humanize, leaveStage } from './format';
+import { leaveCancelState } from './leave';
 
 
 interface Props {
@@ -208,16 +209,17 @@ export default function MyRequestsHub({ employeeId, userId, defaultHolderName, o
   // ─── Cancel leave ───
   const cancelLeave = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('hr_leave_requests')
         .update({ status: 'cancelled' })
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('This request could not be cancelled. Refresh the page, or ask HR.');
     },
     onSuccess: () => {
       sonnerToast.success('Leave request cancelled');
-      qc.invalidateQueries({ queryKey: ['ess_hub_leaves', employeeId] });
-      qc.invalidateQueries({ queryKey: ['hr_leave_requests', employeeId] });
+      invalidateLeaveCaches(qc, employeeId);
     },
     onError: (e: any) => sonnerToast.error(e?.message || 'Failed to cancel'),
   });
@@ -322,8 +324,9 @@ export default function MyRequestsHub({ employeeId, userId, defaultHolderName, o
 
   const Row = ({ r }: { r: UnifiedRequest }) => {
     const Icon = r.kind === 'leave' ? CalendarClock : r.kind === 'regularization' ? ClipboardList : Gift;
+    const leaveCancel = r.kind === 'leave' ? leaveCancelState(r.raw) : null;
     const cancellable =
-      (r.kind === 'leave' && isPending(r.status)) ||
+      (r.kind === 'leave' && !!leaveCancel?.canCancel) ||
       (r.kind === 'regularization' &&
         ['pending', 'manager_review', 'manager_reviewed'].includes(r.raw.status));
     return (
@@ -364,7 +367,10 @@ export default function MyRequestsHub({ employeeId, userId, defaultHolderName, o
                 <AlertDialogHeader>
                   <AlertDialogTitle>Cancel this request?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {r.title} · {r.when}. It is withdrawn and no longer waits for a decision.
+                    {r.title} · {r.when}.{' '}
+                    {leaveCancel?.approved
+                      ? 'It is already approved. Cancelling gives the days back to your balance and clears them from your calendar.'
+                      : 'It is withdrawn and no longer waits for a decision.'}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

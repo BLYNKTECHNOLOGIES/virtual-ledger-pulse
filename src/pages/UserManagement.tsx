@@ -659,7 +659,7 @@ export default function UserManagement() {
                 <Segmented
                   label="Filter by status"
                   value={statusFilter}
-                  onChange={setStatusFilter}
+                  onChange={(v) => setStatusFilter(v as StatusFilter)}
                   options={[
                     { value: "all", label: "All", count: usersForStatus.length },
                     { value: "ACTIVE", label: "Active", count: statusCount("ACTIVE") },

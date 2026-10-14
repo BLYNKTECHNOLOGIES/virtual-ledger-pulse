@@ -85,7 +85,7 @@ export function PermissionChangeLog() {
           <Segmented
             label="Show changes"
             value={filter}
-            onChange={setFilter}
+            onChange={(v) => setFilter(v as LogFilter)}
             options={[
               { value: "all", label: "All", count: logs.length },
               { value: "granted", label: "Granted", count: grantedCount },

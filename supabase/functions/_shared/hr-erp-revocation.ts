@@ -51,9 +51,13 @@ export async function revokeEmployeeErp(svc:any,employeeId:string) {
   return {deactivated:true,deleted:true};
 }
 export async function drainErpRevocations(svc:any) {
-  const {data,error}=await svc.from("hr_erp_access_revocations").select("user_id").is("completed_at",null).order("requested_at").limit(100);
+  const {data,error}=await svc.from("hr_erp_access_revocations").select("user_id,source").is("completed_at",null).order("requested_at").limit(100);
   if(error) throw error;
   const results=[];
-  for(const row of data || []) results.push({userId:row.user_id,...await completeErpRevocation(svc,row.user_id)});
+  for(const row of data || []) {
+    // A rejected sign-up's own employee stub is removed first (it blocks Auth removal).
+    if(row.source==="signup_rejection") await svc.from("employees").delete().eq("user_id",row.user_id);
+    results.push({userId:row.user_id,...await completeErpRevocation(svc,row.user_id)});
+  }
   return results;
 }

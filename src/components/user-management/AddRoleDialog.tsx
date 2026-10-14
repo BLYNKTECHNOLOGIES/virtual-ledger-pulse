@@ -48,7 +48,7 @@ export function AddRoleDialog({ onAddRole, heldPermissions, isSuperAdmin = false
     setIsLoading(true);
 
     try {
-      const result = await onAddRole(formData);
+      const result = await onAddRole({ ...formData, name: formData.name.trim() });
 
       if (result.success) {
         toast({

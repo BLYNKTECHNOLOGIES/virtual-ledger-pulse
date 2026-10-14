@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { LastSignIn } from "./LastSignIn";
+import { fmtDay, fmtTime } from "@/components/profile/format";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -271,6 +273,7 @@ export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleI
               </DialogDescription>
             </div>
           </div>
+          <p className="text-left text-xs text-muted-foreground">Last sign-in <LastSignIn value={user.last_login} /> · Added <span title={`${fmtDay(user.created_at)}, ${fmtTime(user.created_at)} IST`}>{fmtDay(user.created_at)}</span></p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <FormSection title="Profile">
@@ -416,7 +419,7 @@ export function EditUserDialog({ user, onSave, onClose, actions, assignableRoleI
             </div>
             {!restrictSensitive && (
               <p className="text-xs text-muted-foreground">
-                Permissions and functions come from the role. To change what a role allows, edit the role.
+                Permissions come from the role. To change what a role allows, edit the role.
               </p>
             )}
             {deactivating && (

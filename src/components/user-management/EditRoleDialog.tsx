@@ -4,14 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 import { PERMISSION_MODULES, normalizePermissions } from "@/lib/permissions/catalog";
-import { LOCKED_PERMISSION_HINT, PermissionMatrix } from "./PermissionMatrix";
-import { Lock } from "lucide-react";
-import { Chip, FormSection, PanelSkeleton, StickyFooter, moduleLabel, permissionLabel } from "./umUi";
+import { PermissionMatrix } from "./PermissionMatrix";
+import { Chip, FormSection, StickyFooter, permissionLabel } from "./umUi";
 
 
 interface Role {
@@ -22,22 +18,12 @@ interface Role {
   user_count: number;
 }
 
-interface SystemFunction {
-  id: string;
-  function_key: string;
-  function_name: string;
-  description: string;
-  module: string;
-}
-
 interface EditRoleDialogProps {
   role: Role;
   onSave: (roleId: string, roleData: { name: string; description: string; permissions: string[] }) => Promise<any>;
   onClose: () => void;
   /** Permissions the signed-in person holds (effective); others are locked (UM-2A R2). */
   heldPermissions: string[];
-  /** Module functions the signed-in person has; others are locked. */
-  heldFunctionIds: string[];
   isSuperAdmin?: boolean;
 }
 
@@ -54,19 +40,14 @@ export function lockedPermissions(held: string[]): Set<string> {
 // System roles that cannot have their name changed
 const SYSTEM_ROLE_NAMES = ['Super Admin', 'Admin'];
 
-export function EditRoleDialog({ role, onSave, onClose, heldPermissions, heldFunctionIds, isSuperAdmin = false }: EditRoleDialogProps) {
+export function EditRoleDialog({ role, onSave, onClose, heldPermissions, isSuperAdmin = false }: EditRoleDialogProps) {
   const locked = useMemo(() => (isSuperAdmin ? new Set<string>() : lockedPermissions(heldPermissions)), [heldPermissions, isSuperAdmin]);
-  const functionLocked = (id: string) => !isSuperAdmin && !heldFunctionIds.includes(id);
-  const [initialFunctions, setInitialFunctions] = useState<string[]>([]);
   const [formData, setFormData] = useState(() => ({
     name: role.name,
     description: role.description,
     permissions: normalizePermissions(role.permissions)
   }));
-  const [systemFunctions, setSystemFunctions] = useState<SystemFunction[]>([]);
-  const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingFunctions, setIsLoadingFunctions] = useState(true);
   const { toast } = useToast();
 
   const isSystemRole = SYSTEM_ROLE_NAMES.includes(role.name);
@@ -87,67 +68,19 @@ export function EditRoleDialog({ role, onSave, onClose, heldPermissions, heldFun
       description: role.description,
       permissions: normalizePermissions(role.permissions)
     });
-    fetchFunctions();
   }, [role]);
-
-  const fetchFunctions = async () => {
-    setIsLoadingFunctions(true);
-    try {
-      const { data: funcsData, error: funcsError } = await supabase
-        .from('system_functions')
-        .select('*')
-        .order('module');
-
-      if (funcsError) throw funcsError;
-      setSystemFunctions(funcsData || []);
-
-      const { data: roleFuncsData, error: roleFuncsError } = await supabase
-        .from('role_functions')
-        .select('function_id, system_functions(function_key)')
-        .eq('role_id', role.id);
-
-      if (roleFuncsError) throw roleFuncsError;
-
-      const currentFunctionKeys = (roleFuncsData || [])
-        .map((rf: any) => rf.system_functions?.function_key)
-        .filter(Boolean);
-
-      setSelectedFunctions(currentFunctionKeys);
-      setInitialFunctions(currentFunctionKeys);
-    } catch (error) {
-      console.error('Error fetching functions:', error);
-    } finally {
-      setIsLoadingFunctions(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const result = await onSave(role.id, formData);
+      const result = await onSave(role.id, { ...formData, name: formData.name.trim() });
 
       if (result?.success === false) {
         toast({ title: "Error", description: result?.error?.message || "Failed to update role permissions", variant: "destructive" });
         setIsLoading(false);
         return;
-      }
-
-      // Update functions: only the ones that changed (locked ones are never touched).
-      const keyToId = new Map(systemFunctions.map((f) => [f.function_key, f.id]));
-      const removed = initialFunctions.filter((k) => !selectedFunctions.includes(k)).map((k) => keyToId.get(k)).filter(Boolean) as string[];
-      const added = selectedFunctions.filter((k) => !initialFunctions.includes(k)).map((k) => keyToId.get(k)).filter(Boolean) as string[];
-      if (removed.length > 0) {
-        const { data: gone, error: delError } = await supabase
-          .from('role_functions').delete().eq('role_id', role.id).in('function_id', removed).select('id');
-        if (delError) throw new Error(`Permissions saved, but functions were not changed: ${delError.message}`);
-        if ((gone?.length || 0) < removed.length) throw new Error("Permissions saved, but you can't remove some of these functions");
-      }
-      if (added.length > 0) {
-        const { error: insertError } = await supabase
-          .from('role_functions').insert(added.map((function_id) => ({ role_id: role.id, function_id }))).select();
-        if (insertError) throw new Error(`Permissions saved, but functions were not changed: ${insertError.message}`);
       }
 
       toast({ title: "Success", description: "Role updated successfully" });
@@ -159,20 +92,9 @@ export function EditRoleDialog({ role, onSave, onClose, heldPermissions, heldFun
     }
   };
 
-  const handleFunctionChange = (functionKey: string, checked: boolean) => {
-    setSelectedFunctions(prev => checked ? [...prev, functionKey] : prev.filter(f => f !== functionKey));
-  };
-
   const onTemplateApplied = (templateName: string) => {
     toast({ title: "Template Applied", description: `Applied "${templateName}" template` });
   };
-
-  // Group functions by module
-  const functionsByModule = systemFunctions.reduce((acc, func) => {
-    if (!acc[func.module]) acc[func.module] = [];
-    acc[func.module].push(func);
-    return acc;
-  }, {} as Record<string, SystemFunction[]>);
 
   const changeCount = permissionDiff.added.length + permissionDiff.removed.length;
 
@@ -229,49 +151,6 @@ export function EditRoleDialog({ role, onSave, onClose, heldPermissions, heldFun
             onTemplateApplied={onTemplateApplied}
             locked={locked}
           />
-
-          {/* Module Functions */}
-          {(isLoadingFunctions || Object.keys(functionsByModule).length > 0) && (
-            <FormSection title="Module functions" hint="Extra abilities on top of the permissions above.">
-              {isLoadingFunctions ? (
-                <PanelSkeleton rows={2} />
-              ) : (
-                <div className="space-y-3">
-                  {Object.entries(functionsByModule).map(([module, funcs]) => (
-                    <div key={module}>
-                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">{moduleLabel(module)}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {funcs.map((func) => {
-                          const on = selectedFunctions.includes(func.function_key);
-                          const fLocked = functionLocked(func.id);
-                          return (
-                            <label
-                              key={func.id}
-                              title={fLocked ? `${LOCKED_PERMISSION_HINT}. ${func.description || ""}` : func.description}
-                              className={cn(
-                                "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[13px] transition-colors",
-                                fLocked ? "cursor-not-allowed opacity-70" : "cursor-pointer",
-                                on ? "border-primary/25 bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground hover:text-foreground",
-                              )}
-                            >
-                              <Checkbox
-                                checked={on}
-                                onCheckedChange={(checked) => handleFunctionChange(func.function_key, checked as boolean)}
-                                disabled={fLocked}
-                                className="h-3.5 w-3.5"
-                              />
-                              {func.function_name}
-                              {fLocked && <Lock className="h-3 w-3 text-muted-foreground" aria-hidden />}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </FormSection>
-          )}
 
           {/* Change Diff Preview */}
           {changeCount > 0 && (

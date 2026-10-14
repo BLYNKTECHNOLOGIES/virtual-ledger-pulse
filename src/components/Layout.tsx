@@ -14,6 +14,7 @@ import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
 import { useIsStandby } from "@/hooks/useIsStandby";
 import { useRef } from "react";
 import { useSidebarAutoCollapse } from "@/hooks/useSidebarAutoCollapse";
+import { useErpPresence } from "@/hooks/useErpPresence";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ interface LayoutProps {
 
 /** Inner shell — lives inside SidebarProvider so it can drive sidebar state. */
 function Shell({ children, isStandby }: { children: React.ReactNode; isStandby: boolean }) {
+  useErpPresence();
   const location = useLocation();
   const workAreaRef = useRef<HTMLElement>(null);
   const { expandOnHover, collapseOnLeave, isPeeking } = useSidebarAutoCollapse(workAreaRef);

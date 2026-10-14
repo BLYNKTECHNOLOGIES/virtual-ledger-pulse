@@ -39,7 +39,7 @@ import { EditRoleDialog } from "@/components/user-management/EditRoleDialog";
 import { RoleUsersDialog } from "@/components/user-management/RoleUsersDialog";
 import { PendingRegistrationsTab } from "@/components/user-management/PendingRegistrationsTab";
 import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordDialog";
-import { FunctionsTab } from "@/components/user-management/FunctionsTab";
+import { LastSignIn } from "@/components/user-management/LastSignIn";
 import { PermissionChangeLog } from "@/components/user-management/PermissionChangeLog";
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
 import { usePendingRegistrations } from "@/components/user-management/usePendingRegistrations";
@@ -89,6 +89,8 @@ interface OnlineUser {
   last_name?: string;
   last_seen: string;
   status: string;
+  erp: boolean;
+  terminal: boolean;
 }
 
 // Legacy permission normalization lives in the single-source catalog.
@@ -244,33 +246,9 @@ export default function UserManagement() {
     try {
       setIsLoadingOnlineUsers(true);
 
-      // Consider users online if they've been active in the last 5 minutes
-      const recentThreshold = new Date();
-      recentThreshold.setMinutes(recentThreshold.getMinutes() - 5);
-
-      const { data: activeUsers, error } = await supabase
-        .from('users')
-        .select('id, username, email, first_name, last_name, last_activity, status')
-        .eq('status', 'ACTIVE')
-        .not('last_activity', 'is', null)
-        .gte('last_activity', recentThreshold.toISOString())
-        .order('last_activity', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching online users:', error);
-        return;
-      }
-
-      const onlineUsersData = activeUsers?.map(user => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        last_seen: user.last_activity || new Date().toISOString(),
-        status: 'Online'
-      })) || [];
-
+      const { data, error } = await (supabase as any).rpc('um_online_users');
+      if (error) throw error;
+      const onlineUsersData = (data || []) as OnlineUser[];
       setOnlineUsers(onlineUsersData);
     } catch (error) {
       console.error('Error fetching online users:', error);
@@ -283,7 +261,7 @@ export default function UserManagement() {
     try {
 
       const { data, error } = await supabase.rpc('create_role_with_permissions', {
-        role_name: roleData.name,
+        role_name: roleData.name.trim(),
         role_description: roleData.description,
         permissions: roleData.permissions
       });
@@ -307,7 +285,7 @@ export default function UserManagement() {
 
       const { data, error } = await supabase.rpc('update_role_permissions', {
         p_role_id: roleId,
-        p_role_name: roleData.name,
+        p_role_name: roleData.name.trim(),
         p_role_description: roleData.description,
         p_permissions: roleData.permissions
       });
@@ -762,7 +740,7 @@ export default function UserManagement() {
           {!isHrRestricted && (
             <TabsTrigger value="functions" className={SUBNAV_TRIGGER}>
               <Settings2 className="h-3.5 w-3.5" />
-              <span className="hidden xl:inline">Functions &amp; history</span>
+              <span className="hidden xl:inline">History</span>
               <span className="xl:hidden">History</span>
             </TabsTrigger>
           )}
@@ -867,7 +845,7 @@ export default function UserManagement() {
                           <th>Status</th>
                           <th className="hidden @[60rem]:table-cell">Contact</th>
                           <th className="hidden @[60rem]:table-cell">Badge</th>
-                          <th className="hidden @[80rem]:table-cell">Added</th>
+                          <th className="hidden @[80rem]:table-cell">Last sign-in</th>
                           {canEditUsers && <th className="w-[1%]"><span className="sr-only">Actions</span></th>}
                         </tr>
                       </thead>
@@ -880,6 +858,7 @@ export default function UserManagement() {
                                 <div className="min-w-0 [overflow-wrap:normal]">
                                   <p className="font-medium text-foreground">{personName(user)}</p>
                                   <p className="text-xs text-muted-foreground">@{user.username}</p>
+                                  <p className="text-xs text-muted-foreground @[80rem]:hidden">Sign-in <LastSignIn value={user.last_login} /></p>
                                   {/* Narrow panel: contact moves under the name */}
                                   <p className="break-all text-xs text-muted-foreground @[60rem]:hidden">{user.email}</p>
                                 </div>
@@ -892,7 +871,7 @@ export default function UserManagement() {
                               {user.phone && <p className="text-xs tabular-nums text-muted-foreground">{user.phone}</p>}
                             </td>
                             <td className="hidden font-mono text-xs @[60rem]:table-cell">{user.badge_id || <span className="text-muted-foreground">—</span>}</td>
-                            <td className="hidden whitespace-nowrap text-xs text-muted-foreground @[80rem]:table-cell">{fmtDay(user.created_at)}</td>
+                            <td className="hidden whitespace-nowrap text-xs text-muted-foreground @[80rem]:table-cell"><LastSignIn value={user.last_login} /></td>
                             {canEditUsers && <td>{userActions(user)}</td>}
                           </tr>
                         ))}
@@ -911,6 +890,7 @@ export default function UserManagement() {
                               <UserStatusChip status={user.status} />
                             </div>
                             <p className="break-all text-xs text-muted-foreground">@{user.username} · {user.email}</p>
+                            <p className="text-xs text-muted-foreground">Last sign-in <LastSignIn value={user.last_login} /></p>
                             {lifecycleNote(user)}
                             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                               <RoleChip name={user.role?.name} />
@@ -1036,14 +1016,14 @@ export default function UserManagement() {
           <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
             <Panel
               title="Online now"
-              description="ERP accounts with activity in the last 5 minutes. Refreshes every 30 seconds."
+              description="Active in the last two minutes."
               bodyClassName="p-0 sm:p-0"
             >
               {isLoadingOnlineUsers ? (
                 <PanelSkeleton rows={3} />
               ) : onlineUsers.length === 0 ? (
-                <PanelMessage icon={Activity} title="No one active in the last 5 minutes">
-                  This list checks again every 30 seconds.
+                <PanelMessage icon={Activity} title="No one active in the last two minutes">
+
                 </PanelMessage>
               ) : (
                 <ul className="divide-y divide-border">
@@ -1057,6 +1037,7 @@ export default function UserManagement() {
                         <p className="font-medium text-foreground">{personName(user)}</p>
                         <p className="break-all text-xs text-muted-foreground">@{user.username} · {user.email}</p>
                       </div>
+                      <div className="flex flex-wrap gap-1">{user.erp && <Chip tone="info">ERP</Chip>}{user.terminal && <Chip tone="neutral">Terminal</Chip>}</div>
                       <p className="text-xs text-muted-foreground" title={`${fmtDay(user.last_seen)}, ${fmtTime(user.last_seen)} IST`}>
                         Active {fmtAgo(user.last_seen)}
                       </p>
@@ -1085,7 +1066,6 @@ export default function UserManagement() {
         <TabsContent value="functions" className="mt-0">
           <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
             <div className="space-y-4">
-              <FunctionsTab />
               <PermissionChangeLog />
             </div>
           </PermissionGate>
@@ -1120,7 +1100,6 @@ export default function UserManagement() {
           onSave={updateRole}
           onClose={() => setEditingRole(null)}
           heldPermissions={access?.held_permissions || []}
-          heldFunctionIds={access?.held_function_ids || []}
           isSuperAdmin={!!access?.is_super_admin}
         />
       )}

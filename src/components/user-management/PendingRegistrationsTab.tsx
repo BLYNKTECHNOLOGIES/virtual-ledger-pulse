@@ -1,9 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -24,30 +21,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  UserPlus,
-  Check,
-  X,
-  Clock,
-  Mail,
-  Phone,
-  User,
-  Search,
-  RefreshCw,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-
-interface PendingRegistration {
-  id: string;
-  first_name: string;
-  last_name: string;
-  username: string;
-  email: string;
-  phone: string | null;
-  badge_id: string | null;
-  status: string;
-  submitted_at: string;
-}
+import { UserPlus, Check, X, RefreshCw, Lock } from "lucide-react";
+import { Panel } from "@/components/finance-ui/primitives";
+import { fmtAgo, fmtDay, fmtTime } from "@/components/profile/format";
+import { DetailList, Initials, PanelMessage, PanelSkeleton, SearchField, UM_TABLE } from "./umUi";
+import { usePendingRegistrations, type PendingRegistration } from "./usePendingRegistrations";
 
 interface Role {
   id: string;
@@ -70,25 +48,8 @@ export function PendingRegistrationsTab() {
   const isSuperAdmin = hasRole("super admin");
 
 
-  // Fetch pending registrations
-  const { data: registrations = [], isLoading, refetch } = useQuery({
-    queryKey: ["pending-registrations"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pending_registrations")
-        .select(
-          "id,username,email,first_name,last_name,phone,status,submitted_at,reviewed_at,reviewed_by,rejection_reason,badge_id,user_id"
-        )
-        // DB stores status as 'PENDING' (historically some code used 'pending').
-        // Accept both so the approvals portal never silently shows 0.
-        .in("status", ["PENDING", "pending"])
-        // Table uses submitted_at (not created_at)
-        .order("submitted_at", { ascending: false });
-
-      if (error) throw error;
-      return data as PendingRegistration[];
-    },
-  });
+  // Fetch pending registrations (shared with the page header count)
+  const { data: registrations = [], isLoading, refetch } = usePendingRegistrations();
 
   // Fetch roles
   const { data: roles = [] } = useQuery({
@@ -237,8 +198,8 @@ export function PendingRegistrationsTab() {
     (reg) =>
       reg.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       reg.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+      (reg.first_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (reg.last_name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleApprove = () => {
@@ -270,130 +231,157 @@ export function PendingRegistrationsTab() {
     });
   };
 
+  /** Close the approval dialog and forget the picks, so the next person starts clean. */
+  const closeApproval = () => {
+    setApprovalDialog(null);
+    setSelectedRoleId("");
+    setSelectedDepartmentId("");
+    setSelectedPositionId("");
+  };
+
+  /** Close the rejection dialog and forget the typed reason. */
+  const closeRejection = () => {
+    setRejectionDialog(null);
+    setRejectionReason("");
+  };
+
+  const fullName = (r: PendingRegistration) => [r.first_name, r.last_name].filter(Boolean).join(" ") || r.username;
+  const requested = (r: PendingRegistration) => (
+    <span title={`${fmtDay(r.submitted_at)}, ${fmtTime(r.submitted_at)} IST`}>{fmtAgo(r.submitted_at)}</span>
+  );
+
   if (!isSuperAdmin) {
     return (
-      <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">
-          <UserPlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p className="font-medium text-foreground">Restricted</p>
-          <p className="text-sm">Only a Super Admin can review pending registrations.</p>
-        </CardContent>
-      </Card>
+      <Panel bodyClassName="p-0 sm:p-0">
+        <PanelMessage icon={Lock} title="Restricted">
+          Only a Super Admin can review sign-ups.
+        </PanelMessage>
+      </Panel>
     );
   }
 
   return (
-    <div className="space-y-4">
-
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              Pending Registrations ({registrations.length})
-            </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search registrations..."
+    <>
+      <Panel
+        title="Sign-up approvals"
+        description="People who registered on the sign-up page. Approving turns on their login with the role, department and position you choose."
+        bodyClassName="p-0 sm:p-0"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 gap-1.5" aria-label="Refresh sign-ups">
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        }
+      >
+        {registrations.length > 0 && (
+          <div className="border-b border-border/70 px-3 py-3 sm:px-5">
+            <SearchField
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              onChange={setSearchTerm}
+              placeholder="Search name, username or email"
+              label="Search sign-ups"
+              className="sm:max-w-sm"
             />
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2">Loading registrations...</span>
-        </div>
-      ) : filteredRegistrations.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <UserPlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No pending registrations</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredRegistrations.map((registration) => (
-            <Card key={registration.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-semibold text-foreground">
-                      {registration.first_name} {registration.last_name}
-                    </h3>
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Pending
-                    </Badge>
-                  </div>
+        {isLoading ? (
+          <PanelSkeleton rows={3} />
+        ) : filteredRegistrations.length === 0 ? (
+          <PanelMessage icon={UserPlus} title={registrations.length === 0 ? "No sign-ups waiting" : "No sign-up matches your search"}>
+            {registrations.length === 0 && "New registrations appear here for a Super Admin to approve or reject."}
+          </PanelMessage>
+        ) : (
+          <div className="responsive-list">
+            <div className="responsive-list-table">
+              <table className={UM_TABLE}>
+                <thead>
+                  <tr>
+                    <th>Person</th>
+                    <th className="hidden @[56rem]:table-cell">Contact</th>
+                    <th className="hidden @[56rem]:table-cell">Badge</th>
+                    <th>Requested</th>
+                    <th className="w-[1%]"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRegistrations.map((registration) => (
+                    <tr key={registration.id}>
+                      <td>
+                        <div className="flex min-w-[11rem] items-center gap-2.5">
+                          <Initials name={fullName(registration)} />
+                          <div className="min-w-0 [overflow-wrap:normal]">
+                            <p className="font-medium text-foreground">{fullName(registration)}</p>
+                            <p className="text-xs text-muted-foreground">@{registration.username}</p>
+                            <p className="break-all text-xs text-muted-foreground @[56rem]:hidden">{registration.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hidden @[56rem]:table-cell">
+                        <p className="break-all">{registration.email}</p>
+                        {registration.phone && <p className="text-xs tabular-nums text-muted-foreground">{registration.phone}</p>}
+                      </td>
+                      <td className="hidden font-mono text-xs @[56rem]:table-cell">{registration.badge_id || <span className="text-muted-foreground">—</span>}</td>
+                      <td className="whitespace-nowrap text-xs text-muted-foreground">{requested(registration)}</td>
+                      <td>
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRejectionDialog(registration)}
+                            className="h-8 gap-1.5 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Reject
+                          </Button>
+                          <Button size="sm" onClick={() => setApprovalDialog(registration)} className="h-8 gap-1.5 px-3 text-xs">
+                            <Check className="h-3.5 w-3.5" />
+                            Approve
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p className="flex items-center gap-2">
-                      <User className="h-3 w-3" />
-                      <strong>Username:</strong> {registration.username}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Mail className="h-3 w-3" />
-                      <strong>Email:</strong> {registration.email}
-                    </p>
-                    {registration.phone && (
-                      <p className="flex items-center gap-2">
-                        <Phone className="h-3 w-3" />
-                        <strong>Phone:</strong> {registration.phone}
+            <ul className="responsive-list-cards divide-y divide-border">
+              {filteredRegistrations.map((registration) => (
+                <li key={registration.id} className="space-y-2.5 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <Initials name={fullName(registration)} className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground">{fullName(registration)}</p>
+                      <p className="break-all text-xs text-muted-foreground">@{registration.username} · {registration.email}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {registration.phone && <span className="tabular-nums">{registration.phone} · </span>}
+                        {registration.badge_id && <span className="font-mono">Badge {registration.badge_id} · </span>}
+                        Requested {requested(registration)}
                       </p>
-                    )}
-                    {registration.badge_id && (
-                      <p className="flex items-center gap-2">
-                        <User className="h-3 w-3" />
-                        <strong>Badge ID:</strong> {registration.badge_id}
-                      </p>
-                    )}
-
-                    <p className="text-xs">
-                      Requested{" "}
-                      {formatDistanceToNow(new Date(registration.submitted_at), {
-                        addSuffix: true,
-                      })}
-                    </p>
+                    </div>
                   </div>
-
-                  <div className="flex justify-between pt-2 border-t gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRejectionDialog(registration)}
-                      className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <X className="h-3 w-3" />
-                      Reject
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setApprovalDialog(registration)}
-                      className="flex items-center gap-1"
-                    >
-                      <Check className="h-3 w-3" />
+                  <div className="flex gap-2 pl-11">
+                    <Button size="sm" onClick={() => setApprovalDialog(registration)} className="h-8 gap-1.5 px-3 text-xs">
+                      <Check className="h-3.5 w-3.5" />
                       Approve
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRejectionDialog(registration)}
+                      className="h-8 gap-1.5 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Reject
+                    </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Panel>
 
       {/* Approval Dialog */}
       <Dialog
@@ -407,39 +395,30 @@ export function PendingRegistrationsTab() {
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Approve Registration</DialogTitle>
+            <DialogTitle>Approve sign-up</DialogTitle>
             <DialogDescription>
-              Assign a role, department, and position to approve this user's registration request.
+              Choose the role, department and position this person starts with. Their login works as soon as you approve.
             </DialogDescription>
           </DialogHeader>
 
           {approvalDialog && (
             <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <p>
-                  <strong>Name:</strong> {approvalDialog.first_name}{" "}
-                  {approvalDialog.last_name}
-                </p>
-                <p>
-                  <strong>Username:</strong> {approvalDialog.username}
-                </p>
-                <p>
-                  <strong>Email:</strong> {approvalDialog.email}
-                </p>
-                {approvalDialog.badge_id && (
-                  <p>
-                    <strong>Badge ID:</strong> {approvalDialog.badge_id}
-                  </p>
-                )}
-              </div>
+              <DetailList
+                items={[
+                  { label: "Name", value: fullName(approvalDialog) },
+                  { label: "Username", value: `@${approvalDialog.username}` },
+                  { label: "Email", value: approvalDialog.email },
+                  ...(approvalDialog.badge_id ? [{ label: "Badge", value: <span className="font-mono">{approvalDialog.badge_id}</span> }] : []),
+                ]}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="role">Assign Role *</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="approve-role">Role <span className="text-destructive">*</span></Label>
                 <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
+                  <SelectTrigger id="approve-role">
+                    <SelectValue placeholder="Choose a role" />
                   </SelectTrigger>
                   <SelectContent>
                     {roles.map((role) => (
@@ -456,9 +435,9 @@ export function PendingRegistrationsTab() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department *</Label>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="approve-department">Department <span className="text-destructive">*</span></Label>
                   <Select
                     value={selectedDepartmentId}
                     onValueChange={(value) => {
@@ -466,8 +445,8 @@ export function PendingRegistrationsTab() {
                       setSelectedPositionId("");
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
+                    <SelectTrigger id="approve-department">
+                      <SelectValue placeholder="Choose department" />
                     </SelectTrigger>
                     <SelectContent>
                       {departments.map((dept) => (
@@ -478,15 +457,15 @@ export function PendingRegistrationsTab() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="position">Position *</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="approve-position">Position <span className="text-destructive">*</span></Label>
                   <Select
                     value={selectedPositionId}
                     onValueChange={setSelectedPositionId}
                     disabled={!selectedDepartmentId}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select position" />
+                    <SelectTrigger id="approve-position">
+                      <SelectValue placeholder={selectedDepartmentId ? "Choose position" : "Pick a department first"} />
                     </SelectTrigger>
                     <SelectContent>
                       {positions.map((pos) => (
@@ -502,10 +481,10 @@ export function PendingRegistrationsTab() {
           )}
 
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
-              onClick={() => setApprovalDialog(null)}
+              onClick={closeApproval}
               disabled={approveMutation.isPending}
             >
               Cancel
@@ -519,7 +498,7 @@ export function PendingRegistrationsTab() {
                 !selectedPositionId
               }
             >
-              {approveMutation.isPending ? "Approving..." : "Approve & Activate User"}
+              {approveMutation.isPending ? "Approving..." : "Approve & activate"}
             </Button>
 
           </DialogFooter>
@@ -527,47 +506,42 @@ export function PendingRegistrationsTab() {
       </Dialog>
 
       {/* Rejection Dialog */}
-      <Dialog open={!!rejectionDialog} onOpenChange={() => setRejectionDialog(null)}>
-        <DialogContent>
+      <Dialog open={!!rejectionDialog} onOpenChange={() => closeRejection()}>
+        <DialogContent className="md:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Reject Registration</DialogTitle>
+            <DialogTitle>Reject sign-up</DialogTitle>
             <DialogDescription>
-              Reject this registration request. Optionally provide a reason.
+              Rejecting closes the request and removes the account that the sign-up created. You can add a reason for the record.
             </DialogDescription>
           </DialogHeader>
 
           {rejectionDialog && (
             <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <p>
-                  <strong>Name:</strong> {rejectionDialog.first_name}{" "}
-                  {rejectionDialog.last_name}
-                </p>
-                <p>
-                  <strong>Username:</strong> {rejectionDialog.username}
-                </p>
-                <p>
-                  <strong>Email:</strong> {rejectionDialog.email}
-                </p>
-              </div>
+              <DetailList
+                items={[
+                  { label: "Name", value: fullName(rejectionDialog) },
+                  { label: "Username", value: `@${rejectionDialog.username}` },
+                  { label: "Email", value: rejectionDialog.email },
+                ]}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="reason">Rejection Reason (Optional)</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="reason">Reason <span className="font-normal text-muted-foreground">(optional)</span></Label>
                 <Textarea
                   id="reason"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Enter reason for rejection..."
+                  placeholder="Why is this sign-up being rejected?"
                   rows={3}
                 />
               </div>
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
-              onClick={() => setRejectionDialog(null)}
+              onClick={closeRejection}
               disabled={rejectMutation.isPending}
             >
               Cancel
@@ -577,11 +551,11 @@ export function PendingRegistrationsTab() {
               onClick={handleReject}
               disabled={rejectMutation.isPending}
             >
-              {rejectMutation.isPending ? "Rejecting..." : "Reject Registration"}
+              {rejectMutation.isPending ? "Rejecting..." : "Reject sign-up"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

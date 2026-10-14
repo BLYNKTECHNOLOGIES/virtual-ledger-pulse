@@ -1,10 +1,11 @@
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fmtDay } from "@/components/profile/format";
+import { Initials, PanelMessage, PanelSkeleton, UserStatusChip, personName } from "./umUi";
 
 interface Role {
   id: string;
@@ -37,7 +38,7 @@ export function RoleUsersDialog({ role, onClose }: RoleUsersDialogProps) {
     const fetchUsersWithRole = async () => {
       try {
         setIsLoading(true);
-        
+
         const { data, error } = await supabase
           .from('user_roles')
           .select(`
@@ -81,63 +82,44 @@ export function RoleUsersDialog({ role, onClose }: RoleUsersDialogProps) {
     fetchUsersWithRole();
   }, [role.id]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB');
-  };
+  const sorted = [...users].sort((a, b) => personName(a).localeCompare(personName(b)));
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto md:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Users with {role.name} Role</DialogTitle>
+          <DialogTitle>People with the {role.name.trim()} role</DialogTitle>
+          <DialogDescription>
+            {isLoading ? "Loading…" : users.length === 0 ? "Nobody has this role yet." : `${users.length} ${users.length === 1 ? "person" : "people"}`}
+          </DialogDescription>
         </DialogHeader>
-        
-        <div className="space-y-4">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
-              <span className="ml-2">Loading users...</span>
-            </div>
-          ) : (
-            <>
-              {users.length > 0 ? (
-                <div className="space-y-3">
-                  {users.map((user) => (
-                    <div key={user.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <h3 className="font-semibold">
-                            {user.first_name && user.last_name 
-                              ? `${user.first_name} ${user.last_name}`
-                              : user.username
-                            }
-                          </h3>
-                          <p className="text-sm text-muted-foreground">@{user.username}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Created: {formatDate(user.created_at)}
-                          </p>
-                        </div>
-                        <Badge variant={user.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                          {user.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <h3 className="text-lg font-medium">No Users Found</h3>
-                  <p className="text-sm">No users have been assigned the {role.name} role yet.</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
 
-        <div className="flex justify-end pt-4">
-          <Button onClick={onClose}>Close</Button>
+        {isLoading ? (
+          <PanelSkeleton rows={3} />
+        ) : sorted.length > 0 ? (
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+            {sorted.map((user) => (
+              <li key={user.id} className="flex items-center gap-3 px-3 py-2.5">
+                <Initials name={personName(user)} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">{personName(user)}</p>
+                  <p className="break-all text-xs text-muted-foreground">@{user.username} · {user.email}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <UserStatusChip status={user.status} />
+                  <span className="text-[11px] text-muted-foreground">Added {fmtDay(user.created_at)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <PanelMessage icon={Users} title="No one has this role">
+            Give it to someone from Users → Edit.
+          </PanelMessage>
+        )}
+
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={onClose}>Close</Button>
         </div>
       </DialogContent>
     </Dialog>

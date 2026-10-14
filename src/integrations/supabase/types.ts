@@ -33342,6 +33342,7 @@ export type Database = {
       cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }
       cbt_norm_text: { Args: { p: string }; Returns: string }
+      cbt_purge_rate_limits: { Args: never; Returns: number }
       cbt_question_bank_analytics: {
         Args: never
         Returns: {

@@ -1,4 +1,5 @@
 import { admin, authAttempt, buildState, corsHeaders, fail, json, pickQuestions, shuffleOptions } from "../_shared/cbt.ts";
+import { LEVEL_DIFFICULTY, LEVEL_ORDER, makeDataEntry, makeMatchPairs, splitSource, type Level } from "../_shared/cbtGenerate.ts";
 
 const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
 
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
         duration_seconds: s.duration_seconds, weight: Number(s.weight), negative_mark: Number(s.negative_mark),
         gate_min_score: s.gate_min_score, gate_min_net_wpm: s.gate_min_net_wpm, gate_min_accuracy: s.gate_min_accuracy,
         full_marks_wpm: s.full_marks_wpm, practice_seconds: s.practice_seconds,
-        min_words: s.min_words, max_words: s.max_words,
+        min_words: s.min_words, max_words: s.max_words, skill_level: s.skill_level, item_source: s.item_source ?? "bank",
       })),
     };
 
@@ -102,6 +103,11 @@ Deno.serve(async (req) => {
       // ---- select the items for this section ----
       let versionIds: string[] = [];
       const tags: string[] = rs.category_tags ?? [];
+      const level = (rs.skill_level ?? "intermediate") as Level;
+      const prefer = LEVEL_DIFFICULTY[level] ?? LEVEL_DIFFICULTY.intermediate;
+      const levelMix = { [prefer[0]]: 100 };
+      const common = { roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox, pool: role!.pool ?? "hiring", prefer };
+      let generated: { content: unknown; key: unknown }[] = [];
 
       // Skill Box drills: generated fresh per attempt, key stored server-side only
       if (rs.section_type === "mental_maths" || rs.section_type === "memory_recall") {
@@ -129,17 +135,35 @@ Deno.serve(async (req) => {
       }
 
       if (rs.section_type === "typing") {
-        versionIds = await pickQuestions(db, { types: ["typing_passage"], tags: tags.length ? tags : ["typing_passage"], count: 1, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
-      } else if (rs.section_type === "data_entry") {
-        versionIds = await pickQuestions(db, { types: ["data_entry_record"], tags: [], count: rs.item_count, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
-      } else if (rs.section_type === "match_pairs") {
-        versionIds = await pickQuestions(db, { types: ["match_pair"], tags: [], count: rs.item_count, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
+        // serve a passage of the section's level (nearest level if none)
+        const ids = await pickQuestions(db, { ...common, types: ["typing_passage"], tags, count: 200, mix: {} });
+        if (ids.length) {
+          const { data: vs } = await db.from("cbt_question_versions").select("id, content").in("id", ids);
+          const order = LEVEL_ORDER[level] ?? LEVEL_ORDER.intermediate;
+          const rank = (v: any) => { const i = order.indexOf((v.content?.level ?? "intermediate") as Level); return i < 0 ? 9 : i; };
+          const best = Math.min(...(vs ?? []).map(rank));
+          const fit = (vs ?? []).filter((v: any) => rank(v) === best);
+          const unseen = fit.filter((v: any) => !seen.includes(v.id));
+          const from = unseen.length ? unseen : fit;
+          versionIds = from.length ? [from[Math.floor(Math.random() * from.length)].id] : [];
+        }
+      } else if (rs.section_type === "data_entry" || rs.section_type === "match_pairs") {
+        const split = splitSource(rs.item_source, Math.max(1, rs.item_count ?? 1));
+        if (split.bank) {
+          versionIds = await pickQuestions(db, { ...common, types: [rs.section_type === "data_entry" ? "data_entry_record" : "match_pair"], tags, count: split.bank, mix: levelMix });
+        }
+        // "Both" tops up any bank shortfall with generated items
+        const genCount = rs.item_source === "bank" ? 0 : split.generated + (split.bank - versionIds.length);
+        if (genCount > 0) {
+          generated = rs.section_type === "data_entry"
+            ? Array.from({ length: genCount }, () => makeDataEntry(Math.random, level))
+            : makeMatchPairs(Math.random, level, genCount);
+        }
       } else if (["logical_reasoning", "problem_solving", "pattern_recognition", "grammar", "vocabulary"].includes(rs.section_type)) {
-        // Knowledge skills: MCQ bank tagged by skill, difficulty driven by the blueprint level.
-        const levelMix = rs.skill_level === "beginner" ? { easy: 100 } : rs.skill_level === "advanced" ? { hard: 100 } : { medium: 100 };
-        versionIds = await pickQuestions(db, { types: ["mcq"], tags: [rs.section_type], count: rs.item_count, mix: levelMix, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
+        // Knowledge skills: MCQ bank by subject, difficulty driven by the section level.
+        versionIds = await pickQuestions(db, { ...common, types: ["mcq"], tags: tags.length ? tags : [rs.section_type], count: rs.item_count, mix: levelMix });
       } else if (rs.section_type === "written") {
-        versionIds = await pickQuestions(db, { types: ["written"], tags, count: rs.item_count, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
+        versionIds = await pickQuestions(db, { ...common, types: ["written"], tags, count: rs.item_count, mix: role!.difficulty_mix ?? {} });
       } else if (tags.includes("reading")) {
         const statuses = drive!.is_sandbox ? ["approved", "needs_review", "draft"] : ["approved"];
         const { data: stimuli } = await db.from("cbt_stimuli").select("id").in("status", statuses).limit(50);
@@ -150,7 +174,7 @@ Deno.serve(async (req) => {
           versionIds = (qs ?? []).map((q: any) => q.current_version_id).slice(0, Math.max(rs.item_count, 5));
         }
       } else {
-        versionIds = await pickQuestions(db, { types: ["mcq", "numeric", "sjt"], tags, count: rs.item_count, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
+        versionIds = await pickQuestions(db, { ...common, types: ["mcq", "numeric", "sjt"], tags, count: rs.item_count, mix: rs.skill_level ? levelMix : (role!.difficulty_mix ?? {}) });
       }
 
       if (versionIds.length) {
@@ -165,8 +189,16 @@ Deno.serve(async (req) => {
         await db.from("cbt_attempt_items").insert(rows as any);
         await db.from("cbt_question_versions").update({ first_served_at: new Date().toISOString() })
           .in("id", versionIds).is("first_served_at", null);
-        await Promise.all((versions ?? []).map((v: any) => db.rpc("cbt_bump_served", { p_question_id: v.question_id })));
+        // try runs never count towards question statistics
+        if (!drive!.is_try_run) await Promise.all((versions ?? []).map((v: any) => db.rpc("cbt_bump_served", { p_question_id: v.question_id })));
         seen.push(...versionIds);
+      }
+      if (generated.length) {
+        // generated after bank items; the key stays server-side in generated_key
+        await db.from("cbt_attempt_items").insert(generated.map((g, idx) => ({
+          attempt_section_id: section!.id, display_order: versionIds.length + idx + 1,
+          generated_content: g.content, generated_key: g.key,
+        })) as any);
       }
     }
 

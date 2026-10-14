@@ -37,10 +37,18 @@ export default function HorillaDashboard() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { data: employees } = useQuery({
+  // Separated people (inactive, or last working day already passed in IST) are left out of every dashboard figure.
+  const { data: allEmployees } = useQuery({
     queryKey: ["hr_dashboard_employees"],
-    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, is_active, created_at")),
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, is_active, created_at, last_working_day")),
   });
+  const istTodayStr = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+  const employees = useMemo(
+    () => (allEmployees || []).filter((e: any) => e.is_active && !(e.last_working_day && e.last_working_day < istTodayStr)),
+    [allEmployees, istTodayStr],
+  );
+  const currentIds = useMemo(() => new Set(employees.map((e: any) => e.id)), [employees]);
+  const separatedCount = (allEmployees || []).length - employees.length;
 
   const { data: atsCounts } = useQuery({
     queryKey: ["hr_dashboard_ats_counts"],

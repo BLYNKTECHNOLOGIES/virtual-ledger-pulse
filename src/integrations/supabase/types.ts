@@ -35410,6 +35410,10 @@ export type Database = {
         }
         Returns: number
       }
+      hr_my_leave_days: {
+        Args: { p_end: string; p_half?: boolean; p_start: string }
+        Returns: number
+      }
       hr_my_payslips: {
         Args: never
         Returns: {
@@ -35478,6 +35482,18 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      hr_my_team: {
+        Args: never
+        Returns: {
+          badge_id: string
+          email: string
+          employee_id: string
+          full_name: string
+          phone: string
+          position: string
+          relation: string
+        }[]
       }
       hr_new_joiner_check: {
         Args: { p_employee_id: string }
@@ -35825,6 +35841,19 @@ export type Database = {
         }[]
       }
       hr_system_pulse: { Args: never; Returns: Json }
+      hr_team_leave_window: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          employee_id: string
+          end_date: string
+          full_name: string
+          half_day_period: string
+          is_half_day: boolean
+          leave_type_name: string
+          relation: string
+          start_date: string
+        }[]
+      }
       hr_team_milestones: {
         Args: never
         Returns: {
@@ -35847,6 +35876,15 @@ export type Database = {
         Returns: {
           unlocked_ids: string[]
         }[]
+      }
+      hr_unstamp_leave_attendance: {
+        Args: {
+          p_employee_id: string
+          p_end: string
+          p_request_id: string
+          p_start: string
+        }
+        Returns: number
       }
       hr_update_requirement: {
         Args: { p_id: string; p_patch: Json; p_reason?: string }

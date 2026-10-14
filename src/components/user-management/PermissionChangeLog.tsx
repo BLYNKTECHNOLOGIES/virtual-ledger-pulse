@@ -24,6 +24,7 @@ interface ChangeLogEntry {
 interface FilterOption { id: string; name: string }
 type LogFilter = "all" | "granted" | "revoked";
 const PAGE_SIZE = 50;
+const isGrant = (type: string) => type.endsWith("granted");
 
 export function PermissionChangeLog() {
   const [filter, setFilter] = useState<LogFilter>("all");

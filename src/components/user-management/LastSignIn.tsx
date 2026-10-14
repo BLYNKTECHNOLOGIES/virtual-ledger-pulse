@@ -1,6 +1,7 @@
-import { fmtAgo, fmtDay, fmtTime } from "@/components/profile/format";
+import { fmtAgo } from "@/components/profile/format";
 
 export function LastSignIn({ value }: { value?: string | null }) {
   if (!value) return <span>Never</span>;
-  return <span title={`${fmtDay(value)}, ${fmtTime(value)} IST`}>{fmtAgo(value)}</span>;
+  const exact = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(value));
+  return <span title={`${exact} IST`}>{fmtAgo(value)}</span>;
 }

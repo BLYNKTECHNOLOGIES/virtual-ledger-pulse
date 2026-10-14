@@ -37,10 +37,12 @@ export function DaySeparator({ ts }: { ts: number }) {
   const label = daySeparatorLabel(ts);
   if (!label) return null;
   return (
-    <div className="flex justify-center py-1.5" role="separator" aria-label={label}>
-      <span className="text-[9px] t-mono uppercase tracking-wide text-muted-foreground bg-muted/60 border border-border/60 rounded-full px-2.5 py-0.5">
+    <div className="flex items-center gap-3 py-1.5" role="separator" aria-label={label}>
+      <span className="h-px flex-1 bg-border/70" aria-hidden="true" />
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
+      <span className="h-px flex-1 bg-border/70" aria-hidden="true" />
     </div>
   );
 }

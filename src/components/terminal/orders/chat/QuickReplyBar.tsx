@@ -23,23 +23,24 @@ export function QuickReplyBar({ tradeType, orderType, onSelect }: Props) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 rounded-full bg-secondary border border-border text-xs gap-1 text-muted-foreground hover:text-foreground hover:bg-accent hover:border-primary/30 transition-colors duration-150 px-3"
+          className="h-7 rounded-full bg-secondary border border-border text-xs gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent hover:border-primary/30 transition-colors duration-150 px-3"
         >
-          <Zap className="h-3 w-3 text-trade-pending" />
+          <Zap className="h-3.5 w-3.5 text-trade-pending" />
           Quick Replies
-          <ChevronDown className="h-2.5 w-2.5" />
+          <ChevronDown className="h-3 w-3" />
         </Button>
 
       </PopoverTrigger>
       <PopoverContent
-        className="w-72 p-0 bg-card border-border"
+        className="w-80 p-0 bg-popover border-border"
         align="start"
         side="top"
       >
-        <div className="px-3 py-2 border-b border-border">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Quick Replies
           </span>
+          <span className="text-[10px] text-muted-foreground">Inserts into the message box</span>
         </div>
         <ScrollArea className="max-h-60">
           <div className="p-1">
@@ -50,24 +51,24 @@ export function QuickReplyBar({ tradeType, orderType, onSelect }: Props) {
                   onSelect(reply.message_text);
                   setOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 rounded hover:bg-secondary/80 transition-colors group"
+                className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors group"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-medium text-primary">{reply.label}</span>
-                  {index < 9 && (
-                    <span className="text-[8px] px-1 rounded border border-border text-muted-foreground bg-secondary/60 t-mono">
-                      Alt+{index + 1}
-                    </span>
-                  )}
+                  <span className="text-xs font-medium text-foreground">{reply.label}</span>
                   {reply.trade_type && (
-                    <span className={`text-[8px] px-1 rounded ${
-                      reply.trade_type === 'BUY' ? 'text-trade-buy bg-trade-buy/10' : 'text-trade-sell bg-trade-sell/10'
+                    <span className={`text-[10px] font-medium px-1 rounded ${
+                      reply.trade_type === 'BUY' ? 'text-trade-buy bg-[hsl(var(--trade-buy,var(--success))/0.1)]' : 'text-trade-sell bg-[hsl(var(--trade-sell,var(--destructive))/0.1)]'
                     }`}>
                       {reply.trade_type}
                     </span>
                   )}
+                  {index < 9 && (
+                    <span className="ml-auto text-[10px] px-1 rounded border border-border text-muted-foreground bg-secondary/60 t-mono">
+                      Alt+{index + 1}
+                    </span>
+                  )}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
                   {reply.message_text}
                 </p>
               </button>

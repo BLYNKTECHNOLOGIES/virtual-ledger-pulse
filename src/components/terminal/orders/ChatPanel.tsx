@@ -37,6 +37,7 @@ import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 import { isChatListenerHealthy, useTerminalChatListenerState } from '@/hooks/useTerminalCollector';
 import { useCounterpartyChatHistory, type HistoricalChatMessage } from '@/hooks/useCounterpartyChatHistory';
 import { format } from 'date-fns';
+import { initialsOf } from './initials';
 
 /**
  * The same Binance frame can reach us twice (live socket + history sweep) with
@@ -686,49 +687,63 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }
   }, [blacklistTarget, exchangeAccountId]);
 
+  const headerName = counterpartyNickname || 'Counterparty';
+  const headerInitials = initialsOf(headerName);
+
   return (
     <div className="flex flex-col h-full relative">
       {/* Chat header */}
-      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 bg-card/50">
-        <MessageSquare className="h-3.5 w-3.5 text-primary" />
-        <span className="text-xs font-medium text-foreground">Chat</span>
-        <span className="text-[10px] text-muted-foreground">— {counterpartyNickname}</span>
-        {previousSeenLabel && (
-          <span
-            className="hidden sm:inline text-[9px] text-muted-foreground/80 truncate max-w-[220px]"
-            title={previousSeenLabel}
-          >
-            {previousSeenLabel}
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-1">
+      <div className="h-12 shrink-0 px-3 sm:px-4 border-b border-border flex items-center gap-2.5 bg-card/60">
+        <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+          {headerInitials ? (
+            <span className="text-[11px] font-semibold text-primary">{headerInitials}</span>
+          ) : (
+            <MessageSquare className="h-3.5 w-3.5 text-primary" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+            {headerName}
+            {counterpartyVerifiedName && (
+              <span className="font-normal text-muted-foreground"> · {counterpartyVerifiedName}</span>
+            )}
+          </p>
+          <p className="truncate text-[11px] leading-tight text-muted-foreground" title={previousSeenLabel || undefined}>
+            {counterpartyMsgCount > 0 && (
+              <span className="sm:hidden">{counterpartyMsgCount} {counterpartyMsgCount === 1 ? 'msg' : 'msgs'} · </span>
+            )}
+            {previousSeenLabel || (isEnquiryThread ? 'Binance enquiry chat — no order' : 'Binance order chat')}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
           {counterpartyMsgCount > 0 && (
-            <Badge variant="secondary" className="text-[9px] h-4 px-1.5 tabular-nums bg-primary/10 text-primary border-none">
-              {counterpartyMsgCount} msgs
+            <Badge variant="secondary" className="hidden sm:inline-flex h-5 px-2 text-[10px] tabular-nums bg-primary/10 text-primary border-none">
+              {counterpartyMsgCount} {counterpartyMsgCount === 1 ? 'msg' : 'msgs'}
             </Badge>
           )}
           {/* Delivery status — messages always flow through the server, so a
               missing browser stream is never presented as a failure. */}
           <div
-            className="flex items-center gap-0.5 ml-1 bg-muted/30 rounded px-1.5 py-0.5"
+            className={`flex h-5 items-center gap-1 rounded-full border px-2 ${chatListenerHealthy ? 'border-[hsl(var(--trade-buy,var(--success))/0.25)] bg-[hsl(var(--trade-buy,var(--success))/0.1)]' : 'border-warning/30 bg-warning/10'}`}
             title={chatListenerHealthy ? 'Both Binance accounts are synchronized by the server' : 'Server listener is reconnecting; stored messages continue to refresh'}
           >
-            <Cloud className={`h-2.5 w-2.5 ${chatListenerHealthy ? 'text-trade-buy' : 'text-warning'}`} />
-            <span className={`text-[8px] font-medium ${chatListenerHealthy ? 'text-trade-buy' : 'text-warning'}`}>
+            <Cloud className={`h-3 w-3 ${chatListenerHealthy ? 'text-trade-buy' : 'text-warning'}`} />
+            <span className={`text-[10px] font-medium ${chatListenerHealthy ? 'text-trade-buy' : 'text-warning'}`}>
               {chatListenerHealthy ? 'Server live' : 'Sync delayed'}
             </span>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className={`h-6 w-6 ${soundEnabled ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`h-7 w-7 ${soundEnabled ? 'text-primary' : 'text-muted-foreground'}`}
             onClick={() => setSoundEnabled(!soundEnabled)}
             title={soundEnabled ? 'Mute notifications' : 'Enable notifications'}
+            aria-label={soundEnabled ? 'Mute notifications' : 'Enable notifications'}
           >
             {soundEnabled ? (
-              <Volume2 className="h-3 w-3" />
+              <Volume2 className="h-3.5 w-3.5" />
             ) : (
-              <VolumeX className="h-3 w-3" />
+              <VolumeX className="h-3.5 w-3.5" />
             )}
           </Button>
         </div>
@@ -738,17 +753,17 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
 
       {/* Messages area */}
-      <div ref={scrollContainerRef} onScroll={handleScroll} onLoadCapture={handleContentLoad} onTouchStart={releasePin} onWheel={releasePin} onPointerDown={releasePin} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
+      <div ref={scrollContainerRef} onScroll={handleScroll} onLoadCapture={handleContentLoad} onTouchStart={releasePin} onWheel={releasePin} onPointerDown={releasePin} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-3">
           {/* Lazy history control — sits at the very top, so scrolling up loads more */}
           {historyDiscovering && (
-            <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 py-2 text-[11px] text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" /> Checking earlier chats…
             </div>
           )}
           {!historyDiscovering && hasMoreHistory && !historyUnavailable && (
             <div className="flex justify-center pb-3">
-              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
-                {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
+              <Button variant="outline" size="sm" className="h-7 rounded-full border-border bg-secondary/60 px-3 text-[11px] text-muted-foreground hover:text-foreground" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
+                {historyLoading ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <History className="mr-1.5 h-3 w-3" />}
                 {historyLoading
                   ? 'Loading earlier chats…'
                   : historicalSections.length > 0
@@ -758,23 +773,23 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             </div>
           )}
           {!historyDiscovering && !hasMoreHistory && historicalSections.length === 0 && !historyUnavailable && (
-            <p className="py-2 text-center text-[10px] text-muted-foreground">No earlier chats found</p>
+            <p className="py-2 text-center text-[11px] text-muted-foreground">No earlier chats found</p>
           )}
 
           {historicalSections.length > 0 && (
             <div className="space-y-4 mb-4">
               {historicalSections.map((chat) => (
                 <section key={chat.orderNumber} className="space-y-2.5" aria-label={`Earlier order ${chat.orderNumber}`}>
-                  <div className="sticky top-0 z-10 flex items-center gap-2 py-1.5 bg-background/95 border-y border-border/60">
+                  <div className="sticky top-0 z-10 -mx-3 sm:-mx-4 flex items-center gap-2 px-3 sm:px-4 py-1.5 bg-background/95 backdrop-blur border-y border-border/60">
                     <History className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] font-medium text-foreground">Earlier order •••{chat.orderNumber.slice(-4)}</span>
-                    <span className="text-[9px] text-muted-foreground">{chat.orderDate ? format(new Date(normalizeChatTimestamp(chat.orderDate)), 'dd MMM yyyy, HH:mm') : ''}</span>
-                    <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px]">{chat.orderStatus || 'Previous'}</Badge>
+                    <span className="text-[11px] font-medium text-foreground">Earlier order •••{chat.orderNumber.slice(-4)}</span>
+                    <span className="text-[10px] text-muted-foreground">{chat.orderDate ? format(new Date(normalizeChatTimestamp(chat.orderDate)), 'dd MMM yyyy, HH:mm') : ''}</span>
+                    <Badge variant="outline" className="ml-auto h-5 px-2 text-[10px] font-medium">{chat.orderStatus || 'Previous'}</Badge>
                   </div>
                   {chat.messages.length > 0 ? withDaySeparators(chat.messages, (message) => (
                     <ChatBubble key={message.id} message={message} />
                   )) : (
-                    <p className="py-2 text-center text-[10px] text-muted-foreground">No stored messages for this order</p>
+                    <p className="py-2 text-center text-[11px] text-muted-foreground">No stored messages for this order</p>
                   )}
                 </section>
               ))}
@@ -782,8 +797,8 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           )}
           {historyUnavailable && historicalSections.length === 0 && (
             <div className="flex flex-col items-center gap-1 py-2">
-              <p className="text-center text-[10px] text-muted-foreground">Earlier chat history is temporarily unavailable</p>
-              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
+              <p className="text-center text-[11px] text-muted-foreground">Earlier chat history is temporarily unavailable</p>
+              <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
                 {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
                 Retry earlier chats
               </Button>
@@ -793,10 +808,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           {currentOrderMessages.length > 0 ? (
             <div className="space-y-2.5">
               {historicalSections.length > 0 && (
-                <div className="flex items-center gap-2 py-1.5 border-y border-primary/20">
+                <div className="-mx-3 sm:-mx-4 flex items-center gap-2 px-3 sm:px-4 py-1.5 border-y border-primary/25 bg-primary/5">
                   <MessageSquare className="h-3 w-3 text-primary" />
-                  <span className="text-[10px] font-semibold text-foreground">Current order •••{orderNumber.slice(-4)}</span>
-                  <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px] border-primary/30 text-primary">Active chat</Badge>
+                  <span className="text-[11px] font-semibold text-foreground">Current order •••{orderNumber.slice(-4)}</span>
+                  <Badge variant="outline" className="ml-auto h-5 px-2 text-[10px] font-medium border-primary/30 text-primary">Active chat</Badge>
                 </div>
               )}
               {withDaySeparators(currentOrderMessages, (message) => (
@@ -816,40 +831,41 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               <p className="text-xs text-muted-foreground">Loading messages...</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-2">
-              <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
-              <p className="text-xs text-muted-foreground">No messages yet</p>
-              <p className="text-[10px] text-muted-foreground/60">
-                Messages will appear here in real-time via WebSocket
+            <div className="flex flex-col items-center justify-center h-full gap-2 py-8 text-center">
+              <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center">
+                <MessageSquare className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="text-xs font-medium text-foreground">No messages yet</p>
+              <p className="text-[11px] text-muted-foreground">
+                New messages from the counterparty appear here as they arrive
               </p>
             </div>
           )}
       </div>
 
 
-      {/* Quick replies + AI Copilot bar (coexist) */}
-      <div className="px-3 py-1 border-t border-border/50 bg-card/30 flex items-start gap-2">
-        <QuickReplyBar
-          tradeType={tradeType}
-          onSelect={handleQuickReply}
-        />
-        {copilotVisible && (
-          <CopilotStrip
-            cacheKey={`${orderNumber}:${orderStatus ?? ''}:${copilotTranscriptKey}`}
-            onInsert={(suggestion) => {
-              setText(fillTemplate(suggestion, templateValues || {}));
-              requestAnimationFrame(() => inputRef.current?.focus());
-            }}
-            buildInput={buildCopilotInput}
-            prefetch={copilotPrefetch}
-            prefetchSignal={counterpartyMsgCount}
+      {/* Composer: quick replies + AI Copilot, then the message box */}
+      <div className="relative shrink-0 border-t border-border bg-card/60 px-3 pt-2 pb-3">
+        <div className="mb-2 flex items-start gap-2 empty:hidden">
+          <QuickReplyBar
+            tradeType={tradeType}
+            onSelect={handleQuickReply}
           />
-        )}
-      </div>
+          {copilotVisible && (
+            <CopilotStrip
+              cacheKey={`${orderNumber}:${orderStatus ?? ''}:${copilotTranscriptKey}`}
+              onInsert={(suggestion) => {
+                setText(fillTemplate(suggestion, templateValues || {}));
+                requestAnimationFrame(() => inputRef.current?.focus());
+              }}
+              buildInput={buildCopilotInput}
+              prefetch={copilotPrefetch}
+              prefetchSignal={counterpartyMsgCount}
+            />
+          )}
+        </div>
 
-      {/* Input area */}
-      <div className="p-3 border-t border-border bg-card/50">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-input p-1 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20">
           <ChatImageUpload
             orderNo={orderNumber}
             onImageSent={(imageUrl) => {
@@ -878,23 +894,26 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             }}
             placeholder={isEnquiryThread ? 'Reply on the Binance app — this chat has no order' : 'Type a message...'}
             disabled={isEnquiryThread}
-            className="h-8 text-xs bg-input text-foreground border-border rounded-md placeholder:text-muted-foreground focus-visible:ring-primary"
+            aria-label="Message"
+            className="h-8 flex-1 min-w-0 border-0 bg-transparent px-2 text-[13px] text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
           />
           <Button
             size="icon"
-            className="h-8 w-8 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-8 w-8 shrink-0 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => handleSend()}
             disabled={!text.trim() || isSending || isEnquiryThread}
+            aria-label="Send message"
+            title="Send (Enter)"
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
 
         </div>
-        <p className="text-[8px] text-muted-foreground/50 mt-1 px-1">
-          {isEnquiryThread
-            ? 'Enquiry chat with no order — Binance only accepts replies inside an order, so reply from the Binance app'
-            : 'Messages send instantly and refresh from the server'}
-        </p>
+        {isEnquiryThread && (
+          <p className="text-[11px] text-warning mt-1.5 px-1">
+            Enquiry chat with no order — Binance only accepts replies inside an order, so reply from the Binance app
+          </p>
+        )}
 
       </div>
 

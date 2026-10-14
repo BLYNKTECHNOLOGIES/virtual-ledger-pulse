@@ -175,33 +175,35 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   }
 
   return (
-    <div className="flex-1 min-w-0 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5">
-      <div className="flex items-center gap-1.5 mb-1">
-        <Sparkles className="h-3 w-3 text-primary shrink-0" />
+    <div className="flex-1 min-w-0 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-2">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
         {loading ? (
-          <span className="text-[10px] text-foreground animate-pulse">Drafting…</span>
+          <span className="text-[11px] text-foreground animate-pulse">Drafting…</span>
         ) : (
-          <span className="text-[10px] font-medium text-foreground">
+          <span className="text-[11px] font-medium text-foreground">
             {SITUATION_LABELS[result?.situation || 'other'] || result?.situation}
           </span>
         )}
         <div className="ml-auto flex items-center gap-0.5">
           <Button
             variant="ghost" size="icon"
-            className="h-5 w-5 text-foreground/80 hover:text-foreground"
+            className="h-6 w-6 text-foreground/80 hover:text-foreground"
             disabled={loading}
             onClick={() => run(true)}
             title="Regenerate"
+            aria-label="Regenerate suggestions"
           >
-            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
           <Button
             variant="ghost" size="icon"
-            className="h-5 w-5 text-foreground/80 hover:text-foreground"
+            className="h-6 w-6 text-foreground/80 hover:text-foreground"
             onClick={() => setOpen(false)}
             title="Close"
+            aria-label="Close suggestions"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
@@ -222,7 +224,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
               size="sm"
               key={i}
               onClick={() => handleClick(s, i)}
-              className="text-left text-[11px] leading-snug h-auto whitespace-normal rounded-md bg-card border-border text-card-foreground px-2.5 py-1.5 hover:border-primary/50 hover:bg-secondary/80 active:bg-secondary transition-colors max-w-full"
+              className="text-left text-xs leading-snug h-auto whitespace-normal rounded-md bg-card border-border text-card-foreground px-2.5 py-1.5 hover:border-primary/50 hover:bg-secondary/80 active:bg-secondary transition-colors max-w-full"
               title="Insert into input (review before sending)"
             >
               {s}

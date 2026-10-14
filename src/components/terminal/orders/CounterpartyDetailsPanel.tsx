@@ -36,9 +36,9 @@ function mins(v?: number | null) {
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-border bg-secondary/40 px-2 py-1.5">
-      <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-[12px] t-mono text-foreground tabular-nums mt-0.5">{value}</div>
+    <div className="rounded-md border border-border/70 bg-secondary/40 px-2.5 py-1.5">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[12px] t-mono font-medium text-foreground tabular-nums mt-0.5">{value}</div>
     </div>
   );
 }
@@ -68,23 +68,25 @@ export function CounterpartyDetailsPanel({
 
   if (isSynthetic) {
     return (
-      <div className="p-3 text-[11px] text-muted-foreground">
-        This enquiry has no linked Binance order yet, so no trade record is available for this
-        counterparty.
+      <div className="p-4">
+        <div className="rounded-md border border-dashed border-border px-3 py-3 text-[11px] text-muted-foreground">
+          This enquiry has no linked Binance order yet, so no trade record is available for this
+          counterparty.
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto p-3 space-y-3">
+    <div className="h-full overflow-y-auto p-4 space-y-4">
       {/* Identity */}
-      <div className="flex items-start gap-2">
-        <div className="h-9 w-9 rounded-md bg-secondary border border-border flex items-center justify-center shrink-0">
-          <User className="h-4 w-4 text-muted-foreground" />
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <User className="h-4 w-4 text-primary" />
         </div>
         <div className="min-w-0">
-          <div className="text-[13px] font-medium text-foreground truncate">{counterpartyNickname}</div>
-          <div className="text-[10px] text-muted-foreground truncate">
+          <div className="text-sm font-medium text-foreground truncate">{counterpartyNickname}</div>
+          <div className="text-[11px] text-muted-foreground truncate">
             {counterpartyVerifiedName || profile?.verified_name || 'Verified name not available'}
           </div>
         </div>
@@ -95,26 +97,26 @@ export function CounterpartyDetailsPanel({
         <button
           type="button"
           onClick={() => navigate(`/clients/${linkedClient.client_id}`)}
-          className="w-full text-left rounded-md border border-border bg-secondary/40 px-2 py-1.5 hover:bg-secondary transition-colors"
+          className="w-full text-left rounded-md border border-[hsl(var(--trade-buy,var(--success))/0.25)] bg-[hsl(var(--trade-buy,var(--success))/0.05)] px-3 py-2 hover:bg-[hsl(var(--trade-buy,var(--success))/0.1)] transition-colors"
         >
           <div className="flex items-center gap-1.5">
-            <ShieldCheck className="h-3 w-3 text-trade-buy" />
-            <span className="text-[11px] text-foreground truncate">{linkedClient.name}</span>
+            <ShieldCheck className="h-3.5 w-3.5 text-trade-buy" />
+            <span className="text-xs font-medium text-foreground truncate">{linkedClient.name}</span>
           </div>
-          <div className="text-[9px] text-muted-foreground mt-0.5">
+          <div className="text-[10px] text-muted-foreground mt-0.5">
             Approved client · matched by {linkedClient.matchedBy === 'nickname' ? 'nickname' : 'verified name'}
             {linkedClient.risk_appetite ? ` · ${linkedClient.risk_appetite}` : ''}
           </div>
         </button>
       ) : (
-        <div className="rounded-md border border-dashed border-border px-2 py-1.5 text-[10px] text-muted-foreground">
+        <div className="rounded-md border border-dashed border-border px-3 py-2 text-[11px] text-muted-foreground">
           No approved client linked to this counterparty.
         </div>
       )}
 
       {/* Trade record */}
       <div>
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
           <TrendingUp className="h-3 w-3" /> Trade record
         </div>
         {isLoading ? (
@@ -148,10 +150,10 @@ export function CounterpartyDetailsPanel({
       {/* Behaviour */}
       {profile && profile.total_orders > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
             <Clock className="h-3 w-3" /> Behaviour signals
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Avg time to mark paid</span>
               <span className="t-mono text-foreground">
@@ -180,7 +182,7 @@ export function CounterpartyDetailsPanel({
 
       {/* Past orders */}
       <div>
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           Past orders {pastOrders.length > 0 && `(${pastOrders.length})`}
         </div>
         {isLoading ? (
@@ -194,25 +196,25 @@ export function CounterpartyDetailsPanel({
             {visibleOrders.map((o) => {
               const style = getStatusStyle(mapToOperationalStatus(o.order_status || '', o.trade_type));
               return (
-                <div key={o.order_number} className="rounded-md border border-border bg-secondary/30 px-2 py-1.5">
+                <div key={o.order_number} className="rounded-md border border-border/70 bg-secondary/30 px-2.5 py-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className={`text-[10px] t-mono font-bold ${o.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
                       {o.trade_type}
                     </span>
-                    <span className="text-[10px] t-mono text-foreground tabular-nums">
+                    <span className="text-[11px] t-mono font-medium text-foreground tabular-nums">
                       ₹{Number(o.total_price || 0).toLocaleString('en-IN')}
                     </span>
-                    <Badge variant="outline" className={`text-[8px] ${style.badgeClass}`}>{style.label}</Badge>
+                    <Badge variant="outline" className={`h-5 px-1.5 text-[10px] font-medium ${style.badgeClass}`}>{style.label}</Badge>
                   </div>
                   <div className="flex items-center justify-between mt-0.5">
-                    <span className="text-[9px] t-mono text-muted-foreground">#{o.order_number.slice(-8)}</span>
-                    <span className="text-[9px] text-muted-foreground">{istDate(o.create_time)}</span>
+                    <span className="text-[10px] t-mono text-muted-foreground">#{o.order_number.slice(-8)}</span>
+                    <span className="text-[10px] text-muted-foreground">{istDate(o.create_time)}</span>
                   </div>
                 </div>
               );
             })}
             {pastOrders.length > visibleOrders.length && (
-              <Button variant="ghost" size="sm" className="w-full h-7 text-[10px]" onClick={() => setShowAll(true)}>
+              <Button variant="ghost" size="sm" className="w-full h-8 text-xs" onClick={() => setShowAll(true)}>
                 Show all {pastOrders.length}
               </Button>
             )}

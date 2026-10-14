@@ -25,6 +25,9 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
     : (numStatusMap[Number(c.orderStatus)] || c.orderStatus);
   const opStatus = mapToOperationalStatus(rawStatus, c.tradeType);
   const statusStyle = getStatusStyle(opStatus);
+  // Chats Binance delivers without an order behind them (ad enquiries) have no
+  // side, status or amount to show.
+  const isEnquiry = c.orderNumber.startsWith('INQ-');
 
   const details = (
     <CounterpartyDetailsPanel
@@ -39,38 +42,52 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header with order context */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+      <div className="flex h-12 shrink-0 items-center gap-2 px-2 sm:px-4 border-b border-border bg-card">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onBack} aria-label="Back to chats" title="Back to chats">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-foreground truncate">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[13px] font-medium text-foreground truncate">
               {c.counterpartyNickname}
             </span>
-            <span className={`text-[10px] t-mono uppercase font-bold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-              {c.tradeType}
-            </span>
-            <Badge variant="outline" className={`text-[8px] gap-1 ${statusStyle.badgeClass}`}>
-              {statusStyle.label}
-            </Badge>
+            {isEnquiry ? (
+              <Badge variant="outline" className="h-5 shrink-0 px-2 text-[10px] font-medium text-muted-foreground">
+                Enquiry · no order
+              </Badge>
+            ) : (
+              <>
+                <span className={`shrink-0 text-[10px] t-mono uppercase font-bold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                  {c.tradeType}
+                </span>
+                <Badge variant="outline" className={`h-5 shrink-0 gap-1 rounded-full px-2 text-[10px] font-medium ${statusStyle.badgeClass}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dotColor}`} />
+                  {statusStyle.label}
+                </Badge>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] t-mono text-muted-foreground bg-secondary border border-border px-1.5 rounded">
-              #{c.orderNumber.slice(-8)}
-            </span>
-            <span className="text-[10px] t-mono text-muted-foreground tabular-nums">
-              {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
-            </span>
+          <div className="flex items-center gap-2 mt-0.5 min-w-0">
+            {c.verifiedName && (
+              <span className="hidden sm:inline truncate text-[11px] text-muted-foreground">{c.verifiedName}</span>
+            )}
+            {!isEnquiry && (
+              <span
+                className="min-w-0 truncate text-[11px] t-mono text-muted-foreground tabular-nums"
+                title={`Order ${c.orderNumber}`}
+              >
+                ₹{Number(c.totalPrice).toLocaleString('en-IN')} · {Number(c.amount).toFixed(2)} {c.asset} · #{c.orderNumber.slice(-8)}
+              </span>
+            )}
           </div>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-[10px] gap-1 lg:hidden"
+          className="h-8 shrink-0 text-xs gap-1.5 lg:hidden"
           onClick={() => setShowDetails(true)}
         >
-          <User className="h-3 w-3" />
+          <User className="h-3.5 w-3.5" />
           Details
         </Button>
       </div>
@@ -100,10 +117,10 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
 
       <Sheet open={showDetails} onOpenChange={setShowDetails}>
         <SheetContent side="right" className="w-[90vw] sm:w-[380px] p-0 bg-card">
-          <SheetHeader className="px-3 py-2 border-b border-border">
-            <SheetTitle className="text-xs">Counterparty details</SheetTitle>
+          <SheetHeader className="px-4 py-3 border-b border-border">
+            <SheetTitle className="text-sm">Counterparty details</SheetTitle>
           </SheetHeader>
-          <div className="h-[calc(100%-40px)]">{details}</div>
+          <div className="h-[calc(100%-45px)]">{details}</div>
         </SheetContent>
       </Sheet>
     </div>

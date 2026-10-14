@@ -133,12 +133,12 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
   const hasContact = !!(contactRecord?.contact_number || contactRecord?.state);
 
   return (
-    <div className="space-y-2 pt-3 border-t border-border">
-      <div className="flex items-center gap-1.5 mb-1">
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
         <Phone className="h-3 w-3 text-primary" />
-        <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Contact & State</span>
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Contact & State</span>
         {hasContact && !isEditing && (
-          <Badge variant="outline" className="text-[8px] px-1 py-0 bg-success/10 text-success border-success/20">
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-success/10 text-success border-success/20">
             <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
             Captured
           </Badge>

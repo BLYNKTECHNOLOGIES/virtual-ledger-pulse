@@ -16,6 +16,11 @@ import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLive
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
 import { hasActiveBinanceComplaint, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { initialsOf } from './initials';
+
+// Underline tab bar shared by the side panel and the phone layout (min-h-0 cancels the TabsList default).
+const PANEL_TABS = 'flex h-10 min-h-0 w-full flex-nowrap items-stretch justify-start gap-0 rounded-none border-0 bg-transparent p-0';
+const PANEL_TAB = 'h-10 flex-1 gap-1.5 rounded-none border-0 border-b-2 border-transparent px-2 py-0 text-xs font-medium text-muted-foreground hover:text-foreground data-[state=active]:border-0 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none';
 
 interface Props {
   order: P2POrderRecord;
@@ -157,51 +162,59 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
 
   const topBar = (
     <div
-      className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-border bg-card select-none touch-pan-y"
+      className="flex items-center gap-2 px-2 md:px-3 h-11 shrink-0 border-b border-border bg-card select-none touch-pan-y"
       onTouchStart={onStepOrder ? handleSwipeStart : undefined}
       onTouchEnd={onStepOrder ? handleSwipeEnd : undefined}
       title={onStepOrder ? 'Swipe left/right to move between orders' : undefined}
     >
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-xs font-medium text-foreground">
-          Order #{order.binance_order_number.slice(-8)}
-        </span>
-
-        <span className={`text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose} aria-label="Back to orders" title="Back to orders">
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className={`inline-flex h-5 shrink-0 items-center rounded px-1.5 t-mono text-[10px] font-semibold uppercase tracking-wide ${order.trade_type === 'BUY' ? 'bg-[hsl(var(--trade-buy,var(--success))/0.1)] text-trade-buy' : 'bg-[hsl(var(--trade-sell,var(--destructive))/0.1)] text-trade-sell'}`}>
           {order.trade_type}
         </span>
+        <span className="shrink-0 t-mono text-xs font-medium text-foreground" title={order.binance_order_number}>
+          Order #{order.binance_order_number.slice(-8)}
+        </span>
+        <span className="hidden sm:inline h-3.5 w-px shrink-0 bg-border" aria-hidden="true" />
+        <span className="hidden sm:inline shrink-0 t-mono text-xs font-semibold tabular-nums text-foreground">
+          {!order.fiat_unit || order.fiat_unit === 'INR'
+            ? `₹${Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+            : `${Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${order.fiat_unit}`}
+        </span>
+        <span className="hidden md:inline min-w-0 truncate text-xs text-muted-foreground">
+          · {order.counterparty_nickname}{counterpartyVerifiedName ? ` (${counterpartyVerifiedName})` : ''}
+        </span>
       </div>
+      {onStepOrder && (
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Previous order (above in list)"
+            title="Previous order"
+            onClick={() => onStepOrder(-1)}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Next order (below in list)"
+            title="Next order"
+            onClick={() => onStepOrder(1)}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
-
-  // Subtle edge arrows to step between orders — same action as the swipe gesture
-  // and documented J/→ / K/← shortcuts. Left = order above (prev), Right = order below (next).
-  const stepArrows = onStepOrder ? (
-    <>
-      <button
-        type="button"
-        aria-label="Previous order (above in list)"
-        title="Previous order"
-        onClick={() => onStepOrder(-1)}
-        className="absolute left-1 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-md text-muted-foreground flex items-center justify-center opacity-40 hover:opacity-100 hover:text-foreground hover:bg-foreground/5 transition-opacity duration-150"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="Next order (below in list)"
-        title="Next order"
-        onClick={() => onStepOrder(1)}
-        className="absolute right-1 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-md text-muted-foreground flex items-center justify-center opacity-40 hover:opacity-100 hover:text-foreground hover:bg-foreground/5 transition-opacity duration-150"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
-    </>
-  ) : null;
-
 
   const chatContent = (
     <ChatPanel
@@ -230,15 +243,15 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
 
   const rightPanelContent = (
     <>
-      <div className="px-2 py-2 border-b border-border">
+      <div className="shrink-0 border-b border-border">
         <Tabs value={rightPanel} onValueChange={(v) => setRightPanel(v as any)}>
-          <TabsList className="w-full h-8 bg-secondary">
-            <TabsTrigger value="internal" className="text-[10px] h-6 flex-1 gap-1">
-              <Users className="h-3 w-3" />
+          <TabsList className={PANEL_TABS}>
+            <TabsTrigger value="internal" className={PANEL_TAB}>
+              <Users className="h-3.5 w-3.5" />
               Internal
             </TabsTrigger>
-            <TabsTrigger value="profile" className="text-[10px] h-6 flex-1 gap-1">
-              <User className="h-3 w-3" />
+            <TabsTrigger value="profile" className={PANEL_TAB}>
+              <User className="h-3.5 w-3.5" />
               Profile
             </TabsTrigger>
           </TabsList>
@@ -258,25 +271,24 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   if (isMobile) {
     return (
       <div className="relative flex flex-col h-full">
-        {stepArrows}
         {topBar}
-        <div className="px-2 py-1.5 border-b border-border bg-card shrink-0">
+        <div className="border-b border-border bg-card shrink-0">
           <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)}>
-            <TabsList className="w-full h-8 bg-secondary">
-              <TabsTrigger value="details" className="text-[10px] h-6 flex-1 gap-1">
-                <FileText className="h-3 w-3" />
+            <TabsList className={PANEL_TABS}>
+              <TabsTrigger value="details" className={PANEL_TAB}>
+                <FileText className="h-3.5 w-3.5" />
                 Details
               </TabsTrigger>
-              <TabsTrigger value="chat" className="text-[10px] h-6 flex-1 gap-1">
-                <MessageSquare className="h-3 w-3" />
+              <TabsTrigger value="chat" className={PANEL_TAB}>
+                <MessageSquare className="h-3.5 w-3.5" />
                 Chat
               </TabsTrigger>
-              <TabsTrigger value="internal" className="text-[10px] h-6 flex-1 gap-1">
-                <Users className="h-3 w-3" />
+              <TabsTrigger value="internal" className={PANEL_TAB}>
+                <Users className="h-3.5 w-3.5" />
                 Internal
               </TabsTrigger>
-              <TabsTrigger value="profile" className="text-[10px] h-6 flex-1 gap-1">
-                <User className="h-3 w-3" />
+              <TabsTrigger value="profile" className={PANEL_TAB}>
+                <User className="h-3.5 w-3.5" />
                 Profile
               </TabsTrigger>
             </TabsList>
@@ -308,25 +320,26 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
     );
   }
 
-  // Desktop layout (unchanged 3-panel)
+  // Desktop layout (3-panel)
   return (
     <div className="relative flex flex-col h-full">
-      {stepArrows}
       {topBar}
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">
+        <div className="w-[280px] xl:w-[300px] border-r border-border overflow-y-auto bg-card shrink-0">
           <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} preserveOrderStatus={preserveOrderStatus} />
         </div>
         <div className="flex-1 flex flex-col min-w-0 bg-background">
           {chatContent}
         </div>
-        <div className="w-[280px] border-l border-border overflow-hidden bg-card shrink-0 flex flex-col">
+        <div className="w-[280px] xl:w-[320px] border-l border-border overflow-hidden bg-card shrink-0 flex flex-col">
           {rightPanelContent}
         </div>
       </div>
     </div>
   );
 }
+
+const SECTION_LABEL = 'text-[10px] font-semibold text-muted-foreground uppercase tracking-wider';
 
 function formatBinanceAccountAge(registerDays: any) {
   const days = registerDays === null || registerDays === undefined || registerDays === '' ? null : Number(registerDays);
@@ -358,45 +371,73 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
   const binanceAccountAge = formatBinanceAccountAge((hasApiStats ? stats : storedStats)?.registerDays ?? counterparty?.binance_register_days);
   const riskSnapshot = buildRiskSnapshot(order.trade_type, liveDetail, storedRiskSnapshot?.counterparty_risk_snapshot);
 
+  const initials = initialsOf(counterpartyVerifiedName || counterpartyNickname || order.counterparty_nickname);
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {/* User identity */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-          <User className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-foreground">{order.counterparty_nickname}</p>
-          <p className="text-[10px] text-muted-foreground">Binance P2P User</p>
-        </div>
-      </div>
-
-      {/* Registration & join info */}
-      {hasApiStats && stats.registerDays !== undefined && (
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-          <Calendar className="h-3 w-3" />
-          <span>Joined {stats.registerDays} days ago</span>
-        </div>
-      )}
-
-      {/* Trade relationship with us */}
-      {completedWithUs !== undefined && completedWithUs !== null && (
-        <div className="bg-primary/5 border border-primary/20 rounded-md px-3 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-3.5 w-3.5 text-primary" />
-            <span className="text-[11px] font-medium text-foreground">Orders Completed With Us</span>
+    <div className="flex-1 overflow-y-auto">
+      {/* Identity + relationship */}
+      <section className="p-4 space-y-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+            {initials ? (
+              <span className="text-xs font-semibold text-primary">{initials}</span>
+            ) : (
+              <User className="h-5 w-5 text-primary" />
+            )}
           </div>
-          <span className="text-sm font-bold text-primary tabular-nums">{completedWithUs}</span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-foreground">{order.counterparty_nickname}</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {counterpartyVerifiedName || 'Binance P2P User'}
+            </p>
+          </div>
         </div>
-      )}
+
+        {/* Registration & join info */}
+        {hasApiStats && stats.registerDays !== undefined && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            <span>Joined {stats.registerDays} days ago</span>
+          </div>
+        )}
+
+        {/* Trade relationship with us */}
+        {completedWithUs !== undefined && completedWithUs !== null && (
+          <div className="bg-primary/5 border border-primary/20 rounded-md px-3 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[11px] font-medium text-foreground">Orders Completed With Us</span>
+            </div>
+            <span className="t-mono text-sm font-bold text-primary tabular-nums">{completedWithUs}</span>
+          </div>
+        )}
+
+        {/* Approved client risk level — SELL orders only (counterparty is the buyer/client) */}
+        {riskStyle && order.trade_type === 'SELL' && (
+          <div className={`rounded-md border px-3 py-2 flex items-center justify-between gap-2 ${riskStyle.className}`}>
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+              <div className="flex flex-col leading-tight min-w-0">
+                <span className="text-[11px] font-medium truncate">Client Risk Level</span>
+                {linkedClient?.name && (
+                  <span className="text-[10px] opacity-80 truncate">
+                    {linkedClient.name}
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 whitespace-nowrap">
+              {riskStyle.label}
+            </span>
+          </div>
+        )}
+      </section>
 
       {/* Recent completed orders with us — amount, rate, when */}
       {recentCompleted && recentCompleted.length > 0 && (
-        <div className="space-y-1.5">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Recent Completed With Us
-          </span>
-          <div className="max-h-[168px] overflow-y-auto space-y-1.5 pr-0.5">
+        <section className="p-4 space-y-2 border-b border-border">
+          <div className={SECTION_LABEL}>Recent completed with us</div>
+          <div className="max-h-[188px] overflow-y-auto divide-y divide-border rounded-md border border-border">
             {recentCompleted.map((ro) => {
               const total = parseFloat(ro.total_price);
               const rate = parseFloat(ro.unit_price);
@@ -404,25 +445,25 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
               return (
                 <div
                   key={ro.order_number}
-                  className="rounded-md border border-border bg-secondary/30 px-2.5 py-2"
+                  className="px-2.5 py-2 bg-secondary/20"
                   title={`Order #${ro.order_number}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-foreground tabular-nums">
+                    <span className="t-mono text-[12px] font-semibold text-foreground tabular-nums">
                       {Number.isFinite(total)
                         ? `₹${total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
                         : '—'}
                     </span>
-                    <span className={`text-[9px] font-semibold ${ro.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                    <span className={`t-mono text-[10px] font-semibold ${ro.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
                       {ro.trade_type}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                    <span className="t-mono text-[10px] text-muted-foreground tabular-nums">
                       {Number.isFinite(qty) ? qty.toLocaleString('en-IN', { maximumFractionDigits: 4 }) : '—'} {ro.asset}
                       {Number.isFinite(rate) && ` @ ₹${rate.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
                     </span>
-                    <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       {ro.create_time
                         ? new Date(Number(ro.create_time)).toLocaleString('en-IN', {
                             timeZone: 'Asia/Kolkata',
@@ -439,35 +480,15 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* Approved client risk level — SELL orders only (counterparty is the buyer/client) */}
-      {riskStyle && order.trade_type === 'SELL' && (
-        <div className={`rounded-md border px-3 py-2.5 flex items-center justify-between gap-2 ${riskStyle.className}`}>
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-            <div className="flex flex-col leading-tight min-w-0">
-              <span className="text-[11px] font-medium truncate">Client Risk Level</span>
-              {linkedClient?.name && (
-                <span className="text-[10px] opacity-80 truncate">
-                  {linkedClient.name}
-                </span>
-              )}
-            </div>
-          </div>
-          <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 whitespace-nowrap">
-            {riskStyle.label}
-          </span>
-        </div>
+        </section>
       )}
 
       {/* Binance Trading Stats */}
       {hasApiStats && (
-        <div className="space-y-3 pt-3 border-t border-border">
-          <div className="flex items-center gap-1.5 mb-2">
+        <section className="p-4 space-y-3 border-b border-border">
+          <div className="flex items-center gap-1.5">
             <BarChart3 className="h-3 w-3 text-primary" />
-            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Trading Stats</span>
+            <div className={SECTION_LABEL}>Trading stats</div>
           </div>
 
           {/* Key stat cards */}
@@ -493,7 +514,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
           </div>
 
           {/* Timing stats */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-1.5">
             {binanceAccountAge && (
               <StatRow
                 label="Account Age"
@@ -527,24 +548,30 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
               />
             )}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Local tracking stats */}
       {counterparty && (
-        <div className="space-y-3 pt-3 border-t border-border">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Local Tracking</span>
+        <section className="p-4 space-y-1.5 border-b border-border">
+          <div className={`${SECTION_LABEL} mb-2`}>Local tracking</div>
           <StatRow label="Total Orders" value={String(counterparty.total_buy_orders + counterparty.total_sell_orders)} />
           <StatRow label="Buy Orders" value={String(counterparty.total_buy_orders)} />
           <StatRow label="Sell Orders" value={String(counterparty.total_sell_orders)} />
           <StatRow label="Total Volume" value={`₹${Number(counterparty.total_volume_inr).toLocaleString('en-IN')}`} />
           <StatRow label="First Seen" value={new Date(counterparty.first_seen_at).toLocaleDateString('en-IN')} />
           <StatRow label="Last Seen" value={new Date(counterparty.last_seen_at).toLocaleDateString('en-IN')} />
-        </div>
+        </section>
       )}
 
-      <div className="pt-3 border-t border-border">
-        <Button variant="outline" size="sm" className="w-full h-8 justify-between text-[11px]" onClick={() => setShowMoreBinanceData((v) => !v)}>
+      <section className="p-4 border-b border-border">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full h-8 justify-between text-[11px]"
+          onClick={() => setShowMoreBinanceData((v) => !v)}
+          aria-expanded={showMoreBinanceData}
+        >
           <span className="flex items-center gap-1.5"><ShieldAlert className="h-3 w-3" /> View more Binance data</span>
           <ChevronDown className={`h-3 w-3 transition-transform ${showMoreBinanceData ? 'rotate-180' : ''}`} />
         </Button>
@@ -555,15 +582,17 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
             <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
           </div>
         )}
-      </div>
+      </section>
 
-      {/* PAN Collection - only for BUY orders */}
-      {order.trade_type === 'BUY' && (
-        <CounterpartyPanInput counterpartyNickname={order.counterparty_nickname} />
-      )}
+      <section className="p-4 space-y-4">
+        {/* PAN Collection - only for BUY orders */}
+        {order.trade_type === 'BUY' && (
+          <CounterpartyPanInput counterpartyNickname={order.counterparty_nickname} />
+        )}
 
-      {/* Contact & State Collection */}
-      <CounterpartyContactInput counterpartyNickname={order.counterparty_nickname} />
+        {/* Contact & State Collection */}
+        <CounterpartyContactInput counterpartyNickname={order.counterparty_nickname} />
+      </section>
     </div>
   );
 }
@@ -763,9 +792,9 @@ function RiskSection({ title, icon, children }: { title: string; icon: ReactNode
 
 function StatCard({ label, value, subValues }: { label: string; value: string; subValues?: string }) {
   return (
-    <div className="bg-secondary/50 rounded-md px-2.5 py-2 text-center">
+    <div className="bg-secondary/50 border border-border/60 rounded-md px-2.5 py-2">
       <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
-      <p className="text-sm font-bold text-foreground tabular-nums">{value}</p>
+      <p className="t-mono text-sm font-semibold text-foreground tabular-nums">{value}</p>
       {subValues && (
         <p className="text-[9px] text-muted-foreground mt-0.5 tabular-nums">{subValues}</p>
       )}
@@ -775,9 +804,9 @@ function StatCard({ label, value, subValues }: { label: string; value: string; s
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-baseline justify-between gap-3">
       <span className="text-[11px] text-muted-foreground">{label}</span>
-      <span className="text-xs font-medium text-foreground tabular-nums">{value}</span>
+      <span className="t-mono text-xs font-medium text-foreground tabular-nums text-right">{value}</span>
     </div>
   );
 }

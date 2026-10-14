@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle, ListChecks, LayoutList, LayoutGrid, ChevronRight } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle, ListChecks, LayoutList, LayoutGrid, ChevronRight, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, useSyncOrdersBatch, P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -114,6 +114,16 @@ function toSyncItem(o: any): C2COrderHistoryItem {
 
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 
+/* ---- Orders list presentation (UI only) ---- */
+// Segmented filter controls share one look; min-h-0 cancels the TabsList default height.
+const SEG_LIST = 'h-8 min-h-0 flex-nowrap gap-0.5 rounded-md border border-border bg-secondary/60 p-0.5';
+const SEG_TRIGGER = 'h-7 gap-1.5 rounded-[5px] px-2.5 py-0 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm';
+const SEG_COUNT = 't-mono min-w-[18px] rounded px-1 text-center text-[10px] tabular-nums';
+const ROW_ICON_BTN = 'relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const COUNT_BADGE = 'pointer-events-none absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold leading-none text-destructive-foreground ring-2 ring-card';
+const FLAG_CHIP = 'inline-flex h-5 w-fit shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-1.5 text-[10px] font-medium';
+const fmtUnitPrice = (v: number | string) => Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 /**
  * Session-scoped memory of where the operator was on the Orders page.
  * Navigating to another Terminal page unmounts this route, which previously
@@ -175,6 +185,22 @@ function TerminalOrdersContent() {
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
+  // The orders panel's width picks the list layout (compact rows below 52rem, table from 52rem),
+  // so only one layout is mounted. Measured before paint, then kept in sync while it resizes.
+  const [ordersPanelEl, setOrdersPanelEl] = useState<HTMLDivElement | null>(null);
+  const [ordersPanelWide, setOrdersPanelWide] = useState(true);
+  useLayoutEffect(() => {
+    if (!ordersPanelEl) return;
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const apply = (width: number) => {
+      if (width > 0) setOrdersPanelWide(width >= 52 * rem);
+    };
+    apply(ordersPanelEl.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => apply(entries[0]?.contentRect.width ?? 0));
+    observer.observe(ordersPanelEl);
+    return () => observer.disconnect();
+  }, [ordersPanelEl]);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandledRef = useRef(false);
   const restoreHandledRef = useRef(false);
@@ -1499,22 +1525,255 @@ function TerminalOrdersContent() {
     );
   }
 
+  // ---- Row presentation helpers (pure; same predicates the rows always used) ----
+  const rowView = (order: P2POrderRecord) => {
+    const opStatus = mapToOperationalStatus((order as any)._resolvedStatus || order.order_status, order.trade_type);
+    const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
+    // For sell orders needing verification (kyc=1), show "Verification Pending" instead of "Pending Payment"
+    const needsKycVerification = order.trade_type === 'SELL' && order.additional_kyc_verify === 1 && opStatus === 'Pending Payment';
+    const style = needsKycVerification
+      ? { label: 'Verification Pending', badgeClass: 'border-primary/30 text-primary bg-primary/5', dotColor: 'bg-primary' }
+      : getStatusStyle(opStatus);
+    const createMs = order.binance_create_time
+      ? (typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime())
+      : null;
+    return {
+      opStatus,
+      isActive,
+      needsKycVerification,
+      style,
+      createMs,
+      unread: unreadMap.get(order.binance_order_number) || 0,
+      internalUnread: internalUnreadMap[order.binance_order_number] || 0,
+      hasAltUpiRequest: pendingAltUpiOrderNumbers.has(order.binance_order_number),
+      // Only surface release/complaint alerts on still-active orders.
+      // The monitor log persists after an order settles, so without
+      // this guard a Completed/Cancelled order keeps showing a stale
+      // "Seller Release Overdue" badge.
+      releaseAlert: isActive ? releaseMonitorByOrder.get(order.binance_order_number) : undefined,
+      verifiedName: verifiedNameMap[order.binance_order_number],
+      visibility: getOrderVisibility(order.binance_order_number),
+      assignment: getOrderAssignment(order.binance_order_number),
+      canRelease: canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL',
+    };
+  };
+
+  const copyOrderNumber = (order: P2POrderRecord, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(order.binance_order_number);
+    toast.success('Order number copied');
+  };
+
+  const sideChip = (tradeType: string, asset: string) => (
+    <span className={`inline-flex h-5 shrink-0 items-center rounded px-1.5 t-mono text-[10px] font-semibold uppercase tracking-wide ${tradeType === 'BUY' ? 'bg-[hsl(var(--trade-buy,var(--success))/0.1)] text-trade-buy' : 'bg-[hsl(var(--trade-sell,var(--destructive))/0.1)] text-trade-sell'}`}>
+      {tradeType === 'BUY' ? 'Buy' : 'Sell'} {asset}
+    </span>
+  );
+
+  const statusBadge = (v: ReturnType<typeof rowView>) => (
+    <Badge variant="outline" className={`h-5 w-fit shrink-0 gap-1 whitespace-nowrap rounded-full px-2 text-[10px] font-medium ${v.style.badgeClass}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${(v.style as any).dotColor || 'bg-current'}`} />
+      {v.style.label}
+    </Badge>
+  );
+
+  const releaseAlertLabel = (status: string) => (
+    status === 'complaint_window_closing'
+      ? 'Complaint Window Closing'
+      : status === 'complaint_window_expired'
+        ? 'Complaint Window Expired'
+        : 'Seller Release Overdue'
+  );
+
+  const flagChips = (order: P2POrderRecord, v: ReturnType<typeof rowView>, kycFlag: boolean) => (
+    <>
+      {kycFlag && (
+        <span className={FLAG_CHIP + ' border-warning/30 bg-warning/5 text-warning'}>
+          <ShieldAlert className="h-2.5 w-2.5" /> Requires Verification
+        </span>
+      )}
+      {v.hasAltUpiRequest && (
+        <span className={FLAG_CHIP + ' border-warning/30 bg-warning/10 text-warning'}>
+          <ArrowLeftRight className="h-2.5 w-2.5" /> Alternate UPI Requested
+        </span>
+      )}
+      {v.releaseAlert && (
+        <span className={`${FLAG_CHIP} ${v.releaseAlert.status === 'complaint_window_expired' ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-warning/30 bg-warning/5 text-warning'}`}>
+          <AlertTriangle className="h-2.5 w-2.5" /> {releaseAlertLabel(v.releaseAlert.status)}
+        </span>
+      )}
+    </>
+  );
+
+  const assignmentNode = (order: P2POrderRecord, v: ReturnType<typeof rowView>) => {
+    if (v.visibility === 'assigned_to_me') {
+      return <Badge variant="outline" className="h-5 rounded-full border-primary/30 bg-primary/10 px-2 text-[10px] font-medium text-primary">You</Badge>;
+    }
+    if (v.visibility === 'assigned_to_team' && v.assignment) {
+      return <Badge variant="outline" className="h-5 rounded-full border-info/30 bg-info/10 px-2 text-[10px] font-medium text-info">Team</Badge>;
+    }
+    if (canManageOrders) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setAssignDialogOrder(order); }}
+          className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-dashed border-border px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          <UserPlus className="h-3 w-3" /> Assign
+        </button>
+      );
+    }
+    return <span className="text-[11px] text-muted-foreground/60">—</span>;
+  };
+
+  const rowActions = (order: P2POrderRecord, v: ReturnType<typeof rowView>) => (
+    <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+      {/* Inline release — opens Fund Password for small sales, Authenticator otherwise */}
+      {v.canRelease && (
+        <ReleaseCoinAction
+          compact
+          orderNumber={order.binance_order_number}
+          exchangeAccountId={(order as any).exchange_account_id}
+          totalPrice={order.total_price}
+          fiatUnit={order.fiat_unit}
+          counterpartyName={v.verifiedName}
+        />
+      )}
+      <button
+        type="button"
+        onClick={(e) => openChatForOrder(order, e)}
+        className={ROW_ICON_BTN}
+        aria-label={v.unread > 0 ? `Open chat, ${v.unread} unread` : 'Open chat'}
+        title="Open chat"
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        {v.unread > 0 && <span className={COUNT_BADGE} aria-hidden="true">{v.unread}</span>}
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+        className={ROW_ICON_BTN}
+        aria-label={v.internalUnread > 0 ? `Internal chat, ${v.internalUnread} unread` : 'Internal chat'}
+        title="Internal Chat"
+      >
+        <Users className="h-3.5 w-3.5" />
+        {v.internalUnread > 0 && <span className={COUNT_BADGE} aria-hidden="true">{v.internalUnread}</span>}
+      </button>
+    </div>
+  );
+
+  const sideStripe = (tradeType: string) => (
+    tradeType === 'BUY' ? 'shadow-[inset_3px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_3px_0_0_hsl(var(--trade-sell))]'
+  );
+
+  // Compact row: phones in List view, and narrow work areas (e.g. an expanded sidebar on a small laptop).
+  const renderCompactRow = (order: P2POrderRecord) => {
+    const v = rowView(order);
+    const kycFlag = order.additional_kyc_verify === 1 && v.isActive;
+    const isAssigned = v.visibility === 'assigned_to_me' || (v.visibility === 'assigned_to_team' && !!v.assignment);
+    return (
+      <div
+        key={order.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedOrder(order)}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setSelectedOrder(order);
+          }
+        }}
+        className={`cursor-pointer py-2.5 pl-4 pr-3 transition-colors hover:bg-secondary/40 active:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${sideStripe(order.trade_type)} ${v.hasAltUpiRequest ? 'bg-warning/5' : ''} ${focusedOrderId === String(order.id) ? 'ring-2 ring-inset ring-primary' : ''}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+              {sideChip(order.trade_type, order.asset)}
+              <span className="t-mono text-[11px] tabular-nums text-muted-foreground">
+                {v.createMs ? format(new Date(v.createMs), 'dd MMM yyyy, HH:mm') : '—'}
+              </span>
+            </div>
+            <p className="mt-1 truncate text-[13px] font-medium text-foreground">{order.counterparty_nickname || 'Counterparty'}</p>
+            {v.verifiedName && <p className="truncate text-[11px] text-muted-foreground">{v.verifiedName}</p>}
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="t-mono text-[13px] font-semibold tabular-nums text-foreground">
+              {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
+            </p>
+            <p className="t-mono text-[11px] tabular-nums text-muted-foreground">
+              {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset} @ {fmtUnitPrice(order.unit_price)}
+            </p>
+          </div>
+        </div>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+          <span className="inline-flex items-center gap-0.5">
+            <span className="whitespace-nowrap t-mono text-[12px] tabular-nums text-foreground">{order.binance_order_number}</span>
+            <button
+              type="button"
+              onClick={(e) => copyOrderNumber(order, e)}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              aria-label="Copy order number"
+              title="Copy order number"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          </span>
+          <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
+        </div>
+        <div className="mt-2 flex items-end justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {statusBadge(v)}
+            {v.isActive && order.binance_create_time && (
+              <OrderRowTimer
+                createTime={v.createMs as number}
+                notifyPayEndTime={(order as any)._notifyPayEndTime}
+                notifyPayedExpireMinute={(order as any)._notifyPayedExpireMinute}
+              />
+            )}
+            {isAssigned ? assignmentNode(order, v) : null}
+            {flagChips(order, v, kycFlag)}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            {!isAssigned && canManageOrders && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setAssignDialogOrder(order); }}
+                className={ROW_ICON_BTN}
+                aria-label="Assign"
+                title="Assign"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {rowActions(order, v)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4">
       {/* Command strip */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="p-2 bg-primary/10 rounded-lg border border-primary/20 shrink-0">
             <ShoppingCart className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Orders · P2P Trade Management</span>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-flex items-center h-6 px-2 rounded-md text-[11px] t-mono bg-primary/10 text-primary border border-primary/20">
-                {visibleOrders.length} / {displayOrders.length}
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold leading-tight text-foreground">Orders</h1>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="hidden sm:inline">P2P trade management</span>
+              <span className="hidden sm:inline text-muted-foreground/50" aria-hidden="true">·</span>
+              <span className="t-mono tabular-nums" title="Orders shown · orders matching the filters">
+                {visibleOrders.length === displayOrders.length
+                  ? `${displayOrders.length} ${displayOrders.length === 1 ? 'order' : 'orders'}`
+                  : `${visibleOrders.length} of ${displayOrders.length} shown`}
               </span>
               {totalUnread > 0 && (
-                <span className="inline-flex items-center h-6 px-2 rounded-md text-[11px] t-mono bg-destructive/10 text-destructive border border-destructive/20">
+                <span className="inline-flex h-5 items-center gap-1 rounded-full border border-destructive/25 bg-destructive/10 px-2 t-mono text-[10px] font-medium text-destructive">
+                  <span className="h-1.5 w-1.5 rounded-full bg-destructive" aria-hidden="true" />
                   {totalUnread} unread
                 </span>
               )}
@@ -1532,7 +1791,7 @@ function TerminalOrdersContent() {
             <ListChecks className="h-3.5 w-3.5" />
             Queue
             {actionableOrderIds.length > 0 && (
-              <span className="inline-flex items-center h-4 min-w-[16px] rounded-full bg-primary/15 text-primary text-[9px] font-bold px-1">
+              <span className="inline-flex items-center justify-center h-4 min-w-[16px] rounded-full bg-primary/15 text-primary t-mono text-[10px] font-semibold px-1">
                 {actionableOrderIds.length}
               </span>
             )}
@@ -1543,12 +1802,13 @@ function TerminalOrdersContent() {
               size="sm"
               className="h-8 text-xs gap-1.5 relative"
               onClick={() => setShowChatInbox(true)}
+              title={chatBadgeCount > 0 ? `${chatBadgeCount} unread ${chatBadgeCount === 1 ? 'chat' : 'chats'}` : 'Chats'}
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Chat
               {chatBadgeCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] rounded-full bg-destructive flex items-center justify-center px-1">
-                  <span className="text-[9px] font-bold text-destructive-foreground">{chatBadgeCount}</span>
+                <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] rounded-full bg-destructive ring-2 ring-background flex items-center justify-center px-1">
+                  <span className="text-[10px] font-bold leading-none text-destructive-foreground">{chatBadgeCount}</span>
                 </span>
               )}
             </Button>
@@ -1564,9 +1824,10 @@ function TerminalOrdersContent() {
               await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
             }}
             disabled={isRefreshing}
+            title="Refresh from Binance"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </div>
@@ -1575,8 +1836,8 @@ function TerminalOrdersContent() {
           order collector stops reporting, so a dead collector never silently
           blinds the terminal (the hook falls back to live Binance polling). */}
       {collectorStale && (
-        <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
+        <div role="status" className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-3.5 py-2.5 text-xs text-warning">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-px" />
           <span>
             Live order feed is delayed — showing the last synced data and refreshing directly.
             {collectorState?.last_tick_at && (
@@ -1586,516 +1847,377 @@ function TerminalOrdersContent() {
         </div>
       )}
 
-
-
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Tabs value={tradeFilter} onValueChange={setTradeFilter}>
-          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
-            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
-              All <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{rawOrders.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="BUY" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
-              Buy <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-trade-buy/10 text-trade-buy text-center">{rawOrders.filter(o => o.tradeType === 'BUY').length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="SELL" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
-              Sell <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-trade-sell/10 text-trade-sell text-center">{rawOrders.filter(o => o.tradeType === 'SELL').length}</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
-            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">All Status</TabsTrigger>
-            <TabsTrigger value="active" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Active</TabsTrigger>
-            <TabsTrigger value="completed" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Completed</TabsTrigger>
-            <TabsTrigger value="cancelled" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Cancelled</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {statusFilter === 'active' && (
-          <Tabs value={activeSubFilter} onValueChange={setActiveSubFilter}>
-            <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
-              <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
-                All <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.all}</span>
+      <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
+        <div className="flex flex-wrap items-center gap-2">
+          <Tabs value={tradeFilter} onValueChange={setTradeFilter} className="shrink-0">
+            <TabsList className={SEG_LIST}>
+              <TabsTrigger value="all" className={SEG_TRIGGER}>
+                All <span className={`${SEG_COUNT} bg-muted text-muted-foreground`}>{rawOrders.length}</span>
               </TabsTrigger>
-              <TabsTrigger value="unpaid" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
-                Unpaid <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.unpaid}</span>
+              <TabsTrigger value="BUY" className={SEG_TRIGGER}>
+                Buy <span className={`${SEG_COUNT} bg-[hsl(var(--trade-buy,var(--success))/0.1)] text-trade-buy`}>{rawOrders.filter(o => o.tradeType === 'BUY').length}</span>
               </TabsTrigger>
-              <TabsTrigger value="paid" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
-                Paid <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.paid}</span>
-              </TabsTrigger>
-              <TabsTrigger value="appeal" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
-                Appeal <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.appeal}</span>
+              <TabsTrigger value="SELL" className={SEG_TRIGGER}>
+                Sell <span className={`${SEG_COUNT} bg-[hsl(var(--trade-sell,var(--destructive))/0.1)] text-trade-sell`}>{rawOrders.filter(o => o.tradeType === 'SELL').length}</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        )}
 
-        <Tabs value={assignmentFilter} onValueChange={setAssignmentFilter}>
-          <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
-            <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">All</TabsTrigger>
-            <TabsTrigger value="mine" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1">
-              <User className="h-3 w-3" /> My Orders
-            </TabsTrigger>
-            <TabsTrigger value="team" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1">
-              <Users className="h-3 w-3" /> Team
-            </TabsTrigger>
-            <TabsTrigger value="unassigned" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Unassigned</TabsTrigger>
-          </TabsList>
-        </Tabs>
+          <Tabs value={statusFilter} onValueChange={setStatusFilter} className="shrink-0">
+            <TabsList className={SEG_LIST}>
+              <TabsTrigger value="all" className={SEG_TRIGGER}>All Status</TabsTrigger>
+              <TabsTrigger value="active" className={SEG_TRIGGER}>Active</TabsTrigger>
+              <TabsTrigger value="completed" className={SEG_TRIGGER}>Completed</TabsTrigger>
+              <TabsTrigger value="cancelled" className={SEG_TRIGGER}>Cancelled</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
+          {statusFilter === 'active' && (
+            <Tabs value={activeSubFilter} onValueChange={setActiveSubFilter} className="shrink-0">
+              <TabsList className={SEG_LIST}>
+                <TabsTrigger value="all" className={SEG_TRIGGER}>
+                  All <span className={`${SEG_COUNT} bg-muted text-muted-foreground`}>{activeSubCountsRef.current.all}</span>
+                </TabsTrigger>
+                <TabsTrigger value="unpaid" className={SEG_TRIGGER}>
+                  Unpaid <span className={`${SEG_COUNT} bg-muted text-muted-foreground`}>{activeSubCountsRef.current.unpaid}</span>
+                </TabsTrigger>
+                <TabsTrigger value="paid" className={SEG_TRIGGER}>
+                  Paid <span className={`${SEG_COUNT} bg-muted text-muted-foreground`}>{activeSubCountsRef.current.paid}</span>
+                </TabsTrigger>
+                <TabsTrigger value="appeal" className={SEG_TRIGGER}>
+                  Appeal <span className={`${SEG_COUNT} ${activeSubCountsRef.current.appeal > 0 ? 'bg-purple-500/10 text-purple-500' : 'bg-muted text-muted-foreground'}`}>{activeSubCountsRef.current.appeal}</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
 
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or order ID..."
-            data-page-search
-            className="h-8 pl-8 text-xs bg-secondary border-border"
-          />
+          <Tabs value={assignmentFilter} onValueChange={setAssignmentFilter} className="shrink-0">
+            <TabsList className={SEG_LIST}>
+              <TabsTrigger value="all" className={SEG_TRIGGER}>All</TabsTrigger>
+              <TabsTrigger value="mine" className={SEG_TRIGGER}>
+                <User className="h-3 w-3" /> My Orders
+              </TabsTrigger>
+              <TabsTrigger value="team" className={SEG_TRIGGER}>
+                <Users className="h-3 w-3" /> Team
+              </TabsTrigger>
+              <TabsTrigger value="unassigned" className={SEG_TRIGGER}>Unassigned</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          preset={datePreset}
-          onPresetChange={setDatePreset}
-          align="end"
-          className="h-8 text-xs bg-secondary border-border"
-        />
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 md:min-w-[340px]">
+          <div className="relative min-w-[8.5rem] flex-1 md:max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or order ID..."
+              data-page-search
+              aria-label="Search orders by name or order ID"
+              className="h-8 pl-8 text-xs bg-secondary border-border"
+            />
+          </div>
 
-        <div className="flex w-full items-center justify-end md:hidden" aria-label="Mobile order view">
-          <div className="inline-flex h-9 items-center rounded-lg border border-border bg-secondary p-0.5">
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            preset={datePreset}
+            onPresetChange={setDatePreset}
+            align="start"
+            className="h-8 text-xs bg-secondary border-border"
+          />
+
+          <div className="ml-auto inline-flex h-8 shrink-0 items-center rounded-md border border-border bg-secondary/60 p-0.5 md:hidden" aria-label="Mobile order view">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               aria-pressed={mobileView === 'list'}
+              aria-label="List"
               onClick={() => setMobileView('list')}
-              className={`h-8 gap-1.5 rounded-md px-3 text-xs ${mobileView === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              className={`h-7 w-8 rounded-[5px] p-0 ${mobileView === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
             >
               <LayoutList className="h-3.5 w-3.5" />
-              List
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               aria-pressed={mobileView === 'cards'}
+              aria-label="Cards"
               onClick={() => setMobileView('cards')}
-              className={`h-8 gap-1.5 rounded-md px-3 text-xs ${mobileView === 'cards' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              className={`h-7 w-8 rounded-[5px] p-0 ${mobileView === 'cards' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              Cards
             </Button>
           </div>
         </div>
       </div>
 
 
-      {/* Orders Table */}
-      <div className="t-panel overflow-hidden">
-        <div className="p-0">
-          {isLoading ? (
-            <div className="divide-y divide-border">
-              {[1, 2, 3, 4, 5, 6, 7].map(i => (
-                <div key={i} className="flex items-center gap-4 px-4 py-3.5">
-                  <div className="flex flex-col gap-1.5 w-28">
-                    <div className="t-shimmer h-3 w-16 rounded" />
-                    <div className="t-shimmer h-2.5 w-24 rounded" />
-                  </div>
+      {/* Orders */}
+      <div ref={setOrdersPanelEl} className="t-panel overflow-hidden @container">
+        {isLoading ? (
+          <div className="divide-y divide-border">
+            {[1, 2, 3, 4, 5, 6, 7].map(i => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <div className="flex flex-col gap-1.5 w-40">
                   <div className="t-shimmer h-3 w-32 rounded" />
-                  <div className="t-shimmer h-3 w-16 rounded" />
-                  <div className="flex flex-col gap-1.5 w-28">
-                    <div className="t-shimmer h-3 w-20 rounded" />
-                    <div className="t-shimmer h-2.5 w-14 rounded" />
-                  </div>
-                  <div className="t-shimmer h-3 w-24 rounded" />
-                  <div className="t-shimmer h-5 w-12 rounded-full ml-auto" />
-                  <div className="t-shimmer h-6 w-16 rounded" />
+                  <div className="t-shimmer h-2.5 w-24 rounded" />
                 </div>
-              ))}
+                <div className="flex flex-col gap-1.5 w-28">
+                  <div className="t-shimmer h-3 w-20 rounded" />
+                  <div className="t-shimmer h-2.5 w-14 rounded" />
+                </div>
+                <div className="t-shimmer h-3 w-24 rounded" />
+                <div className="t-shimmer h-5 w-24 rounded-full ml-auto" />
+                <div className="t-shimmer h-7 w-20 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : displayOrders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-4 py-14 text-center">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-secondary">
+              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
             </div>
-          ) : displayOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">
-                {isFetchingHistory ? 'Loading orders...' : 'No orders found'}
-              </p>
-              <p className="text-[11px] text-muted-foreground/60 mt-1">
-                {isFetchingHistory
-                  ? 'Fetching complete order history from database'
-                  : rawOrders.length > 0 ? 'No orders match current filters' : 'Orders will appear after syncing from Binance'}
-              </p>
-            </div>
-          ) : (
+            <p className="text-sm font-medium text-foreground">
+              {isFetchingHistory ? 'Loading orders...' : 'No orders found'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+              {isFetchingHistory
+                ? 'Fetching complete order history from database'
+                : rawOrders.length > 0 ? 'No orders match current filters' : 'Orders will appear after syncing from Binance'}
+            </p>
+          </div>
+        ) : (
 
-            <>
-            {isMobile && mobileView === 'cards' && (
-              <div className="space-y-3 p-3">
-                {visibleOrders.map((order) => {
-                  const opStatus = mapToOperationalStatus((order as any)._resolvedStatus || order.order_status, order.trade_type);
-                  const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
-                  const needsKycVerification = order.trade_type === 'SELL' && order.additional_kyc_verify === 1 && opStatus === 'Pending Payment';
-                  const style = needsKycVerification
-                    ? { label: 'Verification Pending', badgeClass: 'border-primary/30 text-primary bg-primary/5', dotColor: 'bg-primary' }
-                    : getStatusStyle(opStatus);
-                  const unread = unreadMap.get(order.binance_order_number) || 0;
-                  const hasAltUpiRequest = pendingAltUpiOrderNumbers.has(order.binance_order_number);
-                  const releaseAlert = isActive ? releaseMonitorByOrder.get(order.binance_order_number) : undefined;
-                  const verifiedName = verifiedNameMap[order.binance_order_number];
-                  const visibility = getOrderVisibility(order.binance_order_number);
-                  const assignment = getOrderAssignment(order.binance_order_number);
+          <>
+          {isMobile && mobileView === 'cards' && (
+            <div className="space-y-3 p-3">
+              {visibleOrders.map((order) => {
+                const v = rowView(order);
 
-                  return (
-                    <article
-                      key={order.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedOrder(order)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          setSelectedOrder(order);
-                        }
-                      }}
-                      className={`overflow-hidden rounded-lg border border-border bg-card text-left transition-colors active:bg-secondary/60 ${order.trade_type === 'BUY' ? 'shadow-[inset_3px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_3px_0_0_hsl(var(--trade-sell))]'} ${hasAltUpiRequest ? 'bg-warning/5' : ''} ${focusedOrderId === String(order.id) ? 'ring-2 ring-primary' : ''}`}
-                    >
-                      <div className="flex items-start justify-between gap-3 border-b border-border px-3 py-3">
+                return (
+                  <article
+                    key={order.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedOrder(order)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedOrder(order);
+                      }
+                    }}
+                    className={`overflow-hidden rounded-lg border border-border bg-card text-left transition-colors active:bg-secondary/60 ${sideStripe(order.trade_type)} ${v.hasAltUpiRequest ? 'bg-warning/5' : ''} ${focusedOrderId === String(order.id) ? 'ring-2 ring-primary' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 px-3.5 pt-3">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          {sideChip(order.trade_type, order.asset)}
+                          <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground t-mono tabular-nums">
+                          {order.binance_create_time ? format(new Date(order.binance_create_time), 'dd MMM yyyy · HH:mm') : '—'}
+                        </p>
+                      </div>
+                      {statusBadge(v)}
+                    </div>
+
+                    <div className="space-y-3 px-3.5 py-3">
+                      <div className="flex items-end justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className={`t-mono text-xs font-semibold uppercase ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-                              {order.trade_type} {order.asset}
-                            </span>
-                            <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
-                          </div>
-                          <p className="mt-1 text-[10px] text-muted-foreground t-mono tabular-nums">
-                            {order.binance_create_time ? format(new Date(order.binance_create_time), 'dd MMM yyyy · HH:mm') : '—'}
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {order.counterparty_nickname || 'Counterparty'}
+                          </p>
+                          {v.verifiedName && <p className="truncate text-[11px] text-muted-foreground">{v.verifiedName}</p>}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-base font-semibold text-foreground t-mono tabular-nums leading-tight">
+                            {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground t-mono tabular-nums">
+                            {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset} @ {fmtUnitPrice(order.unit_price)}
                           </p>
                         </div>
-                        <Badge variant="outline" className={`shrink-0 text-[10px] gap-1 ${style.badgeClass}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${(style as any).dotColor || 'bg-current'}`} />
-                          {style.label}
-                        </Badge>
                       </div>
 
-                      <div className="space-y-3 px-3 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-foreground">
-                              {order.counterparty_nickname || 'Counterparty'}
-                            </p>
-                            {verifiedName && <p className="truncate text-[11px] text-muted-foreground">{verifiedName}</p>}
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-sm font-semibold text-foreground t-mono tabular-nums">
-                              {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground t-mono tabular-nums">
-                              {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
-                            </p>
-                          </div>
+                      <div className="flex items-center justify-between gap-3 rounded-md bg-secondary/50 px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Order number</p>
+                          <p className="truncate text-[12px] text-foreground t-mono">{order.binance_order_number}</p>
                         </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-muted-foreground"
+                          title="Copy order number"
+                          aria-label="Copy order number"
+                          onClick={(event) => copyOrderNumber(order, event)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
 
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-secondary/50 px-2.5 py-2">
-                          <div className="min-w-0">
-                            <p className="text-[9px] uppercase text-muted-foreground">Order number</p>
-                            <p className="truncate text-[11px] text-foreground t-mono">{order.binance_order_number}</p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground"
-                            title="Copy order number"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              navigator.clipboard.writeText(order.binance_order_number);
-                              toast.success('Order number copied');
-                            }}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-[11px]">
-                          <div>
-                            <p className="text-[9px] uppercase text-muted-foreground">Price</p>
-                            <p className="text-foreground t-mono tabular-nums">{Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] uppercase text-muted-foreground">Assigned</p>
-                            {visibility === 'assigned_to_me' ? (
-                              <Badge variant="outline" className="mt-0.5 text-[10px] bg-primary/10 text-primary border-primary/30">You</Badge>
-                            ) : visibility === 'assigned_to_team' && assignment ? (
-                              <Badge variant="outline" className="mt-0.5 text-[10px] bg-info/10 text-info border-info/30">Team</Badge>
-                            ) : canManageOrders ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="mt-0.5 h-6 gap-1 px-1.5 text-[10px] text-muted-foreground"
-                                onClick={(event) => { event.stopPropagation(); setAssignDialogOrder(order); }}
-                              >
-                                <UserPlus className="h-3 w-3" /> Assign
-                              </Button>
-                            ) : <span className="text-muted-foreground">—</span>}
-                          </div>
-                        </div>
-
-                        {(needsKycVerification || hasAltUpiRequest || releaseAlert) && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {needsKycVerification && (
-                              <Badge variant="outline" className="text-[9px] border-warning/30 text-warning bg-warning/5 gap-1">
-                                <ShieldAlert className="h-2.5 w-2.5" /> Requires Verification
-                              </Badge>
-                            )}
-                            {hasAltUpiRequest && (
-                              <Badge variant="outline" className="text-[9px] border-warning/30 text-warning bg-warning/10 gap-1">
-                                <ArrowLeftRight className="h-2.5 w-2.5" /> Alternate UPI Requested
-                              </Badge>
-                            )}
-                            {releaseAlert && (
-                              <Badge variant="outline" className={`text-[9px] gap-1 ${releaseAlert.status === 'complaint_window_expired' ? 'border-destructive/30 text-destructive bg-destructive/5' : 'border-warning/30 text-warning bg-warning/5'}`}>
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                                {releaseAlert.status === 'complaint_window_closing' ? 'Complaint Window Closing' : releaseAlert.status === 'complaint_window_expired' ? 'Complaint Window Expired' : 'Seller Release Overdue'}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-
-                        {isActive && order.binance_create_time && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {v.isActive && order.binance_create_time && (
                           <OrderRowTimer
-                            createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()}
+                            createTime={v.createMs as number}
                             notifyPayEndTime={(order as any)._notifyPayEndTime}
                             notifyPayedExpireMinute={(order as any)._notifyPayedExpireMinute}
                           />
                         )}
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Assigned</span>
+                        {assignmentNode(order, v)}
+                        {flagChips(order, v, v.needsKycVerification)}
                       </div>
+                    </div>
 
-                      <div className="flex flex-wrap items-center gap-2 border-t border-border bg-secondary/20 px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
-                        {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (
-                          <ReleaseCoinAction
-                            compact
-                            orderNumber={order.binance_order_number}
-                            exchangeAccountId={(order as any).exchange_account_id}
-                            totalPrice={order.total_price}
-                            fiatUnit={order.fiat_unit}
-                            counterpartyName={verifiedName}
-                          />
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border bg-secondary/20 px-3 py-2" onClick={(event) => event.stopPropagation()}>
+                      {v.canRelease && (
+                        <ReleaseCoinAction
+                          compact
+                          orderNumber={order.binance_order_number}
+                          exchangeAccountId={(order as any).exchange_account_id}
+                          totalPrice={order.total_price}
+                          fiatUnit={order.fiat_unit}
+                          counterpartyName={v.verifiedName}
+                        />
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="relative h-8 gap-1.5 px-2.5 text-xs"
+                        aria-label={v.unread > 0 ? `Chat, ${v.unread} unread` : 'Chat'}
+                        onClick={(event) => openChatForOrder(order, event)}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" /> Chat
+                        {v.unread > 0 && (
+                          <span aria-hidden="true" className={COUNT_BADGE}>{v.unread}</span>
                         )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="relative h-8 gap-1.5 px-2.5 text-[10px]"
-                          onClick={(event) => openChatForOrder(order, event)}
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" /> Chat
-                          {unread > 0 && (
-                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">{unread}</span>
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="relative h-8 gap-1.5 px-2.5 text-[10px]"
-                          title="Internal Chat"
-                          onClick={() => setSelectedOrder(order)}
-                        >
-                          <Users className="h-3.5 w-3.5" /> Team
-                          {(internalUnreadMap[order.binance_order_number] || 0) > 0 && (
-                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">{internalUnreadMap[order.binance_order_number]}</span>
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="ml-auto h-8 gap-1 px-2 text-[10px] text-muted-foreground"
-                          onClick={() => setSelectedOrder(order)}
-                        >
-                          Open <ChevronRight className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="relative h-8 gap-1.5 px-2.5 text-xs"
+                        title="Internal Chat"
+                        aria-label={v.internalUnread > 0 ? `Team chat, ${v.internalUnread} unread` : 'Team chat'}
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        <Users className="h-3.5 w-3.5" /> Team
+                        {v.internalUnread > 0 && (
+                          <span aria-hidden="true" className={COUNT_BADGE}>{v.internalUnread}</span>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-8 gap-1 px-2 text-xs text-muted-foreground"
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        Open <ChevronRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
 
-            {(!isMobile || mobileView === 'list') && <div className="overflow-x-auto">
+          {(!isMobile || mobileView === 'list') && (
+            (isMobile || !ordersPanelWide) ? (
+              /* Compact rows — phones, and work areas too narrow for the full table */
+              <div className="divide-y divide-border">
+                {visibleOrders.map((order) => renderCompactRow(order))}
+              </div>
+            ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Type/Date</TableHead>
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Order number</TableHead>
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Price</TableHead>
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Fiat / Crypto Amount</TableHead>
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Counterparty</TableHead>
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Assigned</TableHead>
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Status</TableHead>
-                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3 text-right">Chat</TableHead>
+                    <TableHead className="w-[30%] pl-4 text-[10px] font-medium text-muted-foreground">Order</TableHead>
+                    <TableHead className="text-[10px] font-medium text-muted-foreground">Amount</TableHead>
+                    <TableHead className="text-[10px] font-medium text-muted-foreground">Counterparty</TableHead>
+                    <TableHead className="text-[10px] font-medium text-muted-foreground">Status</TableHead>
+                    <TableHead className="hidden @[60rem]:table-cell text-[10px] font-medium text-muted-foreground">Assigned</TableHead>
+                    <TableHead className="w-px whitespace-nowrap pr-4 text-right text-[10px] font-medium text-muted-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visibleOrders.map((order) => {
-                    const opStatus = mapToOperationalStatus((order as any)._resolvedStatus || order.order_status, order.trade_type);
-                    const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
-                    // For sell orders needing verification (kyc=1), show "Verification Pending" instead of "Pending Payment"
-                    const needsKycVerification = order.trade_type === 'SELL' && order.additional_kyc_verify === 1 && opStatus === 'Pending Payment';
-                    const displayStatus = needsKycVerification ? 'Verification Pending' : opStatus;
-                    const style = needsKycVerification
-                      ? { label: 'Verification Pending', badgeClass: 'border-primary/30 text-primary bg-primary/5', dotColor: 'bg-primary' }
-                      : getStatusStyle(opStatus);
-                    const unread = unreadMap.get(order.binance_order_number) || 0;
-                    const hasAltUpiRequest = pendingAltUpiOrderNumbers.has(order.binance_order_number);
-                    // Only surface release/complaint alerts on still-active orders.
-                    // The monitor log persists after an order settles, so without
-                    // this guard a Completed/Cancelled order keeps showing a stale
-                    // "Seller Release Overdue" badge.
-                    const releaseAlert = isActive ? releaseMonitorByOrder.get(order.binance_order_number) : undefined;
+                    const v = rowView(order);
 
                     return (
                       <TableRow
                         key={order.id}
-                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${order.trade_type === 'BUY' ? 'shadow-[inset_2px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_2px_0_0_hsl(var(--trade-sell))]'} ${hasAltUpiRequest ? 'bg-warning/5' : ''} ${focusedOrderId === String(order.id) ? 'ring-2 ring-inset ring-primary bg-secondary/40' : ''}`}
+                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${sideStripe(order.trade_type)} ${v.hasAltUpiRequest ? 'bg-warning/5' : ''} ${focusedOrderId === String(order.id) ? 'ring-2 ring-inset ring-primary bg-secondary/40' : ''}`}
                         onClick={() => setSelectedOrder(order)}>
 
-                        {/* Type/Date */}
-                        <TableCell className="py-4">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm">
-                              <span className={`t-mono uppercase text-[11px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-                                {order.trade_type === 'BUY' ? 'Buy' : 'Sell'}
+                        {/* Order: side, number, time, account, flags */}
+                        <TableCell className="py-2.5 pl-4 align-top">
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                              {sideChip(order.trade_type, order.asset)}
+                              <span className="inline-flex items-center gap-0.5">
+                                <span className="whitespace-nowrap t-mono text-[12px] text-foreground">{order.binance_order_number}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => copyOrderNumber(order, e)}
+                                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                                  aria-label="Copy order number"
+                                  title="Copy order number"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </button>
                               </span>
-                              {' '}
-                              <span className="text-foreground font-medium">{order.asset}</span>
-                            </span>
-                            <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
-                              {order.binance_create_time
-                                ? format(new Date(order.binance_create_time), 'yyyy-MM-dd HH:mm')
-                                : '—'}
-                            </span>
-                          </div>
-                        </TableCell>
-
-
-                        {/* Order number */}
-                        <TableCell className="py-4">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
-                                {order.binance_order_number}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigator.clipboard.writeText(order.binance_order_number);
-                                  toast.success('Order number copied');
-                                }}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </button>
                             </div>
-                            <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
-                            {order.additional_kyc_verify === 1 && isActive && (
-                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/5 gap-0.5">
-                                <ShieldAlert className="h-2.5 w-2.5" />
-                                Requires Verification
-                              </Badge>
-                            )}
-                            {hasAltUpiRequest && (
-                              <Badge variant="outline" className="text-[9px] w-fit border-warning/30 text-warning bg-warning/10 gap-0.5">
-                                <ArrowLeftRight className="h-2.5 w-2.5" />
-                                Alternate UPI Requested
-                              </Badge>
-                            )}
-                            {releaseAlert && (
-                              <Badge variant="outline" className={`text-[9px] w-fit gap-0.5 ${releaseAlert.status === 'complaint_window_expired' ? 'border-destructive/30 text-destructive bg-destructive/5' : 'border-warning/30 text-warning bg-warning/5'}`}>
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                                {releaseAlert.status === 'complaint_window_closing'
-                                  ? 'Complaint Window Closing'
-                                  : releaseAlert.status === 'complaint_window_expired'
-                                    ? 'Complaint Window Expired'
-                                    : 'Seller Release Overdue'}
-                              </Badge>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
+                                {order.binance_create_time
+                                  ? format(new Date(order.binance_create_time), 'dd MMM yyyy, HH:mm')
+                                  : '—'}
+                              </span>
+                              <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
+                              {flagChips(order, v, order.additional_kyc_verify === 1 && v.isActive)}
+                            </div>
                           </div>
                         </TableCell>
 
-                        {/* Price */}
-                        <TableCell className="py-4">
-                          <span className="text-sm text-foreground t-mono tabular-nums">
-                            {Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}
-                          </span>
-                        </TableCell>
-
-                        {/* Fiat / Crypto Amount */}
-                        <TableCell className="py-4">
-                          <div className="flex flex-col gap-1 items-start">
-                            <span className="text-sm text-foreground t-mono tabular-nums font-medium">
+                        {/* Amount */}
+                        <TableCell className="py-2.5 align-top">
+                          <div className="flex flex-col items-start gap-0.5 whitespace-nowrap">
+                            <span className="text-[13px] text-foreground t-mono tabular-nums font-semibold">
                               {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
                             </span>
                             <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
-                              {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
+                              {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset} @ {fmtUnitPrice(order.unit_price)}
                             </span>
                           </div>
                         </TableCell>
-
 
                         {/* Counterparty */}
-                        <TableCell className="py-4">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-sm text-foreground font-medium truncate max-w-[160px]">
-                              {order.counterparty_nickname}
-                              {verifiedNameMap[order.binance_order_number] && (
-                                <span className="text-muted-foreground font-normal"> ({verifiedNameMap[order.binance_order_number]})</span>
-                              )}
-                            </span>
+                        <TableCell className="py-2.5 align-top">
+                          <div className="flex min-w-0 max-w-[220px] flex-col gap-0.5">
+                            <span className="truncate text-[13px] font-medium text-foreground">{order.counterparty_nickname}</span>
+                            {v.verifiedName && (
+                              <span className="truncate text-[11px] text-muted-foreground">{v.verifiedName}</span>
+                            )}
+                            <span className="mt-0.5 @[60rem]:hidden">{assignmentNode(order, v)}</span>
                           </div>
-                        </TableCell>
-
-                        {/* Assignment */}
-                        <TableCell className="py-4">
-                          {(() => {
-                            const vis = getOrderVisibility(order.binance_order_number);
-                            const assignment = getOrderAssignment(order.binance_order_number);
-                            if (vis === 'assigned_to_me') {
-                              return <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">You</Badge>;
-                            }
-                            if (vis === 'assigned_to_team' && assignment) {
-                              return <Badge variant="outline" className="text-[10px] bg-info/10 text-info border-info/30">Team</Badge>;
-                            }
-                            if (canManageOrders) {
-                              return (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setAssignDialogOrder(order); }}
-                                  className="text-[10px] text-muted-foreground hover:text-primary border border-dashed border-border rounded px-1.5 py-0.5 flex items-center gap-0.5 transition-colors"
-                                >
-                                  <UserPlus className="h-2.5 w-2.5" /> Assign
-                                </button>
-                              );
-                            }
-                            return <span className="text-[10px] text-muted-foreground/50">—</span>;
-                          })()}
                         </TableCell>
 
                         {/* Status */}
-                        <TableCell className="py-4">
-                          <div className="flex flex-col gap-1.5">
-                            <Badge variant="outline" className={`text-[11px] w-fit gap-1 px-2 py-0.5 ${style.badgeClass}`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${(style as any).dotColor || 'bg-current'}`} />
-                              {style.label}
-                            </Badge>
-
-                            {isActive && order.binance_create_time && (
+                        <TableCell className="py-2.5 align-top">
+                          <div className="flex flex-col items-start gap-1">
+                            {statusBadge(v)}
+                            {v.isActive && order.binance_create_time && (
                               <OrderRowTimer
-                                createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()}
+                                createTime={v.createMs as number}
                                 notifyPayEndTime={(order as any)._notifyPayEndTime}
                                 notifyPayedExpireMinute={(order as any)._notifyPayedExpireMinute}
                               />
@@ -2103,63 +2225,33 @@ function TerminalOrdersContent() {
                           </div>
                         </TableCell>
 
-                        {/* Chat */}
-                        <TableCell className="py-4 text-right">
-                          <div className="inline-flex flex-wrap items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            {/* Inline release — opens Fund Password for small sales, Authenticator otherwise */}
-                            {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (
-                              <ReleaseCoinAction
-                                compact
-                                orderNumber={order.binance_order_number}
-                                exchangeAccountId={(order as any).exchange_account_id}
-                                totalPrice={order.total_price}
-                                fiatUnit={order.fiat_unit}
-                                counterpartyName={verifiedNameMap[order.binance_order_number]}
-                              />
-                            )}
-                            <button
-                              onClick={(e) => openChatForOrder(order, e)}
-                              className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"
-                            >
-                              <MessageSquare className="h-3 w-3" />
-                              {unread > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
-                                  <span className="text-[8px] font-bold text-destructive-foreground">{unread}</span>
-                                </span>
-                              )}
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
-                              className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"
-                              title="Internal Chat"
-                            >
-                              <Users className="h-3 w-3" />
-                              {(internalUnreadMap[order.binance_order_number] || 0) > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
-                                  <span className="text-[8px] font-bold text-destructive-foreground">{internalUnreadMap[order.binance_order_number]}</span>
-                                </span>
-                              )}
-                            </button>
-                          </div>
+                        {/* Assignment */}
+                        <TableCell className="hidden @[60rem]:table-cell py-2.5 align-top">
+                          {assignmentNode(order, v)}
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="whitespace-nowrap py-2.5 pr-4 text-right align-top">
+                          {rowActions(order, v)}
                         </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
-            </div>}
-
-            {/* Infinite scroll sentinel (both list and mobile card views) */}
-            <div ref={loadMoreRef} className="h-4" />
-            {visibleCount < displayOrders.length && (
-              <div className="text-center py-3 text-xs text-muted-foreground">
-                Loading more orders...
-              </div>
-            )}
-
-            </>
+            )
           )}
-        </div>
+
+          {/* Infinite scroll sentinel (both list and mobile card views) */}
+          <div ref={loadMoreRef} className="h-4" />
+          {visibleCount < displayOrders.length && (
+            <div className="text-center py-3 text-xs text-muted-foreground">
+              Loading more orders...
+            </div>
+          )}
+
+          </>
+        )}
       </div>
 
 
@@ -2231,7 +2323,7 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
 
   if (!expiryTime) {
     // Fallback: just show creation time
-    return <span className="text-[10px] text-muted-foreground t-mono tabular-nums">{format(new Date(createTime), 'HH:mm')}</span>;
+    return <span className="text-[11px] text-muted-foreground t-mono tabular-nums">{format(new Date(createTime), 'HH:mm')}</span>;
   }
 
   const urgencyClass = isExpired
@@ -2243,9 +2335,9 @@ function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }
         : 'text-trade-pending';
 
   return (
-    <span className={`text-[10px] t-mono tabular-nums ${urgencyClass}`}>
-      ⏱ {remaining}
+    <span className={`inline-flex items-center gap-1 text-[11px] t-mono tabular-nums ${urgencyClass}`} title="Order timer">
+      <Timer className="h-3 w-3" aria-hidden="true" />
+      {remaining}
     </span>
-
   );
 }

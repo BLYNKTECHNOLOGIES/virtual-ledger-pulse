@@ -157,32 +157,33 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
   const { isDragActive, dropzoneProps } = useFileDropzone({ onFiles: handleDropFiles, disabled: uploading, multiple: false });
 
   return (
-    <div className="flex flex-col h-full bg-warning/[0.04] shadow-[inset_2px_0_0_hsl(var(--warning))]">
+    <div className="flex flex-col h-full bg-warning/[0.03]">
       {/* Header */}
-      <div className="t-panel-head">
+      <div className="t-panel-head shrink-0 bg-warning/[0.06]">
         <Users className="h-3.5 w-3.5 text-warning" />
         <span className="t-panel-head-title">Internal</span>
+        <span className="rounded-full border border-warning/30 bg-warning/10 px-1.5 py-px text-[10px] font-medium text-warning">Team only</span>
         <span className="text-[10px] text-muted-foreground ml-auto t-mono">#{orderNumber.slice(-8)}</span>
       </div>
 
 
       {/* Assignment Info Banner */}
       {assignmentInfo && (assignmentInfo.payers.length > 0 || assignmentInfo.operators.length > 0) && (
-        <div className="px-3 py-2 border-b border-border bg-muted/30 flex flex-wrap gap-x-4 gap-y-1">
+        <div className="shrink-0 px-3 py-2 border-b border-border bg-muted/30 flex flex-wrap gap-x-4 gap-y-1">
           {assignmentInfo.payers.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <Wallet className="h-3 w-3 text-chart-4" />
-              <span className="text-[10px] text-muted-foreground">Payer:</span>
-              <span className="text-[10px] font-medium text-foreground">
+            <div className="flex items-start gap-1.5 min-w-0">
+              <Wallet className="mt-0.5 h-3 w-3 shrink-0 text-[hsl(var(--chart-4))]" />
+              <span className="shrink-0 text-[11px] text-muted-foreground">Payer:</span>
+              <span className="min-w-0 break-words text-[11px] font-medium text-foreground">
                 {assignmentInfo.payers.join(', ')}
               </span>
             </div>
           )}
           {assignmentInfo.operators.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <UserCheck className="h-3 w-3 text-chart-2" />
-              <span className="text-[10px] text-muted-foreground">Operator:</span>
-              <span className="text-[10px] font-medium text-foreground">
+            <div className="flex items-start gap-1.5 min-w-0">
+              <UserCheck className="mt-0.5 h-3 w-3 shrink-0 text-[hsl(var(--chart-2))]" />
+              <span className="shrink-0 text-[11px] text-muted-foreground">Operator:</span>
+              <span className="min-w-0 break-words text-[11px] font-medium text-foreground">
                 {assignmentInfo.operators.join(', ')}
               </span>
             </div>
@@ -197,11 +198,13 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 py-12">
-            <Users className="h-8 w-8 text-muted-foreground/20" />
-            <p className="text-xs text-muted-foreground">No internal messages yet</p>
-            <p className="text-[10px] text-muted-foreground/60">
-              Start a conversation with your team
+          <div className="flex flex-col items-center justify-center h-full gap-2 py-12 text-center">
+            <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-warning" />
+            </div>
+            <p className="text-xs font-medium text-foreground">No internal messages yet</p>
+            <p className="text-[11px] text-muted-foreground max-w-[220px]">
+              Notes here stay inside the team — the counterparty never sees them
             </p>
           </div>
         ) : (
@@ -227,8 +230,8 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
       </ScrollArea>
 
       {/* Input area */}
-      <div className={`border-t border-border px-3 py-2 bg-card/50 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
-        <div className="flex items-center gap-2">
+      <div className={`shrink-0 border-t border-border px-3 py-2.5 bg-card/60 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-input p-1 transition-colors focus-within:border-warning/60 focus-within:ring-2 focus-within:ring-warning/25">
           <input
             type="file"
             ref={fileInputRef}
@@ -242,6 +245,8 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
             className="h-7 w-7 shrink-0"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
+            aria-label="Attach a file"
+            title="Attach a file"
           >
             {uploading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -254,8 +259,9 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            className="h-8 text-xs"
+            placeholder="Message your team..."
+            aria-label="Internal message"
+            className="h-7 flex-1 min-w-0 border-0 bg-transparent px-2 text-xs shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
             disabled={sending}
           />
           <Button
@@ -264,6 +270,8 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
             className="h-7 w-7 shrink-0"
             onClick={handleSend}
             disabled={!text.trim() || sending}
+            aria-label="Send internal message"
+            title="Send (Enter)"
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
@@ -281,14 +289,14 @@ function InternalChatBubble({ message, isOwn }: { message: InternalMessage; isOw
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[80%] min-w-0 rounded-lg px-3 py-2 overflow-hidden ${
+        className={`max-w-[85%] min-w-0 px-3 py-2 overflow-hidden ${
           isOwn
-            ? 'bg-primary/15 border border-primary/20 text-foreground'
-            : 'bg-secondary border border-border text-foreground'
+            ? 'bg-primary/10 border border-primary/20 text-foreground rounded-2xl rounded-br-md'
+            : 'bg-secondary border border-border/70 text-foreground rounded-2xl rounded-bl-md'
         }`}
       >
-        <p className={`text-[9px] font-semibold mb-0.5 ${
-          isOwn ? 'text-primary' : 'text-trade-pending'
+        <p className={`text-[10px] font-semibold mb-0.5 ${
+          isOwn ? 'text-primary' : 'text-warning'
         }`}>
           {message.sender_name}
         </p>
@@ -315,7 +323,7 @@ function InternalChatBubble({ message, isOwn }: { message: InternalMessage; isOw
             className="flex items-center gap-2 mb-1.5 px-2 py-1.5 rounded bg-muted/40 border border-border/50 hover:bg-muted/60 transition-colors"
           >
             <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-[10px] text-primary underline truncate">{message.file_name || 'Download file'}</span>
+            <span className="text-[11px] text-primary underline truncate">{message.file_name || 'Download file'}</span>
           </a>
         )}
 
@@ -326,13 +334,10 @@ function InternalChatBubble({ message, isOwn }: { message: InternalMessage; isOw
           </p>
         )}
 
-        <div className="flex items-center gap-1.5 mt-1">
-          <p className="text-[9px] text-muted-foreground">
+        <div className={`flex items-center gap-1.5 mt-1 ${isOwn ? 'justify-end' : ''}`}>
+          <p className="text-[10px] t-mono text-muted-foreground">
             {format(new Date(message.created_at), 'HH:mm')}
           </p>
-          <span className="text-[8px] text-accent-foreground bg-accent/50 px-1 rounded">
-            {message.sender_name}
-          </span>
         </div>
       </div>
     </div>

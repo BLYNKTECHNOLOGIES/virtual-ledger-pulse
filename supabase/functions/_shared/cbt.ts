@@ -229,7 +229,8 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
         return {
           id: r.id,
           display_order: r.display_order,
-          type: current.section_type,
+          // generated data entry / match pairs use the same item types as bank items
+          type: current.section_type === "data_entry" ? "data_entry_record" : current.section_type === "match_pairs" ? "match_pair" : current.section_type,
           category_tag: null,
           content: sanitize({ ...((r.generated_content ?? {}) as any) }),
           response: r.response,
@@ -321,6 +322,10 @@ export async function pickQuestions(
     roleCode: string;
     seenVersionIds: string[];
     sandbox: boolean;
+    /** The test's own pool; Shared is always added. */
+    pool?: string;
+    /** Difficulty preference for top-ups, nearest first (level-driven sections). */
+    prefer?: string[];
   },
 ): Promise<string[]> {
   const statuses = opts.sandbox ? ["approved", "needs_review", "draft"] : ["approved"];
@@ -330,7 +335,7 @@ export async function pickQuestions(
     .in("type", opts.types)
     .in("status", statuses)
     // Hiring tests draw only from the Hiring pool plus Shared skill-drill content.
-    .in("pool", ["hiring", "shared"])
+    .in("pool", [opts.pool ?? "hiring", "shared"])
     .not("current_version_id", "is", null);
   if (opts.tags.length) query = query.in("category_tag", opts.tags);
   const { data } = await query.limit(2000);
@@ -378,7 +383,9 @@ export async function pickQuestions(
   });
 
   if (chosen.length < opts.count) {
-    const rest = shuffle(pool.filter((q: any) => !chosen.includes(q.current_version_id)));
+    let rest = shuffle(pool.filter((q: any) => !chosen.includes(q.current_version_id)));
+    // top up from the nearest difficulty first
+    if (opts.prefer?.length) rest = rest.sort((a: any, b: any) => opts.prefer!.indexOf(a.difficulty) - opts.prefer!.indexOf(b.difficulty));
     for (const q of rest) { if (chosen.length >= opts.count) break; chosen.push((q as any).current_version_id); }
   }
   return chosen.slice(0, opts.count);

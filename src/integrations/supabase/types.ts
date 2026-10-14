@@ -4647,6 +4647,7 @@ export type Database = {
           id: string
           is_internal_benchmark: boolean
           is_sandbox: boolean
+          is_try_run: boolean
           job_role_ids: string[]
           mode: Database["public"]["Enums"]["cbt_drive_mode"]
           name: string
@@ -4663,6 +4664,7 @@ export type Database = {
           id?: string
           is_internal_benchmark?: boolean
           is_sandbox?: boolean
+          is_try_run?: boolean
           job_role_ids?: string[]
           mode?: Database["public"]["Enums"]["cbt_drive_mode"]
           name: string
@@ -4679,6 +4681,7 @@ export type Database = {
           id?: string
           is_internal_benchmark?: boolean
           is_sandbox?: boolean
+          is_try_run?: boolean
           job_role_ids?: string[]
           mode?: Database["public"]["Enums"]["cbt_drive_mode"]
           name?: string
@@ -4701,6 +4704,7 @@ export type Database = {
           is_active: boolean
           level: number
           name: string
+          pool: string
           position_id: string
           retake_cooldown_days: number
           shortlist_cutoff: number
@@ -4717,6 +4721,7 @@ export type Database = {
           is_active?: boolean
           level?: number
           name: string
+          pool?: string
           position_id: string
           retake_cooldown_days?: number
           shortlist_cutoff?: number
@@ -4733,6 +4738,7 @@ export type Database = {
           is_active?: boolean
           level?: number
           name?: string
+          pool?: string
           position_id?: string
           retake_cooldown_days?: number
           shortlist_cutoff?: number
@@ -5015,6 +5021,7 @@ export type Database = {
           gate_min_score: number | null
           id: string
           item_count: number
+          item_source: string
           job_role_id: string
           max_words: number | null
           min_words: number | null
@@ -5038,6 +5045,7 @@ export type Database = {
           gate_min_score?: number | null
           id?: string
           item_count?: number
+          item_source?: string
           job_role_id: string
           max_words?: number | null
           min_words?: number | null
@@ -5061,6 +5069,7 @@ export type Database = {
           gate_min_score?: number | null
           id?: string
           item_count?: number
+          item_source?: string
           job_role_id?: string
           max_words?: number | null
           min_words?: number | null
@@ -34260,6 +34269,15 @@ export type Database = {
         Returns: Json
       }
       cbt_attempt_detail: { Args: { p_attempt_id: string }; Returns: Json }
+      cbt_blueprint_readiness: {
+        Args: {
+          p_is_sandbox?: boolean
+          p_pool: string
+          p_role_code: string
+          p_sections: Json
+        }
+        Returns: Json
+      }
       cbt_build_item: { Args: { p: Json; p_type: string }; Returns: Json }
       cbt_bump_served: { Args: { p_question_id: string }; Returns: undefined }
       cbt_can_admin: { Args: { _user_id?: string }; Returns: boolean }
@@ -34324,6 +34342,7 @@ export type Database = {
       }
       cbt_overview: { Args: never; Returns: Json }
       cbt_purge_rate_limits: { Args: never; Returns: number }
+      cbt_purge_try_runs: { Args: never; Returns: number }
       cbt_question_bank_analytics: {
         Args: never
         Returns: {
@@ -34424,6 +34443,7 @@ export type Database = {
           p_hold_cutoff?: number
           p_is_active?: boolean
           p_position_id?: string
+          p_retake_cooldown_days?: number
           p_role_id?: string
           p_sections?: Json
           p_shortlist_cutoff?: number
@@ -34459,6 +34479,8 @@ export type Database = {
       }
       cbt_sweep_attempt: { Args: { p_attempt_id: string }; Returns: undefined }
       cbt_sweep_expired: { Args: never; Returns: number }
+      cbt_try_runs: { Args: { p_role_id: string }; Returns: Json }
+      cbt_try_test: { Args: { p_role_id: string }; Returns: Json }
       cbt_update_settings: { Args: { p: Json }; Returns: Json }
       check_in_terminal_appeal_case: {
         Args: { p_case_id: string; p_note?: string }

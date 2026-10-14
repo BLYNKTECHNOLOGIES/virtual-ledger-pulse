@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Users, UserCheck, Phone, Network, Mail } from 'lucide-react';
 import { useDirectReports } from '@/hooks/useDirectReports';
 import { SectionBlock, StatusPill, CountBadge } from './primitives';
+import { useMyTeam } from './hooks';
 
 
 interface Props {
@@ -15,62 +14,30 @@ interface Props {
 
 /**
  * Phase 6 (ESS) — Team & Reporting Directory.
- * Reads work-info to identify the reporting manager and pulls other active
- * employees sharing the same department. Read-only, contact-only surface —
- * no salary, no personal IDs. Aligns with the ESS rule that /hrms remains
- * HR-only while non-sensitive collaboration data is exposed to employees.
+ * Reporting manager and department colleagues come from `hr_my_team()`, a
+ * narrow server read (name, position, badge, phone; email for the manager
+ * only), because employees can't read other employee rows directly. Direct
+ * reports come from `hr_manager_direct_reports()`. Read-only, contact-only —
+ * no salary, no personal IDs; /hrms stays HR-only.
  */
 export default function MyTeamCard({ employeeId, workInfo }: Props) {
-  const managerId: string | null = workInfo?.reporting_manager_id || null;
   const departmentId: string | null = workInfo?.department_id || null;
+  const { data: team = [], isLoading: teamLoading, isError: teamError } = useMyTeam(employeeId);
 
-  const { data: manager } = useQuery({
-    queryKey: ['ess_team_manager', managerId],
-    queryFn: async () => {
-      if (!managerId) return null;
-      const { data, error } = await supabase
-        .from('hr_employees')
-        .select('id, badge_id, first_name, last_name, phone, email, is_active')
-        .eq('id', managerId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!managerId,
-  });
-
-  const { data: teammates = [] } = useQuery({
-    queryKey: ['ess_team_teammates', departmentId, employeeId],
-    queryFn: async () => {
-      if (!departmentId) return [];
-      const { data: wi, error: wErr } = await supabase
-        .from('hr_employee_work_info')
-        .select('employee_id, job_position_id, positions:job_position_id(title)')
-        .eq('department_id', departmentId);
-      if (wErr) throw wErr;
-      const ids = (wi || [])
-        .map((r: any) => r.employee_id)
-        .filter((id: string) => id && id !== employeeId);
-      if (ids.length === 0) return [];
-      const { data: emps, error: eErr } = await supabase
-        .from('hr_employees')
-        .select('id, badge_id, first_name, last_name, phone, email, is_active')
-        .in('id', ids)
-        .eq('is_active', true);
-      if (eErr) throw eErr;
-      const roleMap = new Map<string, string>();
-      (wi || []).forEach((r: any) => {
-        if (r.employee_id && r.positions?.title) roleMap.set(r.employee_id, r.positions.title);
-      });
-      return (emps || [])
-        .map((e: any) => ({ ...e, role: roleMap.get(e.id) || null }))
-        .sort((a: any, b: any) => (a.first_name || '').localeCompare(b.first_name || ''));
-    },
-    enabled: !!departmentId,
-  });
-
+  const splitName = (full?: string | null) => {
+    const [first, ...rest] = String(full || '').trim().split(/\s+/);
+    return { first_name: first || null, last_name: rest.join(' ') || null };
+  };
+  const managerRow = team.find((m) => m.relation === 'manager') || null;
+  const manager = managerRow ? { ...managerRow, ...splitName(managerRow.full_name) } : null;
   const { data: reports = [] } = useDirectReports(!!employeeId);
   const activeReports = (reports || []).filter((r) => r.is_active !== false);
+  // People who report to me are listed once, under "Reports to you".
+  const reportIds = new Set(activeReports.map((r) => r.employee_id));
+  const allColleagues = team.filter((m) => m.relation === 'colleague');
+  const teammates = allColleagues
+    .filter((m) => !reportIds.has(m.employee_id))
+    .map((m) => ({ id: m.employee_id, ...splitName(m.full_name), badge_id: m.badge_id, phone: m.phone, role: m.position }));
   const regsWithHr = activeReports.reduce((s, r) => s + (r.pending_reg_with_hr || 0), 0);
 
   const initials = (f?: string | null, l?: string | null) =>
@@ -128,7 +95,7 @@ export default function MyTeamCard({ employeeId, workInfo }: Props) {
                 {`${manager.first_name || ''} ${manager.last_name || ''}`.trim() || 'Manager'}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                Badge {manager.badge_id || '—'}
+                {[manager.position, manager.badge_id ? `Badge ${manager.badge_id}` : null].filter(Boolean).join(' · ') || '—'}
               </p>
             </div>
             <StatusPill tone="info"><UserCheck className="h-3 w-3" /> Manager</StatusPill>
@@ -141,6 +108,10 @@ export default function MyTeamCard({ employeeId, workInfo }: Props) {
               )}
             </div>
           </div>
+        ) : teamLoading ? (
+          <p className="text-xs text-muted-foreground">Loading…</p>
+        ) : teamError ? (
+          <p className="text-xs text-muted-foreground">Your team couldn't be loaded right now. Try again in a moment.</p>
         ) : (
           <p className="text-xs text-muted-foreground">
             No reporting manager assigned. Contact HR if this is incorrect.
@@ -183,9 +154,13 @@ export default function MyTeamCard({ employeeId, workInfo }: Props) {
         <Label count={teammates.length}>Colleagues in your department</Label>
         {!departmentId ? (
           <p className="text-xs text-muted-foreground">Department not set.</p>
+        ) : teamLoading || teamError ? (
+          <p className="text-xs text-muted-foreground">{teamLoading ? 'Loading…' : "Colleagues couldn't be loaded right now."}</p>
         ) : teammates.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            You're the only active member in this department right now.
+            {allColleagues.length > 0
+              ? 'Everyone else in your department reports to you — they are listed above.'
+              : "You're the only active member in this department right now."}
           </p>
         ) : (
           <>

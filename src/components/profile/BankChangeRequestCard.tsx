@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SectionBlock } from "./primitives";
+import { fmtDay } from "./format";
 import {
   Dialog,
   DialogContent,
@@ -143,6 +144,7 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName, d
   const submit = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Not signed in");
+      if (openRequest) throw new Error("You already have a bank change request in progress.");
       const acc = form.account_number.trim();
       const ifsc = form.ifsc_code.trim().toUpperCase();
       if (!form.account_holder_name.trim()) throw new Error("Account holder name is required");
@@ -280,6 +282,26 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName, d
             </DialogDescription>
           </DialogHeader>
 
+          {openRequest ? (
+            <>
+              {/* One change at a time — also enforced in the database. */}
+              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-3 text-sm">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">You already have a change in progress</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {(BANK_CHANGE_STATUS_META[openRequest.status] || BANK_CHANGE_STATUS_META.pending).label} · sent {fmtDay(openRequest.created_at)}.
+                    You can send a new one once it is closed.
+                    {openRequest.status === "pending" ? " If the details were wrong, withdraw it under Bank details." : " HR will finish it first."}
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Close</Button>
+              </DialogFooter>
+            </>
+          ) : (
+          <>
           <div className="space-y-3">
             <div>
               <Label>Account holder name *</Label>
@@ -416,6 +438,8 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName, d
               Submit request
             </Button>
           </DialogFooter>
+          </>
+          )}
         </DialogContent>
       </Dialog>
     </>

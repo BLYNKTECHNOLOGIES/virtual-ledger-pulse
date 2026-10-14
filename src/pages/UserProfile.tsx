@@ -7,9 +7,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,8 +29,6 @@ import {
   Settings,
   Receipt,
   Plus,
-  Pencil,
-  Trash2,
   LogOut,
   ChevronDown,
   ClipboardList,
@@ -47,7 +42,6 @@ import {
   FileCheck2,
   Copy,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -75,8 +69,10 @@ import { BankChangeRequestCard } from '@/components/profile/BankChangeRequestCar
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileNav, buildProfileNav } from '@/components/profile/ProfileNav';
 import { ProfileOverview } from '@/components/profile/ProfileOverview';
-import { useMyPayslips, useTeamLeaveQueue, useTeamRegQueue } from '@/components/profile/hooks';
-import { fmtAgo, fmtDay, fmtDays, fmtINR, fmtMonth, fmtRange, humanize, leaveStage } from '@/components/profile/format';
+import { invalidateLeaveCaches, useMyLeaveAvailable, useMyPayslips, useTeamLeaveQueue, useTeamRegQueue } from '@/components/profile/hooks';
+import { isOpenLeave, isPaidLeaveType, leaveCancelState } from '@/components/profile/leave';
+import RequestLeaveDialog from '@/components/profile/RequestLeaveDialog';
+import { fmtAgo, fmtDay, fmtDays, fmtINR, fmtMonth, fmtRange, humanize, istToday, leaveStage } from '@/components/profile/format';
 import {
   FieldGrid,
   Field,
@@ -90,15 +86,6 @@ import {
 } from '@/components/profile/primitives';
 
 
-
-interface BankAccount {
-  id: string;
-  account_name: string;
-  account_number: string;
-  bank_name: string;
-  IFSC?: string;
-  branch?: string;
-}
 
 /** "50100234567812" → "5010 0234 5678 12" — easier to read out and check. */
 const groupDigits = (v?: string | null) => String(v || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
@@ -701,14 +688,6 @@ export default function UserProfile() {
     const tab = searchParams.get('tab');
     if (tab) setActiveTab(resolveProfileTab(tab));
   }, [searchParams]);
-  const [isEditingBank, setIsEditingBank] = useState(false);
-  const [newBankAccount, setNewBankAccount] = useState({
-    account_name: '', account_number: '', bank_name: '', ifsc_code: '', branch: ''
-  });
-  const [leaveRequest, setLeaveRequest] = useState({
-    leave_type_id: '', from_date: '', to_date: '', reason: '',
-    is_half_day: false, half_day_period: 'morning' as 'morning' | 'afternoon'
-  });
   const [settingsData, setSettingsData] = useState({
     newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
   });
@@ -718,7 +697,6 @@ export default function UserProfile() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showLeaveCreate, setShowLeaveCreate] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
-  const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
 
   // ─── Fetch HRMS employee linked to this user (with fallback resolution) ───
   // Primary: user_id link. Fallbacks (Phase 0 — unblocks "No Employee Profile Found"):
@@ -824,64 +802,50 @@ export default function UserProfile() {
     enabled: !!hrEmployee?.id,
   });
 
-  // Comp-off is monthly and never carries forward; other leave types remain cumulative.
-  const cumulativeLeaveBalances = (() => {
-    const map: Record<string, { totalAllocated: number; totalUsed: number; available: number }> = {};
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
-    for (const a of leaveAllocations) {
-      const ltId = a.leave_type_id;
-      const leaveType = leaveTypes.find((lt: any) => lt.id === ltId);
-      if (leaveType?.code === 'CO') {
-        if (a.year === currentYear && a.quarter === currentQuarter) {
-          map[ltId] = {
-            totalAllocated: Number(a.allocated_days || 0),
-            totalUsed: Number(a.used_days || 0),
-            available: Number(a.available_days ?? Math.max(Number(a.allocated_days || 0) - Number(a.used_days || 0), 0)),
-          };
-        }
-        continue;
-      }
-      if (!map[ltId]) map[ltId] = { totalAllocated: 0, totalUsed: 0, available: 0 };
-      map[ltId].totalAllocated += Number(a.allocated_days || 0);
-      map[ltId].totalUsed += Number(a.used_days || 0);
-      map[ltId].available = map[ltId].totalAllocated - map[ltId].totalUsed;
+  // ─── Leave balance per type, as the database counts it ───
+  // `available` is hr_my_leave_available as of today: earned balance in scope
+  // minus requests still waiting for a decision (comp-off: this month's credits
+  // only). `totalAllocated` / `totalUsed` are this year's allocation rows, shown
+  // for context. Until the database answers, `available` is null.
+  const paidTypeIds = (leaveTypes as any[]).filter(isPaidLeaveType).map((lt) => lt.id);
+  const { data: availableToday, isError: balanceFailed } = useMyLeaveAvailable(hrEmployee?.id, paidTypeIds);
+  const leaveBalances = (() => {
+    const map: Record<string, { totalAllocated: number; totalUsed: number; available: number | null }> = {};
+    const today = istToday();
+    const year = Number(today.slice(0, 4));
+    const quarter = Math.ceil(Number(today.slice(5, 7)) / 3);
+    for (const lt of leaveTypes as any[]) {
+      const rows = (leaveAllocations as any[]).filter(
+        (a) => a.leave_type_id === lt.id && Number(a.year) === year && Number(a.quarter ?? 0) <= quarter,
+      );
+      // available + used: what was granted, however carry-forward is recorded on the row.
+      map[lt.id] = {
+        totalAllocated: rows.reduce((s, a) => s + Number(a.available_days || 0) + Number(a.used_days || 0), 0),
+        totalUsed: rows.reduce((s, a) => s + Number(a.used_days || 0), 0),
+        // null = unknown (still loading, or this type's lookup failed) — shown as … / —, never as 0.
+        available: availableToday && availableToday[lt.id] != null ? Number(availableToday[lt.id]) : null,
+      };
     }
     return map;
   })();
 
-  // Cancel leave mutation
+  // Cancel leave. The database gives back any balance and clears the calendar
+  // days; the page only asks, then checks that the request really changed.
   const cancelLeaveMutation = useMutation({
-    mutationFn: async ({ requestId, wasApproved }: { requestId: string; wasApproved: boolean }) => {
-      const { error } = await supabase
+    mutationFn: async ({ requestId }: { requestId: string }) => {
+      const { data, error } = await supabase
         .from('hr_leave_requests')
         .update({ status: 'cancelled' })
-        .eq('id', requestId);
+        .eq('id', requestId)
+        .select('id');
       if (error) throw error;
-
-      // If was approved, restore used_days in the most recent allocation
-      if (wasApproved && hrEmployee?.id) {
-        const req = leaveRequests.find((r: any) => r.id === requestId);
-        if (req) {
-          const empAllocs = leaveAllocations
-            .filter((a: any) => a.leave_type_id === req.leave_type_id)
-            .sort((a: any, b: any) => ((b.year || 0) * 10 + (b.quarter || 0)) - ((a.year || 0) * 10 + (a.quarter || 0)));
-          if (empAllocs.length > 0) {
-            await supabase
-              .from('hr_leave_allocations')
-              .update({ used_days: Math.max(0, empAllocs[0].used_days - req.total_days) })
-              .eq('id', empAllocs[0].id);
-          }
-        }
-      }
+      if (!data || data.length === 0) throw new Error('This request could not be cancelled. Refresh the page, or ask HR.');
     },
     onSuccess: () => {
       sonnerToast.success('Leave request cancelled');
-      queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
-      queryClient.invalidateQueries({ queryKey: ['hr_leave_allocations', hrEmployee?.id] });
+      invalidateLeaveCaches(queryClient, hrEmployee?.id);
     },
-    onError: () => sonnerToast.error('Failed to cancel leave request'),
+    onError: (e: any) => sonnerToast.error(e?.message || 'Failed to cancel leave request'),
   });
 
   // ─── HRMS Leave Requests ───
@@ -905,98 +869,6 @@ export default function UserProfile() {
     ...hrEmployee,
     name: `${hrEmployee.first_name} ${hrEmployee.last_name || ''}`.trim(),
   } : null;
-
-  // ─── Bank accounts ───
-  const { data: bankAccounts = [] } = useQuery({
-    queryKey: ['user_bank_accounts', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase.from('bank_accounts').select('*');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // ─── Apply for Leave Mutation (HRMS) ───
-  const applyLeaveMutation = useMutation({
-    mutationFn: async (req: typeof leaveRequest) => {
-      if (!hrEmployee?.id) throw new Error('No HRMS employee profile linked');
-      // Half-day requests intentionally have no end date — the single date covers it.
-      if (!req.leave_type_id || !req.from_date || (!req.is_half_day && !req.to_date)) throw new Error('Please fill all required fields');
-
-      const start = new Date(req.from_date);
-      const end = req.is_half_day ? start : new Date(req.to_date);
-      if (end < start) throw new Error('End date must be after start date');
-      const totalDays = req.is_half_day
-        ? 0.5
-        : Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const payload = {
-        leave_type_id: req.leave_type_id,
-        start_date: req.from_date,
-        end_date: req.is_half_day ? req.from_date : req.to_date,
-        total_days: totalDays,
-        is_half_day: req.is_half_day,
-        half_day_period: req.is_half_day ? req.half_day_period : null,
-        reason: req.reason || null,
-      };
-
-      // If editing, update instead of insert
-      if (editingLeaveId) {
-        const { error } = await (supabase as any).from('hr_leave_requests').update(payload).eq('id', editingLeaveId);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from('hr_leave_requests').insert({
-          ...payload,
-          employee_id: hrEmployee.id,
-          status: 'requested',
-        });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      sonnerToast.success(editingLeaveId ? 'Leave request updated' : 'Leave request submitted successfully');
-      setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '', is_half_day: false, half_day_period: 'morning' });
-      setEditingLeaveId(null);
-      setShowLeaveCreate(false);
-      queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
-    },
-    onError: (error: any) => {
-      sonnerToast.error(error.message || 'Failed to submit leave request');
-    },
-  });
-
-  // ─── Delete Leave Request Mutation ───
-  const deleteLeaveRequestMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const { error } = await (supabase as any).from('hr_leave_requests').delete().eq('id', requestId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      sonnerToast.success('Leave request deleted');
-      queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
-    },
-    onError: () => sonnerToast.error('Failed to delete leave request'),
-  });
-
-  // ─── Add bank account mutation ───
-  const addBankAccountMutation = useMutation({
-    mutationFn: async (bankData: typeof newBankAccount) => {
-      const { error } = await supabase.from('bank_accounts').insert({
-        ...bankData, created_by: user?.id, status: 'ACTIVE', balance: 0
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Bank account added successfully" });
-      setNewBankAccount({ account_name: '', account_number: '', bank_name: '', ifsc_code: '', branch: '' });
-      setIsEditingBank(false);
-      queryClient.invalidateQueries({ queryKey: ['user_bank_accounts'] });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  });
 
 
   // ─── Update username mutation ───
@@ -1129,7 +1001,7 @@ export default function UserProfile() {
   // ─── Page navigation, counts and shortcuts (presentation only) ───
   const isWide = useIsWide();
   const [prefillReg, setPrefillReg] = useState<{ date?: string; nonce: number } | null>(null);
-  const [leaveConfirm, setLeaveConfirm] = useState<{ kind: 'delete' | 'cancel'; req: any } | null>(null);
+  const [leaveConfirm, setLeaveConfirm] = useState<{ req: any } | null>(null);
   // Keep the last request on screen while the confirm dialog animates out.
   const lastLeaveConfirm = useRef(leaveConfirm);
   if (leaveConfirm) lastLeaveConfirm.current = leaveConfirm;
@@ -1160,12 +1032,8 @@ export default function UserProfile() {
     });
   };
 
-  /** Open the leave form for a NEW request (clears anything left from an earlier edit). */
-  const openNewLeave = () => {
-    setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '', is_half_day: false, half_day_period: 'morning' });
-    setEditingLeaveId(null);
-    setShowLeaveCreate(true);
-  };
+  /** Open the leave form (the same one the Requests tab uses). */
+  const openNewLeave = () => setShowLeaveCreate(true);
 
   /** Open the attendance-correction form on the Requests tab, optionally for a given day. */
   const requestCorrection = (date?: string) => {
@@ -1182,15 +1050,20 @@ export default function UserProfile() {
   const deptName = (workInfo as any)?.departments?.name || null;
 
   const leaveRows = leaveRequests as any[];
-  // Days already asked for but not yet decided — the balance below doesn't subtract them yet.
+  const todayIst = istToday();
+  // Days asked for but not decided yet. The database already sets them aside,
+  // so they are shown next to the balance, not subtracted again.
   const pendingByType: Record<string, number> = {};
   for (const r of leaveRows) {
-    if (['requested', 'manager_approved'].includes(r.status)) {
+    if (isOpenLeave(r.status)) {
       pendingByType[r.leave_type_id] = (pendingByType[r.leave_type_id] || 0) + (Number(r.total_days) || 0);
     }
   }
-  const paidLeaveTypes = (leaveTypes as any[]).filter((lt) => lt.code !== 'LOP' && lt.is_paid !== false);
-  const paidAvailable = paidLeaveTypes.reduce((sum, lt) => sum + (cumulativeLeaveBalances[lt.id]?.available || 0), 0);
+  const paidLeaveTypes = (leaveTypes as any[]).filter(isPaidLeaveType);
+  const balanceState: 'loading' | 'ready' | 'error' = balanceFailed
+    ? 'error'
+    : paidLeaveTypes.length > 0 && !!availableToday ? 'ready' : 'loading';
+  const paidAvailable = paidLeaveTypes.reduce((sum, lt) => sum + (leaveBalances[lt.id]?.available || 0), 0);
   const paidPending = paidLeaveTypes.reduce((sum, lt) => sum + (pendingByType[lt.id] || 0), 0);
 
   return (
@@ -1250,7 +1123,8 @@ export default function UserProfile() {
                   hrEmployee={hrEmployee}
                   workInfo={workInfo}
                   leaveTypes={leaveTypes as any[]}
-                  balances={cumulativeLeaveBalances}
+                  balances={leaveBalances}
+                  balanceState={balanceState}
                   leaveRequests={leaveRows}
                   onNavigate={goToTab}
                   onRequestCorrection={requestCorrection}
@@ -1311,7 +1185,11 @@ export default function UserProfile() {
                 <>
                   <TabIntro
                     title="Leave"
-                    description={`${fmtDays(paidAvailable)} day${paidAvailable === 1 ? '' : 's'} of paid leave left${paidPending > 0 ? ` · ${fmtDays(paidPending)} day${paidPending === 1 ? '' : 's'} waiting for approval` : ''}`}
+                    description={balanceState === 'error'
+                      ? "Your balance couldn't be loaded right now. Refresh the page to try again."
+                      : balanceState === 'loading'
+                      ? 'Checking your balance…'
+                      : `${fmtDays(paidAvailable)} day${paidAvailable === 1 ? '' : 's'} of paid leave available${paidPending > 0 ? ` · ${fmtDays(paidPending)} more day${paidPending === 1 ? '' : 's'} waiting for approval` : ''}`}
                     actions={
                       <Button size="sm" className="gap-1.5" onClick={openNewLeave}>
                         <Plus className="h-4 w-4" /> Apply for leave
@@ -1325,24 +1203,31 @@ export default function UserProfile() {
                   ) : (
                     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                       {leaveTypes.map((lt: any) => {
-                        const bal = cumulativeLeaveBalances[lt.id];
+                        const bal = leaveBalances[lt.id];
                         const allocated = bal?.totalAllocated || 0;
                         const used = bal?.totalUsed || 0;
-                        const available = bal?.available || 0;
-                        const unpaid = lt.code === 'LOP' || lt.is_paid === false;
+                        const available = bal?.available;
+                        const unpaid = !isPaidLeaveType(lt);
+                        const pending = pendingByType[lt.id] || 0;
                         return (
                           <StatTile
                             key={lt.id}
                             accent={lt.color || undefined}
                             label={<span className="normal-case tracking-normal text-[12px] font-semibold text-foreground">{lt.name}{lt.code ? <span className="ml-1.5 font-mono text-[11px] font-medium text-muted-foreground">{lt.code}</span> : null}</span>}
-                            value={unpaid ? <span className="text-muted-foreground">—</span> : <>{fmtDays(available)} <span className="text-sm font-semibold text-muted-foreground">day{available === 1 ? '' : 's'} left</span></>}
+                            value={unpaid
+                              ? <span className="text-muted-foreground">—</span>
+                              : available == null
+                                ? <span className="text-muted-foreground">{balanceState === 'loading' ? '…' : '—'}</span>
+                                : <>{fmtDays(available)} <span className="text-sm font-semibold text-muted-foreground">day{available === 1 ? '' : 's'} available</span></>}
                             sub={unpaid
-                              ? `Unpaid — no balance needed${used ? ` · ${fmtDays(used)} taken` : ''}`
-                              : `${fmtDays(allocated)} allocated · ${fmtDays(used)} taken`}
+                              ? 'Unpaid — no balance needed'
+                              : lt.code === 'CO'
+                                ? 'Only credits earned this month'
+                                : `${fmtDays(allocated)} allocated this year · ${fmtDays(used)} taken`}
                           >
-                            {!unpaid && (pendingByType[lt.id] || 0) > 0 && (
+                            {pending > 0 && (
                               <p className="mt-1 text-xs font-medium text-warning">
-                                {fmtDays(pendingByType[lt.id])} day{pendingByType[lt.id] === 1 ? '' : 's'} waiting for approval — not taken off yet
+                                {unpaid ? '' : '+ '}{fmtDays(pending)} day{pending === 1 ? '' : 's'} waiting for approval
                               </p>
                             )}
                           </StatTile>
@@ -1371,8 +1256,7 @@ export default function UserProfile() {
                         <ul className="divide-y divide-border">
                           {leaveRows.map((req: any) => {
                             const lt = getLeaveType(req.leave_type_id);
-                            const isCancellable = ['requested', 'manager_approved', 'approved'].includes(req.status);
-                            const isEditable = req.status === 'requested';
+                            const cancel = leaveCancelState(req, todayIst);
                             const stage = leaveStage(req.status, req.manager_status);
                             const unpaidDays = Number(req.unpaid_days) || 0;
                             return (
@@ -1405,47 +1289,22 @@ export default function UserProfile() {
                                     {req.status === 'approved' && unpaidDays > 0 && (
                                       <p className="mt-1 text-xs text-warning">{fmtDays(Number(req.paid_days) || 0)} day(s) paid · {fmtDays(unpaidDays)} unpaid</p>
                                     )}
+                                    {!cancel.canCancel && cancel.note && (
+                                      <p className="mt-1 text-xs text-muted-foreground">{cancel.note}</p>
+                                    )}
                                   </div>
                                 </div>
-                                {(isEditable || isCancellable) && (
+                                {cancel.canCancel && (
                                   <div className="flex shrink-0 items-center gap-1.5 pl-[22px] sm:pl-0">
-                                    {isEditable && (
-                                      <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-muted-foreground hover:text-foreground"
-                                        onClick={() => {
-                                          setLeaveRequest({
-                                            leave_type_id: req.leave_type_id,
-                                            from_date: req.start_date,
-                                            to_date: req.end_date,
-                                            reason: req.reason || '',
-                                            is_half_day: !!req.is_half_day,
-                                            half_day_period: req.half_day_period || 'morning',
-                                          });
-                                          setEditingLeaveId(req.id);
-                                          setShowLeaveCreate(true);
-                                        }}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5" /> Edit
-                                      </Button>
-                                    )}
-                                    {isEditable && (
-                                      <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-destructive hover:text-destructive"
-                                        onClick={() => setLeaveConfirm({ kind: 'delete', req })}
-                                        disabled={deleteLeaveRequestMutation.isPending}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" /> Delete
-                                      </Button>
-                                    )}
-                                    {isCancellable && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-8 gap-1 text-xs"
-                                        onClick={() => setLeaveConfirm({ kind: 'cancel', req })}
-                                        disabled={cancelLeaveMutation.isPending}
-                                      >
-                                        <XCircle className="h-3.5 w-3.5" /> Cancel
-                                      </Button>
-                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 gap-1 text-xs"
+                                      onClick={() => setLeaveConfirm({ req })}
+                                      disabled={cancelLeaveMutation.isPending}
+                                    >
+                                      <XCircle className="h-3.5 w-3.5" /> Cancel
+                                    </Button>
                                   </div>
                                 )}
                               </li>
@@ -1456,7 +1315,7 @@ export default function UserProfile() {
                     </SectionBlock>
 
                     <div className="min-w-0 space-y-4">
-                      <OrgLeaveCalendarCard />
+                      <OrgLeaveCalendarCard employeeId={hrEmployee.id} />
                       <UpcomingHolidaysCard />
                     </div>
                   </div>
@@ -1641,95 +1500,23 @@ export default function UserProfile() {
         </div>
       </Tabs>
 
-      {/* ─── Leave form (opened from the header, the overview and the Leave tab) ─── */}
-      <Dialog open={showLeaveCreate} onOpenChange={setShowLeaveCreate}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingLeaveId ? 'Edit leave request' : 'New Leave Request'}</DialogTitle>
-            <DialogDescription>Your manager reviews it first, then HR gives the final approval.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Leave Type *</Label>
-              <Select value={leaveRequest.leave_type_id} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, leave_type_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select leave type" /></SelectTrigger>
-                <SelectContent>
-                  {leaveTypes.map((lt: any) => (
-                    <SelectItem key={lt.id} value={lt.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: lt.color || '#888' }} />
-                        {lt.name}
-                        {cumulativeLeaveBalances[lt.id] && lt.code !== 'LOP' && (
-                          <span className="text-xs text-muted-foreground">· {fmtDays(cumulativeLeaveBalances[lt.id].available)} left</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="profile-half-day"
-                checked={leaveRequest.is_half_day}
-                onCheckedChange={(c) => setLeaveRequest(prev => ({ ...prev, is_half_day: !!c }))}
-              />
-              <Label htmlFor="profile-half-day" className="cursor-pointer">Half day</Label>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="min-w-0">
-                <Label>{leaveRequest.is_half_day ? 'Date *' : 'Start Date *'}</Label>
-                <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
-              </div>
-              {leaveRequest.is_half_day ? (
-                <div className="min-w-0">
-                  <Label>Session *</Label>
-                  <Select value={leaveRequest.half_day_period} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, half_day_period: v as 'morning' | 'afternoon' }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="morning">First half (morning)</SelectItem>
-                      <SelectItem value="afternoon">Second half (afternoon)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="min-w-0">
-                  <Label>End Date *</Label>
-                  <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
-                </div>
-              )}
-            </div>
-            <div>
-              <Label>Reason</Label>
-              <Textarea value={leaveRequest.reason} onChange={(e) => setLeaveRequest(prev => ({ ...prev, reason: e.target.value }))} placeholder="Enter reason for leave" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLeaveCreate(false)}>Cancel</Button>
-            <Button
-              onClick={() => applyLeaveMutation.mutate(leaveRequest)}
-              disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || (!leaveRequest.is_half_day && !leaveRequest.to_date)}
-            >
-              {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ─── Leave form (header, Overview and Leave tab) — the same form as Requests ─── */}
+      {hrEmployee && (
+        <RequestLeaveDialog employeeId={hrEmployee.id} open={showLeaveCreate} onOpenChange={setShowLeaveCreate} hideTrigger />
+      )}
 
-      {/* ─── Confirm delete / cancel of a leave request ─── */}
+      {/* ─── Confirm cancelling a leave request ─── */}
       <AlertDialog open={!!leaveConfirm} onOpenChange={(o) => { if (!o) setLeaveConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{shownConfirm?.kind === 'delete' ? 'Delete this leave request?' : 'Cancel this leave?'}</AlertDialogTitle>
+            <AlertDialogTitle>Cancel this leave?</AlertDialogTitle>
             <AlertDialogDescription>
               {shownConfirm?.req
                 ? `${getLeaveType(shownConfirm.req.leave_type_id)?.name || 'Leave'} · ${fmtRange(shownConfirm.req.start_date, shownConfirm.req.end_date)}. `
                 : ''}
-              {shownConfirm?.kind === 'delete'
-                ? 'It has not been decided yet, so it is removed from your list.'
-                : shownConfirm?.req?.status === 'approved'
-                  ? 'It is already approved — cancelling gives the days back to your balance.'
-                  : 'It is withdrawn and no longer waits for approval.'}
+              {shownConfirm?.req?.status === 'approved'
+                ? 'It is already approved. Cancelling gives the days back to your balance and clears them from your calendar.'
+                : 'It is withdrawn and no longer waits for approval. To change the dates, cancel it and apply again.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1739,12 +1526,11 @@ export default function UserProfile() {
               onClick={() => {
                 const c = leaveConfirm;
                 if (!c) return;
-                if (c.kind === 'delete') deleteLeaveRequestMutation.mutate(c.req.id);
-                else cancelLeaveMutation.mutate({ requestId: c.req.id, wasApproved: c.req.status === 'approved' });
+                cancelLeaveMutation.mutate({ requestId: c.req.id });
                 setLeaveConfirm(null);
               }}
             >
-              {shownConfirm?.kind === 'delete' ? 'Delete' : 'Cancel leave'}
+              Cancel leave
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

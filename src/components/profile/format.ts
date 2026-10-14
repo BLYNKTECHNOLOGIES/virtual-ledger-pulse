@@ -86,6 +86,13 @@ export function istToday(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
+/** 'YYYY-MM-DD' plus n calendar days. */
+export function addDaysYmd(ymd: string, n: number): string {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 /** "1 yr 7 mo" since a joining date. */
 export function tenure(joining?: string | null): string | null {
   const d = toDate(joining);

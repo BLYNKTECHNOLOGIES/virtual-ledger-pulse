@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePayrollMonths, monthLabel, statusColor, RUN_STATUS_LABEL } from "@/hooks/hrms/usePayrollMonths";
 import { useLatestIncompleteCockpitMonth } from "@/hooks/hrms/useLatestIncompleteCockpitMonth";
@@ -81,7 +82,7 @@ export default function HorillaDashboard() {
   const { data: workInfos } = useQuery({
     queryKey: ["hr_dashboard_work_infos"],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_employee_work_info").select("department_id, employee_type");
+      const { data } = await supabase.from("hr_employee_work_info").select("employee_id, department_id, employee_type");
       return data || [];
     },
   });
@@ -100,7 +101,12 @@ export default function HorillaDashboard() {
     queryKey: ["hr_dashboard_leave_counts"],
     queryFn: async () => {
       const c = async (statuses: string[]) => {
-        const { count, error } = await (supabase as any).from("hr_leave_requests").select("id", { count: "exact", head: true }).in("status", statuses);
+        // Leave of separated people is left out: only current staff (active, last working day not passed).
+        const { count, error } = await (supabase as any).from("hr_leave_requests")
+          .select("id, hr_employees!hr_leave_requests_employee_id_fkey!inner(id)", { count: "exact", head: true })
+          .in("status", statuses)
+          .eq("hr_employees.is_active", true)
+          .or(`last_working_day.is.null,last_working_day.gte.${new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10)}`, { referencedTable: "hr_employees" });
         if (error) throw error;
         return count ?? 0;
       };
@@ -112,8 +118,9 @@ export default function HorillaDashboard() {
     queryKey: ["hr_dashboard_leave"],
     queryFn: async () => {
       const { data } = await (supabase as any).from("hr_leave_requests")
-        .select("id, status, employee_id, start_date, end_date, total_days, hr_employees!hr_leave_requests_employee_id_fkey(first_name, last_name), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name)")
+        .select("id, status, employee_id, start_date, end_date, total_days, hr_employees!hr_leave_requests_employee_id_fkey!inner(first_name, last_name, is_active), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name)")
         .in("status", ["requested", "manager_approved"])
+        .eq("hr_employees.is_active", true)
         .order("created_at", { ascending: false }).limit(5);
       return data || [];
     },
@@ -133,7 +140,7 @@ export default function HorillaDashboard() {
       const { data } = await supabase.from("hr_employees").select("id, first_name, last_name, badge_id").in("id", absentIds.slice(0, 20));
       return data || [];
     },
-    enabled: !!(employees && todayAttendance),
+    enabled: !!(allEmployees && todayAttendance),
   });
 
   // M3: Auto penalty generation
@@ -156,10 +163,11 @@ export default function HorillaDashboard() {
   const activeEmployees = (employees || []).filter(e => e.is_active).length;
   const newThisMonth = (employees || []).filter(e => e.created_at?.startsWith(thisMonth)).length;
 
-  const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present" || a.attendance_status === "late").length;
-  const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
+  const todayRows = (todayAttendance || []).filter((a: any) => currentIds.has(a.employee_id));
+  const presentToday = todayRows.filter(a => a.attendance_status === "present" || a.attendance_status === "late").length;
+  const absentToday = todayRows.filter(a => a.attendance_status === "absent").length;
   // Display only — same rule as Attendance Overview: a late status, or present with late minutes.
-  const lateToday = (todayAttendance || []).filter((a: any) => a.attendance_status === "late" || (a.attendance_status === "present" && (a.late_minutes ?? 0) > 0)).length;
+  const lateToday = todayRows.filter((a: any) => a.attendance_status === "late" || (a.attendance_status === "present" && (a.late_minutes ?? 0) > 0)).length;
   // Display only: everyone active with no attendance row yet today (the list below shows the first few).
   const punchedIds = new Set((todayAttendance || []).map((a: any) => a.employee_id));
   const notPunchedCount = (employees || []).filter((e: any) => e.is_active && !punchedIds.has(e.id)).length;
@@ -171,7 +179,7 @@ export default function HorillaDashboard() {
 
   // Department distribution
   const deptCounts: Record<string, number> = {};
-  (workInfos || []).forEach(w => {
+  (workInfos || []).filter((w: any) => currentIds.has(w.employee_id)).forEach(w => {
     if (w.department_id) deptCounts[w.department_id] = (deptCounts[w.department_id] || 0) + 1;
   });
   const deptDistribution = (departments || [])
@@ -181,7 +189,7 @@ export default function HorillaDashboard() {
     .slice(0, 6);
 
   const typeCounts: Record<string, number> = {};
-  (workInfos || []).forEach(w => {
+  (workInfos || []).filter((w: any) => currentIds.has(w.employee_id)).forEach(w => {
     const t = w.employee_type || "Unknown";
     typeCounts[t] = (typeCounts[t] || 0) + 1;
   });
@@ -194,8 +202,8 @@ export default function HorillaDashboard() {
   ].filter(d => d.value > 0);
 
   const stats = [
-    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
-    { label: "Active Employees", to: "/hrms/employee", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
+    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month · ${separatedCount} separated not counted`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Active Employees", to: "/hrms/employee", value: activeEmployees, sub: "separated staff excluded", icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
     { label: "Open Positions", to: "/hrms/ats/jobs", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Candidates", to: "/hrms/ats/candidates", value: atsCounts?.candidates ?? 0, sub: `${atsCounts?.hired ?? 0} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Present Today", to: "/hrms/attendance", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },

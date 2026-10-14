@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,10 +9,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,14 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -37,10 +28,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Search, UserPlus, Trash2, Terminal, RefreshCw } from "lucide-react";
+import { UserPlus, Terminal, RefreshCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PermissionGate } from "@/components/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
+import { Panel } from "@/components/finance-ui/primitives";
+import { cn } from "@/lib/utils";
+import { Initials, PanelMessage, PanelSkeleton, SearchField, isSystemRole, UM_TABLE } from "./umUi";
 
 interface TerminalRole {
   id: string;
@@ -57,17 +52,25 @@ interface TerminalUserAssignment {
   roles: TerminalRole[];
 }
 
+const ALL_ROLES = "all";
+
 export function TerminalAccessTab() {
   const [assignments, setAssignments] = useState<TerminalUserAssignment[]>([]);
   const [availableRoles, setAvailableRoles] = useState<TerminalRole[]>([]);
   const [allUsers, setAllUsers] = useState<{ id: string; username: string; first_name: string | null; last_name: string | null; email: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>(ALL_ROLES);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState("");
+  // Same test PermissionGate(["user_management_manage"]) applies, computed once for the whole tab
+  // (a gate per row/chip would each re-fetch the user's permissions).
+  const { hasPermission } = usePermissions();
+  const { isAdmin } = useAuth();
+  const canManage = isAdmin || hasPermission("user_management_manage");
 
   const fetchData = useCallback(async () => {
     try {
@@ -229,196 +232,241 @@ export function TerminalAccessTab() {
   const displayName = (firstName: string | null, lastName: string | null, username: string) =>
     firstName && lastName ? `${firstName} ${lastName}` : username;
 
+  /* ── Display only: role filter + stable A–Z order ── */
+  const roleCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    assignments.forEach((a) => a.roles.forEach((r) => m.set(r.id, (m.get(r.id) || 0) + 1)));
+    return m;
+  }, [assignments]);
+  const rolesInUse = availableRoles.filter((r) => (roleCounts.get(r.id) || 0) > 0);
+  // If the chosen role filter has nobody left on it, fall back to showing everyone.
+  const activeRoleFilter = roleFilter !== ALL_ROLES && rolesInUse.some((r) => r.id === roleFilter) ? roleFilter : ALL_ROLES;
+  const visibleAssignments = filteredAssignments
+    .filter((a) => activeRoleFilter === ALL_ROLES || a.roles.some((r) => r.id === activeRoleFilter))
+    .sort((a, b) =>
+      displayName(a.firstName, a.lastName, a.username).localeCompare(displayName(b.firstName, b.lastName, b.username)),
+    );
+
+  const roleChips = (assignment: TerminalUserAssignment) => (
+    <div className="flex flex-wrap gap-1">
+      {assignment.roles.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+      {assignment.roles.map((role) => (
+        <span
+          key={role.id}
+          title={role.description || undefined}
+          className={cn(
+            "inline-flex items-center gap-0.5 rounded-full border py-0.5 pl-2 pr-0.5 text-[11px] font-medium",
+            isSystemRole(role.name) ? "border-info/25 bg-info/10 text-info" : "border-border bg-muted/50 text-foreground",
+          )}
+        >
+          {role.name}
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => handleRemoveRole(assignment.userId, role.id, role.name, assignment.username)}
+              className="-my-1 ml-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Remove ${role.name} from ${displayName(assignment.firstName, assignment.lastName, assignment.username)}`}
+              title={`Remove ${role.name}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+
   return (
     <>
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-success/10 rounded-lg">
-              <Terminal className="h-5 w-5 text-success" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">Terminal Access Management</CardTitle>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Grant or revoke P2P Trading Terminal access for users
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={fetchData}>
-              <RefreshCw className="h-4 w-4 mr-1" />
-              Refresh
-            </Button>
-            <PermissionGate permissions={["user_management_manage"]} showFallback={false}>
-              <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="bg-success hover:bg-success">
-                    <UserPlus className="h-4 w-4 mr-1" />
-                    Grant Access
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Grant Terminal Access</DialogTitle>
-                    <DialogDescription>
-                      Select a user and assign them a terminal role to grant access.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">User</label>
-                      <div className="space-y-2">
-                        <Input
-                          placeholder="Search users..."
-                          value={userSearchTerm}
-                          onChange={(e) => setUserSearchTerm(e.target.value)}
-                        />
-                        <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select user" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filteredUsersForDialog.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {displayName(user.first_name, user.last_name, user.username)} ({user.username})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Terminal Role</label>
-                      <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableRoles.map((role) => (
-                            <SelectItem key={role.id} value={role.id}>
-                              <div className="flex flex-col">
-                                <span>{role.name}</span>
-                                {role.description && (
-                                  <span className="text-xs text-muted-foreground">{role.description}</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleAssignRole}
-                      disabled={!selectedUserId || !selectedRoleId || isAssigning}
-                      className="bg-success hover:bg-success"
-                    >
-                      {isAssigning ? "Assigning..." : "Grant Access"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </PermissionGate>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center space-x-2 mb-4">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users with terminal access..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-          <Badge variant="secondary" className="ml-auto">
-            {assignments.length} user{assignments.length !== 1 ? "s" : ""} with access
-          </Badge>
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-success" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading terminal access...</span>
-          </div>
-        ) : filteredAssignments.length > 0 ? (
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Terminal Role(s)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAssignments.map((assignment) => (
-                  <TableRow key={assignment.userId}>
-                    <TableCell className="font-medium">
-                      {displayName(assignment.firstName, assignment.lastName, assignment.username)}
-                      <span className="block text-xs text-muted-foreground">@{assignment.username}</span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{assignment.email}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {assignment.roles.map((role) => (
-                          <Badge
-                            key={role.id}
-                            variant={role.name.toLowerCase() === "admin" ? "destructive" : "default"}
-                            className="text-xs"
-                          >
-                            {role.name}
-                          </Badge>
+    <Panel
+      title="Terminal access"
+      description="Who can open the P2P Trading Terminal, and with which Terminal role. Terminal roles are separate from ERP roles."
+      bodyClassName="p-0 sm:p-0"
+      actions={
+        <>
+          <Button variant="outline" size="sm" onClick={fetchData} className="h-8 gap-1.5" aria-label="Refresh Terminal access">
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+          {canManage && (
+            <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="h-8 gap-1.5">
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Grant access
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="md:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Grant Terminal access</DialogTitle>
+                  <DialogDescription>
+                    Pick a person and the Terminal role they should have. Only active ERP users are listed.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="grant-user">Person</Label>
+                    <Input
+                      placeholder="Type to narrow the list…"
+                      aria-label="Narrow the list of people"
+                      value={userSearchTerm}
+                      onChange={(e) => setUserSearchTerm(e.target.value)}
+                    />
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                      <SelectTrigger id="grant-user">
+                        <SelectValue placeholder={`Choose from ${filteredUsersForDialog.length} people`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredUsersForDialog.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {displayName(user.first_name, user.last_name, user.username)} ({user.username})
+                          </SelectItem>
                         ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <PermissionGate permissions={["user_management_manage"]} showFallback={false}>
-                        <div className="flex justify-end gap-1">
-                          {assignment.roles.map((role) => (
-                            <Button
-                              key={role.id}
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleRemoveRole(assignment.userId, role.id, role.name, assignment.username)
-                              }
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Remove {role.name}
-                            </Button>
-                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="grant-role">Terminal role</Label>
+                    <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+                      <SelectTrigger id="grant-role">
+                        <SelectValue placeholder="Choose a Terminal role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRoles.map((role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            <div className="flex flex-col">
+                              <span>{role.name}</span>
+                              {role.description && (
+                                <span className="text-xs text-muted-foreground">{role.description}</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAssignRole}
+                    disabled={!selectedUserId || !selectedRoleId || isAssigning}
+                  >
+                    {isAssigning ? "Granting..." : "Grant access"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-2 border-b border-border/70 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-5">
+        <SearchField
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Search name, username or email"
+          label="Search people with Terminal access"
+          className="sm:min-w-[240px] sm:flex-1"
+        />
+        <Select value={activeRoleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger className="h-9 w-full sm:w-[240px]" aria-label="Filter by Terminal role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ROLES}>All Terminal roles ({assignments.length})</SelectItem>
+            {rolesInUse.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.name} ({roleCounts.get(r.id) || 0})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <PanelSkeleton rows={5} />
+      ) : visibleAssignments.length > 0 ? (
+        <div className="responsive-list">
+          <div className="responsive-list-table">
+            <table className={UM_TABLE}>
+              <thead>
+                <tr>
+                  <th>Person</th>
+                  <th className="hidden @[56rem]:table-cell">Email</th>
+                  <th>Terminal role</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleAssignments.map((assignment) => {
+                  const name = displayName(assignment.firstName, assignment.lastName, assignment.username);
+                  return (
+                    <tr key={assignment.userId}>
+                      <td>
+                        <div className="flex min-w-[11rem] items-center gap-2.5">
+                          <Initials name={name} />
+                          <div className="min-w-0 [overflow-wrap:normal]">
+                            <p className="font-medium text-foreground">{name}</p>
+                            <p className="text-xs text-muted-foreground">@{assignment.username}</p>
+                            <p className="break-all text-xs text-muted-foreground @[56rem]:hidden">{assignment.email}</p>
+                          </div>
                         </div>
-                      </PermissionGate>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </td>
+                      <td className="hidden break-all text-muted-foreground @[56rem]:table-cell">{assignment.email}</td>
+                      <td>{roleChips(assignment)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
-            <Terminal className="h-10 w-10 opacity-30" />
-            <p className="text-sm">No users have terminal access yet.</p>
-            <p className="text-xs">Use "Grant Access" to assign terminal roles to users.</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <ul className="responsive-list-cards divide-y divide-border">
+            {visibleAssignments.map((assignment) => {
+              const name = displayName(assignment.firstName, assignment.lastName, assignment.username);
+              return (
+                <li key={assignment.userId} className="flex items-start gap-3 px-4 py-3">
+                  <Initials name={name} className="mt-0.5" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div>
+                      <p className="font-medium text-foreground">{name}</p>
+                      <p className="break-all text-xs text-muted-foreground">@{assignment.username} · {assignment.email}</p>
+                    </div>
+                    {roleChips(assignment)}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : assignments.length > 0 ? (
+        <PanelMessage icon={Terminal} title="No one matches these filters">
+          <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => { setSearchTerm(""); setRoleFilter(ALL_ROLES); }}>
+            Clear filters
+          </Button>
+        </PanelMessage>
+      ) : (
+        <PanelMessage icon={Terminal} title="No one has Terminal access yet">
+          Use “Grant access” to give someone a Terminal role.
+        </PanelMessage>
+      )}
+      {!isLoading && visibleAssignments.length > 0 && (
+        <p className="px-4 pb-3 pt-3 text-xs text-muted-foreground sm:px-5">
+          {visibleAssignments.length === assignments.length
+            ? `${assignments.length} ${assignments.length === 1 ? "person has" : "people have"} Terminal access`
+            : `Showing ${visibleAssignments.length} of ${assignments.length} people with Terminal access`}
+        </p>
+      )}
+    </Panel>
 
     <AlertDialog open={!!roleToRemove} onOpenChange={(open) => !open && setRoleToRemove(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove Terminal Role</AlertDialogTitle>
+          <AlertDialogTitle>Remove this Terminal role?</AlertDialogTitle>
           <AlertDialogDescription>
-            Remove "{roleToRemove?.roleName}" role from {roleToRemove?.username}? They may lose terminal access.
+            Remove “{roleToRemove?.roleName}” from {roleToRemove?.username}. If it's their only Terminal role, they lose Terminal access.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Key, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface ResetPasswordDialogProps {
   open: boolean;
@@ -118,30 +118,31 @@ export function ResetPasswordDialog({
     }
   };
 
+  const tooShort = newPassword.length > 0 && newPassword.length < 6;
+  const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="md:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5 text-primary" />
-            Reset Password
-          </DialogTitle>
+          <DialogTitle>Reset password</DialogTitle>
           <DialogDescription>
-            Set a new password for user: <strong>{userName}</strong>
+            Set a new password for <span className="font-semibold text-foreground">{userName}</span>, then share it with them privately.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">New Password *</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="newPassword">New password</Label>
             <div className="relative">
               <Input
                 id="newPassword"
                 type={showPassword ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
+                placeholder="At least 6 characters"
                 className="pr-10"
+                autoComplete="new-password"
                 required
                 minLength={6}
               />
@@ -151,6 +152,7 @@ export function ResetPasswordDialog({
                 size="sm"
                 className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -159,18 +161,21 @@ export function ResetPasswordDialog({
                 )}
               </Button>
             </div>
+            {tooShort && <p className="text-xs text-warning">{6 - newPassword.length} more character{6 - newPassword.length === 1 ? "" : "s"} needed.</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password *</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword">Confirm new password</Label>
             <div className="relative">
               <Input
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
+                placeholder="Type it again"
                 className="pr-10"
+                autoComplete="new-password"
+                aria-invalid={mismatch || undefined}
                 required
               />
               <Button
@@ -179,6 +184,7 @@ export function ResetPasswordDialog({
                 size="sm"
                 className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
               >
                 {showConfirmPassword ? (
                   <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -187,9 +193,10 @@ export function ResetPasswordDialog({
                 )}
               </Button>
             </div>
+            {mismatch && <p className="text-xs text-destructive">Passwords don't match yet.</p>}
           </div>
 
-          <DialogFooter className="pt-4">
+          <DialogFooter className="gap-2 pt-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
@@ -199,7 +206,7 @@ export function ResetPasswordDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Resetting..." : "Reset Password"}
+              {isLoading ? "Resetting..." : "Reset password"}
             </Button>
           </DialogFooter>
         </form>

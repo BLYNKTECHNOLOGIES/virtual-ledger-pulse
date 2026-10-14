@@ -1,28 +1,21 @@
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { UserPlus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { PERMISSION_MODULES } from "@/lib/permissions/catalog";
+import { PermissionMatrix } from "./PermissionMatrix";
+import { FormSection, StickyFooter } from "./umUi";
 
 
 interface AddRoleDialogProps {
   onAddRole: (roleData: { name: string; description: string; permissions: string[] }) => Promise<{ success: boolean; error?: any }>;
 }
 
-// Permissions come from the single-source catalog (src/lib/permissions/catalog.ts)
-const availablePermissions = Object.values(PERMISSION_MODULES).flatMap((mod) =>
-  mod.permissions.map((p) => ({
-    id: p.id,
-    name: `${mod.label} · ${p.name}`,
-    description: p.description,
-  }))
-);
+// Permissions come from the single-source catalog (src/lib/permissions/catalog.ts), via PermissionMatrix.
 
 
 export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
@@ -37,7 +30,7 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       toast({
         title: "Error",
@@ -48,10 +41,10 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
     }
 
     setIsLoading(true);
-    
+
     try {
       const result = await onAddRole(formData);
-      
+
       if (result.success) {
         toast({
           title: "Success",
@@ -78,102 +71,71 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
     }
   };
 
-  const handlePermissionChange = (permissionId: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      permissions: checked 
-        ? [...prev.permissions, permissionId]
-        : prev.permissions.filter(p => p !== permissionId)
-    }));
+  const onTemplateApplied = (templateName: string) => {
+    toast({ title: "Template Applied", description: `Applied "${templateName}" template` });
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="bg-info hover:bg-info">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Role
+        <Button size="sm" className="h-8 gap-1.5">
+          <Plus className="h-3.5 w-3.5" />
+          New role
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto pb-0 md:pb-0 md:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Create New Role</DialogTitle>
+          <DialogTitle>New role</DialogTitle>
+          <DialogDescription>Name the role, then tick what people with it may do. You can start from a template.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Role Name *</Label>
-              <Input
-                id="name"
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter role name"
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Describe the role and its responsibilities"
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <Label className="text-base font-medium">System Permissions</Label>
-              <p className="text-sm text-muted-foreground mb-4">Select which permissions users with this role should have</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4">
-                {availablePermissions.map((permission) => (
-                  <div key={permission.id} className="flex items-start space-x-3">
-                    <Checkbox
-                      id={permission.id}
-                      checked={formData.permissions.includes(permission.id)}
-                      onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
-                    />
-                    <div className="grid gap-1.5 leading-none">
-                      <Label
-                        htmlFor={permission.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {permission.name}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {permission.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <FormSection title="Role details">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Role name <span className="text-destructive">*</span></Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. Payments Associate"
+                  required
+                />
               </div>
-              
-              {formData.permissions.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium">Selected permissions ({formData.permissions.length}):</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {formData.permissions.map((perm) => (
-                      <span key={perm} className="text-xs bg-info/10 text-info px-2 py-1 rounded">
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
 
-          <div className="flex justify-end space-x-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="What is this role for?"
+                  rows={2}
+                />
+              </div>
+            </div>
+          </FormSection>
+
+          <PermissionMatrix
+            value={formData.permissions}
+            onChange={(update) => setFormData((prev) => ({ ...prev, permissions: update(prev.permissions) }))}
+            templates
+            onTemplateApplied={onTemplateApplied}
+          />
+
+          <StickyFooter>
+            <span className="w-full text-xs text-muted-foreground sm:mr-auto sm:w-auto">
+              {formData.permissions.length === 0
+                ? "No permissions selected"
+                : `${formData.permissions.length} permission${formData.permissions.length === 1 ? "" : "s"} selected`}
+            </span>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create Role"}
+              {isLoading ? "Creating..." : "Create role"}
             </Button>
-          </div>
+          </StickyFooter>
         </form>
       </DialogContent>
     </Dialog>

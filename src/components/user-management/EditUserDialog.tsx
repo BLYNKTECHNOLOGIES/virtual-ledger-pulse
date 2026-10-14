@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionUserId } from "@/lib/session-cache";
 import { useAuth } from "@/hooks/useAuth";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
-import { UserCheck, Link2 } from "lucide-react";
+import { AlertTriangle, Loader2, Lock, UserCheck } from "lucide-react";
+import { FormSection, Initials, RoleChip, StickyFooter, UserStatusChip, personName } from "./umUi";
 
 interface TerminalRole {
   id: string;
@@ -44,7 +44,7 @@ interface EditUserDialogProps {
 
 export function EditUserDialog({ user, onSave, onClose, restrictSensitive = false }: EditUserDialogProps) {
   const initialRoleId = user.role?.id || user.role_id || "no_role";
-  
+
   const [formData, setFormData] = useState({
     username: user.username,
     email: user.email,
@@ -172,9 +172,9 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
         role_id: effectiveRoleId,
         badge_id: formData.badge_id.trim() || null,
       };
-      
+
       const result = await onSave(user.id, submitData);
-      
+
       if (result?.success !== false) {
         // If badge matches an hr_employee, update user_id on hr_employees
         // First, clear any old hr_employee links for this user
@@ -198,7 +198,7 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
           module: Modules.USER_MANAGEMENT,
           metadata: { username: formData.username, email: formData.email, role_id: formData.role_id, badge_id: formData.badge_id }
         });
-        
+
         if (!restrictSensitive && formData.role_id !== initialRoleId) {
           logActionWithCurrentUser({
             actionType: ActionTypes.USER_ROLE_ASSIGNED,
@@ -242,11 +242,8 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
             });
           }
         }
-        
-        toast({
-          title: "Success",
-          description: "User updated successfully",
-        });
+
+        // The "User updated" toast comes from useUsers.updateUser (onSave) — not repeated here.
 
         if (currentUser?.id === user.id && formData.role_id !== user.role_id) {
           toast({
@@ -257,15 +254,10 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
           queryClient.invalidateQueries({ queryKey: ['current-user'] });
           queryClient.invalidateQueries({ queryKey: ['user-role'] });
         }
-        
+
         onClose();
-      } else {
-        toast({
-          title: "Error",
-          description: result?.error?.message || "Failed to update user",
-          variant: "destructive",
-        });
       }
+      // On failure useUsers.updateUser has already shown the reason; the dialog stays open.
     } catch (error) {
       console.error('Error updating user:', error);
       toast({
@@ -278,150 +270,191 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
     }
   };
 
+  const credentialsEdited = formData.username !== user.username || formData.email !== user.email;
+  const deactivating = formData.status !== user.status && (formData.status === "INACTIVE" || formData.status === "SUSPENDED");
+  // Mirrors handleSubmit: a new ERP Admin without Terminal access gets the Terminal "Admin" role automatically.
+  const autoAdminTerminal =
+    !currentTerminalRoleId &&
+    roles.find((r) => r.id === formData.role_id)?.name?.toLowerCase() === "admin" &&
+    terminalRoles.some((r) => r.name.toLowerCase() === "admin");
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
+      <DialogContent className="max-h-[90vh] overflow-y-auto pb-0 md:pb-0 md:max-w-xl">
+        <DialogHeader className="pr-6">
+          <div className="flex items-center gap-3">
+            <Initials name={personName(user)} className="h-10 w-10 text-xs" />
+            <div className="min-w-0 text-left">
+              <DialogTitle className="truncate">{personName(user)}</DialogTitle>
+              <DialogDescription className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <span>@{user.username}</span>
+                <RoleChip name={user.role?.name} />
+                <UserStatusChip status={user.status} />
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="first_name">First Name</Label>
-              <Input
-                id="first_name"
-                value={formData.first_name}
-                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                placeholder="First name"
-              />
+          <FormSection title="Profile">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="first_name">First name</Label>
+                <Input
+                  id="first_name"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  placeholder="First name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="last_name">Last name</Label>
+                <Input
+                  id="last_name"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  placeholder="Last name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="Username"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Email address"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="Phone number"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="last_name">Last Name</Label>
-              <Input
-                id="last_name"
-                value={formData.last_name}
-                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                placeholder="Last name"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              placeholder="Username"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="Email address"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="Phone number"
-            />
-          </div>
+            {credentialsEdited && (
+              <p className="flex items-start gap-1.5 text-xs text-warning">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                After saving a new username or email, this person is signed out at their next session check (about every 30 seconds).
+              </p>
+            )}
+          </FormSection>
 
           {/* Badge ID with HRMS Employee Linking */}
-          <div className="space-y-2">
-            <Label htmlFor="badge_id" className="flex items-center gap-1.5">
-              <Link2 className="h-3.5 w-3.5" />
-              Badge ID (HRMS Link)
-            </Label>
-            <Input
-              id="badge_id"
-              value={formData.badge_id}
-              onChange={(e) => setFormData({ ...formData, badge_id: e.target.value })}
-              placeholder="e.g. EMP001"
-            />
+          <FormSection title="HRMS link" hint="The badge ID connects this login to the person's HRMS employee profile.">
+            <div className="space-y-1.5">
+              <Label htmlFor="badge_id">Badge ID</Label>
+              <Input
+                id="badge_id"
+                value={formData.badge_id}
+                onChange={(e) => setFormData({ ...formData, badge_id: e.target.value })}
+                placeholder="e.g. EMP001"
+                className="font-mono placeholder:font-sans"
+              />
+            </div>
             {isCheckingBadge && (
-              <p className="text-xs text-muted-foreground">Looking up employee...</p>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Looking up employee…
+              </p>
             )}
             {formData.badge_id.trim() && !isCheckingBadge && linkedEmployee && (
-              <div className="flex items-center gap-2 p-2 rounded-md border border-success/20" style={{ backgroundColor: 'hsl(var(--accent))' }}>
-                <UserCheck className="h-4 w-4 text-success shrink-0" />
-                <div className="text-xs">
-                  <p className="font-medium">
-                    Linked: {linkedEmployee.first_name} {linkedEmployee.last_name}
-                  </p>
-                </div>
-              </div>
+              <p className="flex items-center gap-2 rounded-md border border-success/25 bg-success/10 px-2.5 py-2 text-xs text-foreground">
+                <UserCheck className="h-4 w-4 shrink-0 text-success" />
+                <span>
+                  Linked to <span className="font-semibold">{linkedEmployee.first_name} {linkedEmployee.last_name}</span> in HRMS
+                </span>
+              </p>
             )}
             {formData.badge_id.trim() && !isCheckingBadge && !linkedEmployee && (
-              <p className="text-xs text-warning">No HRMS employee found with this Badge ID</p>
+              <p className="flex items-center gap-1.5 text-xs text-warning">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                No HRMS employee has this badge ID.
+              </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Enter the employee Badge ID to link this user to their HRMS profile.
-            </p>
-          </div>
+          </FormSection>
+
+          <FormSection title="Access">
+            {restrictSensitive && (
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Role and Terminal access can only be changed by someone with full User Management access.
+              </p>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {!restrictSensitive && (
+              <div className="space-y-1.5">
+                <Label htmlFor="role">ERP role</Label>
+                <Select value={formData.role_id} onValueChange={(value) => {
+                  setFormData({ ...formData, role_id: value });
+                  const selectedRole = roles.find(r => r.id === value);
+                  if (selectedRole?.name?.toLowerCase() === 'admin') {
+                    setTerminalAccess(true);
+                    const adminRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
+                    if (adminRole) setTerminalRoleId(adminRole.id);
+                  }
+                }}>
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no_role">No role</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="status">Status</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' })}>
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {!restrictSensitive && (
+              <p className="text-xs text-muted-foreground">
+                Permissions and functions come from the role. To change what a role allows, edit the role.
+              </p>
+            )}
+            {deactivating && (
+              <p className="flex items-start gap-1.5 text-xs text-warning">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                After saving, this person is signed out at their next session check (about every 30 seconds) and can't use the ERP until set back to Active.
+              </p>
+            )}
+          </FormSection>
 
           {!restrictSensitive && (
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select value={formData.role_id} onValueChange={(value) => {
-              setFormData({ ...formData, role_id: value });
-              const selectedRole = roles.find(r => r.id === value);
-              if (selectedRole?.name?.toLowerCase() === 'admin') {
-                setTerminalAccess(true);
-                const adminRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
-                if (adminRole) setTerminalRoleId(adminRole.id);
-              }
-            }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no_role">No Role</SelectItem>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Functions are inherited from the assigned role. Edit the role to manage functions.
-            </p>
-          </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="INACTIVE">Inactive</SelectItem>
-                <SelectItem value="SUSPENDED">Suspended</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {!restrictSensitive && (
-          <div className="space-y-3 rounded-lg border p-3">
-            <div className="flex items-center justify-between">
+          <FormSection title="P2P Trading Terminal">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <Label htmlFor="terminal-access" className="text-sm font-medium">Terminal Access</Label>
-                <p className="text-xs text-muted-foreground">Grant access to the P2P Trading Terminal</p>
+                <Label htmlFor="terminal-access" className="text-sm font-medium">Terminal access</Label>
+                <p className="text-xs text-muted-foreground">Lets this person open the P2P Trading Terminal.</p>
               </div>
               <Switch
                 id="terminal-access"
@@ -430,11 +463,11 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
               />
             </div>
             {terminalAccess && (
-              <div className="space-y-1">
-                <Label htmlFor="terminal-role" className="text-xs">Terminal Role</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="terminal-role">Terminal role</Label>
                 <Select value={terminalRoleId} onValueChange={setTerminalRoleId}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
+                  <SelectTrigger id="terminal-role">
+                    <SelectValue placeholder="Choose a Terminal role" />
                   </SelectTrigger>
                   <SelectContent>
                     {terminalRoles.map((tr) => (
@@ -442,19 +475,22 @@ export function EditUserDialog({ user, onSave, onClose, restrictSensitive = fals
                     ))}
                   </SelectContent>
                 </Select>
+                {!terminalRoleId && !autoAdminTerminal && (
+                  <p className="text-xs text-warning">Choose a Terminal role, otherwise access is not granted.</p>
+                )}
               </div>
             )}
-          </div>
+          </FormSection>
           )}
 
-          <div className="flex justify-end space-x-2 pt-4">
+          <StickyFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Changes"}
+              {isLoading ? "Saving..." : "Save changes"}
             </Button>
-          </div>
+          </StickyFooter>
         </form>
       </DialogContent>
     </Dialog>

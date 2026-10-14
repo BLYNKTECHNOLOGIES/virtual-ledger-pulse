@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -6,12 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings, Key, Settings2, Terminal, Filter } from "lucide-react";
+import { Activity, Edit, Key, RefreshCw, Settings2, Shield, ShieldAlert, Terminal, Trash2, UserPlus, Users } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +32,26 @@ import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordD
 import { FunctionsTab } from "@/components/user-management/FunctionsTab";
 import { PermissionChangeLog } from "@/components/user-management/PermissionChangeLog";
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
+import { usePendingRegistrations } from "@/components/user-management/usePendingRegistrations";
+import {
+  Chip,
+  Initials,
+  PanelMessage,
+  PanelSkeleton,
+  RoleChip,
+  SUBNAV_LIST,
+  SUBNAV_TRIGGER,
+  SearchField,
+  Segmented,
+  TabCount,
+  TierChips,
+  UM_TABLE,
+  UserStatusChip,
+  isSystemRole,
+  personName,
+} from "@/components/user-management/umUi";
+import { KpiTile, Panel, TablePager, usePaged } from "@/components/finance-ui/primitives";
+import { fmtAgo, fmtDay, fmtTime } from "@/components/profile/format";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
@@ -41,7 +59,8 @@ import { normalizePermissions } from "@/lib/permissions/catalog";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatGridSkeleton, StatCardSkeleton } from "@/components/shared/skeletons";
+import { StatGridSkeleton } from "@/components/shared/skeletons";
+import { cn } from "@/lib/utils";
 
 interface Role {
   id: string;
@@ -65,14 +84,19 @@ interface OnlineUser {
 // IMPORTANT: do NOT filter unknown/legacy permissions — this project historically
 // stored multiple formats in app_permission, and filtering would DELETE them on save.
 
-// Format permission for display
-const formatPermissionDisplay = (perm: string): string => {
-  return perm.replace(/_/g, ' ');
-};
+/** Role filter value for "people without a role". */
+const NO_ROLE = "__none__";
+type StatusFilter = "all" | "ACTIVE" | "INACTIVE" | "SUSPENDED";
+/** Old tab names that still open the right tab. */
+const TAB_ALIASES: Record<string, string> = { settings: "online" };
+const USERS_PAGE_SIZE = 50;
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [roles, setRoles] = useState<Role[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
@@ -84,9 +108,12 @@ export default function UserManagement() {
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
   const { permissions, isLoading: isLoadingPermissions, hasPermission } = usePermissions();
-  const { hasRole } = useAuth();
+  const { hasRole, isAdmin } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = hasRole("super admin");
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Same query (and cache entry) as the Approvals tab — only Super Admins review sign-ups.
+  const { data: pendingRegistrations = [], isLoading: isLoadingPending } = usePendingRegistrations(isSuperAdmin);
 
   // Scroll to top when component mounts or tab changes
   useEffect(() => {
@@ -102,22 +129,43 @@ export default function UserManagement() {
     return Array.from(roleSet).sort((a, b) => a.localeCompare(b));
   }, [users]);
 
-  // Filter users by search term and selected role
-  const filteredUsers = users.filter((user: DatabaseUser) => {
+  // Filter users by search term, selected role and status (display only)
+  const search = searchTerm.trim().toLowerCase();
+  // If the chosen role filter no longer exists in the list (e.g. its last person moved), show everyone.
+  const roleFilter =
+    selectedRole === "all" ||
+    (selectedRole === NO_ROLE ? users.some((u) => !u.role?.name) : users.some((u) => u.role?.name === selectedRole))
+      ? selectedRole
+      : "all";
+  const matchesSearchAndRole = (user: DatabaseUser) => {
     const matchesSearch =
-      !searchTerm ||
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesRole = selectedRole === "all" || user.role?.name === selectedRole;
+      !search ||
+      [user.username, user.email, user.first_name, user.last_name, user.phone, user.badge_id, personName(user)]
+        .some((v) => !!v && String(v).toLowerCase().includes(search));
+    const matchesRole =
+      roleFilter === "all" ||
+      (roleFilter === NO_ROLE ? !user.role?.name : user.role?.name === roleFilter);
     return matchesSearch && matchesRole;
-  });
+  };
+  const usersForStatus = users.filter(matchesSearchAndRole);
+  const filteredUsers = usersForStatus.filter((user: DatabaseUser) => statusFilter === "all" || user.status === statusFilter);
+  const statusCount = (s: Exclude<StatusFilter, "all">) => usersForStatus.filter((u) => u.status === s).length;
+  const pagedUsers = usePaged(filteredUsers, USERS_PAGE_SIZE, `${search}|${roleFilter}|${statusFilter}`);
+
+  const roleCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    users.forEach((u) => {
+      const k = u.role?.name || NO_ROLE;
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return m;
+  }, [users]);
+  const usersWithoutRole = roleCounts.get(NO_ROLE) || 0;
 
   const fetchRoles = async () => {
     try {
       setIsLoadingRoles(true);
-      
+
       // Fetch roles with their permissions and user counts in one efficient query
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
@@ -175,11 +223,11 @@ export default function UserManagement() {
   const fetchOnlineUsers = async () => {
     try {
       setIsLoadingOnlineUsers(true);
-      
+
       // Consider users online if they've been active in the last 5 minutes
       const recentThreshold = new Date();
       recentThreshold.setMinutes(recentThreshold.getMinutes() - 5);
-      
+
       const { data: activeUsers, error } = await supabase
         .from('users')
         .select('id, username, email, first_name, last_name, last_activity, status')
@@ -213,7 +261,7 @@ export default function UserManagement() {
 
   const createRole = async (roleData: { name: string; description: string; permissions: string[] }) => {
     try {
-      
+
       const { data, error } = await supabase.rpc('create_role_with_permissions', {
         role_name: roleData.name,
         role_description: roleData.description,
@@ -235,7 +283,7 @@ export default function UserManagement() {
 
   const updateRole = async (roleId: string, roleData: { name: string; description: string; permissions: string[] }) => {
     try {
-      
+
       const { data, error } = await supabase.rpc('update_role_permissions', {
         p_role_id: roleId,
         p_role_name: roleData.name,
@@ -286,6 +334,9 @@ export default function UserManagement() {
   // HR-restricted: can edit user details & delete non-admins, but NOT roles/terminal/approvals
   const isHrRestricted = hasHrManage && !hasManagePermission && !isSuperAdmin;
   const canEditUsers = hasManagePermission || hasHrManage || isSuperAdmin;
+  // Same test PermissionGate(['user_management_manage']) applies; computed once so table rows
+  // and phone cards don't each mount their own gate (each gate re-fetches permissions).
+  const canManageRoles = isAdmin || hasManagePermission;
 
   const isProtectedRole = (roleName?: string) => {
     const r = roleName?.toLowerCase();
@@ -295,20 +346,12 @@ export default function UserManagement() {
   useEffect(() => {
     fetchRoles();
     fetchOnlineUsers();
-    
+
     // Set up interval to refresh online users every 30 seconds
     const interval = setInterval(fetchOnlineUsers, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB');
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-GB');
-  };
 
   const handleDeleteUser = async (user: DatabaseUser) => {
 
@@ -352,18 +395,47 @@ export default function UserManagement() {
     }
   };
 
-  const getRoleBadgeVariant = (roleName?: string) => {
-    switch (roleName?.toLowerCase()) {
-      case 'admin':
-        return 'destructive';
-      case 'manager':
-        return 'default';
-      case 'user':
-        return 'secondary';
-      default:
-        return 'outline';
-    }
+  /* ── Tabs (kept in the URL so a refresh or shared link opens the same tab) ── */
+  const allowedTabs = useMemo(() => {
+    const t = ["users"];
+    if (isSuperAdmin) t.push("pending");
+    if (!isHrRestricted) t.push("roles", "terminal", "online", "functions");
+    return t;
+  }, [isSuperAdmin, isHrRestricted]);
+  const requestedTab = searchParams.get("tab") || "users";
+  const resolvedTab = TAB_ALIASES[requestedTab] ?? requestedTab;
+  const activeTab = allowedTabs.includes(resolvedTab) ? resolvedTab : "users";
+  const changeTab = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === "users") next.delete("tab");
+    else next.set("tab", value);
+    setSearchParams(next, { replace: true });
   };
+  const showUsers = (role: string) => {
+    setSelectedRole(role);
+    setStatusFilter("all");
+    changeTab("users");
+  };
+
+  /* ── Display helpers ── */
+  const sortedRoles = useMemo(
+    () =>
+      [...roles].sort((a, b) => {
+        const rank = (r: Role) => (r.name.trim().toLowerCase() === "super admin" ? 0 : r.name.trim().toLowerCase() === "admin" ? 1 : 2);
+        return rank(a) - rank(b) || a.name.trim().localeCompare(b.name.trim());
+      }),
+    [roles],
+  );
+  const unusedRoles = roles.filter((r) => r.user_count === 0).length;
+  const activeCount = users.filter((u) => u.status === "ACTIVE").length;
+  const notActiveParts = [
+    ["inactive", users.filter((u) => u.status === "INACTIVE").length],
+    ["suspended", users.filter((u) => u.status === "SUSPENDED").length],
+  ].filter(([, n]) => (n as number) > 0).map(([label, n]) => `${n} ${label}`);
+  const roleBeingDeleted = roles.find((r) => r.id === roleToDelete) || null;
+  const userBeingDeleted = users.find((u) => u.id === userToDelete) || null;
+  const pendingCount = pendingRegistrations.length;
+  const tileCount = 2 + (!isHrRestricted ? 1 : 0) + (isSuperAdmin ? 1 : 0);
 
   // If user has no permissions, show access denied
   if (!hasViewPermission && !isLoadingPermissions) {
@@ -376,7 +448,7 @@ export default function UserManagement() {
 
   if (isLoadingPermissions) {
     return (
-      <div className="space-y-6 p-6 page-mount">
+      <div className="mx-auto w-full max-w-[1440px] space-y-4 p-3 sm:space-y-5 sm:p-6 page-mount">
         <PageHeader title="User Management" description="Loading permissions..." />
 
         <StatGridSkeleton count={3} />
@@ -384,402 +456,503 @@ export default function UserManagement() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-muted/50 p-6">
-      {/* Header */}
-      <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
-        <div className="px-6 py-8">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-3">
-                <span className="p-3 bg-primary/10 rounded-xl shadow-sm">
-                  <Users className="h-8 w-8 text-primary" />
-                </span>
-                User Management
-              </span>
-            }
-            description="Manage users, roles, and permissions"
-          />
-
-      </div>
+  const userActions = (user: DatabaseUser, compact = false) => (
+    <div className={cn("flex items-center gap-1", compact ? "flex-wrap" : "justify-end")}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setEditingUser(user)}
+        className="h-8 gap-1.5 px-2.5 text-xs"
+        aria-label={`Edit ${personName(user)}`}
+      >
+        <Edit className="h-3.5 w-3.5" />
+        Edit
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setResetPasswordUser(user)}
+        className={cn("h-8 gap-1.5 text-xs", compact ? "px-2.5" : "w-8 p-0")}
+        aria-label={`Reset password for ${personName(user)}`}
+        title="Reset password"
+      >
+        <Key className="h-3.5 w-3.5" />
+        {compact && "Reset password"}
+      </Button>
+      {!(isHrRestricted && isProtectedRole(user.role?.name)) && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleDeleteUser(user)}
+          className={cn("h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive", compact ? "px-2.5" : "w-8 p-0")}
+          aria-label={`Delete ${personName(user)}`}
+          title="Delete user"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {compact && "Delete"}
+        </Button>
+      )}
     </div>
+  );
 
-      <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="flex w-full flex-wrap">
-            {isSuperAdmin && (
-              <TabsTrigger value="pending" className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                Pending Approvals
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              All Users
+  return (
+    <div className="mx-auto w-full max-w-[1440px] space-y-4 p-3 sm:space-y-5 sm:p-6">
+      <PageHeader
+        title="User Management"
+        description="Who can sign in to the ERP and the Terminal, and what each role lets them do."
+      />
+
+      {/* At a glance */}
+      <section
+        aria-label="At a glance"
+        className={cn("grid grid-cols-2 gap-3", tileCount >= 4 ? "lg:grid-cols-4" : tileCount === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4")}
+      >
+        <KpiTile
+          label="Users"
+          value={String(users.length)}
+          icon={Users}
+          loading={isLoading}
+          sub={[`${activeCount} active`, ...notActiveParts].join(" · ")}
+          onClick={() => showUsers("all")}
+          cta="See everyone"
+        />
+        <KpiTile
+          label="Without a role"
+          value={String(usersWithoutRole)}
+          icon={ShieldAlert}
+          tone={usersWithoutRole > 0 ? "warning" : "default"}
+          loading={isLoading}
+          sub={usersWithoutRole > 0 ? "Permissions come from a role" : "Everyone has a role"}
+          onClick={usersWithoutRole > 0 ? () => showUsers(NO_ROLE) : undefined}
+          cta={usersWithoutRole > 0 ? "Show them" : undefined}
+        />
+        {!isHrRestricted && (
+          <KpiTile
+            label="Roles"
+            value={String(roles.length)}
+            icon={Shield}
+            loading={isLoadingRoles}
+            sub={unusedRoles > 0 ? `${unusedRoles} not given to anyone` : "All in use"}
+            onClick={() => changeTab("roles")}
+            cta="Open roles"
+          />
+        )}
+        {isSuperAdmin && (
+          <KpiTile
+            label="Waiting for approval"
+            value={String(pendingCount)}
+            icon={UserPlus}
+            tone={pendingCount > 0 ? "warning" : "default"}
+            loading={isLoadingPending}
+            sub={pendingCount > 0 ? "Sign-ups to review" : "No sign-ups waiting"}
+            onClick={() => changeTab("pending")}
+            cta="Review sign-ups"
+          />
+        )}
+      </section>
+
+      <Tabs value={activeTab} onValueChange={changeTab} className="w-full">
+        {/* With a single tab (HR-restricted view) there is nothing to switch between, so no tab bar. */}
+        {allowedTabs.length > 1 && (
+        <TabsList className={SUBNAV_LIST}>
+          <TabsTrigger value="users" className={SUBNAV_TRIGGER}>
+            <Users className="h-3.5 w-3.5" />
+            Users
+            {!isLoading && <TabCount value={users.length} />}
+          </TabsTrigger>
+          {!isHrRestricted && (
+            <TabsTrigger value="roles" className={SUBNAV_TRIGGER}>
+              <Shield className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline">Roles &amp; permissions</span>
+              <span className="xl:hidden">Roles</span>
+              {!isLoadingRoles && <TabCount value={roles.length} />}
             </TabsTrigger>
-            {!isHrRestricted && (
-              <>
-                <TabsTrigger value="roles" className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Roles & Permissions
-                </TabsTrigger>
-                <TabsTrigger value="functions" className="flex items-center gap-2">
-                  <Settings2 className="h-4 w-4" />
-                  Functions
-                </TabsTrigger>
-                <TabsTrigger value="terminal" className="flex items-center gap-2">
-                  <Terminal className="h-4 w-4" />
-                  Terminal Access
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  User Settings
-                </TabsTrigger>
-              </>
-            )}
-          </TabsList>
-
-          {/* Pending Registrations Tab — Super Admin only */}
-          {isSuperAdmin && (
-            <TabsContent value="pending" className="space-y-4">
-              <PendingRegistrationsTab />
-            </TabsContent>
           )}
+          {!isHrRestricted && (
+            <TabsTrigger value="terminal" className={SUBNAV_TRIGGER}>
+              <Terminal className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline">Terminal access</span>
+              <span className="xl:hidden">Terminal</span>
+            </TabsTrigger>
+          )}
+          {isSuperAdmin && (
+            <TabsTrigger value="pending" className={SUBNAV_TRIGGER}>
+              <UserPlus className="h-3.5 w-3.5" />
+              Approvals
+              {pendingCount > 0 && <TabCount value={pendingCount} attention />}
+            </TabsTrigger>
+          )}
+          {!isHrRestricted && (
+            <TabsTrigger value="online" className={SUBNAV_TRIGGER}>
+              <Activity className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline">Online now</span>
+              <span className="xl:hidden">Online</span>
+              {onlineUsers.length > 0 && <TabCount value={onlineUsers.length} />}
+            </TabsTrigger>
+          )}
+          {!isHrRestricted && (
+            <TabsTrigger value="functions" className={SUBNAV_TRIGGER}>
+              <Settings2 className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline">Functions &amp; history</span>
+              <span className="xl:hidden">History</span>
+            </TabsTrigger>
+          )}
+        </TabsList>
+        )}
 
+        {/* Pending Registrations Tab — Super Admin only */}
+        {isSuperAdmin && (
+          <TabsContent value="pending" className="mt-0">
+            <PendingRegistrationsTab />
+          </TabsContent>
+        )}
 
-          {/* All Users Tab */}
-          <TabsContent value="users" className="space-y-4">
-            <PermissionGate permissions={['user_management_view', 'user_management_manage', 'user_management_hr_manage']}>
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle>All Users ({users.length} total)</CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={fetchUsers}>
-                        🔄 Refresh
-                      </Button>
-                      <PermissionGate permissions={['user_management_manage']}>
-                        <AddUserDialog onAddUser={createUser} />
-                      </PermissionGate>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-                    <div className="flex items-center space-x-2 flex-1">
-                      <Search className="h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search users..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="max-w-sm"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Filter className="h-4 w-4 text-muted-foreground" />
-                      <Select value={selectedRole} onValueChange={setSelectedRole}>
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Filter by role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Roles</SelectItem>
-                          {userRoleOptions.map((roleName) => (
-                            <SelectItem key={roleName} value={roleName}>
-                              {roleName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* All Users Tab */}
+        <TabsContent value="users" className="mt-0">
+          <PermissionGate permissions={['user_management_view', 'user_management_manage', 'user_management_hr_manage']}>
+            <Panel
+              title="Users"
+              description={
+                !canEditUsers
+                  ? "Everyone with an ERP login."
+                  : isHrRestricted
+                    ? "Everyone with an ERP login. Use Edit to update a person's details."
+                    : "Everyone with an ERP login. Use Edit to change a person's details, role or Terminal access."
+              }
+              bodyClassName="p-0 sm:p-0"
+              actions={
+                <>
+                  <Button variant="outline" size="sm" onClick={fetchUsers} className="h-8 gap-1.5" aria-label="Refresh users">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </Button>
+                  <PermissionGate permissions={['user_management_manage']} showFallback={false}>
+                    <AddUserDialog onAddUser={createUser} />
+                  </PermissionGate>
+                </>
+              }
+            >
+              <div className="flex flex-col gap-2 border-b border-border/70 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-5">
+                <SearchField
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Name, username, email, phone or badge"
+                  label="Search users"
+                  className="sm:min-w-[240px] sm:flex-1"
+                />
+                <Select value={roleFilter} onValueChange={setSelectedRole}>
+                  <SelectTrigger className="h-9 w-full sm:w-[220px]" aria-label="Filter by role">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    {usersWithoutRole > 0 && (
+                      <SelectItem value={NO_ROLE}>No role ({usersWithoutRole})</SelectItem>
+                    )}
+                    {userRoleOptions.map((roleName) => (
+                      <SelectItem key={roleName} value={roleName}>
+                        {roleName.trim()} ({roleCounts.get(roleName) || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Segmented<StatusFilter>
+                  label="Filter by status"
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  options={[
+                    { value: "all", label: "All", count: usersForStatus.length },
+                    { value: "ACTIVE", label: "Active", count: statusCount("ACTIVE") },
+                    { value: "INACTIVE", label: "Inactive", count: statusCount("INACTIVE") },
+                    { value: "SUSPENDED", label: "Suspended", count: statusCount("SUSPENDED") },
+                  ]}
+                />
+              </div>
 
               {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <StatCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : (
-                <div>
-                  {filteredUsers.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredUsers.map((user: DatabaseUser) => (
-                        <Card key={user.id} className="hover:shadow-sm transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-start">
-                                <h3 className="font-semibold text-foreground truncate">
-                                  {user.first_name && user.last_name 
-                                    ? `${user.first_name} ${user.last_name}`
-                                    : user.username
-                                  }
-                                </h3>
-                                <div className="flex flex-col gap-1">
-                                  <Badge variant={getRoleBadgeVariant(user.role?.name)}>
-                                    {user.role?.name || 'No Role'}
-                                  </Badge>
-                                  <Badge variant={user.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                                    {user.status}
-                                  </Badge>
-                                </div>
-                              </div>
-                              
-                              <div className="space-y-1 text-sm text-muted-foreground">
-                                <p><strong>Username:</strong> {user.username}</p>
-                                <p><strong>Email:</strong> {user.email}</p>
-                                {user.phone && <p><strong>Phone:</strong> {user.phone}</p>}
-                                {user.badge_id && <p><strong>Badge ID:</strong> {user.badge_id}</p>}
-                                <p><strong>Created:</strong> {formatDate(user.created_at)}</p>
-                              </div>
-                              
-                              {canEditUsers && (
-                                <div className="flex justify-between pt-2 border-t">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setEditingUser(user)}
-                                    className="flex items-center gap-1"
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                    Edit
-                                  </Button>
-                                  
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setResetPasswordUser(user)}
-                                    className="flex items-center gap-1"
-                                  >
-                                    <Key className="h-3 w-3" />
-                                    Reset
-                                  </Button>
-                                  
-                                  {!(isHrRestricted && isProtectedRole(user.role?.name)) && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDeleteUser(user)}
-                                      className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                      Delete
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <Card>
-                      <CardContent className="p-8 text-center text-muted-foreground">
-                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No users found matching your search.</p>
-                      </CardContent>
-                    </Card>
+                <PanelSkeleton rows={6} />
+              ) : filteredUsers.length === 0 ? (
+                <PanelMessage icon={Users} title={users.length === 0 ? "No users yet" : "No one matches these filters"}>
+                  {users.length > 0 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
+                      onClick={() => { setSearchTerm(""); setSelectedRole("all"); setStatusFilter("all"); }}
+                    >
+                      Clear filters
+                    </Button>
                   )}
+                </PanelMessage>
+              ) : (
+                <div className="responsive-list">
+                  <div className="responsive-list-table">
+                    <table className={UM_TABLE}>
+                      <thead>
+                        <tr>
+                          <th>Person</th>
+                          <th>Role</th>
+                          <th>Status</th>
+                          <th className="hidden @[60rem]:table-cell">Contact</th>
+                          <th className="hidden @[60rem]:table-cell">Badge</th>
+                          <th className="hidden @[68rem]:table-cell">Added</th>
+                          {canEditUsers && <th className="w-[1%]"><span className="sr-only">Actions</span></th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedUsers.slice.map((user: DatabaseUser) => (
+                          <tr key={user.id}>
+                            <td>
+                              <div className="flex min-w-[11rem] items-center gap-2.5">
+                                <Initials name={personName(user)} />
+                                <div className="min-w-0 [overflow-wrap:normal]">
+                                  <p className="font-medium text-foreground">{personName(user)}</p>
+                                  <p className="text-xs text-muted-foreground">@{user.username}</p>
+                                  {/* Narrow panel: contact moves under the name */}
+                                  <p className="break-all text-xs text-muted-foreground @[60rem]:hidden">{user.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td><RoleChip name={user.role?.name} /></td>
+                            <td><UserStatusChip status={user.status} /></td>
+                            <td className="hidden @[60rem]:table-cell">
+                              <p className="break-all text-foreground">{user.email}</p>
+                              {user.phone && <p className="text-xs tabular-nums text-muted-foreground">{user.phone}</p>}
+                            </td>
+                            <td className="hidden font-mono text-xs @[60rem]:table-cell">{user.badge_id || <span className="text-muted-foreground">—</span>}</td>
+                            <td className="hidden whitespace-nowrap text-xs text-muted-foreground @[68rem]:table-cell">{fmtDay(user.created_at)}</td>
+                            {canEditUsers && <td>{userActions(user)}</td>}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <ul className="responsive-list-cards divide-y divide-border">
+                    {pagedUsers.slice.map((user: DatabaseUser) => (
+                      <li key={user.id} className="space-y-2.5 px-4 py-3">
+                        <div className="flex items-start gap-3">
+                          <Initials name={personName(user)} className="mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <p className="font-medium text-foreground">{personName(user)}</p>
+                              <UserStatusChip status={user.status} />
+                            </div>
+                            <p className="break-all text-xs text-muted-foreground">@{user.username} · {user.email}</p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <RoleChip name={user.role?.name} />
+                              {user.badge_id && <span className="font-mono text-[11px] text-muted-foreground">Badge {user.badge_id}</span>}
+                              {user.phone && <span className="text-[11px] tabular-nums text-muted-foreground">{user.phone}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        {canEditUsers && <div className="pl-11">{userActions(user, true)}</div>}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
-            </PermissionGate>
-          </TabsContent>
+              {!isLoading && filteredUsers.length > 0 && (
+                <div className="px-3 pb-3 sm:px-5">
+                  <TablePager
+                    page={pagedUsers.page}
+                    pages={pagedUsers.pages}
+                    total={pagedUsers.total}
+                    pageSize={pagedUsers.pageSize}
+                    setPage={pagedUsers.setPage}
+                    noun={pagedUsers.total === 1 ? "person" : "people"}
+                  />
+                </div>
+              )}
+            </Panel>
+          </PermissionGate>
+        </TabsContent>
 
-          {/* Roles & Permissions Tab */}
-          <TabsContent value="roles" className="space-y-4">
-            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle>Roles & Permissions ({roles.length} roles)</CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={fetchRoles}>
-                        🔄 Refresh
-                      </Button>
-                      <PermissionGate permissions={['user_management_manage']}>
-                        <AddRoleDialog onAddRole={createRole} />
-                      </PermissionGate>
-                    </div>
+        {/* Roles & Permissions Tab */}
+        <TabsContent value="roles" className="mt-0">
+          <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+            <Panel
+              title="Roles & permissions"
+              description="A role is a set of permissions. Everyone given the role gets all of them."
+              bodyClassName="p-0 sm:p-0"
+              actions={
+                <>
+                  <Button variant="outline" size="sm" onClick={fetchRoles} className="h-8 gap-1.5" aria-label="Refresh roles">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </Button>
+                  <PermissionGate permissions={['user_management_manage']} showFallback={false}>
+                    <AddRoleDialog onAddRole={createRole} />
+                  </PermissionGate>
+                </>
+              }
+            >
+              {isLoadingRoles ? (
+                <PanelSkeleton rows={6} />
+              ) : sortedRoles.length === 0 ? (
+                <PanelMessage icon={Shield} title="No roles yet" />
+              ) : (
+                <div className="responsive-list">
+                  <div className="responsive-list-table">
+                    <table className={UM_TABLE}>
+                      <thead>
+                        <tr>
+                          <th className="w-[30%]">Role</th>
+                          <th>People</th>
+                          <th>What it allows</th>
+                          <th className="w-[1%]"><span className="sr-only">Actions</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedRoles.map((role) => (
+                          <tr key={role.id}>
+                            <td>
+                              <div className="flex min-w-[9rem] flex-wrap items-center gap-1.5 [overflow-wrap:normal]">
+                                <span className="font-medium text-foreground">{role.name.trim()}</span>
+                                {isSystemRole(role.name) && <Chip tone="info">System</Chip>}
+                              </div>
+                              {role.description && <p className="mt-0.5 text-xs text-muted-foreground">{role.description}</p>}
+                            </td>
+                            <td className="whitespace-nowrap">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => setViewingRoleUsers(role)}
+                                className={cn("h-auto p-0 text-[13px]", role.user_count === 0 && "text-muted-foreground")}
+                                aria-label={`${plural(role.user_count, "person", "people")} with the ${role.name.trim()} role`}
+                              >
+                                {plural(role.user_count, "person", "people")}
+                              </Button>
+                            </td>
+                            <td><TierChips permissions={role.permissions} /></td>
+                            <td>
+                              {canManageRoles && (
+                                <div className="flex justify-end gap-1">
+                                  <Button variant="outline" size="sm" onClick={() => setEditingRole(role)} className="h-8 gap-1.5 px-2.5 text-xs">
+                                    <Edit className="h-3.5 w-3.5" /> Edit
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setRoleToDelete(role.id)}
+                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    aria-label={`Delete the ${role.name.trim()} role`}
+                                    title="Delete role"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingRoles ? (
-                    <div className="flex justify-center items-center h-32">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
-                      <span className="ml-2">Loading roles...</span>
-                    </div>
-                  ) : (
-                    <div>
-                      {roles.length > 0 ? (
-                        <div className="space-y-2">
-                          {/* Table header */}
-                          <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            <div className="col-span-2">Role</div>
-                            <div className="col-span-1 text-center">Users</div>
-                            <div className="col-span-6">Permissions</div>
-                            <div className="col-span-3 text-right">Actions</div>
-                          </div>
-                          {roles.map((role) => {
-                            const viewPerms = role.permissions.filter(p => p.endsWith('_view'));
-                            const managePerms = role.permissions.filter(p => p.endsWith('_manage'));
-                            const destructivePerms = role.permissions.filter(p => p.endsWith('_destructive') || p === 'erp_destructive');
-                            const specialPerms = role.permissions.filter(p => !p.endsWith('_view') && !p.endsWith('_manage') && !p.includes('destructive'));
-                            return (
-                            <div key={role.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center px-4 py-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
-                              <div className="md:col-span-2">
-                                <h3 className="font-semibold text-sm">{role.name}</h3>
-                                {role.description && <p className="text-xs text-muted-foreground line-clamp-1">{role.description}</p>}
-                              </div>
-                              <div className="md:col-span-1 text-center">
-                                <Badge variant={getRoleBadgeVariant(role.name)} className="text-xs">
-                                  {role.user_count}
-                                </Badge>
-                              </div>
-                              <div className="md:col-span-6">
-                                <div className="flex flex-wrap gap-1">
-                                  {viewPerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20">
-                                      {viewPerms.length} view
-                                    </Badge>
-                                  )}
-                                  {managePerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-info/10 text-info border-info/20">
-                                      {managePerms.length} manage
-                                    </Badge>
-                                  )}
-                                  {destructivePerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20">
-                                      {destructivePerms.length} destructive
-                                    </Badge>
-                                  )}
-                                  {specialPerms.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20">
-                                      {specialPerms.length} special
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="md:col-span-3 flex justify-end gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => setViewingRoleUsers(role)} className="h-7 px-2 text-xs">
-                                  <Users className="h-3 w-3 mr-1" /> Users
-                                </Button>
-                                <PermissionGate permissions={['user_management_manage']}>
-                                  <Button variant="ghost" size="sm" onClick={() => setEditingRole(role)} className="h-7 px-2 text-xs">
-                                    <Edit className="h-3 w-3 mr-1" /> Edit
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => setRoleToDelete(role.id)} className="h-7 px-2 text-xs text-destructive hover:text-destructive">
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </PermissionGate>
-                              </div>
-                            </div>
-                          );})}
-                        </div>
-                      ) : (
-                        <Card>
-                          <CardContent className="p-8 text-center text-muted-foreground">
-                            <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No roles found.</p>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </PermissionGate>
-          </TabsContent>
 
-          {/* User Settings Tab */}
-          <TabsContent value="settings" className="space-y-4">
-            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Active Users & Settings ({onlineUsers.length} online)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingOnlineUsers ? (
-                    <div className="flex justify-center items-center h-32">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
-                      <span className="ml-2">Loading active users...</span>
-                    </div>
-                  ) : (
-                    <div>
-                      {onlineUsers.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {onlineUsers.map((user) => (
-                            <Card key={user.id} className="border-success/20 bg-success/10">
-                              <CardContent className="p-4">
-                                <div className="space-y-2">
-                                  <div className="flex justify-between items-start">
-                                    <h3 className="font-semibold text-foreground">
-                                      {user.first_name && user.last_name 
-                                        ? `${user.first_name} ${user.last_name}`
-                                        : user.username
-                                      }
-                                    </h3>
-                                    <Badge variant="default" className="bg-success">
-                                      Online
-                                    </Badge>
-                                  </div>
-                                  
-                                  <div className="space-y-1 text-sm text-muted-foreground">
-                                    <p><strong>Username:</strong> {user.username}</p>
-                                    <p><strong>Email:</strong> {user.email}</p>
-                                    <p><strong>Last Seen:</strong> {formatTime(user.last_seen)}</p>
-                                  </div>
-                                  
-                                  {isSuperAdmin && (
-                                    <div className="pt-2 border-t">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full"
-                                        onClick={() => {
-                                          setResetPasswordUser(user as any);
-                                        }}
-                                      >
-                                        Reset Password
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
+                  <ul className="responsive-list-cards divide-y divide-border">
+                    {sortedRoles.map((role) => (
+                      <li key={role.id} className="space-y-2 px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium text-foreground">{role.name.trim()}</span>
+                          {isSystemRole(role.name) && <Chip tone="info">System</Chip>}
                         </div>
-                      ) : (
-                        <Card>
-                          <CardContent className="p-8 text-center text-muted-foreground">
-                            <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No users are currently online.</p>
-                            <p className="text-xs mt-2">Users are considered online if they've been active in the last 5 minutes.</p>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </PermissionGate>
-          </TabsContent>
+                        {role.description && <p className="text-xs text-muted-foreground">{role.description}</p>}
+                        <TierChips permissions={role.permissions} />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setViewingRoleUsers(role)} className="h-8 gap-1.5 px-2.5 text-xs">
+                            <Users className="h-3.5 w-3.5" /> {plural(role.user_count, "person", "people")}
+                          </Button>
+                          {canManageRoles && (<>
+                            <Button variant="outline" size="sm" onClick={() => setEditingRole(role)} className="h-8 gap-1.5 px-2.5 text-xs">
+                              <Edit className="h-3.5 w-3.5" /> Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setRoleToDelete(role.id)}
+                              className="h-8 gap-1.5 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                            </Button>
+                          </>)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Panel>
+          </PermissionGate>
+        </TabsContent>
 
-          {/* Functions Tab */}
-          <TabsContent value="functions" className="space-y-4">
-            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+        {/* Online now (was "User Settings") */}
+        <TabsContent value="online" className="mt-0">
+          <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+            <Panel
+              title="Online now"
+              description="ERP accounts with activity in the last 5 minutes. Refreshes every 30 seconds."
+              bodyClassName="p-0 sm:p-0"
+            >
+              {isLoadingOnlineUsers ? (
+                <PanelSkeleton rows={3} />
+              ) : onlineUsers.length === 0 ? (
+                <PanelMessage icon={Activity} title="No one active in the last 5 minutes">
+                  This list checks again every 30 seconds.
+                </PanelMessage>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {onlineUsers.map((user) => (
+                    <li key={user.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-5">
+                      <span className="relative">
+                        <Initials name={personName(user)} />
+                        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-success" aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground">{personName(user)}</p>
+                        <p className="break-all text-xs text-muted-foreground">@{user.username} · {user.email}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground" title={`${fmtDay(user.last_seen)}, ${fmtTime(user.last_seen)} IST`}>
+                        Active {fmtAgo(user.last_seen)}
+                      </p>
+                      {isSuperAdmin && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 px-2.5 text-xs"
+                          onClick={() => {
+                            setResetPasswordUser(user as any);
+                          }}
+                        >
+                          <Key className="h-3.5 w-3.5" />
+                          Reset password
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          </PermissionGate>
+        </TabsContent>
+
+        {/* Functions Tab */}
+        <TabsContent value="functions" className="mt-0">
+          <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+            <div className="space-y-4">
               <FunctionsTab />
               <PermissionChangeLog />
-            </PermissionGate>
-          </TabsContent>
+            </div>
+          </PermissionGate>
+        </TabsContent>
 
-          {/* Terminal Access Tab */}
-          <TabsContent value="terminal" className="space-y-4">
-            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
-              <TerminalAccessTab />
-            </PermissionGate>
-          </TabsContent>
-        </Tabs>
+        {/* Terminal Access Tab */}
+        <TabsContent value="terminal" className="mt-0">
+          <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+            <TerminalAccessTab />
+          </PermissionGate>
+        </TabsContent>
+      </Tabs>
 
 
       {/* Dialogs */}
@@ -813,8 +986,8 @@ export default function UserManagement() {
           open={!!resetPasswordUser}
           onOpenChange={(open) => !open && setResetPasswordUser(null)}
           userId={resetPasswordUser.id}
-          userName={resetPasswordUser.first_name && resetPasswordUser.last_name 
-            ? `${resetPasswordUser.first_name} ${resetPasswordUser.last_name}` 
+          userName={resetPasswordUser.first_name && resetPasswordUser.last_name
+            ? `${resetPasswordUser.first_name} ${resetPasswordUser.last_name}`
             : resetPasswordUser.username}
         />
       )}
@@ -822,15 +995,26 @@ export default function UserManagement() {
       <AlertDialog open={!!roleToDelete} onOpenChange={(open) => !open && setRoleToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Role</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this role? This action cannot be undone.
+            <AlertDialogTitle>
+              {roleBeingDeleted ? `Delete the “${roleBeingDeleted.name.trim()}” role?` : "Delete this role?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {roleBeingDeleted && roleBeingDeleted.user_count > 0 ? (
+                  <p className="font-medium text-warning">
+                    {roleBeingDeleted.user_count === 1 ? "1 person has" : `${roleBeingDeleted.user_count} people have`} this role today. Move them to another role first.
+                  </p>
+                ) : (
+                  <p>Nobody has this role at the moment.</p>
+                )}
+                <p>This can't be undone.</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => roleToDelete && deleteRole(roleToDelete)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              Delete role
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -839,11 +1023,20 @@ export default function UserManagement() {
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && !isDeletingUser && setUserToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
-            <AlertDialogDescription>
-              {isDeletingUser
-                ? "Deleting user account and cleaning linked ERP access. Please wait..."
-                : "Are you sure you want to permanently delete this user and clean linked ERP access? Historical orders and ledgers will be preserved with the user reference removed."}
+            <AlertDialogTitle>
+              {userBeingDeleted ? `Delete ${personName(userBeingDeleted)}?` : "Delete this user?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {isDeletingUser ? (
+                  <p>Deleting the account and cleaning up linked ERP access. Please wait…</p>
+                ) : (
+                  <>
+                    <p>This permanently deletes the login and cleans up linked ERP access. Past orders and ledgers are kept, with the user reference removed.</p>
+                    <p>To stop someone signing in without deleting them, set their status to Inactive instead.</p>
+                  </>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -856,7 +1049,7 @@ export default function UserManagement() {
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeletingUser ? "Deleting..." : "Delete Permanently"}
+              {isDeletingUser ? "Deleting..." : "Delete permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

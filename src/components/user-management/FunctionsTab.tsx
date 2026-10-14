@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Settings2, Package } from "lucide-react";
+import { Settings2 } from "lucide-react";
+import { Panel } from "@/components/finance-ui/primitives";
+import { PanelMessage, PanelSkeleton, UM_TABLE, moduleLabel } from "./umUi";
 
 interface SystemFunction {
   id: string;
@@ -70,113 +70,84 @@ export function FunctionsTab() {
     }
   };
 
-  // Group functions by module
-  const functionsByModule = functions.reduce((acc, func) => {
-    if (!acc[func.module]) {
-      acc[func.module] = [];
-    }
-    acc[func.module].push(func);
-    return acc;
-  }, {} as Record<string, SystemFunction[]>);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Loading functions...</span>
-      </div>
-    );
-  }
+  const rolesWith = (key: string) => roleAssignments.filter((ra) => ra.functions.includes(key));
 
   return (
-    <div className="space-y-6">
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Settings2 className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle>System Functions</CardTitle>
-              <CardDescription>
-                Functions define specific capabilities within modules. Assign functions to roles to control user access.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Functions by Module */}
-      {Object.entries(functionsByModule).map(([module, moduleFunctions]) => (
-        <Card key={module}>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-lg capitalize">{module} Module</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {moduleFunctions.map((func) => {
-                // Find roles that have this function
-                const assignedRoles = roleAssignments.filter(ra => 
-                  ra.functions.includes(func.function_key)
-                );
-
-                return (
-                  <div key={func.id} className="p-4 border rounded-lg bg-muted/30">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{func.function_name}</h4>
-                          <Badge variant="outline" className="text-xs">
-                            {func.function_key}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {func.description}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
+    <Panel
+      title="Module functions"
+      description="Extra abilities that roles get on top of their permissions. Read-only here."
+      bodyClassName="p-0 sm:p-0"
+      footer="Functions are given to roles, not to individual people. To change which roles have a function, edit the role in Roles & permissions."
+    >
+      {isLoading ? (
+        <PanelSkeleton rows={4} />
+      ) : functions.length === 0 ? (
+        <PanelMessage icon={Settings2} title="No module functions set up" />
+      ) : (
+        <div className="responsive-list">
+          <div className="responsive-list-table">
+            <table className={UM_TABLE}>
+              <thead>
+                <tr>
+                  <th className="w-[38%]">Function</th>
+                  <th>Module</th>
+                  <th>Roles that have it</th>
+                </tr>
+              </thead>
+              <tbody>
+                {functions.map((func) => {
+                  const assignedRoles = rolesWith(func.function_key);
+                  return (
+                    <tr key={func.id}>
+                      <td>
+                        <p className="font-medium text-foreground">{func.function_name}</p>
+                        {func.description && <p className="mt-0.5 text-xs text-muted-foreground">{func.description}</p>}
+                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{func.function_key}</p>
+                      </td>
+                      <td>{moduleLabel(func.module)}</td>
+                      <td>
                         {assignedRoles.length > 0 ? (
-                          assignedRoles.map(role => (
-                            <Badge key={role.role_id} variant="secondary" className="text-xs">
-                              {role.role_name}
-                            </Badge>
-                          ))
+                          <div className="flex flex-wrap gap-1">
+                            {assignedRoles.map((role) => (
+                              <span key={role.role_id} className="ds-status ds-status-neutral">{role.role_name.trim()}</span>
+                            ))}
+                          </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground italic">
-                            Not assigned to any role
-                          </span>
+                          <span className="text-xs text-muted-foreground">No role yet</span>
                         )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-
-      {/* Info Card */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-6">
-          <div className="flex gap-3">
-            <div className="text-primary">ℹ️</div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium">How Functions Work</p>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Functions are assigned to <strong>Roles</strong>, not individual users</li>
-                <li>Users inherit functions through their assigned role</li>
-                <li>To assign functions, edit a role in the "Roles & Permissions" tab</li>
-                <li>Purchase module uses permission-based access (purchase_manage). Other modules may use specific functions.</li>
-              </ul>
-            </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+
+          <ul className="responsive-list-cards divide-y divide-border">
+            {functions.map((func) => {
+              const assignedRoles = rolesWith(func.function_key);
+              return (
+                <li key={func.id} className="space-y-1.5 px-4 py-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                    <p className="font-medium text-foreground">{func.function_name}</p>
+                    <span className="text-xs text-muted-foreground">{moduleLabel(func.module)}</span>
+                  </div>
+                  {func.description && <p className="text-xs text-muted-foreground">{func.description}</p>}
+                  <div className="flex flex-wrap gap-1">
+                    {assignedRoles.length > 0 ? (
+                      assignedRoles.map((role) => (
+                        <span key={role.role_id} className="ds-status ds-status-neutral">{role.role_name.trim()}</span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No role yet</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </Panel>
   );
 }

@@ -23,9 +23,12 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { QuestionBankWorkspace } from "@/components/hrms/quiz/QuestionBankWorkspace";
+import { QuizOverview } from "@/components/hrms/quiz/QuizOverview";
+import { QuizDrives } from "@/components/hrms/quiz/QuizDrives";
+import { QuizResults } from "@/components/hrms/quiz/QuizResults";
 
 
-type QuizView = "dashboard" | "drives" | "attempts" | "evaluations" | "questions" | "skills" | "roles" | "settings";
+type QuizView = "overview" | "drives" | "results" | "grading" | "tests" | "questions" | "settings";
 type EvaluationRow = {
   id: string;
   attempt_item_id: string;
@@ -124,7 +127,9 @@ const LEVEL_PRESETS: Record<SectionType, Partial<Record<SkillLevel, Partial<Blue
   objective: {},
   written: {},
 };
-const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "skills", "roles", "settings"];
+const views: QuizView[] = ["overview", "drives", "results", "grading", "tests", "questions", "settings"];
+// Old ?view= links keep landing on the right place.
+const LEGACY_VIEWS: Record<string, QuizView> = { dashboard: "overview", attempts: "results", evaluations: "grading", skills: "tests", roles: "tests" };
 
 // Skill Test catalogue — the practical drills that measure ability rather than knowledge.
 const SKILL_TYPES = [
@@ -155,17 +160,16 @@ export default function QuizDashboardPage() {
   const { toast } = useToast();
   const { hasAnyPermission } = usePermissions();
   const [params, setParams] = useSearchParams();
-  const requestedView = params.get("view") as QuizView | null;
-  const activeView = requestedView && views.includes(requestedView) ? requestedView : "dashboard";
+  const rawView = params.get("view") ?? "";
+  const activeView: QuizView = views.includes(rawView as QuizView) ? (rawView as QuizView) : LEGACY_VIEWS[rawView] ?? "overview";
+  const driveId = params.get("drive");
   const canManage = hasAnyPermission(["hrms_quiz_manage", "hrms_quiz_admin"]);
   const canAdmin = hasAnyPermission(["hrms_quiz_admin"]);
   const canEvaluate = hasAnyPermission(["hrms_quiz_evaluate", "hrms_quiz_manage", "hrms_quiz_admin"]);
-  const [search, setSearch] = useState("");
-  const [dialog, setDialog] = useState<"drive" | "role" | "question" | null>(null);
+  const [dialog, setDialog] = useState<"role" | "question" | null>(null);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [gradingRow, setGradingRow] = useState<EvaluationRow | null>(null);
   const [gradingForm, setGradingForm] = useState({ score: "", comments: "" });
-  const [driveForm, setDriveForm] = useState({ name: "", accessCode: "", mode: "on_site", startsAt: "", endsAt: "" });
   const [roleForm, setRoleForm] = useState({ positionId: "", code: "", shortlist: "65", hold: "50" });
   const [roleActive, setRoleActive] = useState(true);
   const [blueprintSections, setBlueprintSections] = useState<BlueprintSectionForm[]>([]);
@@ -199,25 +203,6 @@ export default function QuizDashboardPage() {
         evaluations: evaluations.data ?? [], settings: settingsRow.data, positions: positions.data ?? [],
       };
     },
-  });
-
-  const createDrive = useMutation({
-    mutationFn: async () => {
-      const code = driveForm.accessCode.trim().toUpperCase();
-      if (!driveForm.name.trim() || !/^[A-Z0-9]{6}$/.test(code) || !driveForm.startsAt || !driveForm.endsAt) throw new Error("Enter a name, six-character code, start, and end time.");
-      if (new Date(driveForm.endsAt) <= new Date(driveForm.startsAt)) throw new Error("End time must be after the start time.");
-      const { error } = await supabase.from("cbt_drives").insert({
-        name: driveForm.name.trim(), access_code: code, mode: driveForm.mode as "on_site" | "remote",
-        starts_at: new Date(driveForm.startsAt).toISOString(), ends_at: new Date(driveForm.endsAt).toISOString(), status: "draft",
-      });
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["cbt", "staff-workspace"] });
-      setDialog(null); setDriveForm({ name: "", accessCode: "", mode: "on_site", startsAt: "", endsAt: "" });
-      toast({ title: "Draft drive created" });
-    },
-    onError: (error: Error) => toast({ title: "Drive not created", description: error.message, variant: "destructive" }),
   });
 
   const selectedPosition = useMemo(
@@ -382,22 +367,8 @@ export default function QuizDashboardPage() {
     setGradingForm({ score: row.total === null ? "" : String(row.total), comments: row.comments ?? "" });
   };
 
-  const filteredAttempts = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return data?.attempts ?? [];
-    return (data?.attempts ?? []).filter((attempt: any) =>
-      [attempt.public_ref, attempt.cbt_candidates?.full_name, attempt.cbt_job_roles?.name, attempt.status, attempt.decision]
-        .some((value) => String(value ?? "").toLowerCase().includes(needle))
-    );
-  }, [data?.attempts, search]);
-
-  const changeView = (value: string) => setParams(value === "dashboard" ? {} : { view: value });
-  const stats = [
-    { label: "Assessment drives", value: data?.drives.length ?? 0, icon: BriefcaseBusiness, tone: "text-info bg-info/10" },
-    { label: "Candidates", value: data?.candidates.length ?? 0, icon: Users, tone: "text-success bg-success/10" },
-    { label: "Attempts", value: data?.attempts.length ?? 0, icon: ClipboardCheck, tone: "text-warning bg-warning/10" },
-    { label: "Question bank", value: data?.questions.length ?? 0, icon: BookOpenCheck, tone: "text-primary bg-primary/10" },
-  ];
+  const changeView = (value: string) => setParams(value === "overview" ? {} : { view: value });
+  const openDrive = (id: string | null) => setParams(id ? { view: "drives", drive: id } : { view: "drives" });
 
   const noData = (icon: typeof Users, title: string, description: string, action?: React.ReactNode) => (
     <div className="rounded-lg border border-border bg-card"><EmptyState icon={icon} title={title} description={description} action={action} /></div>
@@ -428,39 +399,32 @@ export default function QuizDashboardPage() {
 
       <Tabs value={activeView} onValueChange={changeView}>
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
-          <TabsTrigger value="attempts">Candidates & Attempts</TabsTrigger><TabsTrigger value="evaluations">Evaluations</TabsTrigger>
-          <TabsTrigger value="questions">Question Bank</TabsTrigger><TabsTrigger value="skills">Skill Test</TabsTrigger>
-          <TabsTrigger value="roles">Roles & Blueprints</TabsTrigger><TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
+          <TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="grading">Grading</TabsTrigger>
+          <TabsTrigger value="tests">Tests</TabsTrigger><TabsTrigger value="questions">Question bank</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard" className="space-y-5">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {stats.map((stat) => <Card key={stat.label}><CardContent className="flex items-center gap-3 p-4"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.tone}`}><stat.icon className="h-5 w-5" /></span><div><p className="text-2xl font-semibold tabular-nums">{isLoading ? "—" : stat.value}</p><p className="text-xs text-muted-foreground">{stat.label}</p></div></CardContent></Card>)}
-          </div>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <section className="border-t border-border pt-4"><h2 className="font-semibold">Current activity</h2><p className="mt-1 text-sm text-muted-foreground">{isError ? "Quiz data could not be loaded." : `${data?.attempts.filter((a) => a.status === "in_progress").length ?? 0} attempts in progress and ${data?.drives.filter((d) => d.status === "live").length ?? 0} live drives.`}</p></section>
-            <section className="border-t border-border pt-4"><h2 className="font-semibold">Content readiness</h2><p className="mt-1 text-sm text-muted-foreground">{data?.questions.filter((q) => q.status === "approved").length ?? 0} approved questions; {data?.questions.filter((q) => q.status === "needs_review").length ?? 0} await review.</p></section>
-          </div>
+        <TabsContent value="overview" className="space-y-5">
+          <QuizOverview onOpenDrive={(id) => openDrive(id)} onOpenView={changeView} />
         </TabsContent>
 
         <TabsContent value="drives" className="space-y-4">
-          <div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Assessment drives</h2><p className="text-sm text-muted-foreground">Issue six-character candidate access codes and control test windows.</p></div>{canManage && <Button onClick={() => setDialog("drive")}><Plus />New drive</Button>}</div>
-          {!data?.drives.length ? noData(BriefcaseBusiness, "No assessment drives", "Create a draft drive, assign roles, then publish it when the question bank is ready.", canManage ? <Button onClick={() => setDialog("drive")}><Plus />Create drive</Button> : undefined) : <Table><TableHeader><TableRow><TableHead>Drive</TableHead><TableHead>Code</TableHead><TableHead>Mode</TableHead><TableHead>Window</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{data.drives.map((drive) => <TableRow key={drive.id}><TableCell className="font-medium">{drive.name}</TableCell><TableCell className="font-mono">{drive.access_code}</TableCell><TableCell>{pretty(drive.mode)}</TableCell><TableCell>{fmtDate(drive.starts_at)} – {fmtDate(drive.ends_at)}</TableCell><TableCell><Badge variant={statusVariant(drive.status)}>{pretty(drive.status)}</Badge></TableCell></TableRow>)}</TableBody></Table>}
+          <QuizDrives tests={(data?.roles ?? []) as any} canManage={canManage} driveId={driveId} onOpenDrive={openDrive} />
         </TabsContent>
 
-        <TabsContent value="attempts" className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-lg font-semibold">Candidates & attempts</h2><p className="text-sm text-muted-foreground">Track progress, scores, decisions, warnings, and submission state.</p></div><div className="relative w-full sm:w-72"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search candidate or reference" className="pl-9" /></div></div>
-          {!filteredAttempts.length ? noData(Users, "No candidate attempts", "Attempts appear here after a candidate registers with a live drive code.") : <Table><TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Candidate</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead numeric>Score</TableHead><TableHead>Decision</TableHead><TableHead numeric>Warnings</TableHead></TableRow></TableHeader><TableBody>{filteredAttempts.map((attempt: any) => <TableRow key={attempt.id}><TableCell className="font-mono text-xs">{attempt.public_ref}</TableCell><TableCell className="font-medium">{attempt.cbt_candidates?.full_name ?? "Anonymized"}</TableCell><TableCell>{attempt.cbt_job_roles?.name ?? "—"}</TableCell><TableCell><Badge variant={statusVariant(attempt.status)}>{pretty(attempt.status)}</Badge></TableCell><TableCell numeric>{attempt.total_score ?? "—"}</TableCell><TableCell><Badge variant={statusVariant(attempt.decision)}>{pretty(attempt.decision)}</Badge></TableCell><TableCell numeric>{attempt.warning_count}</TableCell></TableRow>)}</TableBody></Table>}
+        <TabsContent value="results" className="space-y-4">
+          <QuizResults drives={(data?.drives ?? []).map((d: any) => ({ id: d.id, name: d.name }))} tests={(data?.roles ?? []).map((r: any) => ({ id: r.id, name: r.name }))} canManage={canManage} />
         </TabsContent>
 
-        <TabsContent value="evaluations" className="space-y-4"><div><h2 className="text-lg font-semibold">Blind written evaluations</h2><p className="text-sm text-muted-foreground">Written responses are graded without exposing candidate identity.</p></div>{!canEvaluate ? noData(ShieldCheck, "Evaluation permission required", "Ask a Quiz administrator for evaluator access.") : !data?.evaluations.length ? noData(ClipboardCheck, "No responses await grading", "Submitted written responses will enter this queue automatically.") : <div className="grid gap-3">{(data.evaluations as EvaluationRow[]).map((row) => { const prompt = row.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"; const answer = row.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"; return <Card key={row.id}><CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div className="min-w-0"><p className="text-sm font-medium">{prompt}</p><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{answer}</p><div className="mt-2 flex flex-wrap items-center gap-2"><Badge variant={row.total === null ? "warning" : "success"}>{row.total === null ? "Awaiting grading" : `${row.total}/20`}</Badge><span className="text-xs text-muted-foreground">Updated {fmtDate(row.updated_at)}</span></div></div><Button variant={row.total === null ? "default" : "outline"} onClick={() => openGrading(row)}>{row.total === null ? "Grade response" : "Review grade"}</Button></CardContent></Card>; })}</div>}
+        <TabsContent value="grading" className="space-y-4"><div><h2 className="text-lg font-semibold">Blind written evaluations</h2><p className="text-sm text-muted-foreground">Written responses are graded without exposing candidate identity.</p></div>{!canEvaluate ? noData(ShieldCheck, "Evaluation permission required", "Ask a Quiz administrator for evaluator access.") : !data?.evaluations.length ? noData(ClipboardCheck, "No responses await grading", "Submitted written responses will enter this queue automatically.") : <div className="grid gap-3">{(data.evaluations as EvaluationRow[]).map((row) => { const prompt = row.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"; const answer = row.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"; return <Card key={row.id}><CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div className="min-w-0"><p className="text-sm font-medium">{prompt}</p><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{answer}</p><div className="mt-2 flex flex-wrap items-center gap-2"><Badge variant={row.total === null ? "warning" : "success"}>{row.total === null ? "Awaiting grading" : `${row.total}/20`}</Badge><span className="text-xs text-muted-foreground">Updated {fmtDate(row.updated_at)}</span></div></div><Button variant={row.total === null ? "default" : "outline"} onClick={() => openGrading(row)}>{row.total === null ? "Grade response" : "Review grade"}</Button></CardContent></Card>; })}</div>}
         </TabsContent>
 
         <TabsContent value="questions" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Subject-wise content with per-question performance — accuracy, wrong answers and option choices.</p></div>{canManage && <Button variant="outline" onClick={() => setDialog("question")}><Plus />Add question</Button>}</div><QuestionBankWorkspace onAddQuestion={canManage ? () => setDialog("question") : undefined} />
         </TabsContent>
 
-        <TabsContent value="skills" className="space-y-4">
+        <TabsContent value="tests" className="space-y-8">
+          <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Skill test</h2><p className="text-sm text-muted-foreground">Practical drills that measure ability — typing speed, mental maths, memory recall, data entry and match pairs. Add any of these as a section to a role blueprint; all marking happens on the server.</p></div><Button asChild variant="outline" size="sm"><a href="/test/practice"><Gauge className="h-4 w-4" />Take demo skill test</a></Button></div>
           <div className="grid gap-3 lg:grid-cols-2">
             {skillUsage.map((skill) => (
@@ -496,7 +460,7 @@ export default function QuizDashboardPage() {
                   )}
                   {!skill.sections.length && canManage && (
                     <div className="border-t border-border pt-3">
-                      <Button variant="outline" size="sm" onClick={() => changeView("roles")}><Gauge className="h-4 w-4" />Add to a role blueprint</Button>
+                      <Button variant="outline" size="sm" onClick={() => changeView("tests")}><Gauge className="h-4 w-4" />Add to a role blueprint</Button>
                     </div>
                   )}
                 </CardContent>
@@ -504,16 +468,14 @@ export default function QuizDashboardPage() {
             ))}
           </div>
           {!canManage && <p className="text-xs text-muted-foreground">Quiz management access is needed to change where these drills are used.</p>}
-        </TabsContent>
-
-
-        <TabsContent value="roles" className="space-y-4"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Roles & blueprints</h2><p className="text-sm text-muted-foreground">Define role cut-offs and ordered test sections.</p></div>{canManage && <Button onClick={openNewRole}><Plus />New role</Button>}</div>{!data?.roles.length ? noData(BriefcaseBusiness, "No role blueprints", "Create the first hiring role, then configure its assessment sections.", canManage ? <Button onClick={openNewRole}><Plus />Create role</Button> : undefined) : <Table><TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead numeric>Sections</TableHead><TableHead numeric>Shortlist</TableHead><TableHead numeric>Hold</TableHead><TableHead>Status</TableHead>{canManage && <TableHead className="w-16"><span className="sr-only">Actions</span></TableHead>}</TableRow></TableHeader><TableBody>{data.roles.map((role) => <TableRow key={role.id}><TableCell><p className="font-medium">{role.name}</p><p className="text-xs text-muted-foreground font-mono">{role.code}</p></TableCell><TableCell>{(role as any).positions?.departments?.name ?? role.department_code}</TableCell><TableCell numeric>{(data.roleSections ?? []).filter((section: any) => section.job_role_id === role.id).length}</TableCell><TableCell numeric>{role.shortlist_cutoff}%</TableCell><TableCell numeric>{role.hold_cutoff}%</TableCell><TableCell><Badge variant={role.is_active ? "success" : "muted"}>{role.is_active ? "Active" : "Inactive"}</Badge></TableCell>{canManage && <TableCell><Button variant="ghost" size="icon" title={`Edit ${role.name}`} aria-label={`Edit ${role.name}`} onClick={() => openRoleEditor(role)}><Pencil className="h-4 w-4" /></Button></TableCell>}</TableRow>)}</TableBody></Table>}
+          </div>
+          <div className="space-y-4 border-t border-border pt-6"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Roles & blueprints</h2><p className="text-sm text-muted-foreground">Define role cut-offs and ordered test sections.</p></div>{canManage && <Button onClick={openNewRole}><Plus />New role</Button>}</div>{!data?.roles.length ? noData(BriefcaseBusiness, "No role blueprints", "Create the first hiring role, then configure its assessment sections.", canManage ? <Button onClick={openNewRole}><Plus />Create role</Button> : undefined) : <Table><TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead numeric>Sections</TableHead><TableHead numeric>Shortlist</TableHead><TableHead numeric>Hold</TableHead><TableHead>Status</TableHead>{canManage && <TableHead className="w-16"><span className="sr-only">Actions</span></TableHead>}</TableRow></TableHeader><TableBody>{data.roles.map((role) => <TableRow key={role.id}><TableCell><p className="font-medium">{role.name}</p><p className="text-xs text-muted-foreground font-mono">{role.code}</p></TableCell><TableCell>{(role as any).positions?.departments?.name ?? role.department_code}</TableCell><TableCell numeric>{(data.roleSections ?? []).filter((section: any) => section.job_role_id === role.id).length}</TableCell><TableCell numeric>{role.shortlist_cutoff}%</TableCell><TableCell numeric>{role.hold_cutoff}%</TableCell><TableCell><Badge variant={role.is_active ? "success" : "muted"}>{role.is_active ? "Active" : "Inactive"}</Badge></TableCell>{canManage && <TableCell><Button variant="ghost" size="icon" title={`Edit ${role.name}`} aria-label={`Edit ${role.name}`} onClick={() => openRoleEditor(role)}><Pencil className="h-4 w-4" /></Button></TableCell>}</TableRow>)}</TableBody></Table>}
+          </div>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4"><div><h2 className="text-lg font-semibold">Quiz settings</h2><p className="text-sm text-muted-foreground">Global candidate-session, warning, and retention controls.</p></div>{data?.settings ? <div className="grid gap-x-8 gap-y-4 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">{[["Company", data.settings.company_name], ["HR contact", data.settings.hr_email], ["Retention", `${data.settings.retention_days} days`], ["Warning limit", data.settings.max_warnings], ["Heartbeat", `${data.settings.heartbeat_seconds} seconds`], ["Abandon after", `${data.settings.abandon_after_minutes} minutes`]].map(([label, value]) => <div key={String(label)}><p className="text-xs font-medium uppercase text-muted-foreground">{label}</p><p className="mt-1 text-sm font-medium">{value}</p></div>)}</div> : noData(Settings, "Settings unavailable", "Quiz settings have not been initialized.")}{!canAdmin && <p className="text-xs text-muted-foreground">Only Quiz administrators can change global settings.</p>}</TabsContent>
       </Tabs>
 
-      <Dialog open={dialog === "drive"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent><DialogHeader><DialogTitle>Create assessment drive</DialogTitle><DialogDescription>Creates a draft. Candidates cannot enter until it is configured and made live.</DialogDescription></DialogHeader><div className="grid gap-4"><div><Label htmlFor="drive-name">Drive name</Label><Input id="drive-name" value={driveForm.name} onChange={(e) => setDriveForm((v) => ({ ...v, name: e.target.value }))} /></div><div><Label htmlFor="drive-code">Access code</Label><Input id="drive-code" maxLength={6} className="uppercase font-mono" value={driveForm.accessCode} onChange={(e) => setDriveForm((v) => ({ ...v, accessCode: e.target.value }))} placeholder="ABC123" /></div><div><Label>Mode</Label><Select value={driveForm.mode} onValueChange={(mode) => setDriveForm((v) => ({ ...v, mode }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="on_site">On-site</SelectItem><SelectItem value="remote">Remote</SelectItem></SelectContent></Select></div><div className="grid grid-cols-2 gap-3"><div><Label htmlFor="drive-start">Starts</Label><Input id="drive-start" type="datetime-local" value={driveForm.startsAt} onChange={(e) => setDriveForm((v) => ({ ...v, startsAt: e.target.value }))} /></div><div><Label htmlFor="drive-end">Ends</Label><Input id="drive-end" type="datetime-local" value={driveForm.endsAt} onChange={(e) => setDriveForm((v) => ({ ...v, endsAt: e.target.value }))} /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createDrive.isPending} onClick={() => createDrive.mutate()}>Create draft</Button></DialogFooter></DialogContent></Dialog>
 
       <Dialog open={dialog === "role"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>{editingRoleId ? "Edit role & blueprint" : "Create role blueprint"}</DialogTitle><DialogDescription>The role identity stays linked to the company position. Configure its cut-offs and ordered test sections here.</DialogDescription></DialogHeader><div className="grid gap-5"><div className="grid gap-4 sm:grid-cols-2"><div><Label>Company position</Label><Select disabled={Boolean(editingRoleId)} value={roleForm.positionId} onValueChange={(positionId) => setRoleForm((v) => ({ ...v, positionId }))}><SelectTrigger className="text-foreground"><SelectValue placeholder="Select a position" /></SelectTrigger><SelectContent>{editingRoleId && (data?.roles ?? []).filter((role: any) => role.id === editingRoleId).map((role: any) => <SelectItem key={role.position_id} value={role.position_id}>{role.name}</SelectItem>)}{availablePositions.map((position: any) => <SelectItem key={position.id} value={position.id}>{position.title}{position.departments?.code ? ` — ${position.departments.code}` : ""}</SelectItem>)}</SelectContent></Select>{!editingRoleId && !availablePositions.length && <p className="mt-1 text-xs text-muted-foreground">Every active position already has a role blueprint.</p>}</div><div><Label htmlFor="role-code">Role code</Label><Input id="role-code" className="text-foreground" value={roleForm.code} onChange={(e) => setRoleForm((v) => ({ ...v, code: e.target.value }))} placeholder="Auto-generated if left blank" /></div><div><Label htmlFor="shortlist">Shortlist %</Label><Input id="shortlist" className="text-foreground" type="number" min="0" max="100" value={roleForm.shortlist} onChange={(e) => setRoleForm((v) => ({ ...v, shortlist: e.target.value }))} /></div><div><Label htmlFor="hold">Hold %</Label><Input id="hold" className="text-foreground" type="number" min="0" max="100" value={roleForm.hold} onChange={(e) => setRoleForm((v) => ({ ...v, hold: e.target.value }))} /></div><div><Label>Status</Label><Select value={roleActive ? "active" : "inactive"} onValueChange={(value) => setRoleActive(value === "active")}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent></Select></div></div><div className="space-y-3 border-t border-border pt-4"><div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">Assessment sections</h3><p className="text-xs text-muted-foreground">The displayed order is the candidate’s test order.</p></div><Button type="button" variant="outline" size="sm" onClick={() => setBlueprintSections((sections) => [...sections, emptySection()])}><Plus className="h-4 w-4" />Add section</Button></div>{!blueprintSections.length && <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">No sections configured yet.</p>}{blueprintSections.map((section, index) => <div key={section.id ?? `new-${index}`} className="grid gap-3 rounded-md border border-border p-3"><div className="flex items-center justify-between"><p className="text-sm font-semibold">Section {index + 1}</p><Button type="button" variant="ghost" size="icon" title="Remove section" aria-label={`Remove section ${index + 1}`} onClick={() => setBlueprintSections((sections) => sections.filter((_, position) => position !== index))}><Trash2 className="h-4 w-4" /></Button></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><div><Label>Code</Label><Input className="text-foreground" value={section.sectionCode} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, sectionCode: event.target.value } : value))} placeholder="OBJ" /></div><div><Label>Type</Label><Select value={section.sectionType} onValueChange={(value: BlueprintSectionForm["sectionType"]) => setBlueprintSections((sections) => sections.map((item, position) => position === index ? { ...item, sectionType: value } : item))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="objective">Objective</SelectItem><SelectItem value="written">Written</SelectItem><SelectItem value="typing">Typing</SelectItem><SelectItem value="data_entry">Data entry</SelectItem><SelectItem value="match_pairs">Match pairs</SelectItem><SelectItem value="mental_maths">Skill Box — mental maths</SelectItem><SelectItem value="memory_recall">Skill Box — memory recall</SelectItem><SelectItem value="logical_reasoning">Skill — Logical reasoning</SelectItem><SelectItem value="problem_solving">Skill — Problem solving</SelectItem><SelectItem value="pattern_recognition">Skill — Pattern recognition</SelectItem><SelectItem value="grammar">Skill — Grammar</SelectItem><SelectItem value="vocabulary">Skill — Vocabulary</SelectItem></SelectContent></Select></div>{SKILL_SECTION_TYPES.includes(section.sectionType) && <div><Label>Level</Label><Select value={section.skillLevel || "intermediate"} onValueChange={(value: SkillLevel) => setBlueprintSections((sections) => sections.map((item, position) => position === index ? { ...item, skillLevel: value, ...(LEVEL_PRESETS[item.sectionType]?.[value] ?? {}) } : item))}><SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger><SelectContent>{SKILL_LEVELS.map((lvl) => <SelectItem key={lvl.id} value={lvl.id}>{lvl.label}</SelectItem>)}</SelectContent></Select><p className="mt-1 text-xs text-muted-foreground">Sets the pace, length and pass targets for this drill.</p></div>}<div><Label>Title</Label><Input className="text-foreground" value={section.title} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, title: event.target.value } : value))} /></div><div className="sm:col-span-2 lg:col-span-3"><Label>Question category tags</Label><Input className="text-foreground" value={section.categoryTags} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, categoryTags: event.target.value } : value))} placeholder="aptitude, banking (comma separated)" /></div><div><Label>Questions</Label><Input className="text-foreground" type="number" min="1" value={section.itemCount} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, itemCount: event.target.value } : value))} /></div><div><Label>Minutes</Label><Input className="text-foreground" inputMode="decimal" value={section.durationMinutes} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, durationMinutes: event.target.value } : value))} /></div><div><Label>Weight %</Label><Input className="text-foreground" inputMode="decimal" value={section.weight} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, weight: event.target.value } : value))} /></div><div><Label>Negative mark</Label><Input className="text-foreground" inputMode="decimal" value={section.negativeMark} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, negativeMark: event.target.value } : value))} /></div><div><Label>Minimum score %</Label><Input className="text-foreground" inputMode="decimal" value={section.gateMinScore} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, gateMinScore: event.target.value } : value))} placeholder="Optional" /></div>{section.sectionType === "typing" && <><div><Label>Target net WPM (full marks)</Label><Input className="text-foreground" inputMode="decimal" value={section.fullMarksWpm} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, fullMarksWpm: event.target.value } : value))} placeholder="e.g. 40" /></div><div><Label>Minimum net WPM to pass</Label><Input className="text-foreground" inputMode="decimal" value={section.gateMinNetWpm} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, gateMinNetWpm: event.target.value } : value))} placeholder="Optional" /></div><div><Label>Minimum accuracy %</Label><Input className="text-foreground" inputMode="decimal" value={section.gateMinAccuracy} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, gateMinAccuracy: event.target.value } : value))} placeholder="Optional" /></div><div><Label>Warm-up minutes</Label><Input className="text-foreground" inputMode="decimal" value={section.practiceMinutes} onChange={(event) => setBlueprintSections((sections) => sections.map((value, position) => position === index ? { ...value, practiceMinutes: event.target.value } : value))} placeholder="0" /></div></>}</div></div>)}</div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createRole.isPending} disabled={!roleForm.positionId} onClick={() => createRole.mutate()}>{editingRoleId ? "Save changes" : "Create role"}</Button></DialogFooter></DialogContent></Dialog>
 

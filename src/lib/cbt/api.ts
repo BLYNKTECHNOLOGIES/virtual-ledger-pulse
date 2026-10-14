@@ -31,6 +31,29 @@ export function loadSession(): CbtSession | null {
   return token && nonce ? { token, nonce } : null;
 }
 
+// The drive code HR opened this PC with (/test?code=XXXXXX). Kept for the tab so
+// "Next candidate" returns to the same drive's registration form.
+const DRIVE_CODE_KEY = 'cbt.drive.code';
+export function rememberDriveCode(code: string) {
+  try { sessionStorage.setItem(DRIVE_CODE_KEY, code.toUpperCase()); } catch { /* ignore */ }
+}
+export function rememberedDriveCode(): string | null {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('code');
+    if (fromUrl && /^[A-Za-z0-9]{6}$/.test(fromUrl)) { rememberDriveCode(fromUrl); return fromUrl.toUpperCase(); }
+    return sessionStorage.getItem(DRIVE_CODE_KEY);
+  } catch { return null; }
+}
+
+// Wipe everything about the previous person and reload onto the same drive's form.
+// The device id (localStorage) is deliberately kept: it identifies the PC, not the person.
+export function resetForNextCandidate() {
+  const code = rememberedDriveCode();
+  clearSession();
+  const url = code ? `/test?code=${encodeURIComponent(code)}` : '/test';
+  window.location.replace(url);
+}
+
 export function clearSession() {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(NONCE_KEY);

@@ -270,6 +270,7 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
       brand_name: settings?.brand_name, company_name: settings?.company_name, logo_url: settings?.logo_url,
       privacy_url: settings?.privacy_url, terms_url: settings?.terms_url, hr_email: settings?.hr_email,
       retention_days: settings?.retention_days, max_warnings: settings?.max_warnings,
+      on_warning_limit: settings?.on_warning_limit,
       heartbeat_seconds: settings?.heartbeat_seconds, transition_seconds: settings?.transition_seconds,
       typing_practice_passage: settings?.typing_practice_passage,
     },

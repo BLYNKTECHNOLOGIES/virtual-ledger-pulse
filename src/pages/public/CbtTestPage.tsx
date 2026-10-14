@@ -26,6 +26,8 @@ import {
   loadSession,
   noteServerNow,
   secondsLeft,
+  serverNow,
+  resetForNextCandidate,
 } from '@/lib/cbt/api';
 import type { CbtCurrentSection, CbtState } from '@/lib/cbt/types';
 
@@ -136,7 +138,9 @@ export default function CbtTestPage() {
         const statusChanged = res.attempt_status !== state.attempt.status;
         const sectionChanged =
           res.current_section?.id !== current?.id || res.current_section?.status !== current?.status;
-        if (statusChanged || sectionChanged) await refresh();
+        // HR may add time to the running section: pick up the moved deadline.
+        const deadlineChanged = (res.current_section?.deadline_at ?? null) !== (current?.deadline_at ?? null);
+        if (statusChanged || sectionChanged || deadlineChanged) await refresh();
         else
           setState((s) =>
             s ? { ...s, attempt: { ...s.attempt, warning_count: res.warning_count ?? s.attempt.warning_count } } : s,
@@ -357,10 +361,14 @@ export default function CbtTestPage() {
               <li>There are {planSections.length} sections. Each one is timed separately.</li>
               <li>Once a section's time ends it is submitted for you and cannot be reopened.</li>
               <li>Stay in this window and in full screen. Leaving is recorded as a warning.</li>
-              <li>
-                Copy and paste are switched off. Warnings above {(settings.max_warnings as number) ?? 3} may end your
-                test.
-              </li>
+              {settings.on_warning_limit === 'flag_only' ? (
+                <li>Copy and paste are switched off. Leaving the window is recorded and reviewed by HR.</li>
+              ) : (
+                <li>
+                  Copy and paste are switched off. Warnings above {(settings.max_warnings as number) ?? 3} may end your
+                  test.
+                </li>
+              )}
               <li>If your internet drops, stay on this page — your answers are saved as you go.</li>
             </ol>
             <div className="overflow-x-auto rounded-lg border border-border">
@@ -411,7 +419,8 @@ export default function CbtTestPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <p>You can close this window now. Our team will contact you about the next step.</p>
+            <p>Our team will contact you about the next step.</p>
+            <NextCandidate />
             {attempt.show_score_to_candidate && (
               <div className="rounded-lg border border-border p-3 text-left">
                 {state.sections.map((s) => (
@@ -455,6 +464,9 @@ export default function CbtTestPage() {
             <p className="text-sm text-muted-foreground">
               The timer starts the moment you press Start. You cannot pause or come back to this section later.
             </p>
+            {current.section_type !== 'typing' && current.entered_at && (
+              <AutoStartCountdown enteredAt={current.entered_at} seconds={Number(settings.transition_seconds ?? 60)} />
+            )}
             {current.section_type === 'typing' && (
               <p className="text-sm text-muted-foreground">
                 Type the passage shown. Press space to lock each word — locked words cannot be changed.
@@ -787,6 +799,41 @@ function SectionHeading({ section, extra }: { section: CbtCurrentSection; extra?
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <h1 className="text-lg font-semibold">{section.title ?? section.section_code}</h1>
       {extra && <span className="text-xs text-muted-foreground">{extra}</span>}
+    </div>
+  );
+}
+
+// Shown on the transition screen: the server sweep starts the next section by itself.
+function AutoStartCountdown({ enteredAt, seconds }: { enteredAt: string; seconds: number }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const left = Math.max(0, Math.round((new Date(enteredAt).getTime() + seconds * 1000 - serverNow()) / 1000));
+  return (
+    <p className="rounded-md bg-muted px-3 py-2 text-sm font-medium text-foreground" role="timer">
+      {left > 0 ? `Starts automatically in ${formatClock(left)}` : 'Starting now…'}
+    </p>
+  );
+}
+
+// Thank-you screen on a shared office PC: hand over to the next person, or reset by itself.
+function NextCandidate() {
+  const [left, setLeft] = useState(60);
+  useEffect(() => {
+    const id = window.setInterval(() => setLeft((l) => l - 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (left <= 0) resetForNextCandidate();
+  }, [left]);
+  return (
+    <div className="space-y-2">
+      <Button className="w-full" onClick={() => resetForNextCandidate()}>
+        Next candidate
+      </Button>
+      <p className="text-xs">This screen resets for the next person in {Math.max(0, left)}s.</p>
     </div>
   );
 }

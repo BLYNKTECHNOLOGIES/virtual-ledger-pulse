@@ -108,6 +108,7 @@ Deno.serve(async (req) => {
       const levelMix = { [prefer[0]]: 100 };
       const common = { roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox, pool: role!.pool ?? "hiring", prefer };
       let generated: { content: unknown; key: unknown }[] = [];
+      let bankRows: any[] = [];
 
       // Skill Box drills: generated fresh per attempt, key stored server-side only
       if (rs.section_type === "mental_maths" || rs.section_type === "memory_recall") {
@@ -186,19 +187,24 @@ Deno.serve(async (req) => {
             option_order: shuffleOptions(v?.content),
           };
         });
-        await db.from("cbt_attempt_items").insert(rows as any);
-        await db.from("cbt_question_versions").update({ first_served_at: new Date().toISOString() })
-          .in("id", versionIds).is("first_served_at", null);
+        if (!generated.length) await db.from("cbt_attempt_items").insert(rows as any);
+        else bankRows = rows;
+        // try runs never mark a version as served (so HR rehearsals don't force a new version on edit)
+        if (!drive!.is_try_run) {
+          await db.from("cbt_question_versions").update({ first_served_at: new Date().toISOString() })
+            .in("id", versionIds).is("first_served_at", null);
+        }
         // try runs never count towards question statistics
         if (!drive!.is_try_run) await Promise.all((versions ?? []).map((v: any) => db.rpc("cbt_bump_served", { p_question_id: v.question_id })));
         seen.push(...versionIds);
       }
       if (generated.length) {
-        // generated after bank items; the key stays server-side in generated_key
-        await db.from("cbt_attempt_items").insert(generated.map((g, idx) => ({
-          attempt_section_id: section!.id, display_order: versionIds.length + idx + 1,
-          generated_content: g.content, generated_key: g.key,
-        })) as any);
+        // bank and generated items are shuffled together; the key stays server-side in generated_key
+        const all: any[] = [...bankRows, ...generated.map((g) => ({
+          attempt_section_id: section!.id, generated_content: g.content, generated_key: g.key,
+        }))];
+        for (let k = all.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [all[k], all[j]] = [all[j], all[k]]; }
+        await db.from("cbt_attempt_items").insert(all.map((row, idx) => ({ ...row, display_order: idx + 1 })) as any);
       }
     }
 

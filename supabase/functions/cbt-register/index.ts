@@ -68,7 +68,10 @@ Deno.serve(async (req) => {
     }
 
     // reuse a never-started registration for the same mobile + role in this drive
-    const { data: candidateExisting } = await db.from("cbt_candidates").select("*").eq("mobile", b.mobile).order("created_at", { ascending: false }).limit(1);
+    // try runs always get their own candidate record and never touch an existing one
+    const { data: candidateExisting } = drive.is_try_run
+      ? { data: [] as any[] }
+      : await db.from("cbt_candidates").select("*").eq("mobile", b.mobile).order("created_at", { ascending: false }).limit(1);
     let candidateId = (candidateExisting?.[0] as any)?.id as string | undefined;
     const candidatePayload = {
       full_name: b.full_name, mobile: b.mobile, email: b.email, city: b.city,

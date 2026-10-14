@@ -3,6 +3,7 @@ import { Activity, CheckCircle2, ClipboardCheck, PenLine } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { fmtIst, pretty, quizRpc, statusVariant } from "./quizShared";
+import { useGradingCounts } from "./QuizGrading";
 
 type Overview = {
   live_drives: { id: string; name: string; code: string; ends_at: string; is_sandbox: boolean; testing: number }[];
@@ -17,11 +18,12 @@ export function QuizOverview({ onOpenDrive, onOpenView }: { onOpenDrive: (id: st
     queryFn: () => quizRpc<Overview>("cbt_overview"),
     refetchInterval: 15_000,
   });
+  const { data: grading } = useGradingCounts(true);
   const v = (n?: number) => (isLoading ? "—" : n ?? 0);
   const tiles = [
     { label: "Testing now", value: v(data?.testing_now), icon: Activity, tone: "text-info bg-info/10", go: "drives" },
     { label: "Submitted today", value: v(data?.submitted_today), icon: CheckCircle2, tone: "text-success bg-success/10", go: "results" },
-    { label: "Written answers to grade", value: v(data?.awaiting_grading), icon: PenLine, tone: "text-warning bg-warning/10", go: "grading" },
+    { label: "Written answers needing a check", value: v(grading ? grading.needs_check : data?.awaiting_grading), sub: grading ? `${grading.ai_pending} with the AI · ${grading.ai_graded} AI graded` : undefined, icon: PenLine, tone: "text-warning bg-warning/10", go: "grading" },
     { label: "Decisions this week", value: isLoading ? "—" : `${data?.week.shortlisted ?? 0} / ${data?.week.hold ?? 0} / ${data?.week.rejected ?? 0}`, sub: "shortlisted / hold / rejected", icon: ClipboardCheck, tone: "text-primary bg-primary/10", go: "results" },
   ];
   if (isError) return <p className="text-sm text-destructive">The overview could not be loaded.</p>;

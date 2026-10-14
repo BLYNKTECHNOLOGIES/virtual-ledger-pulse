@@ -14,8 +14,9 @@ describe("Excel import rows", () => {
 });
 
 describe("Quiz settings bounds", () => {
-  const ok = { retention_days: 180, max_warnings: 3, heartbeat_seconds: 15, abandon_after_minutes: 20, transition_seconds: 60, deadline_grace_seconds: 5, hr_email: "hr@x.com" };
+  const ok = { retention_days: 180, max_warnings: 3, heartbeat_seconds: 15, abandon_after_minutes: 20, transition_seconds: 60, deadline_grace_seconds: 5, hr_email: "hr@x.com", ai_confidence_threshold: 0.8, ai_borderline_margin: 3, ai_daily_cap: 200 };
   it("accepts today's values", () => expect(settingsProblems(ok)).toEqual([]));
   it("refuses retention under 30 days", () => expect(settingsProblems({ ...ok, retention_days: 10 }).length).toBe(1));
+  it("refuses an AI confidence threshold below 0.5", () => expect(settingsProblems({ ...ok, ai_confidence_threshold: 0.3 }).length).toBe(1));
   it("refuses a non-https privacy link", () => expect(settingsProblems({ ...ok, privacy_url: "http://x" }).length).toBe(1));
 });

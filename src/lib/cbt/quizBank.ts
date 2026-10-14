@@ -31,9 +31,20 @@ export const TEXTS = [
   { key: "privacy_url", label: "Privacy link" }, { key: "terms_url", label: "Terms link" },
 ] as const;
 
+export const AI_NUMBERS = [
+  { key: "ai_confidence_threshold", label: "Apply AI grades at confidence of at least", unit: "0.5–1", min: 0.5, max: 1, decimal: true },
+  { key: "ai_borderline_margin", label: "Borderline margin around cut-offs", unit: "points", min: 0, max: 20, decimal: true },
+  { key: "ai_daily_cap", label: "Daily limit on AI gradings", unit: "answers", min: 0, max: 5000, decimal: false },
+] as const;
+
 /** Client-side bounds mirror the server's; the server is the authority. */
 export function settingsProblems(f: Settings): string[] {
   const out: string[] = [];
+  for (const n of AI_NUMBERS) {
+    const raw = f[n.key];
+    const v = Number(raw);
+    if (raw === "" || raw == null || !Number.isFinite(v) || v < n.min || v > n.max || (!n.decimal && !Number.isInteger(v))) out.push(`${n.label}: ${n.min}–${n.max}`);
+  }
   for (const n of NUMBERS) {
     const v = Number(f[n.key]);
     if (!Number.isInteger(v) || v < n.min || v > n.max) out.push(`${n.label}: ${n.min}–${n.max} ${n.unit}`);

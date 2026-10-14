@@ -25,6 +25,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.cbt-resume]
     verify_jwt = false
+  [functions.cbt-ai-grade]
+    verify_jwt = false
   [functions.cbt-start-attempt]
     verify_jwt = false
   [functions.cbt-get-state]

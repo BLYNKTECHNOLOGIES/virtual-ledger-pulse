@@ -28,6 +28,7 @@ import { QuizDrives } from "@/components/hrms/quiz/QuizDrives";
 import { QuizResults } from "@/components/hrms/quiz/QuizResults";
 import { QuizSettings } from "@/components/hrms/quiz/QuizSettings";
 import { QuizTests } from "@/components/hrms/quiz/QuizTests";
+import { QuizGrading, useGradingCounts } from "@/components/hrms/quiz/QuizGrading";
 
 
 type QuizView = "overview" | "drives" | "results" | "grading" | "tests" | "questions" | "settings";
@@ -70,16 +71,14 @@ export default function QuizDashboardPage() {
   // Evaluate-only people (no view/manage/admin) see Grading only — blind, nothing else.
   const canView = hasAnyPermission(["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_admin"]);
   const visibleView: QuizView = canView ? activeView : "grading";
-  const [gradingRow, setGradingRow] = useState<EvaluationRow | null>(null);
-  const [gradingForm, setGradingForm] = useState({ score: "", comments: "" });
+  const { data: gradingCounts } = useGradingCounts(canEvaluate);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["cbt", "staff-workspace", canView],
     queryFn: async () => {
       if (!canView) {
-        const ev = await supabase.from("cbt_written_evaluations").select("*, cbt_attempt_items(response, cbt_question_versions(content))").order("created_at", { ascending: false }).limit(100);
-        if (ev.error) throw ev.error;
-        return { drives: [], candidates: [], attempts: [], questions: [], roles: [], roleSections: [], departments: [], evaluations: ev.data ?? [], settings: null, positions: [] } as any;
+        // grading-only people read answers through cbt_grading_queue (blind); nothing else is loaded
+        return { drives: [], candidates: [], attempts: [], questions: [], roles: [], roleSections: [], departments: [], evaluations: [], settings: null, positions: [] } as any;
       }
       const [drives, candidates, attempts, questions, roles, roleSections, departments, evaluations, settingsRow, positions] = await Promise.all([
         supabase.from("cbt_drives").select("*").order("created_at", { ascending: false }).limit(100),
@@ -103,32 +102,6 @@ export default function QuizDashboardPage() {
     },
   });
 
-  const gradeResponse = useMutation({
-    mutationFn: async () => {
-      if (!gradingRow) throw new Error("Select a written response to grade.");
-      const score = Number(gradingForm.score);
-      if (!Number.isFinite(score) || score < 0 || score > 20) throw new Error("Enter a score from 0 to 20.");
-      const { error } = await supabase.rpc("cbt_grade_written_response", {
-        p_evaluation_id: gradingRow.id,
-        p_total: score,
-        p_comments: gradingForm.comments.trim() || undefined,
-      });
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["cbt", "staff-workspace"] });
-      setGradingRow(null);
-      setGradingForm({ score: "", comments: "" });
-      toast({ title: "Written response graded" });
-    },
-    onError: (error: Error) => toast({ title: "Response not graded", description: error.message, variant: "destructive" }),
-  });
-
-  const openGrading = (row: EvaluationRow) => {
-    setGradingRow(row);
-    setGradingForm({ score: row.total === null ? "" : String(row.total), comments: row.comments ?? "" });
-  };
-
   const changeView = (value: string) => setParams(value === "overview" ? {} : { view: value });
   const openDrive = (id: string | null) => setParams(id ? { view: "drives", drive: id } : { view: "drives" });
 
@@ -144,12 +117,12 @@ export default function QuizDashboardPage() {
         {canView ? (
           <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
             <TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
-            <TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="grading">Grading</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="grading">Grading{gradingCounts?.needs_check ? <Badge variant="warning" className="ml-1.5 px-1.5">{gradingCounts.needs_check}</Badge> : null}</TabsTrigger>
             <TabsTrigger value="tests">Tests</TabsTrigger><TabsTrigger value="questions">Question bank</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         ) : (
-          <TabsList className="w-full justify-start"><TabsTrigger value="grading">Grading</TabsTrigger></TabsList>
+          <TabsList className="w-full justify-start"><TabsTrigger value="grading">Grading{gradingCounts?.needs_check ? <Badge variant="warning" className="ml-1.5 px-1.5">{gradingCounts.needs_check}</Badge> : null}</TabsTrigger></TabsList>
         )}
 
         {canView && <><TabsContent value="overview" className="space-y-5">
@@ -164,8 +137,7 @@ export default function QuizDashboardPage() {
           <QuizResults drives={(data?.drives ?? []).map((d: any) => ({ id: d.id, name: d.name }))} tests={(data?.roles ?? []).map((r: any) => ({ id: r.id, name: r.name }))} canManage={canManage} />
         </TabsContent></>}
 
-        <TabsContent value="grading" className="space-y-4"><div><h2 className="text-lg font-semibold">Blind written evaluations</h2><p className="text-sm text-muted-foreground">Written responses are graded without exposing candidate identity.</p></div>{!canEvaluate ? noData(ShieldCheck, "Evaluation permission required", "Ask a Quiz administrator for evaluator access.") : !data?.evaluations.length ? noData(ClipboardCheck, "No responses await grading", "Submitted written responses will enter this queue automatically.") : <div className="grid gap-3">{(data.evaluations as EvaluationRow[]).map((row) => { const prompt = row.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"; const answer = row.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"; return <Card key={row.id}><CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div className="min-w-0"><p className="text-sm font-medium">{prompt}</p><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{answer}</p><div className="mt-2 flex flex-wrap items-center gap-2"><Badge variant={row.total === null ? "warning" : "success"}>{row.total === null ? "Awaiting grading" : `${row.total}/20`}</Badge><span className="text-xs text-muted-foreground">Updated {fmtDate(row.updated_at)}</span></div></div><Button variant={row.total === null ? "default" : "outline"} onClick={() => openGrading(row)}>{row.total === null ? "Grade response" : "Review grade"}</Button></CardContent></Card>; })}</div>}
-        </TabsContent>
+        <TabsContent value="grading" className="space-y-4">{!canEvaluate ? noData(ShieldCheck, "Grading permission required", "Ask a Quiz administrator for grader access.") : <QuizGrading counts={gradingCounts} />}</TabsContent>
 
         {canView && <><TabsContent value="questions" className="space-y-4"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Hiring and Staff pools never mix; skill-drill content can be Shared. Only Approved items are served (sandbox drives may also use Needs review).</p></div><QuestionBankWorkspace canManage={canManage} roleCodes={(data?.roles ?? []).map((r: any) => ({ code: r.code, name: r.name }))} />
         </TabsContent>
@@ -179,7 +151,7 @@ export default function QuizDashboardPage() {
 
 
 
-      <Dialog open={Boolean(gradingRow)} onOpenChange={(open) => !open && setGradingRow(null)}><DialogContent><DialogHeader><DialogTitle>Grade written response</DialogTitle><DialogDescription>Candidate identity is hidden during evaluation.</DialogDescription></DialogHeader>{gradingRow && <div className="grid gap-4"><div className="rounded-lg border border-border bg-muted/30 p-3"><p className="text-sm font-medium">{gradingRow.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"}</p><p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{gradingRow.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"}</p></div><div><Label htmlFor="written-score">Score out of 20</Label><Input id="written-score" type="number" min="0" max="20" step="0.5" inputMode="decimal" value={gradingForm.score} onChange={(event) => setGradingForm((value) => ({ ...value, score: event.target.value }))} /></div><div><Label htmlFor="written-comments">Evaluator comments</Label><Textarea id="written-comments" value={gradingForm.comments} onChange={(event) => setGradingForm((value) => ({ ...value, comments: event.target.value }))} placeholder="Optional internal comments" /></div></div>}<DialogFooter><Button variant="outline" onClick={() => setGradingRow(null)}>Cancel</Button><Button loading={gradeResponse.isPending} disabled={!gradingForm.score} onClick={() => gradeResponse.mutate()}>Save grade</Button></DialogFooter></DialogContent></Dialog>
+
     </div>
   );
 }

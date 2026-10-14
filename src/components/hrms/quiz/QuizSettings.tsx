@@ -7,33 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { quizRpc, useInvalidateQuiz } from "./quizShared";
-
-type Settings = Record<string, any>;
-const NUMBERS = [
-  { key: "retention_days", label: "Keep candidate details for", unit: "days", min: 30, max: 1095 },
-  { key: "max_warnings", label: "Warning limit", unit: "warnings", min: 1, max: 20 },
-  { key: "heartbeat_seconds", label: "Heartbeat", unit: "seconds", min: 5, max: 60 },
-  { key: "abandon_after_minutes", label: "Mark abandoned after no contact for", unit: "minutes", min: 5, max: 240 },
-  { key: "transition_seconds", label: "Time between sections", unit: "seconds", min: 10, max: 600 },
-  { key: "deadline_grace_seconds", label: "Deadline grace", unit: "seconds", min: 0, max: 60 },
-] as const;
-const TEXTS = [
-  { key: "company_name", label: "Company name" }, { key: "brand_name", label: "Brand name" },
-  { key: "logo_url", label: "Logo link (https://)" }, { key: "hr_email", label: "HR contact email" },
-  { key: "privacy_url", label: "Privacy link" }, { key: "terms_url", label: "Terms link" },
-] as const;
-
-/** Client-side bounds mirror the server's; the server is the authority. */
-export function settingsProblems(f: Settings): string[] {
-  const out: string[] = [];
-  for (const n of NUMBERS) {
-    const v = Number(f[n.key]);
-    if (!Number.isInteger(v) || v < n.min || v > n.max) out.push(`${n.label}: ${n.min}–${n.max} ${n.unit}`);
-  }
-  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(f.hr_email ?? ""))) out.push("Enter a valid HR contact email");
-  for (const k of ["logo_url", "privacy_url", "terms_url"]) if (f[k] && !/^https:\/\/\S+$/.test(String(f[k]))) out.push(`${k.replace("_url", "")} link must start with https://`);
-  return out;
-}
+import { NUMBERS, TEXTS, settingsProblems, type Settings } from "@/lib/cbt/quizBank";
 
 export function QuizSettings({ settings, canAdmin }: { settings: Settings | null; canAdmin: boolean }) {
   const { toast } = useToast();

@@ -11,21 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { quizRpc, useInvalidateQuiz } from "./quizShared";
 import type { Subject } from "./QuestionEditor";
-
-export const TEMPLATE_HEADERS = ["type", "question", "option_a", "option_b", "option_c", "option_d", "option_e", "option_f", "correct_option", "numeric_answer", "tolerance", "difficulty", "marks", "explanation"];
-
-/** One sheet row → the payload cbt_import_questions validates. Pure so it can be tested. */
-export function rowToItem(r: Record<string, unknown>) {
-  const s = (k: string) => String(r[k] ?? "").trim();
-  const type = s("type").toLowerCase();
-  const options = ["a", "b", "c", "d", "e", "f"].map((id) => ({ id, text: s(`option_${id}`) })).filter((o) => o.text);
-  return {
-    type, difficulty: s("difficulty").toLowerCase() || "medium",
-    content: type === "mcq" ? { prompt: s("question"), marks: s("marks") || "1", options } : { prompt: s("question"), marks: s("marks") || "1" },
-    key: type === "mcq" ? { correct_option_id: s("correct_option").toLowerCase(), explanation: s("explanation") }
-      : { numeric_answer: s("numeric_answer"), numeric_tolerance: s("tolerance") || "0", explanation: s("explanation") },
-  };
-}
+import { TEMPLATE_HEADERS, rowToItem } from "@/lib/cbt/quizBank";
 
 type Preview = { rows: { row: number; ok: boolean; error?: string }[]; valid: number; total: number; imported: number };
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowToItem } from "@/components/hrms/quiz/QuestionImport";
-import { settingsProblems } from "@/components/hrms/quiz/QuizSettings";
+import { rowToItem, settingsProblems } from "@/lib/cbt/quizBank";
 
 describe("Excel import rows", () => {
   it("maps an MCQ row's options and lower-cases the correct letter", () => {

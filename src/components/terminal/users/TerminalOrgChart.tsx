@@ -373,19 +373,11 @@ export function TerminalOrgChart() {
     setIsSaving(true);
     try {
       const userId = linkTarget.userId;
-      const { error: delErr } = await supabase
-        .from("terminal_user_supervisor_mappings")
-        .delete()
-        .eq("user_id", userId);
-      if (delErr) throw delErr;
-
-      if (linkSelected.size > 0) {
-        const rows = Array.from(linkSelected).map(sid => ({ user_id: userId, supervisor_id: sid }));
-        const { error: insErr } = await supabase
-          .from("terminal_user_supervisor_mappings")
-          .insert(rows);
-        if (insErr) throw insErr;
-      }
+      // AM-SEC-7b: one all-or-nothing save on the server (rank + supervisor rules).
+      const { error: saveErr } = await supabase.rpc("terminal_set_supervisors" as any, {
+        p_user_id: userId, p_supervisors: Array.from(linkSelected),
+      });
+      if (saveErr) throw saveErr;
 
       toast({
         title: "Reporting manager updated",

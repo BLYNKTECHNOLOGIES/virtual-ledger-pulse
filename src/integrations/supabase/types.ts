@@ -39042,6 +39042,15 @@ export type Database = {
           zone: string
         }[]
       }
+      terminal_assignable_roles: {
+        Args: { p_target: string }
+        Returns: {
+          hierarchy_level: number
+          name: string
+          refusal: string
+          role_id: string
+        }[]
+      }
       terminal_can_edit_user: { Args: { p_target: string }; Returns: boolean }
       terminal_can_manage_devices: {
         Args: { p_user_id: string }
@@ -39103,7 +39112,22 @@ export type Database = {
         Returns: string
       }
       terminal_revoke_all_access: { Args: { _uid: string }; Returns: Json }
+      terminal_save_user_config: {
+        Args: {
+          p_accounts: string[]
+          p_profile: Json
+          p_role_id: string
+          p_size_ranges: string[]
+          p_supervisors: string[]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       terminal_session_mode: { Args: { p_user_id: string }; Returns: string }
+      terminal_set_supervisors: {
+        Args: { p_supervisors: string[]; p_user_id: string }
+        Returns: undefined
+      }
       terminal_shift_key_for: { Args: { p_ts: string }; Returns: string }
       transfer_customer_support_ticket: {
         Args: {

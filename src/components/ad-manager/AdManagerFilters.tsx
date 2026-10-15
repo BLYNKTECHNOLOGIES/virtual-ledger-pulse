@@ -144,6 +144,8 @@ export function AdManagerFilters({ filters, onFiltersChange, assetOptions }: AdM
         <RotateCcw className="h-3.5 w-3.5" />
         Reset
       </Button>
+      </div>
+      )}
     </div>
   );
 }

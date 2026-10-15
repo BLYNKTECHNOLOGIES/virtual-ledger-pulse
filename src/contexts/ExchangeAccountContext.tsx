@@ -58,8 +58,8 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
 
   const [accounts, setAccounts] = useState<ExchangeAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  // Account ids explicitly assigned to this user (empty = no explicit mapping).
-  const [mappedAccountIds, setMappedAccountIds] = useState<string[]>([]);
+  // Account ids this user may use, from public.binance_accounts_for_user.
+  const [allowedAccountIds, setAllowedAccountIds] = useState<string[]>([]);
   const [activeAccountId, setActiveAccountIdState] = useState<string>(
     () => localStorage.getItem(STORAGE_KEY) || PRIMARY_ID,
   );
@@ -72,42 +72,34 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
     setAccounts((data as ExchangeAccount[]) || []);
   }, []);
 
-  const fetchMappings = useCallback(async () => {
+  // AM-SEC-5: the account rule lives in SQL (binance_accounts_for_user) and the
+  // server enforces the same function, so screen and server cannot drift.
+  const fetchAllowed = useCallback(async () => {
     if (!user?.id) {
-      setMappedAccountIds([]);
+      setAllowedAccountIds([]);
       return;
     }
-    const { data } = await supabase
-      .from("terminal_user_exchange_mappings")
-      .select("exchange_account_id")
-      .eq("user_id", user.id);
-    setMappedAccountIds(((data as { exchange_account_id: string }[]) || []).map((m) => m.exchange_account_id));
+    const { data, error } = await supabase.rpc("binance_accounts_for_user" as never, { p_user_id: user.id } as never);
+    if (error) console.error("binance_accounts_for_user failed:", error.message);
+    setAllowedAccountIds(error ? [] : ((data as unknown as string[]) || []).map(String));
   }, [user?.id]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchAccounts(), fetchMappings()]);
+    await Promise.all([fetchAccounts(), fetchAllowed()]);
     setLoading(false);
-  }, [fetchAccounts, fetchMappings]);
+  }, [fetchAccounts, fetchAllowed]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  const hasMappings = mappedAccountIds.length > 0;
-
-  // The accounts this user may see. When explicit mappings exist, they govern
-  // visibility for everyone (including admins). With no mappings, admins see
-  // all accounts and regular users fall back to the primary/default account.
-  const visibleAccounts = useMemo(() => {
-    if (hasMappings) {
-      return accounts.filter((a) => mappedAccountIds.includes(a.id));
-    }
-    if (roleCanSwitch) return accounts;
-    // Non-admin with no mapping → default account only.
-    const def = accounts.find((a) => a.is_default) || accounts[0];
-    return def ? [def] : [];
-  }, [accounts, mappedAccountIds, hasMappings, roleCanSwitch]);
+  // The accounts this user may see: mapped active accounts; with no mapping,
+  // every active account for Admin / Super Admin, else the default account.
+  const visibleAccounts = useMemo(
+    () => accounts.filter((a) => allowedAccountIds.includes(a.id)),
+    [accounts, allowedAccountIds],
+  );
 
   // Switching is allowed only when the user has access to more than one account.
   const canSwitch = visibleAccounts.length > 1;

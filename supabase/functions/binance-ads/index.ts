@@ -741,6 +741,11 @@ serve(async (req) => {
   // never by an optimistic response code.
   async function setAdvVisibility(proxyUrl: string, headers: Record<string, string>, advNos: string[], visible: number): Promise<any> {
     const attempts: Array<{ path: string; body: Record<string, unknown> }> = [];
+    // AM-FIX-3: the only path that works on our proxy goes first (production log
+    // 10 Oct: confirmed via /ads/update {advNo, userSetVisible}); others are fallbacks.
+    for (const advNo of advNos) {
+      attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, userSetVisible: visible } });
+    }
     const dedicatedPaths = [
       `/api/sapi/v1/c2c/ads/setUserAdvVisible`,
       `/api/sapi/v1/c2c/ads/userAdvVisible`,
@@ -757,7 +762,6 @@ serve(async (req) => {
     // The documented ad-update endpoint returns advVisibleRet on read; try carrying
     // the same field back on write for each ad individually.
     for (const advNo of advNos) {
-      attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, userSetVisible: visible } });
       attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, advVisibleRet: { userSetVisible: visible } } });
       attempts.push({ path: `/api/sapi/v1/c2c/ads/updateStatus`, body: { advNos: [advNo], advStatus: 1, userSetVisible: visible } });
     }

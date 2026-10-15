@@ -134,7 +134,7 @@ function TryRuns({ role, onClose }: { role: any | null; onClose: () => void }) {
   return (
     <>
       <Dialog open={Boolean(role)} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader><DialogTitle>Try runs · {role?.name}</DialogTitle><DialogDescription>Sandbox runs by HR. They never count, are hidden from Results and statistics, and are removed 3 days after they start.</DialogDescription></DialogHeader>
           {!data?.length ? <p className="text-sm text-muted-foreground">No try runs yet.</p> : (
             <Table><TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Status</TableHead><TableHead numeric>Score</TableHead><TableHead>Removed after</TableHead><TableHead /></TableRow></TableHeader>
@@ -145,6 +145,27 @@ function TryRuns({ role, onClose }: { role: any | null; onClose: () => void }) {
                   <TableCell><Button size="sm" variant="outline" onClick={() => setAttemptId(a.id)}>How it was scored</Button></TableCell>
                 </TableRow>))}
               </TableBody></Table>
+          )}
+          {data?.some((a) => a.written?.length) && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Written answers · AI grading</p>
+              {data.flatMap((a) => (a.written ?? []).map((w: any, i: number) => (
+                <div key={`${a.id}-${i}`} className="space-y-1.5 rounded-lg border border-border bg-card p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-muted-foreground">{a.public_ref}</span>
+                    <span className="text-xs">{w.total != null ? `${w.total}/20 · ${w.graded_by_kind === "ai" ? "AI grade applied" : "graded by HR"}`
+                      : w.ai_suggested_total != null ? `AI suggestion ${w.ai_suggested_total}/20 · not applied`
+                      : w.ai_status === "queued" || w.ai_status === "processing" ? "With the AI…" : "No AI grade"}</span>
+                  </div>
+                  <p className="font-medium">{w.prompt ?? "Written question"}</p>
+                  <p className="line-clamp-3 whitespace-pre-wrap text-muted-foreground">{w.answer || "No answer"}</p>
+                  {(w.ai_route_reason || w.ai_last_error) && <p className="text-xs text-warning">{w.ai_route_reason ?? w.ai_last_error}</p>}
+                  {Array.isArray(w.flags) && w.flags.length > 0 && <div className="flex flex-wrap gap-1">{w.flags.map((f: string) => <Badge key={f} variant="outline">{pretty(f)}</Badge>)}</div>}
+                  {Array.isArray(w.points) && w.points.length > 0 && <ul className="list-disc space-y-0.5 pl-5 text-xs">{w.points.map((pt: any, j: number) => <li key={j}>{pt.point}: {pt.score}/{pt.max} — {pt.reason}</li>)}</ul>}
+                  {w.summary && <p className="text-xs text-muted-foreground">{w.summary}{w.confidence != null ? ` · confidence ${w.confidence}` : ""}</p>}
+                </div>
+              )))}
+            </div>
           )}
         </DialogContent>
       </Dialog>

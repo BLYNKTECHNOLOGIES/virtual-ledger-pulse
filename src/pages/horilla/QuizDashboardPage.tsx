@@ -146,7 +146,7 @@ export default function QuizDashboardPage() {
           <QuizTests roles={(data?.roles ?? []) as any[]} roleSections={(data?.roleSections ?? []) as any[]} positions={(data?.positions ?? []) as any[]} canManage={canManage} />
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-4"><div><h2 className="text-lg font-semibold">Quiz settings</h2><p className="text-sm text-muted-foreground">Company details, candidate-session timing, warnings and retention. Every change is recorded.</p></div><QuizSettings settings={data?.settings ?? null} canAdmin={canAdmin} /></TabsContent></>}
+        <TabsContent value="settings" className="space-y-4"><div><h2 className="text-lg font-semibold">Quiz settings</h2><p className="text-sm text-muted-foreground">Company details, candidate-session timing, warnings and retention. Every change is recorded.</p></div><QuizSettings settings={data?.settings ?? null} canAdmin={canAdmin} canGrade={canEvaluate} /></TabsContent></>}
       </Tabs>
 
 

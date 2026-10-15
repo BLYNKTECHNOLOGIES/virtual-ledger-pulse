@@ -11,15 +11,22 @@ import { AdZone, adZone } from '@/lib/adZone';
  * snapshot (ads that are closed/deleted on Binance but still referenced by
  * historical orders). Ads with no captured classify stay unattributed.
  */
+// PostgREST returns at most 1,000 rows per request; the zone history keeps every ad ever seen.
+const ZONE_PAGE_SIZE = 1000;
+
 export function useAdZoneSnapshots() {
   return useQuery({
     queryKey: ['terminal-ad-zone-map'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('terminal_ad_zone_map');
-      if (error) throw error;
       const map = new Map<string, AdZone>();
-      for (const row of (data || []) as Array<{ adv_no: string; zone: string }>) {
-        if (row.adv_no) map.set(String(row.adv_no), row.zone === 'block' ? 'block' : 'p2p');
+      for (let from = 0; ; from += ZONE_PAGE_SIZE) {
+        const { data, error } = await supabase.rpc('terminal_ad_zone_map').order('adv_no').range(from, from + ZONE_PAGE_SIZE - 1);
+        if (error) throw error;
+        const rows = (data || []) as Array<{ adv_no: string; zone: string }>;
+        for (const row of rows) {
+          if (row.adv_no) map.set(String(row.adv_no), row.zone === 'block' ? 'block' : 'p2p');
+        }
+        if (rows.length < ZONE_PAGE_SIZE) break;
       }
       return map;
     },

@@ -12,7 +12,7 @@ import {
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
-import { terminalRightRule, gateTerminalRight, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial } from "../_shared/binance-access.ts";
+import { terminalRightRule, gateTerminalRight, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial, serverCaptureSource } from "../_shared/binance-access.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -2478,7 +2478,7 @@ serve(async (req) => {
         if (payload.orderNo && filteredMessages.length > 0 && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            const archive = await persistChatMessages(supabase, String(payload.orderNo), filteredMessages, EXCHANGE_ACCOUNT_ID, (payload.captureSource as any) || "history_sync");
+            const archive = await persistChatMessages(supabase, String(payload.orderNo), filteredMessages, EXCHANGE_ACCOUNT_ID, serverCaptureSource(payload.captureSource, callerIsServiceRole || callerIsScheduler) as any);
             result._archive = archive;
           } catch (persistErr) {
             console.warn("getChatMessages archive persist failed:", persistErr);
@@ -2520,7 +2520,7 @@ serve(async (req) => {
           seen.add(key);
           return true;
         });
-        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID, (payload.captureSource as any) || "history_sync");
+        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID, serverCaptureSource(payload.captureSource, callerIsServiceRole || callerIsScheduler) as any);
         result = { code: "000000", message: "success", data: archive };
         break;
       }

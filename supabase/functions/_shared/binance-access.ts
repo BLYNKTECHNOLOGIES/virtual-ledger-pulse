@@ -143,6 +143,11 @@ export const ORDER_RIGHT_RULES: Record<string, { anyOf: string[]; message: strin
   confirmOrderVerified: { anyOf: ["terminal_orders_actions", "terminal_orders_manage"], message: "Permission denied: you need the Orders 'Actions' right to confirm a buyer's verification." },
   markOrderMessagesRead: { anyOf: ["terminal_orders_view"], message: "Permission denied: you need the Orders 'View' right to mark chats read." },
   markUserMessagesRead: { anyOf: ["terminal_orders_view"], message: "Permission denied: you need the Orders 'View' right to mark chats read." },
+  // AM-SEC-4b — live chat + counterparty reads: same rule as the chat archive's RLS.
+  getChatMessages: { anyOf: ["terminal_orders_view", "terminal_orders_chat"], message: "Permission denied: you need the Orders 'View' right to read order chats." },
+  syncOrderChatMessages: { anyOf: ["terminal_orders_view", "terminal_orders_chat"], message: "Permission denied: you need the Orders 'View' right to read order chats." },
+  queryCounterPartyStats: { anyOf: ["terminal_orders_view", "terminal_orders_chat"], message: "Permission denied: you need the Orders 'View' right to see counterparty details." },
+  getUserOrderSummary: { anyOf: ["terminal_orders_view", "terminal_orders_chat"], message: "Permission denied: you need the Orders 'View' right to see counterparty details." },
 };
 
 /** Rule (Ads write or AM-SEC-4 order right) a user caller needs for this action, if any. */
@@ -163,7 +168,18 @@ export function adWriteDenial(action: string, perms: Set<string>, trustedCaller:
  * on an account they may use. (No view-only device guard — read markers stay
  * allowed on personal devices.)
  */
-export const CHAT_READ_ACTIONS = new Set<string>(["markOrderMessagesRead", "markUserMessagesRead"]);
+export const CHAT_READ_ACTIONS = new Set<string>([
+  "markOrderMessagesRead", "markUserMessagesRead",
+  // AM-SEC-4b: live chat / counterparty reads — account check, no device guard
+  "getChatMessages", "syncOrderChatMessages", "queryCounterPartyStats", "getUserOrderSummary",
+]);
+
+/** AM-SEC-4b: archive label — signed-in callers can't choose it; trusted callers may. */
+export function serverCaptureSource(requested: unknown, trustedCaller: boolean): "history_sync" | string {
+  if (!trustedCaller) return "history_sync";
+  const allowed = ["unknown", "listener_ws", "ui_ws", "history_sync"];
+  return typeof requested === "string" && allowed.includes(requested) ? requested : "history_sync";
+}
 
 /**
  * AM-SEC-5b: `getChatCredential` returns the Binance chat token AND the shared

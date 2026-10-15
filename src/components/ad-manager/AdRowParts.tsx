@@ -1,3 +1,4 @@
+import { useAdsRights, NO_RIGHT } from './adsRights';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -141,14 +142,15 @@ export function AdStatusControl({ ad, onToggleStatus, isTogglingStatus, showHidd
   const isOnline = ad.advStatus === BINANCE_AD_STATUS.ONLINE;
   const isPrivate = ad.advStatus === BINANCE_AD_STATUS.PRIVATE;
   const hidden = getAdHiddenReason(ad);
+  const { canToggle } = useAdsRights();
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <Switch
         checked={isOnline || isPrivate}
         onCheckedChange={() => onToggleStatus(ad.advNo, ad.advStatus)}
-        disabled={isTogglingStatus}
+        disabled={isTogglingStatus || !canToggle}
         aria-label="Toggle ad status"
-        title={isOnline ? 'Switch off (take offline)' : isPrivate ? 'Switch off (private ad goes offline)' : 'Switch on (go online)'}
+        title={!canToggle ? NO_RIGHT.toggle : isOnline ? 'Switch off (take offline)' : isPrivate ? 'Switch off (private ad goes offline)' : 'Switch on (go online)'}
         className="scale-90"
       />
       <StatusPill status={ad.advStatus} />
@@ -179,14 +181,21 @@ export function AdRowActions({
   onToggleExclusion: () => void;
   exclusionPending: boolean;
 }) {
+  const { canManage, canExclude } = useAdsRights();
   return (
     <div className="flex items-center justify-end gap-0.5">
-      <QuickEditPopover ad={ad}>
-        <Button variant="ghost" size="icon" aria-label="Quick edit price and limits" className="h-7 w-7" title="Quick edit — price & limits">
+      {canManage ? (
+        <QuickEditPopover ad={ad}>
+          <Button variant="ghost" size="icon" aria-label="Quick edit price and limits" className="h-7 w-7" title="Quick edit — price & limits">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        </QuickEditPopover>
+      ) : (
+        <Button variant="ghost" size="icon" aria-label="Quick edit price and limits" className="h-7 w-7" disabled title={NO_RIGHT.manage}>
           <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
-      </QuickEditPopover>
-      <Button variant="ghost" size="icon" aria-label="Edit" className="h-7 w-7" onClick={() => onEdit(ad)} title="Edit ad">
+      )}
+      <Button variant="ghost" size="icon" aria-label="Edit" className="h-7 w-7" onClick={() => onEdit(ad)} disabled={!canManage} title={canManage ? 'Edit ad' : NO_RIGHT.manage}>
         <Edit className="h-3.5 w-3.5" />
       </Button>
       <DropdownMenu>
@@ -197,16 +206,17 @@ export function AdRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[13rem]">
           {onDuplicate && (
-            <DropdownMenuItem onClick={() => onDuplicate(ad)}><Copy className="mr-2 h-3.5 w-3.5" />Duplicate</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDuplicate(ad)} disabled={!canManage} title={canManage ? undefined : NO_RIGHT.manage}><Copy className="mr-2 h-3.5 w-3.5" />Duplicate</DropdownMenuItem>
           )}
           {onHistory && canHistory && (
             <DropdownMenuItem onClick={() => onHistory(ad.advNo)}><History className="mr-2 h-3.5 w-3.5" />History</DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onToggleExclusion} disabled={exclusionPending}>
+          <DropdownMenuItem onClick={onToggleExclusion} disabled={exclusionPending || !canExclude} title={canExclude ? undefined : NO_RIGHT.exclude}>
             {excluded
               ? <><ShieldCheck className="mr-2 h-3.5 w-3.5" />Include in automation</>
               : <><ShieldBan className="mr-2 h-3.5 w-3.5" />Exclude from automation</>}
+            {!canExclude && <span className="sr-only"> — {NO_RIGHT.exclude}</span>}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

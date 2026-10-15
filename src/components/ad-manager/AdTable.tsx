@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from './SelectCheckbox';
 import { Megaphone, ArrowUp, ArrowDown, ArrowDownUp } from 'lucide-react';
 import { useAdAutomationMap } from './AdAutomationIndicator';
 import { useAuth } from '@/hooks/useAuth';

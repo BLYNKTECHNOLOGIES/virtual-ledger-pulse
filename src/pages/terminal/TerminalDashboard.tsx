@@ -64,7 +64,10 @@ export default function TerminalDashboard() {
   // The 45-day split is held from the moment the period (or account) is chosen.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const heldSplit = useMemo(() => sealedCutoffAt(now), [userKey]);
-  const windowPlan = useMemo(() => planDashboardPeriod(filter, now, heldSplit), [filter, now, heldSplit]);
+  // …and so is the moment of choosing: a period chosen while live keeps its reads after its end (R2).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const chosenAt = useMemo(() => now, [userKey]);
+  const windowPlan = useMemo(() => planDashboardPeriod(filter, now, heldSplit, chosenAt), [filter, now, heldSplit, chosenAt]);
   const summaryArgs = useMemo(() => ({
     usesSummary: windowPlan.usesSummary,
     startTimestamp: windowPlan.summary.startTimestamp,
@@ -79,6 +82,7 @@ export default function TerminalDashboard() {
   const {
     data: cachedOrders, isLoading: rawLoading, isError: rawError, isFetching: rawFetching,
     isPlaceholderData: rawPlaceholderRaw, dataUpdatedAt: rawUpdatedAt, lastReadAt, refetch: refetchDb,
+    refetchFailed: refetchFailedDb, retryBusy: rawRetryBusy,
   } = useDashboardOrders(windowPlan);
   // Each order-history read that lands advances the clock too.
   useEffect(() => { if (lastReadAt) bumpClock(); }, [lastReadAt, bumpClock]);
@@ -209,8 +213,6 @@ export default function TerminalDashboard() {
     : syncMetaError ? "The last sync time couldn't be read"
     : 'Orders have not been synced yet';
 
-  // A custom range longer than a year: the chart's day labels carry the year (TD-FIX-B F6).
-  const isLongRange = filter.mode === 'range' && (filter.to.getTime() - filter.from.getTime()) / 86400000 >= 366;
   // One selected day (or a one-day range): the volume chart plots by hour.
   const isSingleDay = filter.mode === '1d' || (filter.mode === 'range' && filter.from.toDateString() === filter.to.toDateString());
   // A failing live query re-enters "loading" on every retry; once it has failed, keep saying so.
@@ -232,7 +234,8 @@ export default function TerminalDashboard() {
   const periodUpdating = periodPlaceholder && !periodPending;
   const periodLoading = dbLoading || periodPending;
   // Retry re-runs only the read that failed; the strip stays (with its button) while it runs.
-  const retryBusy = rawFetching || (windowPlan.usesSummary && summaryFetching);
+  // R8: busy only while a read that failed runs again.
+  const retryBusy = rawRetryBusy || (windowPlan.usesSummary && summaryError && summaryFetching);
   const [retrying, holdRetry] = useRetryHold(retryBusy);
   const titleRef = useRef<HTMLHeadingElement>(null);
   useFocusAfterRetry(retrying, loadFailed, titleRef);
@@ -312,7 +315,7 @@ export default function TerminalDashboard() {
             onClick={() => {
               if (retryBusy) return;
               holdRetry();
-              if (rawError) refetchDb();
+              if (rawError) refetchFailedDb();
               if (windowPlan.usesSummary && summaryError) refetchSummary();
             }}
           >
@@ -354,7 +357,6 @@ export default function TerminalDashboard() {
               isLoading={periodLoading}
               period={filter.mode === '1d' || filter.mode === 'range' ? '1d' : filter.mode}
               hourWindow={isSingleDay ? windowPlan.chartWindow : undefined}
-              yearLabels={isLongRange}
               unavailable={periodUnavailable}
             />
           </div>

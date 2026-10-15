@@ -7,6 +7,7 @@ const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max 
 function makeMathsDrill(idx: number, level = "intermediate"): { prompt: string; answer: number } {
   const bump = level === "advanced" ? 1 : level === "beginner" ? -1 : 0;
   const tier = Math.max(0, Math.min(2, (idx < 4 ? 0 : idx < 8 ? 1 : 2) + bump));
+  if (tier === 2) return makeHardSum();
   const kind = rnd(0, tier === 0 ? 2 : 4);
   if (kind === 0) {
     const a = rnd(tier === 0 ? 11 : 120, tier === 0 ? 99 : 980);
@@ -31,6 +32,20 @@ function makeMathsDrill(idx: number, level = "intermediate"): { prompt: string; 
   const b = rnd(3, 19);
   const q = rnd(4, 40);
   return { prompt: `${b * q} ÷ ${b}`, answer: q };
+}
+
+// QZ7b: the top tier is really harder — bigger numbers, two-step sums and awkward percentages.
+function makeHardSum(): { prompt: string; answer: number } {
+  const kind = rnd(0, 4);
+  if (kind === 0) { const a = rnd(1200, 9800), b = rnd(1200, 9800); return { prompt: `${a} + ${b}`, answer: a + b }; }
+  if (kind === 1) { const a = rnd(12, 39), b = rnd(12, 29), c = rnd(105, 899); return { prompt: `${a} × ${b} + ${c}`, answer: a * b + c }; }
+  if (kind === 2) {
+    const pct = [12.5, 15, 17.5, 35, 45, 65][rnd(0, 5)];
+    const base = rnd(6, 96) * 80; // keeps the answer whole for every percentage above
+    return { prompt: `${pct}% of ${base}`, answer: (base * pct) / 100 };
+  }
+  if (kind === 3) { const a = rnd(5200, 9900), b = rnd(1100, a - 900), c = rnd(120, 880); return { prompt: `${a} − ${b} − ${c}`, answer: a - b - c }; }
+  const d = rnd(13, 39), q = rnd(21, 89); return { prompt: `${d * q} ÷ ${d}`, answer: q };
 }
 
 // Memory-recall sequences start at 4 characters and grow one character every two items.
@@ -89,16 +104,21 @@ Deno.serve(async (req) => {
       Date.now() + totalSeconds * 1000 + roleSections.length * (settings?.transition_seconds ?? 60) * 1000 + 60 * 60_000,
     ).toISOString();
 
-    await db.from("cbt_attempts").update({
-      status: "in_progress", blueprint_snapshot: snapshot, started_at: new Date().toISOString(),
-      last_heartbeat_at: new Date().toISOString(), token_expires_at: tokenExpires, current_section_index: roleSections[0].order_index,
-    }).eq("id", attempt.id);
+    // QZ7b: retry-safe — a start that failed midway left sections behind while the attempt stayed
+    // "registered"; clear them and build again. The attempt only becomes in_progress once every section exists.
+    const { data: leftovers } = await db.from("cbt_attempt_sections").select("id").eq("attempt_id", attempt.id);
+    if (leftovers?.length) {
+      const ids = leftovers.map((x: any) => x.id);
+      await db.from("cbt_attempt_items").delete().in("attempt_section_id", ids);
+      await db.from("cbt_attempt_sections").delete().in("id", ids);
+    }
 
     for (const rs of roleSections) {
-      const { data: section } = await db.from("cbt_attempt_sections").insert({
+      const { data: section, error: secErr } = await db.from("cbt_attempt_sections").insert({
         attempt_id: attempt.id, order_index: rs.order_index, section_code: rs.section_code,
         section_type: rs.section_type, status: "pending",
       }).select("id").single();
+      if (secErr || !section) throw new Error("Could not prepare the test sections. Please try again.");
 
       // ---- select the items for this section ----
       let versionIds: string[] = [];
@@ -131,7 +151,7 @@ Deno.serve(async (req) => {
             generated_key: { sequence: seq },
           };
         });
-        await db.from("cbt_attempt_items").insert(rows as any);
+        { const { error } = await db.from("cbt_attempt_items").insert(rows as any); if (error) throw new Error("Could not prepare the test items. Please try again."); }
         continue;
       }
 
@@ -187,7 +207,7 @@ Deno.serve(async (req) => {
             option_order: shuffleOptions(v?.content),
           };
         });
-        if (!generated.length) await db.from("cbt_attempt_items").insert(rows as any);
+        if (!generated.length) { const { error } = await db.from("cbt_attempt_items").insert(rows as any); if (error) throw new Error("Could not prepare the test items. Please try again."); }
         else bankRows = rows;
         // try runs never mark a version as served (so HR rehearsals don't force a new version on edit)
         if (!drive!.is_try_run) {
@@ -204,9 +224,16 @@ Deno.serve(async (req) => {
           attempt_section_id: section!.id, generated_content: g.content, generated_key: g.key,
         }))];
         for (let k = all.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [all[k], all[j]] = [all[j], all[k]]; }
-        await db.from("cbt_attempt_items").insert(all.map((row, idx) => ({ ...row, display_order: idx + 1 })) as any);
+        { const { error } = await db.from("cbt_attempt_items").insert(all.map((row, idx) => ({ ...row, display_order: idx + 1 })) as any); if (error) throw new Error("Could not prepare the test items. Please try again."); }
       }
     }
+
+    // every section is in place: only now does the attempt start (a second start request finds it running)
+    const { data: flipped } = await db.from("cbt_attempts").update({
+      status: "in_progress", blueprint_snapshot: snapshot, started_at: new Date().toISOString(),
+      last_heartbeat_at: new Date().toISOString(), token_expires_at: tokenExpires, current_section_index: roleSections[0].order_index,
+    }).eq("id", attempt.id).eq("status", "registered").select("id");
+    if (!flipped?.length) return json(await buildState(db, attempt.id));
 
     // enter the first section
     const first = roleSections[0];

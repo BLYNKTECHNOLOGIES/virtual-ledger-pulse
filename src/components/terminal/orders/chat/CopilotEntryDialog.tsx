@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { copilotAdmin } from '@/hooks/useCopilotAdmin';
 
 interface Entry {
   id: string;
@@ -68,7 +69,23 @@ export function CopilotEntryDialog({ entryId, onOpenChange }: { entryId: string 
     if (!entry) return;
     if (!retire && !en.trim() && !hi.trim()) { toast.error('Keep at least one language version'); return; }
     setSaving(true);
-    const patch: TablesUpdate<'copilot_playbook_entries'> = retire ? { status: 'retired' } : {
+    if (retire) {
+      // Through the database function, so the entry's open inbox items close with it.
+      try {
+        await copilotAdmin.setEntryStatus(entry.id, 'retired');
+      } catch (e) {
+        setSaving(false);
+        toast.error((e as Error).message || 'Could not retire');
+        return;
+      }
+      setSaving(false);
+      qc.invalidateQueries({ queryKey: ['copilot-entry', entry.id] });
+      qc.invalidateQueries({ queryKey: ['copilot-access'] });
+      toast.success('Entry retired — it will no longer be suggested');
+      onOpenChange(false);
+      return;
+    }
+    const patch: TablesUpdate<'copilot_playbook_entries'> = {
       title: title.trim() || entry.title,
       reply_en: en.trim() || null,
       reply_hi: hi.trim() || null,
@@ -81,7 +98,7 @@ export function CopilotEntryDialog({ entryId, onOpenChange }: { entryId: string 
     if (error) { toast.error(error.message || 'Could not save'); return; }
     qc.invalidateQueries({ queryKey: ['copilot-entry', entry.id] });
     qc.invalidateQueries({ queryKey: ['copilot-access'] });
-    toast.success(retire ? 'Entry retired — it will no longer be suggested' : 'Playbook entry saved');
+    toast.success('Playbook entry saved');
     onOpenChange(false);
   };
 

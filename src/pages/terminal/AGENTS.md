@@ -9,4 +9,7 @@
 - Language and address are decided on the server from the chat: Hindi in English letters only after the client keeps writing Hindi past hindi_switch_after English replies; "ma'am" only when the client refers to herself as female, never from a name.
 - The Copilot never skips or suppresses KYC; it shows the client's KYC status and the rule comes from the Playbook.
 - Operators get no AI and never change the Playbook; copilot_config.operators_enabled stays false until an approver switches on approved replies (a separate step).
+- Tentative entries (the one-time seed, source 'seed') are offered to approvers only and stop being offered after tentative_days unless used; they must never reach operators, because nobody has approved them.
+- The Playbook page (/terminal/playbook) and its sidebar item exist only for approvers (copilot_my_access); inbox decisions go through copilot_inbox_decide and copilot_resolve_conflict, so an entry and its inbox item always change together.
+- Phrasings without an embedding (seeded, or added on the Playbook page) are embedded by copilot-draft in the same call as an approver's next chat lookup (copilot_pending_questions); there is no background embedding job.
 - The old Copilot (copilot-suggest, copilot-teach, copilot-train, style exemplars, blacklist, hourly mining) is retired; its tables are kept as history and nothing reads them.

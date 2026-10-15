@@ -66,6 +66,7 @@ const TerminalDashboard = lazy(() => import('./pages/terminal/TerminalDashboard'
 const TerminalLanding = lazy(() => import('./pages/terminal/TerminalLanding'));
 const TerminalOrders = lazy(() => import('./pages/terminal/TerminalOrders'));
 const TerminalAutomation = lazy(() => import('./pages/terminal/TerminalAutomation'));
+const TerminalPlaybook = lazy(() => import('./pages/terminal/TerminalPlaybook'));
 const TerminalUsers = lazy(() => import('./pages/terminal/TerminalUsers'));
 const TerminalAnalytics = lazy(() => import('./pages/terminal/TerminalAnalytics'));
 const TerminalSettings = lazy(() => import('./pages/terminal/TerminalSettings'));
@@ -631,6 +632,18 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAutomation />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/playbook",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalPlaybook />
               </TerminalLayout>
             </AuthCheck>
         </QueryProvider>

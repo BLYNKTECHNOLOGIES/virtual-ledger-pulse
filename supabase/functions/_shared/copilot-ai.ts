@@ -72,7 +72,9 @@ export function makeAi(apiKey: string, fetchImpl: typeof fetch = fetch): Ai {
       const latencyMs = Date.now() - t0
       const chars = input.reduce((n, t) => n + t.length, 0)
       if (r.status !== 200) return { vectors: null, usage: { input: Math.ceil(chars / 3.5), output: 0, reasoning: 0, estimated: true }, latencyMs, error: r.error }
-      const vectors = (r.json?.data ?? []).map((d: any) => d?.embedding)
+      // Results carry an index; order by it so each vector lines up with its input.
+      const rows = [...(r.json?.data ?? [])].sort((a: any, b: any) => Number(a?.index ?? 0) - Number(b?.index ?? 0))
+      const vectors = rows.map((d: any) => d?.embedding)
       const ok = vectors.length === input.length && vectors.every((v: any) => Array.isArray(v) && v.length === 1536)
       const tokens = Number(r.json?.usage?.prompt_tokens ?? r.json?.usage?.total_tokens ?? NaN)
       const usage: Usage = Number.isFinite(tokens)

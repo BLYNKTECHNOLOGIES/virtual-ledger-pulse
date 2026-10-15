@@ -58,3 +58,10 @@ Deno.test('embed: one call for several texts; wrong sizes rejected', async () =>
   const down = await makeAi('K', fakeFetch([{ status: 503, body: 'upstream down' }]).f).embed(['a'], 'm')
   eq(down.vectors, null); ok(down.usage.estimated)
 })
+
+Deno.test('embed: vectors follow the input order even when the gateway returns them out of order', async () => {
+  const a = new Array(1536).fill(0.1), b = new Array(1536).fill(0.2), c = new Array(1536).fill(0.3)
+  const { f } = fakeFetch([{ status: 200, body: { data: [{ index: 2, embedding: c }, { index: 0, embedding: a }, { index: 1, embedding: b }] } }])
+  const r = await makeAi('K', f).embed(['x', 'y', 'z'], 'm')
+  eq(r.vectors?.map((v) => v[0]), [0.1, 0.2, 0.3])
+})

@@ -2,6 +2,7 @@
 // Approved Playbook replies come first (no AI). AI drafts are made only for this open chat, only when no
 // approved reply fits or the approver asks. Nothing is ever sent from here: Insert puts text in the composer.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -199,7 +200,7 @@ export function CopilotPanel({
     if (data.status === 'nothing_to_answer') return <span className="text-muted-foreground">No new client message.</span>;
     if (data.status === 'capped') return <span className="text-warning">AI drafting paused: this month's AI budget is used up. Approved replies still work.</span>;
     if (approvedFound) return <span className="text-trade-buy">Approved reply found — no AI used.</span>;
-    if (conflictFound) return <span className="text-destructive">Two approved answers disagree — pick one in the Playbook inbox.</span>;
+    if (conflictFound) return <span className="text-destructive">Two approved answers disagree — pick one in the <Link to="/terminal/playbook?tab=inbox" className="underline underline-offset-2">Playbook inbox</Link>.</span>;
     if (aiFailed && !drafts.length) return <span className="text-warning">The AI did not answer this time{playbook.length ? ' — Playbook replies are below' : ''}.</span>;
     if (playbook.length && drafts.length) return <span className="text-foreground">From the Playbook, plus AI drafts</span>;
     if (drafts.length) return <span className="text-foreground">New — not in the Playbook yet.</span>;
@@ -360,7 +361,7 @@ export function CopilotPanel({
 
           {!loading && missing.length > 0 && (
             <div className="text-[10px] text-warning">
-              No {missing.map((p) => CONTACT_LABEL[p]).join(' or ')} contact number saved. Add one in Automation → AI Copilot, or type it before sending.
+              No {missing.map((p) => CONTACT_LABEL[p]).join(' or ')} contact number saved. Add one in <Link to="/terminal/playbook?tab=settings" className="underline underline-offset-2">Playbook settings</Link>, or type it before sending.
             </div>
           )}
 

@@ -41,6 +41,8 @@ export class FakeStore implements Store {
   learnCalls: any[] = []
   learnResult: any = { event_id: 'ev-1', action: 'created', entry_id: 'en-1', title: 'T' }
   undoCalls: any[] = []
+  pending: Array<{ id: string; question_text: string }> = []
+  embedded: Array<{ id: string; v: number[]; model: string }> = []
 
   config() { return Promise.resolve(this.cfg) }
   isApprover(u: string) { return Promise.resolve(this.approvers.has(u)) }
@@ -78,6 +80,11 @@ export class FakeStore implements Store {
     return Promise.resolve(true)
   }
   entries(ids: string[]) { return Promise.resolve(this.entryRows.filter((e) => ids.includes(e.id))) }
+  pendingQuestions(limit: number) { return Promise.resolve(this.pending.filter((p) => !this.embedded.some((e) => e.id === p.id)).slice(0, limit)) }
+  setQuestionEmbeddings(items: Array<{ id: string; v: number[] }>, model: string) {
+    for (const i of items) this.embedded.push({ ...i, model })
+    return Promise.resolve(items.length)
+  }
   questionsFor(ids: string[]) { return Promise.resolve(this.questionRows.filter((q) => ids.includes(q.entry_id))) }
   learnApply(p: Record<string, unknown>) { this.learnCalls.push(p); return Promise.resolve({ data: { ...this.learnResult, action: this.learnResult.action ?? p.p_relation } }) }
   undo(u: string, e: string) {
@@ -92,6 +99,7 @@ export class FakeAi implements Ai {
   embeds: string[][] = []
   replies: Record<string, ChatResult | ((system: string, user: string) => ChatResult)> = {}
   embedFails = false
+  embedFailsWhen: ((texts: string[]) => boolean) | null = null
 
   chatJson(model: string, system: string, user: string): Promise<ChatResult> {
     this.chats.push({ model, system, user })
@@ -101,7 +109,7 @@ export class FakeAi implements Ai {
   }
   embed(texts: string[]): Promise<EmbedResult> {
     this.embeds.push(texts)
-    if (this.embedFails) return Promise.resolve({ vectors: null, usage: { input: 10, output: 0, reasoning: 0, estimated: true }, latencyMs: 1, error: 'down' })
+    if (this.embedFails || this.embedFailsWhen?.(texts)) return Promise.resolve({ vectors: null, usage: { input: 10, output: 0, reasoning: 0, estimated: true }, latencyMs: 1, error: 'down' })
     return Promise.resolve({ vectors: texts.map(() => new Array(1536).fill(0.01)), usage: { input: 12, output: 0, reasoning: 0, estimated: false }, latencyMs: 1 })
   }
 }

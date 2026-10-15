@@ -25,6 +25,7 @@ export interface Out { status: number; body: any }
 const ORDER_RE = /^[0-9A-Za-z_-]{6,40}$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PENDING_FRESH_MS = 45_000
+const PENDING_EMBED_LIMIT = 50
 const LABELS = ['A', 'B']
 
 function playbookItem(m: MatchRow, lang: 'en' | 'hi', address: 'sir' | 'maam') {
@@ -128,13 +129,24 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
     const inputs = [...new Set([question, lastClientText].filter((s) => s.trim().length > 0))]
     let vectors: number[][] | null = null
     if (inputs.length) {
-      const e = await ai.embed(inputs, cfg.embedding_model)
-      await store.logCall({
-        ...logBase, purpose: 'embed', model: cfg.embedding_model, status: e.vectors ? 'ok' : 'error',
-        input_tokens: e.usage.input, output_tokens: 0, tokens_estimated: e.usage.estimated,
-        cost_inr: costInr(cfg.embedding_model, e.usage, cfg.model_prices, cfg.usd_inr), latency_ms: e.latencyMs, error: e.error ?? null,
-      })
-      vectors = e.vectors
+      const embedLogged = async (texts: string[]) => {
+        const e = await ai.embed(texts, cfg.embedding_model)
+        await store.logCall({
+          ...logBase, purpose: 'embed', model: cfg.embedding_model, status: e.vectors ? 'ok' : 'error',
+          input_tokens: e.usage.input, output_tokens: 0, tokens_estimated: e.usage.estimated,
+          cost_inr: costInr(cfg.embedding_model, e.usage, cfg.model_prices, cfg.usd_inr), latency_ms: e.latencyMs, error: e.error ?? null,
+        })
+        return e.vectors
+      }
+      // Phrasings added since the last chat (the seed, or typed on the Playbook page) are embedded alongside, in a
+      // separate call so a failure there never costs this chat its lookup, and in parallel so it adds no waiting.
+      const pending = await store.pendingQuestions(PENDING_EMBED_LIMIT)
+      const [own, extra] = await Promise.all([
+        embedLogged(inputs),
+        pending.length ? embedLogged(pending.map((p) => maskPII(p.question_text))) : Promise.resolve(null),
+      ])
+      vectors = own
+      if (extra) await store.setQuestionEmbeddings(pending.map((p, i) => ({ id: p.id, v: extra[i] })), cfg.embedding_model)
     }
     let matches: MatchRow[] = []
     if (vectors) {

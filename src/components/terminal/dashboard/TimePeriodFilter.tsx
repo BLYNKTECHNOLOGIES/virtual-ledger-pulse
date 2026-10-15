@@ -45,11 +45,11 @@ export function getFilterShift(filter: TimeFilter): ShiftKey {
 }
 
 /** Calendar day span (IST) covered by a filter, used when a shift is applied. */
-function getDaySpan(filter: TimeFilter): { from: Date; to: Date } {
+function getDaySpan(filter: TimeFilter, now: number = Date.now()): { from: Date; to: Date } {
   if (filter.mode === '1d') return { from: filter.date, to: filter.date };
   if (filter.mode === 'range') return { from: filter.from, to: filter.to };
-  const to = new Date();
-  const from = new Date();
+  const to = new Date(now);
+  const from = new Date(now);
   from.setDate(from.getDate() - (PRESET_DAYS[filter.mode] - 1));
   return { from, to };
 }
@@ -61,10 +61,9 @@ export type TimeWindow = { start: number; end: number };
  * the range contributes only that shift's slice (the evening shift keeps its
  * after-midnight tail). "Full Day" collapses to one continuous window.
  */
-export function buildShiftWindows(filter: TimeFilter): TimeWindow[] {
-  const now = Date.now();
+export function buildShiftWindows(filter: TimeFilter, now: number = Date.now()): TimeWindow[] {
   const shift = getFilterShift(filter);
-  const { from, to } = getDaySpan(filter);
+  const { from, to } = getDaySpan(filter, now);
 
   if (shift === 'all') {
     if (filter.mode === '7d' || filter.mode === '30d' || filter.mode === '1y') {
@@ -88,21 +87,52 @@ export function buildShiftWindows(filter: TimeFilter): TimeWindow[] {
 }
 
 /** Predicate matching a timestamp against the filter's per-day shift windows. */
-export function makeShiftPredicate(filter: TimeFilter): (ts: number) => boolean {
-  const windows = buildShiftWindows(filter);
+export function makeShiftPredicate(filter: TimeFilter, now: number = Date.now()): (ts: number) => boolean {
+  const windows = buildShiftWindows(filter, now);
   return (ts: number) => windows.some((w) => ts >= w.start && ts <= w.end);
 }
 
-export function getTimestampsForFilter(filter: TimeFilter): { startTimestamp: number; endTimestamp: number } {
-  const windows = buildShiftWindows(filter);
+export function getTimestampsForFilter(filter: TimeFilter, now: number = Date.now()): { startTimestamp: number; endTimestamp: number } {
+  const windows = buildShiftWindows(filter, now);
   if (windows.length === 0) {
-    const now = Date.now();
     return { startTimestamp: now, endTimestamp: now };
   }
   return {
     startTimestamp: Math.min(...windows.map((w) => w.start)),
     endTimestamp: Math.max(...windows.map((w) => w.end)),
   };
+}
+
+/**
+ * TD-FIX-B F5 — the filter's windows with their NATURAL ends (never clamped to "now").
+ * Rolling all-day presets: one window from now − N days with no end. Shifts: every
+ * day's slice, including slices that have not started yet. `end` = Infinity = open.
+ */
+export function buildNaturalWindows(filter: TimeFilter, now: number): TimeWindow[] {
+  const shift = getFilterShift(filter);
+  const { from, to } = getDaySpan(filter, now);
+  if (shift === 'all') {
+    if (filter.mode === '7d' || filter.mode === '30d' || filter.mode === '1y') {
+      return [{ start: now - PRESET_DAYS[filter.mode] * 86400000, end: Infinity }];
+    }
+    return [{ start: istToUtc(from, 0, 0), end: istToUtc(to, 24, 0) }];
+  }
+  const def = SHIFTS[shift];
+  const windows: TimeWindow[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const last = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  while (cursor <= last) {
+    windows.push({ start: istToUtc(cursor, def.startH, def.startM), end: istToUtc(cursor, def.endH, def.endM) });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return windows;
+}
+
+/** Natural end of a period: null for rolling presets (7D/30D/1Y), else the last window end. */
+export function getNaturalEnd(filter: TimeFilter, now: number): number | null {
+  if (filter.mode === '7d' || filter.mode === '30d' || filter.mode === '1y') return null;
+  const w = buildNaturalWindows(filter, now);
+  return w.length ? Math.max(...w.map((x) => x.end)) : null;
 }
 
 // ─── Backward compatibility ───
@@ -146,11 +176,11 @@ export function deserializeTimeFilter(raw: string | undefined | null): TimeFilte
   return { mode: '1d', date: new Date(), shift: 'all' };
 }
 
-export function getFilterLabel(filter: TimeFilter): string {
+export function getFilterLabel(filter: TimeFilter, now: number = Date.now()): string {
   const shift = getFilterShift(filter);
   const suffix = shift === 'all' ? '' : ` · ${SHIFTS[shift].fullLabel}`;
   if (filter.mode === '1d') {
-    const isToday = new Date().toDateString() === filter.date.toDateString();
+    const isToday = new Date(now).toDateString() === filter.date.toDateString();
     const dateStr = isToday ? 'Today' : format(filter.date, 'dd MMM yyyy');
     return `${dateStr}${suffix}`;
   }

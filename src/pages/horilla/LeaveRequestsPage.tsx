@@ -147,7 +147,8 @@ export default function LeaveRequestsPage() {
         }).eq("id", created.id);
         if (upErr) throw upErr;
 
-        const res = await sendLeaveEmail({
+        // Saved; the email is sent after the dialog closes (see onSuccess).
+        const mail = sendLeaveEmail({
           eventType: "leave_approved",
           requestId: created.id,
           employeeName,
@@ -159,7 +160,7 @@ export default function LeaveRequestsPage() {
           decidedBy: "HR",
           employeeEmail: emp?.email || null,
         });
-        return { routedToManager: false, emailFailures: res?.failures || [], noEmail: !emp?.email };
+        return { routedToManager: false, mail, noEmail: !emp?.email };
 
       }
 
@@ -172,7 +173,7 @@ export default function LeaveRequestsPage() {
         managerEmail = mgr?.email || null;
         managerName = mgr ? `${mgr.first_name || ""} ${mgr.last_name || ""}`.trim() : null;
       }
-      const res = await sendLeaveEmail({
+      const mail = sendLeaveEmail({
         eventType: "leave_requested",
         requestId: created.id,
         employeeName,
@@ -184,7 +185,7 @@ export default function LeaveRequestsPage() {
         managerEmail,
         managerName,
       });
-      return { routedToManager: true, hasManager: !!managerEmail, emailFailures: res?.failures || [] };
+      return { routedToManager: true, hasManager: !!managerEmail, mail };
 
     },
     onSuccess: (res: any) => {
@@ -198,7 +199,7 @@ export default function LeaveRequestsPage() {
           : "Leave approved by HR",
       );
       if (res?.noEmail) toast.warning("No email on record for this employee — approval mail not sent");
-      else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
+      else res?.mail?.then((m: any) => { if (m?.failures?.length) toast.warning(`Email not delivered: ${m.failures[0]}`); });
     },
 
     onError: (e: any) => toast.error(e.message),

@@ -31,6 +31,12 @@ for (const [name, R] of [["screen", ui], ["edge", edge]] as const) {
     it("SELL 0.5 ETH, Spot 0.1 / Funding 1.2 → moves 0.4", () => {
       expect(R.computeFundingShortfall("0.5", "0.1", "1.2", "ETH")).toEqual({ ok: true, move: "0.4" });
     });
+    it("balances that arrive as JS numbers are exact (no 1e-8 float residue)", () => {
+      expect(R.fromUnits(R.toUnits(0.3))).toBe("0.3");
+      expect(R.fromUnits(R.toUnits(12480.553) + R.toUnits(152.3071))).toBe("12632.8601");
+      expect(R.computeFundingShortfall("1000", 152.3071, 12480.553, "USDT")).toEqual({ ok: true, move: "847.6929" });
+      expect(R.fromUnits(R.toUnits(1e-7))).toBe("0.0000001");
+    });
     it("rounds the shortfall up at 8 decimals but never above Funding", () => {
       expect(R.computeFundingShortfall("1.000000001", "0", "2").move).toBe("1.00000001");
     });
@@ -67,6 +73,12 @@ for (const [name, R] of [["screen", ui], ["edge", edge]] as const) {
       expect(v).toBe("99.996");
       expect(R.percentOfAvailable("99.996", 100, "BUY", null)).toBe("99.99");
       expect(Number(v)).toBeLessThanOrEqual(99.996);
+    });
+    it("BUY Max on a balance made of JS numbers is the exact balance, and it passes the checks", () => {
+      const avail = R.fromUnits(R.toUnits(12480.553) + R.toUnits(152.3071));
+      expect(R.percentOfAvailable(avail, 100, "BUY", BTC)).toBe("12632.8601");
+      expect(R.percentOfAvailable(avail, 25, "BUY", BTC)).toBe("3158.215025");
+      expect(R.checkOrder({ side: "BUY", amount: "12632.8601", available: avail, price: "60000", rules: BTC }).ok).toBe(true);
     });
     it("SELL 25% floors to step", () => {
       expect(R.percentOfAvailable("0.00007", 25, "SELL", BTC)).toBe("0.00001");

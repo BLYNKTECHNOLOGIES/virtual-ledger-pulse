@@ -240,7 +240,7 @@ export function SpotTradingPanel() {
           </div>
 
           {check && !check.ok && (
-            <p role="alert" className="flex items-start gap-1.5 text-[11px] leading-relaxed text-destructive">
+            <p role="status" aria-live="polite" className="flex items-start gap-1.5 text-[11px] leading-relaxed text-destructive">
               <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
               {check.message}
             </p>

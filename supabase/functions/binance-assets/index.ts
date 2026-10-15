@@ -301,6 +301,10 @@ serve(async (req) => {
         if (!payload.exchange_account_id) {
           throw new Error("Choose the Binance account for this order — nothing was sent.");
         }
+        // resolveAccount() falls back to the default account for an unknown id; never trade on a fallback.
+        if (String(payload.exchange_account_id) !== EXCHANGE_ACCOUNT_ID) {
+          throw new Error("Unknown Binance account for this order — nothing was sent.");
+        }
 
         // F3 — live rules, price and balances BEFORE any transfer or order.
         const rulesMap = await getSymbolRules([symbol]);

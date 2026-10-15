@@ -97,7 +97,7 @@ function lookAlike(r: Rng, s: string): string | null {
 /** Same amount with the decimal point one place left, in the usual INR format: 4,52,075.00 → 45,207.50 */
 export function moveDecimal(s: string): string {
   const paise = Math.round(Number(s.replace(/,/g, "")) * 100);
-  return inr(Math.round(paise / 10) / 100);
+  return inr(Math.floor(paise / 10) / 100); // the same digits, one place to the right
 }
 
 export function makeMatchPair(r: Rng, level: Level, forceMatch?: boolean): Pair {

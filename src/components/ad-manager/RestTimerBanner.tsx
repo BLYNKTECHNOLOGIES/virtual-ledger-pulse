@@ -1,4 +1,8 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useIsFetching, type Query } from '@tanstack/react-query';
+
+/** AM-FIX-5: the Ads page's full ad list (fetchAll) that the Take-rest count comes from. */
+const isRestCountQuery = (q: Query) =>
+  q.queryKey[0] === 'binance-ads' && (q.queryKey[2] as { fetchAll?: boolean } | undefined)?.fetchAll === true;
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Coffee, Play, Loader2, OctagonPause, CheckCircle2, AlertTriangle, X } from 'lucide-react';
@@ -35,6 +39,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
   const { isResting, isRestoring, isRestoreOverdue, endNotice, dismissEndNotice, isBinanceBreakDetected, detectedBreak, remainingMs, endTime, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer({ full: true });
   const [countdown, setCountdown] = useState(remainingMs);
   const queryClient = useQueryClient();
+  const countFetching = useIsFetching({ predicate: isRestCountQuery }) > 0;
   const [confirmStart, setConfirmStart] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 

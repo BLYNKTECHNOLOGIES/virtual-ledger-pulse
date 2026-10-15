@@ -55,7 +55,8 @@ interface Props {
 
 export function UserConfigDialog({ open, onOpenChange, userId, username, displayName, onSaved }: Props) {
   const { isTerminalAdmin } = useTerminalAuth();
-  const { editReason } = useTerminalEditableUsers();
+  const { editReason, bioResetReason } = useTerminalEditableUsers();
+  const resetBlockedReason = bioResetReason(userId);
   const saveBlockedReason = editReason(userId);
   const [profile, setProfile] = useState<UserProfile>({
     user_id: userId,
@@ -438,10 +439,11 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                 </p>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150">
+                    <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150" disabled={!!resetBlockedReason} title={resetBlockedReason ?? undefined}>
                       <RotateCcw className="h-3 w-3" /> Reset Registration
                     </Button>
                   </AlertDialogTrigger>
+                  {resetBlockedReason && <p className="text-[11px] text-muted-foreground">{resetBlockedReason}</p>}
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Reset Biometric Registration?</AlertDialogTitle>

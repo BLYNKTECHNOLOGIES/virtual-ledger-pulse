@@ -29,6 +29,7 @@ import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { UserConfigDialog } from "./UserConfigDialog";
 import { BiometricManagementDialog } from "./BiometricManagementDialog";
 import { SendBiometricInviteDialog } from "./SendBiometricInviteDialog";
+import { useTerminalEditableUsers } from "@/hooks/useTerminalEditableUsers";
 
 interface TerminalRole {
   id: string;
@@ -82,6 +83,7 @@ export function TerminalUsersList() {
   const [configDisplayName, setConfigDisplayName] = useState("");
   const [bioUserId, setBioUserId] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ id: string; name: string } | null>(null);
+  const { bioResetReason, inviteReason } = useTerminalEditableUsers();
   const [bioUsername, setBioUsername] = useState("");
   const [bioDisplayName, setBioDisplayName] = useState("");
 
@@ -470,6 +472,8 @@ export function TerminalUsersList() {
                             variant="ghost"
                             size="sm"
                             className="h-7 text-xs"
+                            disabled={!!bioResetReason(a.userId)}
+                            title={bioResetReason(a.userId) ?? undefined}
                             onClick={() => {
                               setBioUserId(a.userId);
                               setBioUsername(a.username);
@@ -482,7 +486,8 @@ export function TerminalUsersList() {
                             variant="ghost"
                             size="sm"
                             className="h-7 text-xs"
-                            title="Send biometric registration link"
+                            disabled={!!inviteReason(a.userId)}
+                            title={inviteReason(a.userId) ?? "Send biometric registration link"}
                             onClick={() => setInvite({ id: a.userId, name: displayName(a.firstName, a.lastName, a.username) })}
                           >
                             <Mail className="h-3 w-3 mr-1" /> Invite

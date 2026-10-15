@@ -8,6 +8,7 @@ import { syncCompletedSellOrders } from './useTerminalSalesSync';
 import { captureSellerPaymentDetails } from './useSellerPaymentCapture';
 import { hasActiveBinanceComplaint } from '@/lib/orderStatusMapper';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+import { mapWithConcurrency } from '@/lib/mapWithConcurrency';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 24 * 60 * 60 * 1000; // 24 hours — re-fetch recent orders for status updates (was 3h, widened to catch out-of-order Binance updates)
@@ -27,33 +28,113 @@ type CachedOrderHistoryRange = {
   endTimestamp?: number;
 };
 
+const ORDER_HISTORY_COLUMNS = 'order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name,complaint_status,has_active_complaint,exchange_account_id';
+const ORDER_HISTORY_PAGE_SIZE = 1000;
+// Pages requested at the same time once the total is known (one year is ~70 pages).
+const ORDER_HISTORY_PAGE_CONCURRENCY = 4;
+
 /** Read cached orders for [start, end] (end null = no upper bound), newest first, mapped to orders. */
 export async function fetchCachedOrderRows(accounts: string[], start: number, end: number | null) {
-  const allRows: any[] = [];
-  const PAGE_SIZE = 1000;
-  let from = 0;
+  const PAGE_SIZE = ORDER_HISTORY_PAGE_SIZE;
 
-  while (true) {
+  // One page, newest first. `upTo` caps create_time; `after` continues strictly below that order.
+  const readPage = (opts: { from?: number; withCount?: boolean; upTo?: number; after?: { createTime: number; orderNumber: string } } = {}) => {
     let query = supabase
       .from('binance_order_history')
-      .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name,complaint_status,has_active_complaint,exchange_account_id')
+      .select(ORDER_HISTORY_COLUMNS, opts.withCount ? { count: 'exact' } : undefined)
       .in('exchange_account_id', accounts)
       .gte('create_time', start)
-      .order('create_time', { ascending: false });
+      .order('create_time', { ascending: false })
+      // Unique tie-breaker, so pages never repeat or skip orders that share a timestamp.
+      .order('order_number', { ascending: false });
 
     if (end) {
       query = query.lte('create_time', end);
     }
+    if (opts.upTo !== undefined) {
+      query = query.lte('create_time', opts.upTo);
+    }
+    if (opts.after) {
+      const { createTime, orderNumber } = opts.after;
+      query = query
+        .lte('create_time', createTime) // implied by the next line; lets the index start at the cursor
+        .or(`create_time.lt.${createTime},and(create_time.eq.${createTime},order_number.lt.${orderNumber})`);
+    }
 
-    const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+    const from = opts.from ?? 0;
+    return query.range(from, from + PAGE_SIZE - 1);
+  };
+
+  // How many orders are at or below `upTo` right now (count only, no rows).
+  const countUpTo = async (upTo: number) => {
+    let query = supabase
+      .from('binance_order_history')
+      .select('order_number', { count: 'exact', head: true })
+      .in('exchange_account_id', accounts)
+      .gte('create_time', start)
+      .lte('create_time', upTo);
+    if (end) {
+      query = query.lte('create_time', end);
+    }
+    const { count, error } = await query;
     if (error) throw error;
-    if (!data || data.length === 0) break;
-    allRows.push(...data);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+    return count;
+  };
+
+  // Each order once (offset pages can repeat one when rows move mid-load).
+  const distinct = <T extends { order_number: string }>(pages: T[][]) => {
+    const seen = new Set<string>();
+    const rows: T[] = [];
+    for (const page of pages) {
+      for (const row of page) {
+        if (seen.has(row.order_number)) continue;
+        seen.add(row.order_number);
+        rows.push(row);
+      }
+    }
+    return rows;
+  };
+
+  // The first page also returns the total, so longer periods load the other pages a few
+  // at a time instead of one after another.
+  const first = await readPage({ withCount: true });
+  if (first.error) throw first.error;
+  const firstRows = first.data || [];
+  if (firstRows.length < PAGE_SIZE) return firstRows.map(dbRowToOrder); // one request, one snapshot
+
+  // Later pages stop at the newest order on the first page. Orders synced while this
+  // loads sit above it, so they can't push rows across page boundaries (the refetch
+  // that follows a sync shows them).
+  const upTo = Number(firstRows[0].create_time);
+  const total = typeof first.count === 'number' ? first.count : null;
+  // With three or more pages still to read, reading them in parallel (plus one count to
+  // confirm nothing moved) is faster than one after another.
+  if (total !== null && total > 3 * PAGE_SIZE) {
+    const starts: number[] = [];
+    for (let from = PAGE_SIZE; from < total; from += PAGE_SIZE) starts.push(from);
+    const rows = distinct([firstRows, ...await mapWithConcurrency(starts, ORDER_HISTORY_PAGE_CONCURRENCY, async (from) => {
+      const { data, error } = await readPage({ from, upTo });
+      if (error) throw error;
+      return data || [];
+    })]);
+    // Exact when nothing at or below the bound changed meanwhile: as many distinct orders
+    // as the first request counted, and still that many now.
+    if (rows.length === total && (await countUpTo(upTo)) === total) return rows.map(dbRowToOrder);
   }
 
-  return allRows.map(dbRowToOrder);
+  // Short periods, a load during which rows moved (an older order synced, or one removed),
+  // or no total: read one page at a time, each continuing strictly below the last order
+  // read. Nothing can be skipped or read twice this way, whatever changes meanwhile.
+  const pages = [firstRows];
+  for (let last = firstRows[firstRows.length - 1]; ; ) {
+    const { data, error } = await readPage({ after: { createTime: Number(last.create_time), orderNumber: String(last.order_number) } });
+    if (error) throw error;
+    const page = data || [];
+    pages.push(page);
+    if (page.length < PAGE_SIZE) break;
+    last = page[page.length - 1];
+  }
+  return distinct(pages).map(dbRowToOrder);
 }
 
 /** Reads the order-history sync status row. */

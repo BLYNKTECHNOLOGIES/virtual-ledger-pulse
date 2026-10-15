@@ -24,6 +24,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { mapWithConcurrency } from '@/lib/mapWithConcurrency';
+import { listFingerprint } from '@/lib/listFingerprint';
 import {
   CAPTION,
   EmptyState,
@@ -41,7 +43,16 @@ import {
 import { PendingContext } from '@/components/terminal/analytics/pendingContext';
 
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
-const VALUATION_QUERY_CHUNK_SIZE = 150;
+
+// Order outcomes, the same rules as the Dashboard: completed (or released), and finished
+// without completing (cancelled by either side or by Binance, expired or timed out).
+const isCompletedStatus = (status: string) => status.includes('COMPLETED') || status.includes('RELEASED');
+const isCancelledStatus = (status: string) => status.includes('CANCEL') || status.includes('EXPIRED') || status.includes('TIMEOUT');
+const isAppealStatus = (status: string) => status.includes('APPEAL') || status.includes('COMPLAINT');
+// Order numbers per terminal_order_valuation_rows() call, and calls in flight at once.
+// A call costs ~0.3 ms per matched order under row-level security, far below the 8 s limit.
+const VALUATION_RPC_CHUNK_SIZE = 1000;
+const VALUATION_RPC_CONCURRENCY = 4;
 
 type OrderKind = 'smallBuy' | 'bigBuy' | 'smallSell' | 'bigSell';
 type AdTradeFilter = 'BUY' | 'SELL';
@@ -202,14 +213,52 @@ function getOrderDataNumber(orderData: any, camelKey: string, snakeKey: string) 
   return Number(orderData?.[camelKey] ?? orderData?.[snakeKey] ?? 0);
 }
 
-async function fetchRowsInChunks<T>(values: string[], fetcher: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: any }>) {
-  const rows: T[] = [];
-  for (let i = 0; i < values.length; i += VALUATION_QUERY_CHUNK_SIZE) {
-    const { data, error } = await fetcher(values.slice(i, i + VALUATION_QUERY_CHUNK_SIZE));
-    if (error) throw error;
-    rows.push(...(data || []));
+type SmallBatchRow = {
+  id: string;
+  total_quantity?: number | string | null;
+  purchase_order_id?: string | null;
+  sales_order_id?: string | null;
+};
+
+/**
+ * The rows the valuation rules below read, as terminal_order_valuation_rows()
+ * returns them: the same rows as reading terminal_purchase_sync / terminal_sales_sync
+ * (with their ERP order embedded), the small-order maps, their batches and the
+ * batches' ERP orders, under the caller's row-level security.
+ */
+type ValuationRowSet = {
+  purchase_sync: unknown[];
+  sales_sync: unknown[];
+  small_buy_map: SmallOrderMapRow[];
+  small_sale_map: SmallOrderMapRow[];
+  small_buy_sync: SmallBatchRow[];
+  small_sale_sync: SmallBatchRow[];
+  small_buy_orders: unknown[];
+  small_sale_orders: unknown[];
+};
+
+const VALUATION_ROW_KEYS: (keyof ValuationRowSet)[] = [
+  'purchase_sync', 'sales_sync', 'small_buy_map', 'small_sale_map',
+  'small_buy_sync', 'small_sale_sync', 'small_buy_orders', 'small_sale_orders',
+];
+
+type ValuationRowsRpc = (
+  fn: 'terminal_order_valuation_rows',
+  args: { p_order_numbers: string[] },
+) => PromiseLike<{ data: unknown; error: unknown }>;
+
+async function fetchValuationRows(orderNumbers: string[]): Promise<ValuationRowSet> {
+  const rpc = supabase.rpc.bind(supabase) as unknown as ValuationRowsRpc;
+  for (let attempt = 1; ; attempt++) {
+    const { data, error } = await rpc('terminal_order_valuation_rows', { p_order_numbers: orderNumbers });
+    if (!error) {
+      const rows = (data || {}) as Partial<ValuationRowSet>;
+      return Object.fromEntries(VALUATION_ROW_KEYS.map((key) => [key, rows[key] || []])) as ValuationRowSet;
+    }
+    // One retry per call, so a single slow or dropped call doesn't blank every rate in the period.
+    if (attempt >= 2) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 400));
   }
-  return rows;
 }
 
 function getSmallOrderValuation(orderData: any, syncRow: any, erpOrder: any): EffectiveValuation | null {
@@ -369,55 +418,31 @@ function useSmallOrderConfigs() {
 }
 
 function useEffectiveOrderValuations(orderNumbers: string[]) {
+  // A year holds ~70,000 order numbers; key the cache on a short fingerprint of the list instead.
+  const orderListKey = useMemo(() => listFingerprint(orderNumbers), [orderNumbers]);
   return useQuery({
-    queryKey: ['terminal-analytics-effective-valuations', orderNumbers],
+    queryKey: ['terminal-analytics-effective-valuations', orderListKey],
     queryFn: async () => {
       const uniqueOrderNumbers = Array.from(new Set(orderNumbers.filter(Boolean)));
       if (!uniqueOrderNumbers.length) return new Map<string, EffectiveValuation>();
 
-      const [purchaseSyncRows, salesSyncRows, smallBuyMapRows, smallSaleMapRows] = await Promise.all([
-        fetchRowsInChunks<any>(uniqueOrderNumbers, (chunk) => supabase
-          .from('terminal_purchase_sync')
-          .select('binance_order_number, purchase_orders!terminal_purchase_sync_purchase_order_id_fkey(effective_usdt_qty, effective_usdt_rate, market_rate_usdt)')
-          .in('binance_order_number', chunk)),
-        fetchRowsInChunks<any>(uniqueOrderNumbers, (chunk) => supabase
-          .from('terminal_sales_sync')
-          .select('binance_order_number, sales_orders!terminal_sales_sync_sales_order_id_fkey(effective_usdt_qty, effective_usdt_rate, market_rate_usdt)')
-          .in('binance_order_number', chunk)),
-        fetchRowsInChunks<SmallOrderMapRow>(uniqueOrderNumbers, (chunk) => supabase
-          .from('small_buys_order_map' as any)
-          .select('binance_order_number, order_data, small_buys_sync_id')
-          .in('binance_order_number', chunk) as any),
-        fetchRowsInChunks<SmallOrderMapRow>(uniqueOrderNumbers, (chunk) => supabase
-          .from('small_sales_order_map' as any)
-          .select('binance_order_number, order_data, small_sales_sync_id')
-          .in('binance_order_number', chunk) as any),
-      ]);
-      const smallBuySyncIds = Array.from(new Set(smallBuyMapRows.map((row) => row.small_buys_sync_id).filter(Boolean))) as string[];
-      const smallSaleSyncIds = Array.from(new Set(smallSaleMapRows.map((row) => row.small_sales_sync_id).filter(Boolean))) as string[];
-
-      const [smallBuySyncRows, smallSaleSyncRows] = await Promise.all([
-        smallBuySyncIds.length
-          ? fetchRowsInChunks<any>(smallBuySyncIds, (chunk) => supabase.from('small_buys_sync' as any).select('id, total_quantity, purchase_order_id').in('id', chunk) as any)
-          : Promise.resolve([] as any[]),
-        smallSaleSyncIds.length
-          ? fetchRowsInChunks<any>(smallSaleSyncIds, (chunk) => supabase.from('small_sales_sync' as any).select('id, total_quantity, sales_order_id').in('id', chunk) as any)
-          : Promise.resolve([] as any[]),
-      ]);
-
-      const purchaseOrderIds = Array.from(new Set(smallBuySyncRows.map((row) => row.purchase_order_id).filter(Boolean))) as string[];
-      const salesOrderIds = Array.from(new Set(smallSaleSyncRows.map((row) => row.sales_order_id).filter(Boolean))) as string[];
-
-      const [smallBuyOrderRows, smallSaleOrderRows] = await Promise.all([
-        purchaseOrderIds.length
-          ? fetchRowsInChunks<any>(purchaseOrderIds, (chunk) => supabase.from('purchase_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', chunk) as any)
-          : Promise.resolve([] as any[]),
-        salesOrderIds.length
-          ? fetchRowsInChunks<any>(salesOrderIds, (chunk) => supabase.from('sales_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', chunk) as any)
-          : Promise.resolve([] as any[]),
-      ]);
-
-
+      // One call per 1,000 order numbers, a few at a time, instead of four table
+      // reads per 150 numbers one after another. Same rows, same rules below.
+      const chunks: string[][] = [];
+      for (let i = 0; i < uniqueOrderNumbers.length; i += VALUATION_RPC_CHUNK_SIZE) {
+        chunks.push(uniqueOrderNumbers.slice(i, i + VALUATION_RPC_CHUNK_SIZE));
+      }
+      const parts = await mapWithConcurrency(chunks, VALUATION_RPC_CONCURRENCY, fetchValuationRows);
+      const rowsOf = <K extends keyof ValuationRowSet>(key: K) => parts.flatMap((part) => part[key]) as ValuationRowSet[K];
+      const purchaseSyncRows = rowsOf('purchase_sync');
+      const salesSyncRows = rowsOf('sales_sync');
+      const smallBuyMapRows = rowsOf('small_buy_map');
+      const smallSaleMapRows = rowsOf('small_sale_map');
+      // Batches and their ERP orders repeat across calls; the maps below keep one per id.
+      const smallBuySyncRows = rowsOf('small_buy_sync');
+      const smallSaleSyncRows = rowsOf('small_sale_sync');
+      const smallBuyOrderRows = rowsOf('small_buy_orders');
+      const smallSaleOrderRows = rowsOf('small_sale_orders');
 
       const map = new Map<string, EffectiveValuation>();
       const addValuation = (orderNumber: string, row: any) => {
@@ -1257,7 +1282,7 @@ export default function TerminalAnalytics() {
   }, [cachedOrders, effectiveValuations, inShiftWindow]);
 
 
-  const completed = useMemo(() => orders.filter((o) => o.orderStatus.includes('COMPLETED')), [orders]);
+  const completed = useMemo(() => orders.filter((o) => isCompletedStatus(o.orderStatus)), [orders]);
 
   const analytics = useMemo(() => {
     const buy = completed.filter((o) => o.tradeType === 'BUY');
@@ -1265,8 +1290,12 @@ export default function TerminalAnalytics() {
     const valuedCompleted = completed.filter((o) => o.hasEffectiveUsdtValuation);
     const valuedBuy = buy.filter((o) => o.hasEffectiveUsdtValuation);
     const valuedSell = sell.filter((o) => o.hasEffectiveUsdtValuation);
-    const cancelled = orders.filter((o) => o.orderStatus.includes('CANCELLED'));
-    const appeals = orders.filter((o) => o.orderStatus.includes('APPEAL') || o.orderStatus.includes('COMPLAINT'));
+    const cancelled = orders.filter((o) => isCancelledStatus(o.orderStatus));
+    const appeals = orders.filter((o) => isAppealStatus(o.orderStatus));
+    // Completion counts finished orders only: completed ÷ (completed + cancelled), as on the
+    // Dashboard and in Zones. Open orders and appeals count once they finish.
+    const finishedCount = completed.length + cancelled.length;
+    const openCount = orders.filter((o) => !isCompletedStatus(o.orderStatus) && !isCancelledStatus(o.orderStatus) && !isAppealStatus(o.orderStatus)).length;
     const buyVolume = buy.reduce((s, o) => s + o.totalPrice, 0);
     const sellVolume = sell.reduce((s, o) => s + o.totalPrice, 0);
     const totalVolume = buyVolume + sellVolume;
@@ -1345,7 +1374,9 @@ export default function TerminalAnalytics() {
       weightedSellRate,
       minRate: rates.length ? Math.min(...rates) : 0,
       maxRate: rates.length ? Math.max(...rates) : 0,
-      completionRate: orders.length ? completed.length / orders.length * 100 : 0,
+      completionRate: finishedCount ? completed.length / finishedCount * 100 : 0,
+      finishedCount,
+      openCount,
       orderTypes,
       orderTypeCoinBreakdown,
       adRows,
@@ -1367,8 +1398,8 @@ export default function TerminalAnalytics() {
     };
     for (const o of orders) {
       const b = buckets[keyFor(o.advNo)];
-      if (o.orderStatus.includes('CANCELLED')) b.cancelled += 1;
-      if (o.orderStatus.includes('APPEAL') || o.orderStatus.includes('COMPLAINT')) b.appeals += 1;
+      if (isCancelledStatus(o.orderStatus)) b.cancelled += 1;
+      if (isAppealStatus(o.orderStatus)) b.appeals += 1;
     }
     for (const o of completed) {
       const b = buckets[keyFor(o.advNo)];
@@ -1715,10 +1746,16 @@ export default function TerminalAnalytics() {
                   icon={Gauge}
                   tone={analytics.appeals.length ? 'warning' : 'muted'}
                   label="Completion"
-                  value={`${analytics.completionRate.toFixed(1)}%`}
+                  value={analytics.finishedCount ? `${analytics.completionRate.toFixed(1)}%` : '—'}
+                  valueTitle="Completed ÷ (completed + cancelled, including expired). Open orders and appeals count once they finish."
                   sub={
                     <>
                       <span className="t-mono tabular-nums text-foreground">{fmtCount(analytics.cancelled.length)}</span> cancelled ·{' '}
+                      {analytics.openCount > 0 && (
+                        <>
+                          <span className="t-mono tabular-nums text-foreground">{fmtCount(analytics.openCount)}</span> open ·{' '}
+                        </>
+                      )}
                       <span className={cn('t-mono tabular-nums', analytics.appeals.length ? 'font-semibold text-destructive' : 'text-foreground')}>{fmtCount(analytics.appeals.length)}</span> {analytics.appeals.length === 1 ? 'appeal' : 'appeals'}
                     </>
                   }
@@ -1908,7 +1945,7 @@ export default function TerminalAnalytics() {
                   <Panel icon={MapIcon} title="Market zones" subtitle="Zone as reported by Binance for each ad (never inferred)">
                     <ZonesTable rows={zoneRows} />
                     <div className="mt-3 space-y-1.5 text-[11px] text-muted-foreground">
-                      <div>Completion here is completed ÷ (completed + cancelled) in each zone; the Completion tile above counts every order in view.</div>
+                      <div>Completion is completed ÷ (completed + cancelled), the same rule as the Completion tile; open orders and appeals count once they finish.</div>
                       <div>Zone not returned by Binance: orders with no ad number, or on ads Binance has never reported a zone for (for example, closed before any state snapshot). Not assumed to be P2P.</div>
                       {zoneHistoryUnavailable && (
                         <div className="flex items-start gap-1.5 text-warning">

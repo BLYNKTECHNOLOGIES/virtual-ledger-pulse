@@ -21,7 +21,9 @@ function pow10(n: number): bigint { return 10n ** BigInt(n); }
 
 /** Decimal string/number → integer units at `dec` decimals, floored or ceiled. */
 export function toUnits(v: number | string, dec = SCALE, mode: "floor" | "ceil" = "floor"): bigint {
-  let s = typeof v === "number" ? (Number.isFinite(v) ? v.toFixed(20) : "0") : String(v ?? "0").trim();
+  // String() gives the shortest decimal that round-trips (0.3 → "0.3"); toFixed(20) exposed binary residue
+  // (0.29999999999999998890), which floored balances 1e-8 low and rejected the exact full balance on screen.
+  let s = typeof v === "number" ? (Number.isFinite(v) ? String(v) : "0") : String(v ?? "0").trim();
   if (!s || s === "-" || isNaN(Number(s))) return 0n;
   if (/e/i.test(s)) s = Number(s).toFixed(20);
   const neg = s.startsWith("-");

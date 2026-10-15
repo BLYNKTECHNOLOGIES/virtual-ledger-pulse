@@ -98,6 +98,7 @@ Deno.test("lenient read path keeps its old fallback", async () => {
 // ── 6. hand-change rows honoured only from people who can switch ads ────────
 const OP = "11111111-1111-1111-1111-111111111111";      // has Toggle
 const KYC = "22222222-2222-2222-2222-222222222222";     // no Toggle / Manage
+const BLYNK_ONLY = "33333333-3333-3333-3333-333333333333"; // has Toggle, Blynk only
 const rows = (uid: string | null, adv: string): HandChangeRow => ({ adv_no: adv, metadata: {}, action_type: "ad.status_changed", user_id: uid });
 Deno.test("hand-change row from a user without Toggle/Manage → ignored", () => {
   assertEquals([...handChangedFrom([rows(KYC, "A1")], ["A1"], new Set([OP]))], []);
@@ -112,4 +113,43 @@ Deno.test("bulk row metadata.advNos honoured only for an allowed author", () => 
 });
 Deno.test("server row (no user id) → honoured", () => {
   assertEquals([...handChangedFrom([rows(null, "A1")], ["A1"], new Set())], ["A1"]);
+});
+
+// ── 5c-2. rights lookup failure → honour every row (fallback) ───────────────
+Deno.test("allowedUserIds=null (lookup failed) → every row honoured", () => {
+  const r = [rows(KYC, "A1"), rows(OP, "A2")];
+  assertEquals([...handChangedFrom(r, ["A1", "A2"], null)].sort(), ["A1", "A2"]);
+});
+
+// ── 5c-3. account scoping: a Blynk-only author can't park an ASEC ad ────────
+const ACC_BLYNK = "acc-blynk";
+const ACC_ASEC  = "acc-asec";
+const adAccount = new Map<string, string | null>([["A1", ACC_ASEC], ["A2", ACC_BLYNK]]);
+const byUser = new Map<string, Set<string>>([
+  [OP, new Set([ACC_BLYNK, ACC_ASEC])],
+  [BLYNK_ONLY, new Set([ACC_BLYNK])],
+]);
+Deno.test("Blynk-only author on an ASEC ad → ignored", () => {
+  assertEquals(
+    [...handChangedFrom([rows(BLYNK_ONLY, "A1")], ["A1"], new Set([OP, BLYNK_ONLY]), adAccount, byUser)],
+    [],
+  );
+});
+Deno.test("Blynk-only author on a Blynk ad → honoured", () => {
+  assertEquals(
+    [...handChangedFrom([rows(BLYNK_ONLY, "A2")], ["A2"], new Set([OP, BLYNK_ONLY]), adAccount, byUser)],
+    ["A2"],
+  );
+});
+Deno.test("account lookup failed (byUser=null) → account check skipped", () => {
+  assertEquals(
+    [...handChangedFrom([rows(BLYNK_ONLY, "A1")], ["A1"], new Set([OP, BLYNK_ONLY]), adAccount, null)],
+    ["A1"],
+  );
+});
+Deno.test("server row (no user id) is never account-filtered", () => {
+  assertEquals(
+    [...handChangedFrom([rows(null, "A1")], ["A1"], new Set([OP]), adAccount, byUser)],
+    ["A1"],
+  );
 });

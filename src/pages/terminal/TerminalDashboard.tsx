@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, RefreshCw, CloudDownload, AlertTriangle } from 'lucide-react';
 import { MetricCards } from '@/components/terminal/dashboard/MetricCards';
@@ -9,18 +9,19 @@ import { OrderStatusBreakdown } from '@/components/terminal/dashboard/OrderStatu
 import {
   TimePeriodFilter,
   TimeFilter,
-  getTimestampsForFilter,
-  makeShiftPredicate,
-
   getFilterLabel,
   serializeTimeFilter,
   deserializeTimeFilter,
 } from '@/components/terminal/dashboard/TimePeriodFilter';
 import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
-import { useOrderSummary, useOrderWindowPlan } from '@/hooks/useOrderSummary';
+import { useOrderSummary } from '@/hooks/useOrderSummary';
+import { planDashboardPeriod, makePlanPredicate, sealedCutoffAt } from '@/components/terminal/dashboard/periodPlan';
+import { useDashboardClock, useDashboardOrders, useDashboardSyncMetadata, useUserChangePending } from '@/components/terminal/dashboard/dashPeriodHooks';
+import { toDashboardOrders } from '@/components/terminal/dashboard/dashboardOrders';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { mergeStatsWithSummary } from '@/lib/orderSummary';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
-import { useCachedOrderHistory, useAutoSyncOrders, useSyncOrderHistory, useSyncMetadata } from '@/hooks/useBinanceOrderSync';
+import { useAutoSyncOrders, useSyncOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 // Small Buys/Sales sync intentionally NOT imported here — use dedicated buttons only.
@@ -43,7 +44,8 @@ const SYNC_STALE_MS = 15 * 60 * 1000;
 export default function TerminalDashboard() {
   const { isSyncing, metadata } = useAutoSyncOrders();
   const syncMutation = useSyncOrderHistory();
-  const { data: syncMeta, isLoading: syncMetaLoading, isError: syncMetaError } = useSyncMetadata();
+  // The pill reads the sync status on the dashboard's schedule; useAutoSyncOrders keeps its own copy (TD-FIX-B F5).
+  const { data: syncMeta, isLoading: syncMetaLoading, isError: syncMetaError } = useDashboardSyncMetadata();
   const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
   const canExport = hasPermission('terminal_dashboard_export') || isTerminalAdmin;
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'dashboard', { filter: '' as string });
@@ -55,20 +57,34 @@ export default function TerminalDashboard() {
     [setPref]
   );
 
-  // Scope the DB read to the selected window so we only load the rows we
-  // actually display, instead of fetching a full year of orders on every visit.
-  const filterBounds = useMemo(() => getTimestampsForFilter(filter), [filter]);
-  // Orders older than 45 days can no longer change, so their totals come from
-  // shared pre-computed buckets; only the recent tail is downloaded row by row.
-  const windowPlan = useOrderWindowPlan(filter, filterBounds);
+  // TD-FIX-B F5: one page clock drives every period calculation.
+  const [now, bumpClock] = useDashboardClock();
+  const { accountsToQuery } = useExchangeAccount();
+  const userKey = `${prefs.filter || ''}|${accountsToQuery.join(',')}`;
+  // The 45-day split is held from the moment the period (or account) is chosen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const heldSplit = useMemo(() => sealedCutoffAt(now), [userKey]);
+  const windowPlan = useMemo(() => planDashboardPeriod(filter, now, heldSplit), [filter, now, heldSplit]);
+  const summaryArgs = useMemo(() => ({
+    usesSummary: windowPlan.usesSummary,
+    startTimestamp: windowPlan.summary.startTimestamp,
+    sealedCutoff: windowPlan.sealedCutoff,
+    windows: windowPlan.summary.windows,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [windowPlan.usesSummary, windowPlan.summary.startTimestamp, windowPlan.sealedCutoff, JSON.stringify(windowPlan.summary.windows)]);
   const {
     aggregate: sealedSummary, isLoading: summaryLoading, isError: summaryError, isFetching: summaryFetching,
-    isPlaceholderData: summaryPlaceholder, dataUpdatedAt: summaryUpdatedAt, refetch: refetchSummary,
-  } = useOrderSummary(windowPlan);
+    isPlaceholderData: summaryPlaceholderRaw, dataUpdatedAt: summaryUpdatedAt, refetch: refetchSummary,
+  } = useOrderSummary(summaryArgs);
   const {
-    data: cachedOrders = [], isLoading: rawLoading, isError: rawError, isFetching: rawFetching,
-    isPlaceholderData: rawPlaceholder, dataUpdatedAt: rawUpdatedAt, refetch: refetchDb,
-  } = useCachedOrderHistory(windowPlan.rawRange);
+    data: cachedOrders, isLoading: rawLoading, isError: rawError, isFetching: rawFetching,
+    isPlaceholderData: rawPlaceholderRaw, dataUpdatedAt: rawUpdatedAt, lastReadAt, refetch: refetchDb,
+  } = useDashboardOrders(windowPlan);
+  // Each order-history read that lands advances the clock too.
+  useEffect(() => { if (lastReadAt) bumpClock(); }, [lastReadAt, bumpClock]);
+  // Time-driven key changes keep the previous rows (trimmed) silently; only a user change shows "Updating…".
+  const rawPlaceholder = useUserChangePending(userKey, rawPlaceholderRaw);
+  const summaryPlaceholder = useUserChangePending(userKey, summaryPlaceholderRaw);
   const dbLoading = rawLoading || (windowPlan.usesSummary && summaryLoading);
 
 
@@ -128,28 +144,11 @@ export default function TerminalDashboard() {
   const isAnySyncing = isSyncing || syncMutation.isPending || universalSyncing;
 
   // Map DB data to C2COrderHistoryItem shape
-  const allOrders: C2COrderHistoryItem[] = useMemo(() => {
-    if (!Array.isArray(cachedOrders)) return [];
-    return cachedOrders.map((o: any) => ({
-      orderNumber: o.orderNumber || '',
-      advNo: o.advNo || '',
-      tradeType: o.tradeType || '',
-      asset: o.asset || 'USDT',
-      fiatUnit: o.fiatUnit || 'INR',
-      orderStatus: String(o.orderStatus || ''),
-      amount: String(o.amount || '0'),
-      totalPrice: String(o.totalPrice || '0'),
-      unitPrice: String(o.unitPrice || '0'),
-      commission: String(o.commission || '0'),
-      counterPartNickName: o.counterPartNickName || '',
-      createTime: o.createTime || 0,
-      payMethodName: o.payMethodName,
-    }));
-  }, [cachedOrders]);
+  const allOrders: C2COrderHistoryItem[] = useMemo(() => toDashboardOrders(cachedOrders), [cachedOrders]);
 
-  // Re-filter client-side: with a shift selected, each day in the window keeps
-  // only that shift's slice, so the plain outer bounds are not enough.
-  const inShiftWindow = useMemo(() => makeShiftPredicate(filter), [filter]);
+  // Trim in the browser with the page clock's windows (natural ends), and strictly
+  // after the held split when the pre-computed history covers the rest.
+  const inShiftWindow = useMemo(() => makePlanPredicate(windowPlan), [windowPlan]);
   const orders = useMemo(
     () => allOrders.filter(o => inShiftWindow(o.createTime)),
     [allOrders, inShiftWindow]
@@ -157,7 +156,7 @@ export default function TerminalDashboard() {
 
   const stats = useMemo(
     () => {
-      const tail = computeOrderStats(orders, windowPlan.rawRange, inShiftWindow);
+      const tail = computeOrderStats(orders, undefined, inShiftWindow);
       return windowPlan.usesSummary ? mergeStatsWithSummary(tail, sealedSummary) : tail;
     },
     [orders, windowPlan, inShiftWindow, sealedSummary]
@@ -193,7 +192,7 @@ export default function TerminalDashboard() {
   const awaitingRelease = liveStats?.awaitingRelease ?? stats.awaitingRelease;
   const appeals = liveStats?.appeals ?? stats.appeals;
 
-  const periodLabel = getFilterLabel(filter);
+  const periodLabel = getFilterLabel(filter, now);
 
   const lastSyncAt = syncMeta?.last_sync_at ? new Date(syncMeta.last_sync_at).getTime() : null;
   const syncOld = useOlderThan(lastSyncAt, SYNC_STALE_MS);
@@ -212,13 +211,6 @@ export default function TerminalDashboard() {
 
   // One selected day (or a one-day range): the volume chart plots by hour.
   const isSingleDay = filter.mode === '1d' || (filter.mode === 'range' && filter.from.toDateString() === filter.to.toDateString());
-  // A rolling window ends at the moment it was chosen and stays there until the period
-  // changes. Natural window ends (midnight, shift edges) fall on a half hour; a shift that
-  // has not started yet has no window at all.
-  const periodEndsAt =
-    filterBounds.endTimestamp > filterBounds.startTimestamp && filterBounds.endTimestamp % 1800000 !== 0
-      ? filterBounds.endTimestamp
-      : null;
   // A failing live query re-enters "loading" on every retry; once it has failed, keep saying so.
   const liveSource = liveStats ? 'live' : liveLoading && liveErrors === 0 ? 'loading' : 'history';
 
@@ -346,7 +338,6 @@ export default function TerminalDashboard() {
         liveUpdatedAt={liveUpdatedAt}
         liveUnavailable={rawMissing}
         periodUnavailable={periodUnavailable}
-        periodEndsAt={periodEndsAt}
         periodUpdating={periodUpdating}
       />
 
@@ -360,9 +351,7 @@ export default function TerminalDashboard() {
               orders={orders}
               isLoading={periodLoading}
               period={filter.mode === '1d' || filter.mode === 'range' ? '1d' : filter.mode}
-              hourWindow={isSingleDay ? filterBounds : undefined}
-              bounds={filterBounds}
-              endsLabel={periodEndsAt && !rawMissing ? formatIstWhen(periodEndsAt) : null}
+              hourWindow={isSingleDay ? windowPlan.chartWindow : undefined}
               unavailable={periodUnavailable}
             />
           </div>

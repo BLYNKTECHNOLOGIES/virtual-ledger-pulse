@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TRADING_PAIRS, useBinanceBalances, useBinanceTickerPrices, useExecuteTrade, COIN_COLORS } from "@/hooks/useBinanceAssets";
-import { Loader2, ArrowDownUp, AlertTriangle } from "lucide-react";
+import { TRADING_PAIRS, useBinanceBalances, useBinanceTickerPrices, useExecuteTrade } from "@/hooks/useBinanceAssets";
+import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
+import { Loader2, ArrowDownUp, AlertTriangle, Layers } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -16,6 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { CoinAvatar } from "./assetUi";
+import { fmt2, fmtPrice, fmtQty } from "./assetFormat";
 
 export function SpotTradingPanel() {
   const [selectedPair, setSelectedPair] = useState(TRADING_PAIRS[0].symbol);
@@ -27,6 +29,9 @@ export function SpotTradingPanel() {
   const { data: balances } = useBinanceBalances();
   const { data: prices } = useBinanceTickerPrices();
   const executeTrade = useExecuteTrade();
+  const { activeAccount, isAllAccounts, accounts } = useExchangeAccount();
+  // Orders without an explicit account run on the default account (combined "All accounts" view).
+  const tradeAccount = activeAccount ?? accounts.find((a) => a.is_default) ?? null;
 
   const priceList = Array.isArray(prices) ? prices : [];
   const balanceList = Array.isArray(balances) ? balances : [];
@@ -81,88 +86,105 @@ export function SpotTradingPanel() {
     }
   };
 
+  const isBuy = side === "BUY";
+  const receiveAsset = isBuy ? pair.base : pair.quote;
+  const sideBtn = (s: "BUY" | "SELL") =>
+    `h-8 rounded-md text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      side === s
+        ? s === "BUY"
+          ? "bg-trade-buy text-primary-foreground shadow-sm"
+          : "bg-trade-sell text-primary-foreground shadow-sm"
+        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+    }`;
+  const quick = [{ base: "USDT" }, ...TRADING_PAIRS.map((p) => ({ base: p.base }))];
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Trading Panel */}
-      <Card className="lg:col-span-2 bg-card border-border">
-        <CardHeader className="py-3 px-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">Spot Market Order</CardTitle>
-            <div className="flex items-center gap-2">
-              <Select value={selectedPair} onValueChange={setSelectedPair}>
-                <SelectTrigger className="h-8 w-40 text-xs bg-background border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRADING_PAIRS.map((p) => (
-                    <SelectItem key={p.symbol} value={p.symbol} className="text-xs">
-                      {p.base}/{p.quote}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <section className="t-panel overflow-hidden lg:col-span-2" aria-label="Spot market order">
+        <div className="flex min-h-[2.75rem] flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1.5">
+          <p role="heading" aria-level={2} className="text-sm font-medium text-foreground">Spot Market Order</p>
+          {tradeAccount && (
+            <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+              on <span className="text-foreground">{tradeAccount.account_name}</span>
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Select value={selectedPair} onValueChange={setSelectedPair}>
+              <SelectTrigger className="h-8 w-40 text-xs bg-background border-border" aria-label="Trading pair">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TRADING_PAIRS.map((p) => (
+                  <SelectItem key={p.symbol} value={p.symbol} className="text-xs">
+                    {p.base}/{p.quote}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardHeader>
-        <CardContent className="p-4 space-y-4">
+        </div>
+
+        <div className="space-y-4 p-4">
           {/* Buy/Sell Toggle */}
-          <div className="grid grid-cols-2 gap-1 bg-background rounded-lg p-1">
-            <button
-              className={`py-2 text-xs font-semibold rounded-md transition-colors ${
-                side === "BUY"
-                  ? "bg-trade-buy text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setSide("BUY")}
-            >
+          <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-secondary/30 p-1" role="group" aria-label="Order side">
+            <button type="button" className={sideBtn("BUY")} aria-pressed={isBuy} onClick={() => setSide("BUY")}>
               Buy
             </button>
-            <button
-              className={`py-2 text-xs font-semibold rounded-md transition-colors ${
-                side === "SELL"
-                  ? "bg-trade-sell text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setSide("SELL")}
-            >
+            <button type="button" className={sideBtn("SELL")} aria-pressed={!isBuy} onClick={() => setSide("SELL")}>
               Sell
             </button>
           </div>
 
           {/* Market Price */}
-          <div className="bg-background rounded-lg p-3">
-            <p className="text-[10px] text-muted-foreground mb-1">Market Price</p>
-            <p className="text-lg font-bold text-foreground t-mono">
-              {priceValue > 0
-                ? priceValue.toLocaleString("en-US", { maximumFractionDigits: 8 })
-                : "Loading..."}
-            </p>
+          <div className="flex items-end justify-between gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2.5">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Market Price</p>
+              <p className="t-mono text-lg font-semibold tabular-nums text-foreground">
+                {priceValue > 0
+                  ? priceValue.toLocaleString("en-US", { maximumFractionDigits: 8 })
+                  : "Loading..."}
+              </p>
+            </div>
+            <span className="pb-1 text-xs text-muted-foreground">
+              {pair.base}/{pair.quote}
+            </span>
           </div>
 
           {/* Amount Input */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-muted-foreground">
-                {side === "BUY" ? `Amount (${pair.quote})` : `Amount (${pair.base})`}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <label htmlFor="spot-order-amount" className="text-xs font-medium text-foreground">
+                {isBuy ? `Amount to spend (${pair.quote})` : `Amount to sell (${pair.base})`}
               </label>
-              <span className="text-[10px] text-muted-foreground">
-                Avbl: {availableBalance.toFixed(side === "BUY" ? 4 : 8)} {relevantAsset}
+              <span className="text-[11px] text-muted-foreground">
+                Available{" "}
+                <span className="t-mono tabular-nums text-foreground">
+                  {availableBalance.toLocaleString("en-US", { maximumFractionDigits: isBuy ? 4 : 8 })}
+                </span>{" "}
+                {relevantAsset}
               </span>
             </div>
             <div className="relative">
               <Input
+                id="spot-order-amount"
                 type="number"
+                inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="h-10 text-sm bg-background border-border pr-16 t-mono"
+                className="h-10 text-sm bg-background border-border pr-28 t-mono tabular-nums"
               />
-              <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-primary hover:text-primary/80"
-                onClick={() => handlePercentage(100)}
-              >
-                Max
-              </button>
+              <div className="absolute inset-y-0 right-2 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground" aria-hidden="true">{relevantAsset}</span>
+                <button
+                  type="button"
+                  className="rounded px-1.5 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => handlePercentage(100)}
+                >
+                  Max
+                </button>
+              </div>
             </div>
 
             {/* Percentage buttons */}
@@ -170,7 +192,8 @@ export function SpotTradingPanel() {
               {[25, 50, 75, 100].map((pct) => (
                 <button
                   key={pct}
-                  className="h-7 text-[10px] text-muted-foreground bg-background hover:bg-accent/10 border border-border rounded transition-colors"
+                  type="button"
+                  className="h-7 rounded-md border border-border bg-transparent text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => handlePercentage(pct)}
                 >
                   {pct}%
@@ -181,28 +204,36 @@ export function SpotTradingPanel() {
 
           {/* Estimated */}
           {parseFloat(amount) > 0 && priceValue > 0 && (
-            <div className="bg-background rounded-lg p-3 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                Est. {side === "BUY" ? pair.base : pair.quote}
-              </span>
-              <span className="text-sm font-medium text-foreground t-mono">
-                ≈ {estimatedResult.toFixed(side === "BUY" ? 8 : 2)} {side === "BUY" ? pair.base : pair.quote}
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2.5">
+              <span className="text-xs text-muted-foreground">You receive (est.)</span>
+              <span className="t-mono text-sm font-medium tabular-nums text-foreground">
+                ≈ {isBuy ? fmtQty(estimatedResult, 8) : fmt2(estimatedResult)} {receiveAsset}
               </span>
             </div>
           )}
 
           {/* Funding auto-transfer note */}
-          <div className="bg-accent/5 border border-border rounded-lg p-2.5">
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-              <ArrowDownUp className="h-3 w-3 text-primary" />
-              Funds in Funding wallet will be auto-transferred to Spot before execution
+          <div className="flex items-start gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-2">
+            <ArrowDownUp className="mt-px h-3.5 w-3.5 shrink-0 text-primary" />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Before the order runs, all free {relevantAsset} in the Funding wallet is moved to Spot.
             </p>
           </div>
+
+          {isAllAccounts && (
+            <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
+              <Layers className="mt-px h-3.5 w-3.5 shrink-0 text-warning" />
+              <p className="text-[11px] leading-relaxed text-warning">
+                All accounts view: the available amount is combined across accounts, but the order is placed on{" "}
+                {tradeAccount ? tradeAccount.account_name : "the default account"} only.
+              </p>
+            </div>
+          )}
 
           {/* Execute Button */}
           <Button
             className={`w-full h-11 font-semibold text-sm ${
-              side === "BUY"
+              isBuy
                 ? "bg-trade-buy hover:bg-trade-buy/90 text-primary-foreground"
                 : "bg-trade-sell hover:bg-trade-sell/90 text-primary-foreground"
             }`}
@@ -229,27 +260,37 @@ export function SpotTradingPanel() {
                   <AlertTriangle className="h-5 w-5 text-warning" />
                   Confirm Buy Order
                 </AlertDialogTitle>
-                <AlertDialogDescription className="text-muted-foreground space-y-2">
-                  <p>You are about to execute a <strong className="text-trade-buy">BUY</strong> market order:</p>
-                  <div className="bg-background rounded-lg p-3 space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span>Pair</span>
-                      <span className="font-medium text-foreground">{pair.base}/{pair.quote}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Spend</span>
-                      <span className="font-medium text-foreground">{parseFloat(amount || "0").toLocaleString()} {pair.quote}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Est. Receive</span>
-                      <span className="font-medium text-foreground">≈ {estimatedResult.toFixed(8)} {pair.base}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Price</span>
-                      <span className="font-medium text-foreground">{priceValue.toLocaleString("en-US", { maximumFractionDigits: 8 })}</span>
-                    </div>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      You are about to place a <strong className="text-trade-buy">BUY</strong> market order:
+                    </p>
+                    <dl className="space-y-1.5 rounded-lg border border-border bg-secondary/20 p-3 text-xs">
+                      <div className="flex justify-between gap-3">
+                        <dt>Pair</dt>
+                        <dd className="font-medium text-foreground">{pair.base}/{pair.quote}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Spend</dt>
+                        <dd className="t-mono font-medium tabular-nums text-foreground">{fmtQty(amount || "0", 8)} {pair.quote}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Est. Receive</dt>
+                        <dd className="t-mono font-medium tabular-nums text-foreground">≈ {fmtQty(estimatedResult, 8)} {pair.base}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Price</dt>
+                        <dd className="t-mono font-medium tabular-nums text-foreground">{fmtPrice(priceValue)}</dd>
+                      </div>
+                      {tradeAccount && (
+                        <div className="flex justify-between gap-3">
+                          <dt>Account</dt>
+                          <dd className="font-medium text-foreground">{tradeAccount.account_name}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    <p className="text-[11px]">Are you sure you want to proceed?</p>
                   </div>
-                  <p className="text-[11px]">Are you sure you want to proceed?</p>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -266,51 +307,34 @@ export function SpotTradingPanel() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Right sidebar - Quick Balances */}
-      <Card className="bg-card border-border">
-        <CardHeader className="py-3 px-4 border-b border-border">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quick Balances</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            {TRADING_PAIRS.map((p) => {
-              const bal = balanceList.find((b) => b.asset === p.base);
-              const color = COIN_COLORS[p.base] || "hsl(var(--muted-foreground))";
-              return (
-                <div key={p.base} className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-primary-foreground"
-                      style={{ backgroundColor: color }}
-                    >
-                      {p.base.slice(0, 2)}
-                    </div>
-                    <span className="text-xs text-foreground">{p.base}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground t-mono">
-                    {bal ? bal.total_free.toFixed(4) : "0.0000"}
-                  </span>
-                </div>
-              );
-            })}
-            {/* USDT balance */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-accent/5">
-              <div className="flex items-center gap-2">
-                <div className="h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-bold text-primary-foreground bg-success">
-                  US
-                </div>
-                <span className="text-xs text-foreground font-medium">USDT</span>
-              </div>
-              <span className="text-xs text-foreground font-medium t-mono">
-                {balanceList.find((b) => b.asset === "USDT")?.total_free.toFixed(4) || "0.0000"}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <section className="t-panel overflow-hidden self-start" aria-label="Quick balances">
+        <div className="t-panel-head">
+          <span className="t-panel-head-title">Quick Balances</span>
+          <span className="ml-auto text-[10px] text-muted-foreground">available</span>
+        </div>
+        <ul className="divide-y divide-border">
+          {quick.map(({ base }) => {
+            const bal = balanceList.find((b) => b.asset === base);
+            const free = bal ? bal.total_free : 0;
+            const inPair = base === pair.base || base === pair.quote;
+            return (
+              <li key={base} className={`flex items-center justify-between gap-3 px-4 py-2 ${inPair ? "bg-primary/5" : ""}`}>
+                <span className="flex items-center gap-2">
+                  <CoinAvatar asset={base} size="xs" />
+                  <span className={`text-xs ${inPair ? "font-medium text-foreground" : "text-foreground"}`}>{base}</span>
+                </span>
+                <span className={`t-mono text-xs tabular-nums ${free > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                  {fmtQty(free, 8)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
     </div>
   );
 }

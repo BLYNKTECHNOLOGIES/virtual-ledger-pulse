@@ -1,12 +1,22 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useSpotTradeHistory } from "@/hooks/useBinanceAssets";
 import { useSpotTradeSync } from "@/hooks/useSpotTradeSync";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, Monitor, Smartphone, LayoutList, RefreshCw } from "lucide-react";
+import { Monitor, Smartphone, LayoutList, RefreshCw, History } from "lucide-react";
 import { format } from "date-fns";
+import { PanelState, FILTER_COUNT, SEG_WRAP, ShimmerRows, SideChip, StatusChip, TH, segBtn } from "./assetUi";
+import { fmt2, fmtPrice, fmtQty, humanStatus, splitPair } from "./assetFormat";
 
 type SourceFilter = "all" | "terminal" | "binance_app";
+
+function SourceChip({ source }: { source: string }) {
+  const terminal = source === "terminal";
+  return (
+    <span className={`inline-flex h-5 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10px] font-medium ${terminal ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>
+      {terminal ? <Monitor className="h-3 w-3" /> : <Smartphone className="h-3 w-3" />}
+      {terminal ? "Terminal" : "Binance"}
+    </span>
+  );
+}
 
 export function TradeHistory() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -53,171 +63,159 @@ export function TradeHistory() {
     return trade.source === sourceFilter;
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const counts = {
+    all: deduplicatedTrades.length,
+    terminal: deduplicatedTrades.filter((t: any) => t.source === "terminal").length,
+    binance_app: deduplicatedTrades.filter((t: any) => t.source === "binance_app").length,
+  };
+  const filters: { key: SourceFilter; label: string; icon: ReactNode }[] = [
+    { key: "all", label: "All", icon: <LayoutList className="h-3 w-3" /> },
+    { key: "terminal", label: "Terminal", icon: <Monitor className="h-3 w-3" /> },
+    { key: "binance_app", label: "Binance App", icon: <Smartphone className="h-3 w-3" /> },
+  ];
+
+  const view = (trade: any) => {
+    const tradeDate = trade.trade_time ? new Date(Number(trade.trade_time)) : new Date(trade.created_at);
+    const split = splitPair(trade.symbol);
+    const base = trade.base_asset || split.base;
+    const quote = trade.quote_asset || split.quote;
+    // A Terminal BUY that never filled still holds the amount it tried to spend (quote coin), not a coin quantity.
+    const unfilledBuy = trade.source === "terminal" && trade.side === "BUY" && (trade.status === "FAILED" || trade.status === "PENDING");
+    return {
+      time: format(tradeDate, "dd MMM HH:mm"),
+      pair: quote ? `${base}/${quote}` : String(trade.symbol || ""),
+      base,
+      quote,
+      qtyUnit: unfilledBuy ? quote : base,
+      qty: fmtQty(trade.quantity || 0, 8),
+      price: trade.executed_price ? fmtPrice(trade.executed_price) : "—",
+      total: trade.quote_quantity ? fmt2(trade.quote_quantity) : "—",
+      fee: trade.commission ? `${fmtQty(trade.commission, 8)} ${trade.commission_asset || ""}`.trim() : "—",
+      status: humanStatus(trade.status),
+      error: trade.status === "FAILED" ? trade.error_message || null : null,
+    };
+  };
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="py-3 px-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Spot Trade Log
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-muted/50 rounded-md p-0.5">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-6 px-2 text-[10px] rounded-sm ${
-                  sourceFilter === "all" 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setSourceFilter("all")}
+    <section className="t-panel overflow-hidden @container" aria-label="Spot trade log">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+        <span className="t-panel-head-title">Spot Trade Log</span>
+        {!isLoading && (
+        <>
+        <span className="t-mono text-[10px] text-muted-foreground">{filteredTrades?.length || 0} records</span>
+        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
+          <div className={`${SEG_WRAP} max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`} role="group" aria-label="Source">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                className={segBtn(sourceFilter === f.key)}
+                aria-pressed={sourceFilter === f.key}
+                onClick={() => setSourceFilter(f.key)}
               >
-                <LayoutList className="h-3 w-3 mr-1" />
-                All
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-6 px-2 text-[10px] rounded-sm ${
-                  sourceFilter === "terminal" 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setSourceFilter("terminal")}
-              >
-                <Monitor className="h-3 w-3 mr-1" />
-                Terminal
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-6 px-2 text-[10px] rounded-sm ${
-                  sourceFilter === "binance_app" 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setSourceFilter("binance_app")}
-              >
-                <Smartphone className="h-3 w-3 mr-1" />
-                Binance App
-              </Button>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-              onClick={manualSync}
-              disabled={isManuallySyncing}
-            >
-              <RefreshCw className={`h-3 w-3 mr-1 ${isManuallySyncing ? "animate-spin" : ""}`} />
-              {isManuallySyncing ? "Syncing..." : "Sync"}
-            </Button>
-            <span className="text-[10px] text-muted-foreground">{filteredTrades?.length || 0} records</span>
+                {f.icon}
+                {f.label}
+                <span className={FILTER_COUNT}>{counts[f.key]}</span>
+              </button>
+            ))}
           </div>
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={manualSync}
+            disabled={isManuallySyncing}
+            title="Fetch new spot trades from Binance"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isManuallySyncing ? "animate-spin" : ""}`} />
+            {isManuallySyncing ? "Syncing..." : "Sync"}
+          </button>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border bg-accent/5">
-                <th className="text-left py-2.5 px-3 text-muted-foreground font-medium">Time</th>
-                <th className="text-left py-2.5 px-3 text-muted-foreground font-medium">Pair</th>
-                <th className="text-left py-2.5 px-3 text-muted-foreground font-medium">Side</th>
-                <th className="text-right py-2.5 px-3 text-muted-foreground font-medium">Qty</th>
-                <th className="text-right py-2.5 px-3 text-muted-foreground font-medium">Price</th>
-                <th className="text-right py-2.5 px-3 text-muted-foreground font-medium">Total</th>
-                <th className="text-right py-2.5 px-3 text-muted-foreground font-medium">Fee</th>
-                <th className="text-center py-2.5 px-3 text-muted-foreground font-medium">Source</th>
-                <th className="text-center py-2.5 px-3 text-muted-foreground font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTrades?.map((trade: any) => {
-                const tradeDate = trade.trade_time 
-                  ? new Date(Number(trade.trade_time))
-                  : new Date(trade.created_at);
-                return (
-                  <tr key={trade.id} className="border-b border-border/50 hover:bg-accent/5">
-                    <td className="py-2 px-3 text-muted-foreground t-mono">
-                      {format(tradeDate, "dd MMM HH:mm")}
-                    </td>
-                    <td className="py-2 px-3 font-medium text-foreground">{trade.symbol}</td>
-                    <td className="py-2 px-3">
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          trade.side === "BUY"
-                            ? "bg-trade-buy/10 text-trade-buy"
-                            : "bg-trade-sell/10 text-trade-sell"
-                        }`}
-                      >
-                        {trade.side}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-right text-foreground t-mono">
-                      {parseFloat(trade.quantity || 0).toFixed(8)}
-                    </td>
-                    <td className="py-2 px-3 text-right text-foreground t-mono">
-                      {trade.executed_price
-                        ? parseFloat(trade.executed_price).toLocaleString("en-US", { maximumFractionDigits: 4 })
-                        : "—"}
-                    </td>
-                    <td className="py-2 px-3 text-right text-foreground t-mono">
-                      {trade.quote_quantity
-                        ? parseFloat(trade.quote_quantity).toFixed(2)
-                        : "—"}
-                    </td>
-                    <td className="py-2 px-3 text-right text-muted-foreground t-mono">
-                      {trade.commission
-                        ? `${parseFloat(trade.commission).toFixed(8)} ${trade.commission_asset || ""}`
-                        : "—"}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <span
-                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          trade.source === "terminal"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-warning/10 text-warning"
-                        }`}
-                      >
-                        {trade.source === "terminal" ? "Terminal" : "Binance"}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <span
-                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          trade.status === "FILLED"
-                            ? "bg-trade-buy/10 text-trade-buy"
-                            : trade.status === "FAILED"
-                            ? "bg-trade-sell/10 text-trade-sell"
-                            : "bg-warning/10 text-warning"
-                        }`}
-                      >
-                        {trade.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-              {(!filteredTrades || filteredTrades.length === 0) && (
-                <tr>
-                  <td colSpan={9} className="py-10 text-center text-muted-foreground">
-                    No trades found
-                  </td>
+        </>
+        )}
+      </div>
+
+      {isLoading ? (
+        <ShimmerRows label="Loading spot trades…" />
+      ) : filteredTrades.length === 0 ? (
+        <PanelState icon={<History className="h-5 w-5" />} title="No trades found" hint={sourceFilter === "all" ? "Spot trades appear here after the next sync." : "No trades from this source in the loaded history."} />
+      ) : (
+        <>
+          {/* Cards — narrow work areas */}
+          <ul className="divide-y divide-border @[44rem]:hidden">
+            {filteredTrades.map((trade: any) => {
+              const v = view(trade);
+              return (
+                <li key={trade.id} className="space-y-1.5 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">{v.pair}</span>
+                    <SideChip side={trade.side} />
+                    <span className="ml-auto"><StatusChip label={v.status} title={v.error ?? undefined} /></span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 text-xs">
+                    <span className="t-mono tabular-nums text-foreground">{v.qty} <span className="text-muted-foreground">{v.qtyUnit}</span></span>
+                    <span className="t-mono tabular-nums text-foreground">{v.total}{v.total !== "—" && v.quote ? <span className="text-muted-foreground"> {v.quote}</span> : null}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                    <span className="t-mono tabular-nums">{v.time}</span>
+                    {v.price !== "—" ? <span className="t-mono tabular-nums">@ {v.price}</span> : <span />}
+                    <SourceChip source={trade.source} />
+                  </div>
+                  {v.fee !== "—" && <p className="t-mono text-[11px] tabular-nums text-muted-foreground">Fee {v.fee}</p>}
+                  {v.error && <p className="break-words text-[11px] text-trade-sell">{v.error}</p>}
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Table — wider work areas */}
+          <div className="hidden overflow-x-auto @[44rem]:block">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className={`${TH} pl-4`}>Time</th>
+                  <th className={TH}>Pair</th>
+                  <th className={TH}>Side</th>
+                  <th className={`${TH} text-right`}>Qty</th>
+                  <th className={`${TH} text-right`}>Avg price</th>
+                  <th className={`${TH} text-right`}>Total</th>
+                  <th className={`${TH} hidden text-right @[60rem]:table-cell`}>Fee</th>
+                  <th className={`${TH} hidden text-center @[52rem]:table-cell`}>Source</th>
+                  <th className={`${TH} pr-4 text-center`}>Status</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+              </thead>
+              <tbody>
+                {filteredTrades.map((trade: any) => {
+                  const v = view(trade);
+                  return (
+                    <tr key={trade.id} className="border-b border-border/50 transition-colors last:border-0 hover:bg-accent/5">
+                      <td className="whitespace-nowrap py-2 pl-4 pr-3 t-mono tabular-nums text-muted-foreground">{v.time}</td>
+                      <td className="px-3 py-2">
+                        <span className="font-medium text-foreground">{v.pair}</span>
+                        {v.error && <p className="line-clamp-2 max-w-[16rem] break-words text-[10px] text-trade-sell" title={v.error}>{v.error}</p>}
+                      </td>
+                      <td className="px-3 py-2"><SideChip side={trade.side} /></td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right t-mono tabular-nums text-foreground">
+                        {v.qty} <span className="text-muted-foreground">{v.qtyUnit}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right t-mono tabular-nums text-foreground">{v.price}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right t-mono tabular-nums text-foreground">
+                        {v.total}{v.total !== "—" && v.quote ? <span className="text-muted-foreground"> {v.quote}</span> : null}
+                        {v.fee !== "—" && <div className="text-[10px] text-muted-foreground @[60rem]:hidden">Fee {v.fee}</div>}
+                      </td>
+                      <td className="hidden whitespace-nowrap px-3 py-2 text-right t-mono tabular-nums text-muted-foreground @[60rem]:table-cell">{v.fee}</td>
+                      <td className="hidden px-3 py-2 text-center @[52rem]:table-cell"><SourceChip source={trade.source} /></td>
+                      <td className="py-2 pl-3 pr-4 text-center">
+                        <StatusChip label={v.status} title={v.error ?? undefined} />
+                        <div className="mt-1 @[52rem]:hidden"><SourceChip source={trade.source} /></div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

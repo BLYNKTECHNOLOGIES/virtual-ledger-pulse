@@ -554,6 +554,9 @@ export type Database = {
           end_completed_at: string | null
           end_lease_at: string | null
           ended_at: string | null
+          ended_by_mode: string | null
+          ended_by_name: string | null
+          ended_by_user_id: string | null
           id: string
           is_active: boolean
           start_completed_at: string | null
@@ -568,6 +571,9 @@ export type Database = {
           end_completed_at?: string | null
           end_lease_at?: string | null
           ended_at?: string | null
+          ended_by_mode?: string | null
+          ended_by_name?: string | null
+          ended_by_user_id?: string | null
           id?: string
           is_active?: boolean
           start_completed_at?: string | null
@@ -582,6 +588,9 @@ export type Database = {
           end_completed_at?: string | null
           end_lease_at?: string | null
           ended_at?: string | null
+          ended_by_mode?: string | null
+          ended_by_name?: string | null
+          ended_by_user_id?: string | null
           id?: string
           is_active?: boolean
           start_completed_at?: string | null

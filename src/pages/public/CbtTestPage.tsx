@@ -127,7 +127,8 @@ export default function CbtTestPage() {
   // ---------- heartbeat ----------
   const heartbeatSeconds = Number(state?.settings?.heartbeat_seconds ?? 15);
   useEffect(() => {
-    if (!state || submittedStatus || state.attempt.status === 'registered') return;
+    // a locked window (resumed elsewhere, ended session) stops polling — no "Second window" noise for HR
+    if (!state || fatal || submittedStatus || state.attempt.status === 'registered') return;
     let stop = false;
     const beat = async () => {
       try {
@@ -154,7 +155,7 @@ export default function CbtTestPage() {
       stop = true;
       window.clearInterval(id);
     };
-  }, [state, submittedStatus, current?.id, current?.status, heartbeatSeconds, refresh, handleError]);
+  }, [state, fatal, submittedStatus, current?.id, current?.status, heartbeatSeconds, refresh, handleError]);
 
   // ---------- autosave ----------
   const saveTimers = useRef<Record<string, number>>({});

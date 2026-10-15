@@ -50,14 +50,15 @@ const INJECTION = [
   // QZ7a: any answer that talks about its own grading goes to a person
   /\b(grader|reviewer|examiner|marker|evaluator|assessor)s?\b/i,
   /\b(rubric|marking (guide|scheme)|answer key)\b/i,
-  /\b\d+(\.\d+)?\s*(\/|out of)\s*\d+\b[^.\n]{0,30}\b(marks?|points?|score)?/i,
+  /\b\d+(\.\d+)?\s*(\/|out of)\s*(10|20|100)\b(?![\/\d])/i,
   /\b(marks?|score|scored|total|points?)\b[^.\n]{0,25}\bout of\b/i,
-  /\b(deserves?|award|give|grant|rate)\b[^.\n]{0,30}\b(marks?|score|points?|maximum|max|full|top|highest)\b/i,
+  /\b(deserves?|award|give|grant)\b[^.\n]{0,30}\b(marks?|points?|full marks|top marks|maximum|max score)\b/i,
+  /\brate (it|this|me|the answer)\b/i,
   /\b(full|maximum|max|top|highest|perfect)\s+(marks?|score|points?|rating)\b/i,
-  /\bconfidence\b[^.\n]{0,25}\b(is|=|:|to|of|at|should)\b/i,
-  /\bflags?\b[^.\n]{0,25}\b(empty|none|no flags|to|=|:|list)\b/i,
-  /\b(set|change|make|put)\b[^.\n]{0,25}\b(total|score|marks?|grade)\b/i,
-  /(^|\n|\b)(system|assistant|developer|instruction)s?\s*:/i,
+  /\bconfidence\s*(=|:|(is|to|of|at|should be)\s*(1(\.0)?|0?\.\d+|100\s*%|one|high|maximum|max)\b)/i,
+  /\bflags?\s*(=|:|(to|as) (an )?empty|(should be|is|are) (empty|none))/i,
+  /\b(set|change|put)\b[^.\n]{0,15}\b(total|score|marks?|grade)\b\s*(to|=|at)\b/i,
+  /(^|[\n.!?]\s*)(system|assistant|developer)\s*:/i,
 ];
 export const instructsGrader = (text: string) => INJECTION.some((r) => r.test(String(text ?? "")));
 

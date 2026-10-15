@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
-import { PermissionGate } from '@/components/PermissionGate';
+import { AdsAccessGate } from '@/components/ad-manager/AdsAccessGate';
+import { useAdsRights, NO_RIGHT } from '@/components/ad-manager/adsRights';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -91,6 +92,11 @@ function BoardSkeleton() {
 
 
 export default function AdManager() {
+  return <AdsAccessGate><AdManagerPage /></AdsAccessGate>;
+}
+
+function AdManagerPage() {
+  const adsRights = useAdsRights();
    const location = useLocation();
   const isTerminalContext = location.pathname.startsWith('/terminal');
   const { isAllAccounts, visibleAccounts, activeAccountId, colorFor, nameFor } = useExchangeAccount();
@@ -360,7 +366,7 @@ export default function AdManager() {
               <span className="sr-only sm:not-sr-only">Zone book</span>
             </Button>
           </div>
-          <Button size="sm" onClick={handleCreate} className="h-8 gap-1.5 text-xs [grid-area:create]">
+          <Button size="sm" onClick={handleCreate} disabled={!adsRights.canManage} title={adsRights.canManage ? undefined : NO_RIGHT.manage} className="h-8 gap-1.5 text-xs [grid-area:create]">
             <Plus className="h-3.5 w-3.5" />
             Create ad
           </Button>
@@ -531,7 +537,7 @@ export default function AdManager() {
       </Tabs>
 
       {/* Bulk Action Toolbar — floats at the bottom of the screen while ads are selected */}
-      {hasSelection && (
+      {hasSelection && adsRights.canBulk && (
         <BulkActionToolbar
           selectedAds={selectedAds}
           onClearSelection={() => setSelectedAdvNos(new Set())}
@@ -590,6 +596,5 @@ export default function AdManager() {
     </div>
   );
 
-  if (isTerminalContext) return content;
-  return <PermissionGate permissions={["terminal_view"]}>{content}</PermissionGate>;
+  return content;
 }

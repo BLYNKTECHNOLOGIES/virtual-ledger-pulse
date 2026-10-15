@@ -524,7 +524,7 @@ export function TerminalOrgChart() {
           </div>
         </div>
       )}
-    </OrgEditContext.Provider>
+    </>
   );
 
   const zoomControls = (
@@ -730,7 +730,6 @@ export function TerminalOrgChart() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
-
+    </OrgEditContext.Provider>
   );
 }

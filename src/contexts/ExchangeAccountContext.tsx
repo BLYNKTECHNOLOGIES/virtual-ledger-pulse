@@ -53,8 +53,7 @@ interface ExchangeAccountContextValue {
 const ExchangeAccountContext = createContext<ExchangeAccountContextValue | undefined>(undefined);
 
 export function ExchangeAccountProvider({ children }: { children: React.ReactNode }) {
-  const { user, hasRole } = useAuth();
-  const roleCanSwitch = hasRole("admin") || hasRole("super admin");
+  const { user } = useAuth();
 
   const [accounts, setAccounts] = useState<ExchangeAccount[]>([]);
   const [loading, setLoading] = useState(true);

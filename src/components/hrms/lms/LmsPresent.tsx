@@ -243,11 +243,11 @@ export function LmsPresent() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <SegmentedControl<LmsLanguage>
+          <SegmentedControl
             size="sm"
             aria-label="Language"
             value={lang}
-            onValueChange={(v) => go("present", { module: moduleId, lang: v, plan: planId, item: itemId }, true)}
+            onValueChange={(v) => go("present", { module: moduleId, lang: v as LmsLanguage, plan: planId, item: itemId }, true)}
             options={[{ value: "en", label: "English" }, { value: "hinglish", label: "Hinglish" }]}
           />
           <Button size="sm" variant={showNotes ? "default" : "outline"} onClick={() => setShowNotes((s) => !s)}>

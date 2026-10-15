@@ -77,10 +77,10 @@ export function LmsPlansList() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="overflow-x-auto">
-          <SegmentedControl<Filter>
+          <SegmentedControl
             aria-label="Plan status"
             value={filter}
-            onValueChange={setFilter}
+            onValueChange={(v) => setFilter(v as Filter)}
             options={[
               { value: "active", label: `In training (${counts.active})` },
               { value: "draft", label: `Drafts (${counts.draft})` },

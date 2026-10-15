@@ -89,9 +89,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { requireAuth } = await import("../_shared/require-auth.ts");
-    const auth = await requireAuth(req, { corsHeaders });
-    if (!auth.ok) return auth.response;
+    // AM-SEC-5: signed-in user, service role (auto-reply-engine) or scheduler secret; 401 otherwise.
+    // No account limit — ERP approvals resolve orders on both accounts.
+    const { requireCaller } = await import("../_shared/require-caller.ts");
+    const caller = await requireCaller(req, corsHeaders);
+    if (!caller.ok) return caller.response;
 
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
     const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");

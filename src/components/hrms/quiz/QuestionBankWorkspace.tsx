@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, Archive, BookOpenCheck, CheckCircle2, FileSpreadsheet, Pencil, Plus, RotateCcw, Tags, ChevronDown, ChevronRight, CircleHelp, Search, Target, TrendingDown,
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -527,6 +528,22 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
       </Dialog>
       <QuestionEditor open={editor.open} onOpenChange={(o) => setEditor((e) => ({ ...e, open: o }))} question={editor.q} subjects={subjectList} roleCodes={roleCodes} />
       <QuestionImport open={importing} onOpenChange={setImporting} subjects={subjectList} />
+      <AlertDialog open={!!retireImpact} onOpenChange={(o) => { if (!o) setRetireImpact(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retiring this item affects live drives</AlertDialogTitle>
+            <AlertDialogDescription>After retiring it, these live drives can no longer serve every section:</AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="max-h-60 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-foreground">
+            {(retireImpact?.text ?? "").split("; ").filter(Boolean).map((t) => <li key={t}>{t}</li>)}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => retireImpact && setStatusAct.mutate({ id: retireImpact.id, action: "retire", confirm: true })}>Retire anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <SubjectsManager open={subjectsOpen} onOpenChange={setSubjectsOpen} subjects={subjectList} canManage={canManage}
         counts={rows.reduce<Record<string, number>>((m, r) => { m[r.category_tag] = (m[r.category_tag] ?? 0) + 1; return m; }, {})} />
     </div>

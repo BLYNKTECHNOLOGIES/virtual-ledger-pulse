@@ -38487,6 +38487,7 @@ export type Database = {
             }
             Returns: Json
           }
+      internal_cron_headers: { Args: never; Returns: Json }
       is_ledger_auditor: { Args: { _uid?: string }; Returns: boolean }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin_user: { Args: { _uid: string }; Returns: boolean }

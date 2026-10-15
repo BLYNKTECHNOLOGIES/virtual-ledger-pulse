@@ -524,7 +524,7 @@ export function TerminalOrgChart() {
           </div>
         </div>
       )}
-    </>
+    </OrgEditContext.Provider>
   );
 
   const zoomControls = (
@@ -542,7 +542,7 @@ export function TerminalOrgChart() {
   );
 
   return (
-    <>
+    <OrgEditContext.Provider value={editReason}>
       {/* Fullscreen overlay */}
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">

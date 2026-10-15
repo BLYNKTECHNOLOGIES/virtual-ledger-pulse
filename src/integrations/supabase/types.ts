@@ -35456,6 +35456,14 @@ export type Database = {
         Args: { p_credential_id: string; p_token: string; p_user_id: string }
         Returns: string
       }
+      copilot_add_question: {
+        Args: { p_entry_id: string; p_language?: string; p_text: string }
+        Returns: string
+      }
+      copilot_inbox_decide: {
+        Args: { p_decision: string; p_item_id: string }
+        Returns: Json
+      }
       copilot_is_approver: { Args: { p_user_id: string }; Returns: boolean }
       copilot_learn_apply: {
         Args: {
@@ -35520,6 +35528,13 @@ export type Database = {
       copilot_month_spend_inr: { Args: { p_at?: string }; Returns: number }
       copilot_my_access: { Args: never; Returns: Json }
       copilot_normalize: { Args: { p_text: string }; Returns: string }
+      copilot_pending_questions: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          question_text: string
+        }[]
+      }
       copilot_pick_contacts: {
         Args: { p_at?: string; p_purpose: string }
         Returns: {
@@ -35535,6 +35550,14 @@ export type Database = {
         Returns: Json
       }
       copilot_scope_valid: { Args: { p_scope: Json }; Returns: boolean }
+      copilot_set_entry_status: {
+        Args: { p_entry_id: string; p_status: string }
+        Returns: Json
+      }
+      copilot_set_question_embeddings: {
+        Args: { p_items: Json; p_model: string }
+        Returns: number
+      }
       copilot_similar_rejections: {
         Args: { p_embedding: Json; p_limit?: number; p_min_similarity?: number }
         Returns: {
@@ -35546,6 +35569,7 @@ export type Database = {
           similarity: number
         }[]
       }
+      copilot_stats: { Args: { p_days?: number }; Returns: Json }
       copilot_to_vector: { Args: { p: Json }; Returns: string }
       copilot_undo_learning: {
         Args: { p_event_id: string; p_user_id: string }

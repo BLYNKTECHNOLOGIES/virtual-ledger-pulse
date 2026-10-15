@@ -1,3 +1,4 @@
+import { useAdsRights, NO_RIGHT } from './adsRights';
 import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,9 @@ interface InlinePriceEditorProps {
  *   floating → { advNo, exchange_account_id, priceFloatingRatio }
  * via the existing useUpdateAd mutation (no new API contract).
  */
-export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose, stacked = false }: InlinePriceEditorProps) {
+export function InlinePriceEditor({ ad, isEditing: isEditingProp, onRequestEdit, onClose, stacked = false }: InlinePriceEditorProps) {
+  const { canManage } = useAdsRights();
+  const isEditing = isEditingProp && canManage;
   const updateAd = useUpdateAd();
   const isFloating = ad.priceType === 2;
   const original = isFloating ? Number(ad.priceFloatingRatio || 0) : Number(ad.price || 0);
@@ -106,8 +109,9 @@ export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose, stack
         <button
           type="button"
           aria-label="Edit price"
-          title={isFloating ? 'Edit floating ratio' : 'Edit price'}
+          title={!canManage ? NO_RIGHT.manage : isFloating ? 'Edit floating ratio' : 'Edit price'}
           onClick={onRequestEdit}
+          disabled={!canManage}
           className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-50 transition-opacity hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 [@media(hover:none)]:opacity-100"
         >
           <Pencil className="h-3 w-3" />

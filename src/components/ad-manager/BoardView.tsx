@@ -46,6 +46,7 @@ function AdCard({
   exclusionPending: boolean;
   compact?: boolean;
 }) {
+  const { canToggle } = useAdsRights();
   const [editingPrice, setEditingPrice] = useState(false);
   const automationMap = useAdAutomationMap();
   const isOnline = ad.advStatus === BINANCE_AD_STATUS.ONLINE;

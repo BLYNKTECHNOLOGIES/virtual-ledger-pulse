@@ -787,14 +787,6 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
   });
 }
 
-export function useChatCredential() {
-  return useQuery({
-    queryKey: ['binance-chat-credential'],
-    queryFn: () => callBinanceAds('getChatCredential'),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
 export function useGetChatImageUploadUrl() {
   return useMutation({
     mutationFn: async (imageName: string) => {

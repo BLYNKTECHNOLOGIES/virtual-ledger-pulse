@@ -5,6 +5,8 @@
 // auto-screenshot is byte-identical to the manual one.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
+import { permissionSet, supabaseAccessDeps } from "../_shared/binance-access.ts";
+import { gateDeliver } from "./deliverGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -264,6 +266,19 @@ Deno.serve(async (req: Request) => {
     }
 
     // phase === "deliver"
+    // AM-SEC-5b: same checks as markOrderAsPaid, before any upload or send.
+    const gate = await gateDeliver({
+      async permissions(uid) {
+        const { data, error } = await adminClient.rpc("get_terminal_permissions", { p_user_id: uid });
+        if (error) throw new Error(error.message);
+        return permissionSet(data);
+      },
+      access: supabaseAccessDeps(adminClient),
+    }, payerId, null);
+    if (!gate.ok) {
+      console.warn(`payer-auto-screenshot deliver denied: user=${payerId} code=${gate.body.code}`);
+      return jsonResponse(gate.body, gate.status);
+    }
     const pngBase64 = String(body?.pngBase64 || "");
     const upiTxnId = String(body?.upiTxnId || "");
     const amountInt = Number(body?.amount || 0);

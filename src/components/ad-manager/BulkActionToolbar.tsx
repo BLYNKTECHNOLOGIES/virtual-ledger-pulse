@@ -182,6 +182,7 @@ export function BulkActionToolbar({
 
           <div className="h-5 w-px bg-border" aria-hidden="true" />
 
+          {canManage ? (<>
           <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Price">
             <WithReason reason={ladderReason}>
               <Button variant="outline" size="sm" onClick={onBulkPriceLadder} disabled={!ladderReady} className={ACT}>
@@ -221,8 +222,11 @@ export function BulkActionToolbar({
               Risk guard
             </Button>
           </div>
+          </>) : (
+            <span className="text-[11px] text-muted-foreground">Price and limit edits: {NO_RIGHT.manage}</span>
+          )}
 
-          {(hasOffline || hasOnline) && (
+          {canToggle && (hasOffline || hasOnline) && (
             <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Status">
               {hasOffline && (
                 <Button variant="outline" size="sm" onClick={onBulkActivate} className={cn(ACT, 'border-success/35 text-success hover:text-success')}>

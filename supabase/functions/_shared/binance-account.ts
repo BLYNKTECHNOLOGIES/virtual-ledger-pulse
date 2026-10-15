@@ -55,11 +55,51 @@ function secretsForSuffix(suffix: string): { apiKey: string; apiSecret: string }
   return { apiKey, apiSecret };
 }
 
+/** AM-SEC-5b: an explicitly requested account could not be used; nothing may be sent. */
+export class AccountUnavailableError extends Error {
+  readonly code = "ACCOUNT_UNAVAILABLE";
+  constructor(message: string) { super(message); }
+}
+
+export type AccountRowLookup = (by: { id?: string; isDefault?: boolean }) =>
+  Promise<{ row: ExchangeAccountRow | null; error: string | null }>;
+
+/**
+ * Pick the account row. Lenient (default): an unknown id falls back to the
+ * default account (read paths). Strict: an explicit id must exist, be active and
+ * be read without error — never a fallback to another account (AM-SEC-5b).
+ */
+export async function pickAccountRow(
+  accountId: string | null | undefined,
+  lookup: AccountRowLookup,
+  strict = false,
+): Promise<ExchangeAccountRow> {
+  if (accountId && strict) {
+    const { row, error } = await lookup({ id: accountId });
+    if (error) throw new AccountUnavailableError(`Could not read the Binance account (${error}). Nothing was sent to Binance.`);
+    if (!row || !row.is_active) throw new AccountUnavailableError("That Binance account does not exist or is switched off. Nothing was sent to Binance.");
+    return row;
+  }
+  let row: ExchangeAccountRow | null = null;
+  if (accountId) row = (await lookup({ id: accountId })).row;
+  if (!row) row = (await lookup({ isDefault: true })).row;
+  // Hard fallback to the primary deterministic account id.
+  return row ?? {
+    id: "00000000-0000-0000-0000-000000000001",
+    account_name: "Account 1 (Primary)",
+    credential_key: "default",
+    is_default: true,
+    is_active: true,
+  };
+}
+
 /**
  * Resolve full credentials for a given exchange account id.
- * Falls back to the default account when accountId is missing/unknown.
+ * Lenient by default (falls back to the default account). With `{ strict: true }`
+ * an explicit id never falls back: lookup errors or unknown/inactive ids throw
+ * AccountUnavailableError.
  */
-export async function resolveAccount(accountId?: string | null): Promise<ResolvedAccount> {
+export async function resolveAccount(accountId?: string | null, opts: { strict?: boolean } = {}): Promise<ResolvedAccount> {
   const proxyUrl = Deno.env.get("BINANCE_PROXY_URL") ?? "";
   const proxyToken = Deno.env.get("BINANCE_PROXY_TOKEN") ?? "";
   if (!proxyUrl || !proxyToken) {
@@ -67,34 +107,13 @@ export async function resolveAccount(accountId?: string | null): Promise<Resolve
   }
 
   const supabase = adminClient();
-  let row: ExchangeAccountRow | null = null;
-
-  if (accountId) {
-    const { data } = await supabase
-      .from("terminal_exchange_accounts")
-      .select("id, account_name, credential_key, is_default, is_active")
-      .eq("id", accountId)
-      .maybeSingle();
-    row = data as ExchangeAccountRow | null;
-  }
-  if (!row) {
-    const { data } = await supabase
-      .from("terminal_exchange_accounts")
-      .select("id, account_name, credential_key, is_default, is_active")
-      .eq("is_default", true)
-      .maybeSingle();
-    row = data as ExchangeAccountRow | null;
-  }
-  if (!row) {
-    // Hard fallback to the primary deterministic account id.
-    row = {
-      id: "00000000-0000-0000-0000-000000000001",
-      account_name: "Account 1 (Primary)",
-      credential_key: "default",
-      is_default: true,
-      is_active: true,
-    };
-  }
+  const row = await pickAccountRow(accountId, async (by) => {
+    let q = supabase.from("terminal_exchange_accounts")
+      .select("id, account_name, credential_key, is_default, is_active");
+    q = by.id ? q.eq("id", by.id) : q.eq("is_default", true);
+    const { data, error } = await q.maybeSingle();
+    return { row: (data as ExchangeAccountRow | null) ?? null, error: error?.message ?? null };
+  }, !!opts.strict);
 
   const suffix = suffixForCredentialKey(row.credential_key);
   const { apiKey, apiSecret } = secretsForSuffix(suffix);

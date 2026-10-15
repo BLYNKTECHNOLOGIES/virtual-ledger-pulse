@@ -39045,6 +39045,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
+      terminal_can_manage_users: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       terminal_chat_orders_missing_history: {
         Args: { p_exchange_account_id: string; p_limit?: number }
         Returns: {
@@ -39064,6 +39068,7 @@ export type Database = {
       }
       terminal_guard_attach_all: { Args: never; Returns: number }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
+      terminal_is_admin: { Args: { p_user_id: string }; Returns: boolean }
       terminal_order_final_appeal_status: {
         Args: { p_status: string }
         Returns: string
@@ -39350,6 +39355,10 @@ export type Database = {
           status: string
           username: string
         }[]
+      }
+      users_with_ads_toggle: {
+        Args: { p_user_ids: string[] }
+        Returns: string[]
       }
       validate_bank_details_row: {
         Args: { _hr_employee_id: string }

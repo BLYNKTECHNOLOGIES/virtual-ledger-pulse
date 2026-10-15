@@ -337,6 +337,27 @@ async function buildSnaps(deps: RestDeps, timer: RestTimerRow): Promise<Snap[]> 
   return snaps;
 }
 
+export interface HandChangeRow { adv_no: string | null; metadata: Record<string, unknown> | null; action_type: string; user_id: string | null }
+
+/**
+ * AM-SEC-3b: ads changed by hand during a rest. A row counts only when it was
+ * written by the server (no user id — browsers can only insert rows as
+ * themselves) or by someone in `allowedUserIds` (Ads Toggle / Manage, Super
+ * Admin, Terminal admin). A forged row from anyone else is ignored, so it can
+ * no longer keep ads off after a rest.
+ */
+export function handChangedFrom(rows: HandChangeRow[], advNos: string[], allowedUserIds: Set<string>): Set<string> {
+  const out = new Set<string>();
+  const want = new Set(advNos);
+  for (const row of rows) {
+    if (row.user_id && !allowedUserIds.has(row.user_id)) continue;
+    if (row.adv_no && want.has(row.adv_no)) out.add(row.adv_no);
+    const list = (row.metadata as { advNos?: unknown } | null)?.advNos;
+    if (Array.isArray(list)) for (const a of list) if (want.has(String(a))) out.add(String(a));
+  }
+  return out;
+}
+
 async function handCheck(deps: RestDeps, snaps: Snap[], sinceIso: string, tries: number) {
   let err = "";
   for (let i = 0; i < tries; i++) {
@@ -540,27 +561,29 @@ export function supabaseRestStore(admin: any): RestStore {
       return (data ?? []).length > 0;
     },
     async handChangedAdvNos(advNos, sinceIso) {
-      const out = new Set<string>();
-      if (!advNos.length) return out;
+      if (!advNos.length) return new Set<string>();
       // Status rows, plus Edit-dialog saves only when they changed the status —
       // filtered in the query so price-only edits never crowd out a status change.
       const [st, ed] = await Promise.all([
-        admin.from("ad_action_logs").select("adv_no, metadata, action_type")
+        admin.from("ad_action_logs").select("adv_no, metadata, action_type, user_id")
           .in("action_type", ["ad.status_changed", "ad.bulk_status_changed"])
           .gt("created_at", sinceIso).limit(5000),
-        admin.from("ad_action_logs").select("adv_no, metadata, action_type")
+        admin.from("ad_action_logs").select("adv_no, metadata, action_type, user_id")
           .eq("action_type", "ad.updated").eq("metadata->>statusChanged", "true")
           .in("adv_no", advNos).gt("created_at", sinceIso).limit(5000),
       ]);
       if (st.error) throw new Error(st.error.message);
       if (ed.error) throw new Error(ed.error.message);
-      const want = new Set(advNos);
-      for (const row of [...(st.data ?? []), ...(ed.data ?? [])]) {
-        if (row.adv_no && want.has(row.adv_no)) out.add(row.adv_no);
-        const list = row.metadata?.advNos;
-        if (Array.isArray(list)) for (const a of list) if (want.has(String(a))) out.add(String(a));
+      const rows = [...(st.data ?? []), ...(ed.data ?? [])] as HandChangeRow[];
+      // AM-SEC-3b: only honour rows from people who can switch ads (or the server).
+      const ids = [...new Set(rows.map((r) => r.user_id).filter((u): u is string => !!u))];
+      let allowed = new Set<string>();
+      if (ids.length) {
+        const { data, error } = await admin.rpc("users_with_ads_toggle", { p_user_ids: ids });
+        if (error) throw new Error(error.message);
+        allowed = new Set(((data ?? []) as unknown[]).map(String));
       }
-      return out;
+      return handChangedFrom(rows, advNos, allowed);
     },
     async latestSnapshotAccount(advNo) {
       const { data } = await admin.from("binance_ad_state_snapshots").select("exchange_account_id")

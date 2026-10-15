@@ -2,9 +2,9 @@
 
 - Tables wrap to available width; only wide grids set minimum widths.
 
-- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/, hrms/quiz/); read it before editing there.
+- Subdirectories have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/, src/components/terminal/, hrms/quiz/); read it before editing there.
 
-- Frontend brand images resolve through BrandLogo and brandLogos; ERP/HRMS toggles use ThemeContext and Terminal passes its independent theme explicitly, because logo contrast must update with the actual surface rather than unsynchronized DOM theme mutations.
+- Brand images resolve through BrandLogo/brandLogos; ERP/HRMS use ThemeContext and Terminal passes its own theme, so logo contrast follows the actual surface.
 
 - F&F approval stages payroll inputs only; RazorpayX writes and read-back verification belong to the cockpit Inputs Push step, so separation review and payroll execution remain distinct.
 - All login removals share hr_erp_access_revocations + completeErpRevocation (ERP/Auth/Terminal read-back/retries); preserve HR/ledger tombstones. LWD/biometrics are independent of F&F; RazorpayX dismissal needs paid F&F and final salary for the later LWD/F&F month (no payout API).
@@ -27,5 +27,3 @@
 - Approved leave: employee cancels only before day 1 (IST); HR not in locked periods; cancel/reject refunds net of worked-day restores, drops worked-day rows, unstamps evidence-free days — a withdrawn leave must not stay paid or refund twice.
 - User Management rights live in public.um_* SQL functions (um_my_access feeds the screen); every UI gate reads them, because screen and server must agree.
 - Auth owns sign-in times/logs; ERP-shell heartbeat is self-only for consistent presence. Legacy role_functions are immutable with retained role UUIDs after deletion, preserving history without blocking role removal.
-- A Terminal order's ERP client is resolved only by Binance userNo on the server (get_terminal_order_client, same rule as clientIdentityResolver); names and nicknames are never matched, because they collide across different people.
-- Counterparty contact saves propagate only via propagate_counterparty_contact (exact Binance userNo, else exact unmasked nickname, never a prefix/masked nick) and only fill empty phone/state on approved sales orders, because masked nicknames collide across thousands of people.

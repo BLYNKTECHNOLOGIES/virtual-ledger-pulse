@@ -5,6 +5,7 @@ import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useToast } from '@/hooks/use-toast';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { clearAdBreakDetected, markAdBreakDetected } from '@/hooks/useAdRestTimer';
+import { readEdgeErrorMessage } from '@/hooks/useBinanceActions';
 
 // Binance C2C ad status codes
 // Binance API returns advStatus: 1 for both Online and Private ads.
@@ -129,7 +130,7 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {},
   const { data, error } = await supabase.functions.invoke('binance-ads', {
     body: withActiveAccount(body),
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(await readEdgeErrorMessage(error));
   if (!data?.success) throw new Error(data?.error || 'API call failed');
   return data.data;
 }

@@ -21,6 +21,23 @@ const BINANCE_CALL_TIMEOUT_MS = 25_000;
 // flow enough headroom instead of aborting mid-verification.
 const BINANCE_CHAT_SEND_TIMEOUT_MS = 45_000;
 
+/**
+ * supabase-js reports any non-2xx edge response as a generic
+ * "Edge Function returned a non-2xx status code". Read the JSON body
+ * ({ success:false, error }) so the operator sees the real reason.
+ */
+export async function readEdgeErrorMessage(error: any): Promise<string> {
+  const ctx = error?.context;
+  try {
+    if (ctx && typeof ctx.clone === 'function') {
+      const body = await ctx.clone().json();
+      if (body?.error) return String(body.error);
+      if (body?.message) return String(body.message);
+    }
+  } catch { /* fall through */ }
+  return error?.message || 'API call failed';
+}
+
 export async function callBinanceAds(action: string, payload: Record<string, any> = {}, accountId?: string) {
   const timeoutMs = action === 'sendChatMessage' ? BINANCE_CHAT_SEND_TIMEOUT_MS : BINANCE_CALL_TIMEOUT_MS;
   const controller = new AbortController();
@@ -39,7 +56,7 @@ export async function callBinanceAds(action: string, payload: Record<string, any
       // ("Failed to send a request to the Edge Function") — unwrap it so the
       // operator sees the real cause instead of a misleading network error.
       if (controller.signal.aborted) throw new Error(`Binance request timed out (${action})`);
-      throw new Error(error.message);
+      throw new Error(await readEdgeErrorMessage(error));
     }
     if (!data?.success) throw new Error(data?.error || 'API call failed');
     return data.data;

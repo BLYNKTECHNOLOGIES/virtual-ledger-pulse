@@ -877,6 +877,43 @@ serve(async (req) => {
     const { action, ...payload } = await req.json();
     console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
 
+    // === Ads / merchant write permission gate (AM-SEC-FIX-1) ===
+    // Every action that changes ads or the merchant on Binance needs an explicit
+    // Terminal Ads right for user callers. Service role and scheduler callers are
+    // trusted / separately restricted. Fail closed on lookup errors.
+    const AD_WRITE_RULES: Record<string, { anyOf: string[]; message: string }> = {
+      postAd: { anyOf: ["terminal_ads_manage"], message: "Permission denied: you need the Ads 'Manage' right to create or edit ads." },
+      updateAd: { anyOf: ["terminal_ads_manage"], message: "Permission denied: you need the Ads 'Manage' right to create or edit ads." },
+      applyAdRiskGuard: { anyOf: ["terminal_ads_manage"], message: "Permission denied: you need the Ads 'Manage' right to apply risk settings to ads." },
+      updateAdStatus: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to switch ads on or off." },
+      setUserAdvVisible: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to change ad visibility." },
+      merchantOnline: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to take the merchant online or offline." },
+      merchantOffline: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to take the merchant online or offline." },
+    };
+    const adRule = AD_WRITE_RULES[action];
+    if (adRule && !callerIsServiceRole && !callerIsScheduler) {
+      const deny = (msg: string, status = 403) =>
+        new Response(JSON.stringify({ success: false, error: msg, code: "PERMISSION_DENIED" }), {
+          status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      if (!callerUserId || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return deny("Permission denied: authentication required.", 401);
+      const permAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { data: permData, error: permErr } = await permAdmin.rpc("get_terminal_permissions", { p_user_id: callerUserId });
+      if (permErr) {
+        console.error("ads permission lookup failed:", permErr.message);
+        return deny("Permission check failed — please try again. No change was sent to Binance.", 503);
+      }
+      const perms = new Set(
+        (Array.isArray(permData) ? permData : []).map((p: any) =>
+          typeof p === "string" ? p : p?.get_terminal_permissions ?? p?.permission
+        )
+      );
+      if (!adRule.anyOf.some((p) => perms.has(p))) {
+        console.warn(`ads permission denied: user=${callerUserId} action=${action}`);
+        return deny(adRule.message);
+      }
+    }
+
     // === Personal (view-only) device guard ===
     // Edge functions run with the service role and therefore bypass RLS and the
     // database statement guard, so every state-changing action is checked here
@@ -1264,14 +1301,10 @@ serve(async (req) => {
       }
 
       case "applyAdRiskGuard": {
-        const authHeader = req.headers.get("Authorization") || "";
-        const token = authHeader.replace(/^Bearer\s+/i, "");
+        // Permission (terminal_ads_manage) is enforced by the shared ads gate above.
         if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-        const { data: authData, error: authErr } = token ? await supabase.auth.getUser(token) : { data: null, error: new Error("Missing auth token") } as any;
-        if (authErr || !authData?.user?.id) throw new Error("Authentication required");
-        const { data: allowed } = await supabase.rpc("has_terminal_permission", { _user_id: authData.user.id, _permission: "terminal_ads_manage" });
-        if (!allowed) throw new Error("Permission denied: terminal_ads_manage required");
+
 
         const advNos = (Array.isArray(payload.advNos) ? payload.advNos : []).map(String).filter(Boolean);
         if (advNos.length === 0) throw new Error("At least one advNo is required");
@@ -1292,7 +1325,7 @@ serve(async (req) => {
           await new Promise((r) => setTimeout(r, 250));
         }
         await supabase.from("terminal_ad_risk_guard_logs").insert({
-          actor_user_id: authData.user.id,
+          actor_user_id: callerUserId,
           profile_name: String(payload.profileName || "Risk Guard"),
           adv_nos: advNos,
           requested_payload: requestedPayload,

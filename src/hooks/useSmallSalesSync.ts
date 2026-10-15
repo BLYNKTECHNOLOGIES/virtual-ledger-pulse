@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchRefresherCompletedOrders, mergeRefresherCompletions } from "@/lib/refresherCompletions";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 
 interface SmallSalesConfig {
@@ -121,6 +122,9 @@ export async function syncSmallSales(options: SmallSalesSyncOptions): Promise<Sm
     if (data.length < PAGE_SIZE) break;
     from += PAGE_SIZE;
   }
+
+  // TD-FIX-A (D2): plus orders the server refresher completed in the last 3 days (any age).
+  allOrders = mergeRefresherCompletions(allOrders, await fetchRefresherCompletedOrders('SELL'));
 
   if (allOrders.length === 0) {
     return { synced: 0, duplicates: 0, batchId: null };

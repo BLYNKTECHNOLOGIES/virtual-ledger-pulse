@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { proxyHeadersFor, resolveAccount } from "../_shared/binance-account.ts";
+import { AccountUnavailableError, proxyHeadersFor, resolveAccount } from "../_shared/binance-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,13 +55,16 @@ serve(async (req) => {
       requestedAccountId = null;
     }
 
+    // AM-SEC-5c: Test connection must verify the account that was asked for —
+    // never fall back to Blynk's keys and report OK for ASEC.
     let acct;
     try {
-      acct = await resolveAccount(requestedAccountId);
+      acct = await resolveAccount(requestedAccountId, { strict: !!requestedAccountId });
     } catch (e) {
+      const status = e instanceof AccountUnavailableError ? 503 : 200;
       return new Response(
         JSON.stringify({ error: (e as Error).message, api_key_configured: false }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

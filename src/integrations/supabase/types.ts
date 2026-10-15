@@ -39069,6 +39069,10 @@ export type Database = {
       terminal_guard_attach_all: { Args: never; Returns: number }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
       terminal_is_admin: { Args: { p_user_id: string }; Returns: boolean }
+      terminal_may_manage_target: {
+        Args: { p_manager: string; p_target: string }
+        Returns: boolean
+      }
       terminal_order_final_appeal_status: {
         Args: { p_status: string }
         Returns: string
@@ -39337,6 +39341,13 @@ export type Database = {
           user_uuid: string
         }
         Returns: boolean
+      }
+      users_binance_accounts: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          account_ids: string[]
+          user_id: string
+        }[]
       }
       users_can_read_full: { Args: { _user_id: string }; Returns: boolean }
       users_directory: {

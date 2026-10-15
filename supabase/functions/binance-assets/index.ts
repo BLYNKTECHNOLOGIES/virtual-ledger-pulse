@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { resolveAccount, accountIdFromPayload } from "../_shared/binance-account.ts";
+import { AccountUnavailableError, accountIdFromPayload, resolveAccount } from "../_shared/binance-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -170,7 +170,20 @@ serve(async (req) => {
       }
     }
 
-    const acct = await resolveAccount(accountIdFromPayload(payload));
+    // AM-SEC-5c: an explicit account id must resolve to that very account —
+    // never fall back to the default account on a lookup error or unknown id,
+    // or balances/trades would be read from (and billed to) another account.
+    const reqAcctId = accountIdFromPayload(payload);
+    let acct;
+    try { acct = await resolveAccount(reqAcctId, { strict: !!reqAcctId }); }
+    catch (e) {
+      if (e instanceof AccountUnavailableError) {
+        return new Response(JSON.stringify({ success: false, error: e.message, code: e.code }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
+    }
     const EXCHANGE_ACCOUNT_ID = acct.id;
     // Account-prefix for movement IDs. Keep the primary ("default") account's IDs
     // unprefixed for backward compatibility; prefix additional accounts to avoid

@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react';
 import { ShoppingCart, Clock, Send, AlertTriangle, CheckCircle2, ArrowDownLeft, ArrowUpRight, BarChart3, Percent, type LucideIcon } from 'lucide-react';
 import { useTerminalValueFlash } from '@/hooks/useTerminalValueFlash';
 import { cn } from '@/lib/utils';
-import { formatVolume, formatExactRupees, formatIstClock, formatIstWhen, roundShares } from './dashFormat';
+import { formatVolume, formatExactRupees, formatIstClock, roundShares } from './dashFormat';
 import { useOlderThan } from './dashHooks';
 
 type Tone = 'primary' | 'pending' | 'warning' | 'buy' | 'sell' | 'danger';

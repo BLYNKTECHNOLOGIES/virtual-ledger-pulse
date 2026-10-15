@@ -66,8 +66,11 @@ export function useLeaveDecision(opts?: { onDone?: (status: LeaveDecisionStatus)
       }).eq("id", request.id);
       if (error) throw error;
 
-      if (status === "cancelled") return { status, emailFailures: [] as string[], noEmail: false };
+      if (status === "cancelled") return { status, email: null as null | (() => Promise<{ failures: string[]; noEmail: boolean }>) };
 
+      // The decision is saved at this point. The email (SMTP, several seconds) is sent
+      // after the dialog closes, so HR is never kept waiting on mail delivery.
+      const email = async () => {
       const emp = await resolveEmployee(request);
       const res = await sendLeaveEmail({
         eventType: status === "approved" ? "leave_approved" : "leave_rejected",
@@ -82,14 +85,18 @@ export function useLeaveDecision(opts?: { onDone?: (status: LeaveDecisionStatus)
         decidedBy: "HR",
         employeeEmail: emp.email,
       });
-      return { status, emailFailures: res?.failures || [], noEmail: !emp.email };
+      return { failures: res?.failures || [], noEmail: !emp.email };
+      };
+      return { status, email };
     },
     onSuccess: (res) => {
       invalidateLeaveDecisionCaches(qc);
       toast.success(res.status === "approved" ? "Leave approved" : res.status === "rejected" ? "Leave rejected" : "Leave cancelled");
-      if (res.noEmail) toast.warning("No email on record for this employee — notification not sent");
-      else if (res.emailFailures.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
       opts?.onDone?.(res.status);
+      res.email?.().then((r) => {
+        if (r.noEmail) toast.warning("No email on record for this employee — notification not sent");
+        else if (r.failures.length) toast.warning(`Email not delivered: ${r.failures[0]}`);
+      }).catch((e) => toast.warning(`Email not delivered: ${e?.message || e}`));
     },
     onError: (e: any) => toast.error(e?.message || "Failed to update leave request"),
   });

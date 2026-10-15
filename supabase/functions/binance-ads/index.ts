@@ -12,7 +12,7 @@ import {
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
-import { AD_WRITE_RULES, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial } from "../_shared/binance-access.ts";
+import { terminalRightRule, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial } from "../_shared/binance-access.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -901,7 +901,8 @@ serve(async (req) => {
     // Every action that changes ads or the merchant on Binance needs an explicit
     // Terminal Ads right for user callers. Service role and scheduler callers are
     // trusted / separately restricted. Fail closed on lookup errors.
-    const adRule = AD_WRITE_RULES[action];
+    // AM-SEC-4: the same gate covers order chat, buyer verification and read markers.
+    const adRule = terminalRightRule(action);
     if (adRule && !callerIsServiceRole && !callerIsScheduler) {
       const deny = (msg: string, status = 403) =>
         new Response(JSON.stringify({ success: false, error: msg, code: "PERMISSION_DENIED" }), {

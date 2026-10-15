@@ -131,9 +131,28 @@ export const AD_WRITE_RULES: Record<string, { anyOf: string[]; message: string }
   merchantOffline: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to take the merchant online or offline." },
 };
 
-/** null = allowed (or not an Ads write); otherwise the refusal message. */
+/**
+ * AM-SEC-4 — order chat, buyer verification and chat read markers need a
+ * Terminal right (user callers only; service role / scheduler stay trusted).
+ * Same rights the screens use: chat panel = terminal_orders_chat, Payer page
+ * screenshot = terminal_payer_manage, Verify Order = terminal_orders_actions.
+ */
+export const ORDER_RIGHT_RULES: Record<string, { anyOf: string[]; message: string }> = {
+  sendChatMessage: { anyOf: ["terminal_orders_chat", "terminal_payer_manage"], message: "Permission denied: you need the Orders 'Chat' right (or Payer 'Manage') to send chat messages." },
+  getChatImageUploadUrl: { anyOf: ["terminal_orders_chat", "terminal_payer_manage"], message: "Permission denied: you need the Orders 'Chat' right (or Payer 'Manage') to send chat images." },
+  confirmOrderVerified: { anyOf: ["terminal_orders_actions", "terminal_orders_manage"], message: "Permission denied: you need the Orders 'Actions' right to confirm a buyer's verification." },
+  markOrderMessagesRead: { anyOf: ["terminal_orders_view"], message: "Permission denied: you need the Orders 'View' right to mark chats read." },
+  markUserMessagesRead: { anyOf: ["terminal_orders_view"], message: "Permission denied: you need the Orders 'View' right to mark chats read." },
+};
+
+/** Rule (Ads write or AM-SEC-4 order right) a user caller needs for this action, if any. */
+export function terminalRightRule(action: string): { anyOf: string[]; message: string } | undefined {
+  return AD_WRITE_RULES[action] ?? ORDER_RIGHT_RULES[action];
+}
+
+/** null = allowed (or no rule); otherwise the refusal message. */
 export function adWriteDenial(action: string, perms: Set<string>, trustedCaller: boolean): string | null {
-  const rule = AD_WRITE_RULES[action];
+  const rule = terminalRightRule(action);
   if (!rule || trustedCaller) return null;
   return rule.anyOf.some((p) => perms.has(p)) ? null : rule.message;
 }

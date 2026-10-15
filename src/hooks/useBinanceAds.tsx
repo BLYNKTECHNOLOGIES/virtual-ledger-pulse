@@ -424,7 +424,8 @@ export function useUpdateAd() {
           ...(adData.oldPrice !== undefined ? { oldPrice: adData.oldPrice, newPrice: adData.price } : {}),
           ...(isFloating && adData.oldRatio !== undefined ? { oldRatio: adData.oldRatio, newRatio: adData.priceFloatingRatio } : {}),
         },
-        metadata: { exchangeAccountId: adData.exchange_account_id },
+        // AM-FIX-3: a status saved from the Edit dialog must count as 'changed by hand' for the rest timer.
+        metadata: { exchangeAccountId: adData.exchange_account_id, ...(adData.advStatus !== undefined ? { statusChanged: true, advStatus: Number(adData.advStatus) } : {}) },
       });
     },
     onError: (error: Error) => {

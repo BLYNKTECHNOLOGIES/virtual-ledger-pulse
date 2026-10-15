@@ -11,7 +11,20 @@ import {
   isFundPwdEligible,
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
-import { startAdRest, endAdRest, supabaseRestStore, type RestDeps } from "../_shared/adRest.ts";
+import { startAdRest, endAdRest, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
+
+const REST_CALL_TIMEOUT_MS = 25_000;
+/** Ad detail with a timeout; null when unreadable. */
+async function restDetail(proxyUrl: string, headers: HeadersInit, advNo: string): Promise<any | null> {
+  try {
+    const resp = await fetch(`${proxyUrl}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(advNo)}`,
+      { method: "POST", headers, signal: AbortSignal.timeout(10_000) });
+    const txt = await resp.text();
+    const j = JSON.parse(txt);
+    if (!isSuccessfulBinancePayload(j, resp.status)) return null;
+    return j?.data?.data || j?.data || null;
+  } catch { return null; }
+}
 
 /**
  * Every state-changing terminal action. A personal (view-only) device may call
@@ -728,6 +741,11 @@ serve(async (req) => {
   // never by an optimistic response code.
   async function setAdvVisibility(proxyUrl: string, headers: Record<string, string>, advNos: string[], visible: number): Promise<any> {
     const attempts: Array<{ path: string; body: Record<string, unknown> }> = [];
+    // AM-FIX-3: the only path that works on our proxy goes first (production log
+    // 10 Oct: confirmed via /ads/update {advNo, userSetVisible}); others are fallbacks.
+    for (const advNo of advNos) {
+      attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, userSetVisible: visible } });
+    }
     const dedicatedPaths = [
       `/api/sapi/v1/c2c/ads/setUserAdvVisible`,
       `/api/sapi/v1/c2c/ads/userAdvVisible`,
@@ -744,7 +762,6 @@ serve(async (req) => {
     // The documented ad-update endpoint returns advVisibleRet on read; try carrying
     // the same field back on write for each ad individually.
     for (const advNo of advNos) {
-      attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, userSetVisible: visible } });
       attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, advVisibleRet: { userSetVisible: visible } } });
       attempts.push({ path: `/api/sapi/v1/c2c/ads/updateStatus`, body: { advNos: [advNo], advStatus: 1, userSetVisible: visible } });
     }
@@ -947,23 +964,69 @@ serve(async (req) => {
           // Re-enters this function as the service role so the existing
           // updateAdStatus path (incl. Private = advStatus 2 from 3, with revert) is reused.
           async setStatus(accountId, advNo, status, fromStatus) {
-            const resp = await fetch(selfUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, apikey: SUPABASE_SERVICE_ROLE_KEY! },
-              body: JSON.stringify({
-                action: "updateAdStatus", advNos: [advNo], advStatus: status,
-                ...(fromStatus !== undefined ? { fromStatus } : {}),
-                ...(accountId ? { exchange_account_id: accountId } : {}),
-              }),
-            });
+            // AM-FIX-3: every per-ad call has a timeout; a lost or unreadable reply is
+            // reported as not-ok and the caller then reads the live status to decide.
+            let resp: Response;
+            try {
+              resp = await fetch(selfUrl, {
+                method: "POST",
+                signal: AbortSignal.timeout(REST_CALL_TIMEOUT_MS),
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, apikey: SUPABASE_SERVICE_ROLE_KEY! },
+                body: JSON.stringify({
+                  action: "updateAdStatus", advNos: [advNo], advStatus: status,
+                  ...(fromStatus !== undefined ? { fromStatus } : {}),
+                  ...(accountId ? { exchange_account_id: accountId } : {}),
+                }),
+              });
+            } catch (e) {
+              return { ok: false, reason: `no reply from Binance (${(e as Error).name === "TimeoutError" ? "timed out" : (e as Error).message})` };
+            }
             const j = await resp.json().catch(() => null);
             return j?.success ? { ok: true } : { ok: false, reason: String(j?.error || `HTTP ${resp.status}`) };
           },
           async getStatus(accountId, advNo) {
             const a = await resolveAccount(accountId);
-            const d = await fetchAdDetail(a.proxyUrl, proxyHeadersFor(a), advNo);
-            const st = Number(d?.advStatus);
-            return Number.isFinite(st) ? st : null;
+            const d = await restDetail(a.proxyUrl, proxyHeadersFor(a), advNo);
+            if (!d) return null;
+            const st = Number(d.advStatus);
+            if (!Number.isFinite(st)) return null;
+            if (st === 1 && Number(d?.advVisibleRet?.userSetVisible) === 1) return 2;
+            return st;
+          },
+          async listLive(accountId) {
+            const a = await resolveAccount(accountId);
+            const headers = proxyHeadersFor(a);
+            const all: any[] = [];
+            for (let page = 1; page <= 50; page++) {
+              const resp = await fetch(`${a.proxyUrl}/api/sapi/v1/c2c/ads/listWithPagination`, {
+                method: "POST", headers, body: JSON.stringify({ page, rows: 20 }),
+                signal: AbortSignal.timeout(REST_CALL_TIMEOUT_MS),
+              });
+              const txt = await resp.text();
+              let j: any; try { j = JSON.parse(txt); } catch { j = null; }
+              if (!j || !Array.isArray(j.data)) throw new Error(`ad list unreadable (HTTP ${resp.status})`);
+              all.push(...j.data);
+              const total = Number(j.total ?? 0);
+              if (j.data.length === 0 || j.data.length < 20 || (total && all.length >= total)) break;
+            }
+            // Private = online + advVisibleRet.userSetVisible=1, only in the ad detail.
+            const out: LiveAd[] = [];
+            const online = all.filter((x) => Number(x?.advStatus) === 1);
+            for (const x of all) if (Number(x?.advStatus) !== 1) out.push({ advNo: String(x.advNo), status: Number(x.advStatus) || null });
+            for (let i = 0; i < online.length; i += 4) {
+              await Promise.all(online.slice(i, i + 4).map(async (x) => {
+                const d = await restDetail(a.proxyUrl, headers, String(x.advNo));
+                const vis = d?.advVisibleRet;
+                if (!d || !vis || typeof vis.userSetVisible === "undefined") {
+                  out.push({ advNo: String(x.advNo), status: null, reason: "could not read its current state (Private flag unknown)" });
+                } else if (Number(d.advStatus) !== 1) {
+                  out.push({ advNo: String(x.advNo), status: Number(d.advStatus) || null });
+                } else {
+                  out.push({ advNo: String(x.advNo), status: Number(vis.userSetVisible) === 1 ? 2 : 1 });
+                }
+              }));
+            }
+            return out;
           },
         },
       };
@@ -977,9 +1040,8 @@ serve(async (req) => {
       try {
         const out = action === "startAdRest"
           ? await startAdRest(deps, {
-              ads: (Array.isArray(payload.ads) ? payload.ads : []).map((a: any) => ({
-                advNo: String(a?.advNo ?? ""), advStatus: Number(a?.advStatus), accountId: a?.accountId ?? null,
-              })),
+              accountIds: (Array.isArray(payload.accountIds) ? payload.accountIds : [])
+                .map((x: any) => (x ? String(x) : null)).slice(0, 10),
               userId: callerUserId, userName: userName || "Operations Associate",
             })
           : await endAdRest(deps, {

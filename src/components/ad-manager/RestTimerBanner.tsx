@@ -4,6 +4,7 @@ import { Coffee, Play, Loader2, OctagonPause, CheckCircle2, AlertTriangle, X } f
 import { useAdRestTimer, describeOutcomes } from '@/hooks/useAdRestTimer';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { format } from 'date-fns';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +30,8 @@ function formatCountdown(ms: number): string {
 }
 
 export function RestTimerBanner({ onlineAds, activeAds }: Props) {
-  const { isResting, isRestoring, endNotice, dismissEndNotice, isBinanceBreakDetected, detectedBreak, remainingMs, endTime, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer();
+  const { accountsToQuery } = useExchangeAccount();
+  const { isResting, isRestoring, isRestoreOverdue, endNotice, dismissEndNotice, isBinanceBreakDetected, detectedBreak, remainingMs, endTime, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer({ full: true });
   const [countdown, setCountdown] = useState(remainingMs);
   const [confirmStart, setConfirmStart] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -46,7 +48,8 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
 
   const handleStartRest = () => {
     setConfirmStart(false);
-    startRest.mutate({ activeAds });
+    // The rest covers the accounts this page is showing; the server reads each ad live.
+    startRest.mutate({ accountIds: accountsToQuery });
   };
 
   const handleEndRest = () => {
@@ -106,15 +109,51 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
 
   if (isRestoring) {
     return (
-      <div role="status" className="order-first flex w-full items-center gap-3 rounded-lg border border-warning/35 bg-warning/10 px-3 py-2.5 sm:px-4">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-warning/30 bg-warning/15">
-          <Loader2 className="h-4 w-4 animate-spin text-warning" />
-        </span>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-foreground">Rest ended — switching ads back on…</div>
-          <div className="text-xs text-muted-foreground">Each ad is restored on its own account to how it was before the rest.</div>
+      <>
+        <div role="status" className="order-first flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/35 bg-warning/10 px-3 py-2.5 sm:px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-warning/30 bg-warning/15">
+              {isRestoreOverdue ? <AlertTriangle className="h-4 w-4 text-warning" /> : <Loader2 className="h-4 w-4 animate-spin text-warning" />}
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">
+                {isRestoreOverdue ? 'Switching ads back on is taking longer than usual' : 'Rest ended — switching ads back on…'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isRestoreOverdue
+                  ? 'The automatic end has not finished. Resume ads now brings them back on the same way.'
+                  : 'Each ad is restored on its own account to how it was before the rest.'}
+              </div>
+            </div>
+          </div>
+          {isRestoreOverdue && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setConfirmEnd(true)}
+              disabled={endRest.isPending}
+              className="h-9 border-success/50 text-success hover:bg-success/10 hover:text-success"
+            >
+              {endRest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
+              Resume ads now
+            </Button>
+          )}
         </div>
-      </div>
+        <AlertDialog open={confirmEnd} onOpenChange={setConfirmEnd}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Resume ads now?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This turns back on the <strong className="text-foreground">{activeTimer?.deactivated_ad_nos?.length || 0}</strong> ads that were switched off when the rest started.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleEndRest}>Resume ads now</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
     );
   }
 
@@ -158,6 +197,8 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
 
   if (isBinanceBreakDetected) {
     return (
+      <>
+      {notice}
       <div role="alert" className="order-first flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2.5 sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/30 bg-destructive/15">
@@ -175,6 +216,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
           Dismiss
         </Button>
       </div>
+      </>
     );
   }
 

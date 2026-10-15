@@ -90,7 +90,7 @@ export interface RestStore {
   /** Atomic: SET end_completed_at=now WHERE id=? AND end_completed_at IS NULL. True only for the first caller. */
   finishEnd(id: string): Promise<boolean>;
   /** advNos with a manual status change logged after `sinceIso`. Throws when the check can't be done. */
-  handChangedAdvNos(advNos: string[], sinceIso: string): Promise<Set<string>>;
+  handChangedAdvNos(advNos: string[], sinceIso: string, accountOf?: Map<string, string | null>): Promise<Set<string>>;
   latestSnapshotAccount(advNo: string): Promise<string | null>;
   insertLog(entry: { action_type: string; user_id: string | null; user_name: string; metadata: Record<string, unknown> }): Promise<void>;
 }
@@ -340,28 +340,72 @@ async function buildSnaps(deps: RestDeps, timer: RestTimerRow): Promise<Snap[]> 
 export interface HandChangeRow { adv_no: string | null; metadata: Record<string, unknown> | null; action_type: string; user_id: string | null }
 
 /**
- * AM-SEC-3b: ads changed by hand during a rest. A row counts only when it was
- * written by the server (no user id — browsers can only insert rows as
- * themselves) or by someone in `allowedUserIds` (Ads Toggle / Manage, Super
- * Admin, Terminal admin). A forged row from anyone else is ignored, so it can
- * no longer keep ads off after a rest.
+ * AM-SEC-3b/5c: ads changed by hand during a rest. A row counts for an ad only
+ * when it was written by the server (no user id), or by someone in
+ * `allowedUserIds` (Ads Toggle / Manage) who may also use that ad's account
+ * (`accountsByUser`, from binance_accounts_for_user). `null` for either lookup
+ * means it could not be done: that check is skipped (old behaviour — honour the
+ * row), so a lookup failure never keeps the other ads of a rest off.
  */
-export function handChangedFrom(rows: HandChangeRow[], advNos: string[], allowedUserIds: Set<string>): Set<string> {
+export function handChangedFrom(
+  rows: HandChangeRow[],
+  advNos: string[],
+  allowedUserIds: Set<string> | null,
+  accountOf: Map<string, string | null> = new Map(),
+  accountsByUser: Map<string, Set<string>> | null = null,
+): Set<string> {
   const out = new Set<string>();
   const want = new Set(advNos);
+  const mayUse = (uid: string | null, advNo: string) => {
+    if (!uid || accountsByUser === null) return true;
+    const acct = accountOf.get(advNo);
+    if (!acct) return true; // ad's account unknown: cannot narrow (primary fallback)
+    return accountsByUser.get(uid)?.has(acct) ?? false;
+  };
   for (const row of rows) {
-    if (row.user_id && !allowedUserIds.has(row.user_id)) continue;
-    if (row.adv_no && want.has(row.adv_no)) out.add(row.adv_no);
+    if (row.user_id && allowedUserIds !== null && !allowedUserIds.has(row.user_id)) continue;
+    const cands: string[] = [];
+    if (row.adv_no) cands.push(row.adv_no);
     const list = (row.metadata as { advNos?: unknown } | null)?.advNos;
-    if (Array.isArray(list)) for (const a of list) if (want.has(String(a))) out.add(String(a));
+    if (Array.isArray(list)) for (const a of list) cands.push(String(a));
+    for (const a of cands) if (want.has(a) && mayUse(row.user_id, a)) out.add(a);
   }
   return out;
+}
+
+export interface HandChangeLookups {
+  /** Authors holding Ads Toggle/Manage (users_with_ads_toggle). Throws on error. */
+  toggleUsers(ids: string[]): Promise<Set<string>>;
+  /** Accounts one author may use (binance_accounts_for_user). Throws on error. */
+  accountsFor(id: string): Promise<string[]>;
+}
+
+/** AM-SEC-5c: rights/account lookups; a failure falls back to honouring the rows (logged). */
+export async function resolveHandChanges(
+  rows: HandChangeRow[],
+  advNos: string[],
+  accountOf: Map<string, string | null>,
+  lookups: HandChangeLookups,
+): Promise<Set<string>> {
+  const ids = [...new Set(rows.map((r) => r.user_id).filter((u): u is string => !!u))];
+  let allowed: Set<string> | null = new Set();
+  let byUser: Map<string, Set<string>> | null = new Map();
+  if (ids.length) {
+    try { allowed = await lookups.toggleUsers(ids); }
+    catch (e) { console.warn(`rest end: rights lookup failed (${(e as Error).message}) — honouring every hand-change row`); allowed = null; }
+    try {
+      const m = new Map<string, Set<string>>();
+      await Promise.all(ids.map(async (u) => { m.set(u, new Set((await lookups.accountsFor(u)).map(String))); }));
+      byUser = m;
+    } catch (e) { console.warn(`rest end: account lookup failed (${(e as Error).message}) — not narrowing hand-change rows by account`); byUser = null; }
+  }
+  return handChangedFrom(rows, advNos, allowed, accountOf, byUser);
 }
 
 async function handCheck(deps: RestDeps, snaps: Snap[], sinceIso: string, tries: number) {
   let err = "";
   for (let i = 0; i < tries; i++) {
-    try { return { set: await deps.store.handChangedAdvNos(snaps.map((s) => s.advNo), sinceIso), err: "" }; }
+    try { return { set: await deps.store.handChangedAdvNos(snaps.map((s) => s.advNo), sinceIso, new Map(snaps.map((s) => [s.advNo, s.accountId]))), err: "" }; }
     catch (e) { err = (e as Error).message; }
   }
   return { set: null as Set<string> | null, err: err || "lookup failed" };
@@ -560,7 +604,7 @@ export function supabaseRestStore(admin: any): RestStore {
       if (error) throw new Error(error.message);
       return (data ?? []).length > 0;
     },
-    async handChangedAdvNos(advNos, sinceIso) {
+    async handChangedAdvNos(advNos, sinceIso, accountOf) {
       if (!advNos.length) return new Set<string>();
       // Status rows, plus Edit-dialog saves only when they changed the status —
       // filtered in the query so price-only edits never crowd out a status change.
@@ -575,15 +619,18 @@ export function supabaseRestStore(admin: any): RestStore {
       if (st.error) throw new Error(st.error.message);
       if (ed.error) throw new Error(ed.error.message);
       const rows = [...(st.data ?? []), ...(ed.data ?? [])] as HandChangeRow[];
-      // AM-SEC-3b: only honour rows from people who can switch ads (or the server).
-      const ids = [...new Set(rows.map((r) => r.user_id).filter((u): u is string => !!u))];
-      let allowed = new Set<string>();
-      if (ids.length) {
-        const { data, error } = await admin.rpc("users_with_ads_toggle", { p_user_ids: ids });
-        if (error) throw new Error(error.message);
-        allowed = new Set(((data ?? []) as unknown[]).map(String));
-      }
-      return handChangedFrom(rows, advNos, allowed);
+      return await resolveHandChanges(rows, advNos, accountOf ?? new Map(), {
+        async toggleUsers(ids) {
+          const { data, error } = await admin.rpc("users_with_ads_toggle", { p_user_ids: ids });
+          if (error) throw new Error(error.message);
+          return new Set(((data ?? []) as unknown[]).map(String));
+        },
+        async accountsFor(id) {
+          const { data, error } = await admin.rpc("binance_accounts_for_user", { p_user_id: id });
+          if (error) throw new Error(error.message);
+          return ((data ?? []) as unknown[]).map(String);
+        },
+      });
     },
     async latestSnapshotAccount(advNo) {
       const { data } = await admin.from("binance_ad_state_snapshots").select("exchange_account_id")

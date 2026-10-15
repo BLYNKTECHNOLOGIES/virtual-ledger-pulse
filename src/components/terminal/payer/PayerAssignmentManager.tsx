@@ -34,10 +34,10 @@ import {
 type GroupBy = 'user' | 'size_range';
 
 export function PayerAssignmentManager() {
-  // AM-SEC-7: same rule as the server — Users 'Manage' or Payer 'Manage' (or admin).
+  // AM-SEC-7b: same rule as the server — Users 'Manage' (or admin).
   const { hasPermission, isTerminalAdmin } = useTerminalAuth();
-  const canEdit = isTerminalAdmin || hasPermission('terminal_users_manage') || hasPermission('terminal_payer_manage');
-  const noEditReason = "You need the Users 'Manage' or Payer 'Manage' right to change payer assignments.";
+  const canEdit = isTerminalAdmin || hasPermission('terminal_users_manage');
+  const noEditReason = "You need the Users 'Manage' right to change payer assignments.";
   const { data: assignments = [], isLoading } = useAllPayerAssignments();
   const createAssignment = useCreatePayerAssignment();
   const toggleAssignment = useTogglePayerAssignment();

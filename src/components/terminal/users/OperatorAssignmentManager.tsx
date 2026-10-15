@@ -72,7 +72,6 @@ function useCreateOperatorAssignment() {
         assignment_type: params.assignment_type,
         size_range_id: params.size_range_id || null,
         ad_id: params.ad_id || null,
-        assigned_by: userId,
       });
       if (error) throw error;
     },
@@ -135,6 +134,10 @@ export function OperatorAssignmentManager() {
   const toggleAssignment = useToggleOperatorAssignment();
   const deleteAssignment = useDeleteOperatorAssignment();
 
+  // AM-SEC-7b: same rule as the server — Users 'Manage' (or admin).
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canEdit = isTerminalAdmin || hasPermission('terminal_users_manage');
+  const noEditReason = "You need the Users 'Manage' right to change Operations Associate assignments.";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formType, setFormType] = useState<'size_range' | 'ad_id'>('size_range');
   const [selectedOperator, setSelectedOperator] = useState('');
@@ -224,6 +227,7 @@ export function OperatorAssignmentManager() {
   };
 
   const handleCreate = async () => {
+    if (!canEdit) { toast.error(noEditReason); return; }
     if (!selectedOperator) { toast.error('Select an Operations Associate'); return; }
     if (formType === 'size_range' && !selectedRange) { toast.error('Select a size range'); return; }
     if (formType === 'ad_id' && !adId.trim()) { toast.error('Enter an ad ID'); return; }
@@ -243,10 +247,11 @@ export function OperatorAssignmentManager() {
         <div>
           <h3 className="text-sm font-medium text-foreground">Operations Associate Assignments</h3>
           <p className="text-[11px] text-muted-foreground">Configure which orders each Operations Associate handles by size range or ad ID</p>
+          {!canEdit && <p className="text-[11px] text-muted-foreground mt-0.5">View only — {noEditReason}</p>}
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150">
+            <Button size="sm" disabled={!canEdit} title={canEdit ? undefined : noEditReason} className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150">
               <Plus className="h-3.5 w-3.5" /> Add Assignment
             </Button>
           </DialogTrigger>
@@ -345,6 +350,8 @@ export function OperatorAssignmentManager() {
                       <div className="flex items-center gap-1.5 ml-2" onClick={(e) => e.stopPropagation()}>
                         <span className="text-[9px] text-muted-foreground">{allActive ? 'All On' : 'All Off'}</span>
                         <Switch
+                          disabled={!canEdit}
+                          title={canEdit ? undefined : noEditReason}
                           checked={allActive}
                           onCheckedChange={(checked) => {
                             group.assignments.forEach((a: any) => {
@@ -388,10 +395,10 @@ export function OperatorAssignmentManager() {
                                 </TableCell>
                               )}
                               <TableCell className="py-2">
-                                <Switch checked={a.is_active} onCheckedChange={(checked) => toggleAssignment.mutate({ id: a.id, is_active: checked })} />
+                                <Switch disabled={!canEdit} title={canEdit ? undefined : noEditReason} checked={a.is_active} onCheckedChange={(checked) => toggleAssignment.mutate({ id: a.id, is_active: checked })} />
                               </TableCell>
                               <TableCell className="py-2 text-right">
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteAssignment.mutate(a.id)}>
+                                <Button variant="ghost" size="sm" disabled={!canEdit} title={canEdit ? undefined : noEditReason} className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteAssignment.mutate(a.id)}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </TableCell>

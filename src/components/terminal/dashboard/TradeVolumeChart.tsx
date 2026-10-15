@@ -14,6 +14,8 @@ interface Props {
   precomputedSeries?: { day: string; date: string; dateKey: number; buy: number; sell: number }[];
   /** Window of a single selected day (IST). When set, volume is plotted per hour. */
   hourWindow?: { startTimestamp: number; endTimestamp: number };
+  /** The selected range is longer than a year: axis labels carry a two-digit year. */
+  yearLabels?: boolean;
   /** Order history could not be read for the period. */
   unavailable?: boolean;
 }
@@ -21,9 +23,7 @@ interface Props {
 type Point = { date: string; full: string; buy: number; sell: number };
 
 const HOUR_MS = 3600000;
-const DAY_MS = 24 * HOUR_MS;
-// Days spanned beyond a year: axis labels carry a two-digit year.
-const YEAR_DAYS = 366;
+
 
 const tooltipStyle = {
   backgroundColor: 'hsl(var(--popover))',
@@ -40,7 +40,7 @@ function hourTicks(points: Point[], plotWidth: number): string[] {
   return points.map((p) => p.date).filter((label) => Number(label.slice(0, 2)) % step === 0);
 }
 
-function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindow, unavailable }: Props) {
+function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindow, yearLabels = false, unavailable }: Props) {
   const [plotWidth, setPlotWidth] = useState(0);
 
   const { chartData, totalBuy, totalSell, hourly } = useMemo(() => {
@@ -105,13 +105,13 @@ function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindo
       byDay.set(day, entry);
     }
     const days = Array.from(byDay.keys()).sort((a, b) => dayKeyToMs(a) - dayKeyToMs(b));
-    const withYear = days.length > 1 && (dayKeyToMs(days[days.length - 1]) - dayKeyToMs(days[0])) / DAY_MS >= YEAR_DAYS;
+    const withYear = yearLabels;
     const chartData = days.map((day) => {
       const v = byDay.get(day)!;
       return { date: formatDayLabel(day, withYear), full: formatDayFull(day), buy: Math.round(v.buy), sell: Math.round(v.sell) };
     });
     return { chartData, totalBuy: Math.round(totalBuy), totalSell: Math.round(totalSell), hourly: false };
-  }, [orders, precomputedSeries, hourWindow]);
+  }, [orders, precomputedSeries, hourWindow, yearLabels]);
 
   // Bars for hours and for very short day ranges (an area needs at least a few points).
   const asBars = hourly || chartData.length <= 2;

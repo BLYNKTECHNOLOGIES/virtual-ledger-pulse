@@ -209,6 +209,8 @@ export default function TerminalDashboard() {
     : syncMetaError ? "The last sync time couldn't be read"
     : 'Orders have not been synced yet';
 
+  // A custom range longer than a year: the chart's day labels carry the year (TD-FIX-B F6).
+  const isLongRange = filter.mode === 'range' && (filter.to.getTime() - filter.from.getTime()) / 86400000 >= 366;
   // One selected day (or a one-day range): the volume chart plots by hour.
   const isSingleDay = filter.mode === '1d' || (filter.mode === 'range' && filter.from.toDateString() === filter.to.toDateString());
   // A failing live query re-enters "loading" on every retry; once it has failed, keep saying so.
@@ -352,6 +354,7 @@ export default function TerminalDashboard() {
               isLoading={periodLoading}
               period={filter.mode === '1d' || filter.mode === 'range' ? '1d' : filter.mode}
               hourWindow={isSingleDay ? windowPlan.chartWindow : undefined}
+              yearLabels={isLongRange}
               unavailable={periodUnavailable}
             />
           </div>

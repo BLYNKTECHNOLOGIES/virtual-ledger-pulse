@@ -39,7 +39,7 @@ export function TradeHistory() {
     if (!trades) return [];
     const orderMap = new Map<string, any>();
     for (const trade of trades) {
-      const key = trade.binance_order_id ? `${trade.exchange_account_id || ""}|${trade.binance_order_id}` : trade.id;
+      const key = trade.binance_order_id || trade.id;
       const existing = orderMap.get(key);
       if (!existing) {
         orderMap.set(key, { ...trade });

@@ -9,7 +9,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TYPE_LABEL, POOL_LABEL, type ItemType, type Subject } from "./QuestionEditor";
-import { pretty, quizRpc, useInvalidateQuiz } from "./quizShared";
+import { pretty, useInvalidateQuiz } from "./quizShared";
+import { quizRpc } from "./quizRpc";
 import type { QuestionAnalyticsRow } from "./QuestionBankWorkspace";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -226,7 +227,7 @@ export function QuestionReviewQueue({ open, onOpenChange, rows, subjects, onEdit
               <Badge variant="outline">{TYPE_LABEL[row.type as ItemType] ?? pretty(row.type)}</Badge>
               <Badge variant="outline">{subjectName(row.category_tag)}</Badge>
               <Badge variant="outline">{pretty(row.difficulty)}</Badge>
-              <Badge variant="outline">{POOL_LABEL[row.pool as keyof typeof POOL_LABEL] ?? pretty(row.pool)} pool</Badge>
+              <Badge variant="outline">{POOL_LABEL[row.pool] ?? pretty(row.pool)} pool</Badge>
               <span className="ml-auto text-muted-foreground">Item {queue.indexOf(row.question_id) + 1} of {queue.length}</span>
             </div>
             <div className="rounded-lg border border-border bg-card p-4"><ItemView row={row} /></div>

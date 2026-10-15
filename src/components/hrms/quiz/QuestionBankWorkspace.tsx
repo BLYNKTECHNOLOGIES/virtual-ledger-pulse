@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle, Archive, BookOpenCheck, CheckCircle2, FileSpreadsheet, Pencil, Plus, RotateCcw, Tags, ChevronDown, ChevronRight, CircleHelp, Search, Target, TrendingDown,
-} from "lucide-react";
+  AlertTriangle, Archive, BookOpenCheck, CheckCircle2, FileSpreadsheet, Pencil, Plus, RotateCcw, Tags, ChevronDown, ChevronRight, CircleHelp, Search, Target, TrendingDown, ListChecks } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { QuestionReviewQueue } from "./QuestionReviewQueue";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { QuestionEditor, POOL_LABEL, TYPE_LABEL, type EditableQuestion, type ItemType, type Subject } from "./QuestionEditor";
@@ -90,6 +90,7 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
   const [type, setType] = useState("__all");
   const [editor, setEditor] = useState<{ open: boolean; q: EditableQuestion | null }>({ open: false, q: null });
   const [importing, setImporting] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const { data: subjectList = [] } = useQuery({
     queryKey: ["cbt", "subjects"],
@@ -268,6 +269,7 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
       </div>
 
       <div className="flex flex-wrap gap-2">
+        {canManage && rows.filter((r) => r.status === "needs_review").length > 0 && <Button variant="outline" onClick={() => setReviewing(true)}><ListChecks className="h-4 w-4" />Review ({rows.filter((r) => r.status === "needs_review").length})</Button>}
         {canManage && <Button onClick={() => setEditor({ open: true, q: null })}><Plus className="h-4 w-4" />Add item</Button>}
         {canManage && <Button variant="outline" onClick={() => setImporting(true)}><FileSpreadsheet className="h-4 w-4" />Import from Excel</Button>}
         <Button variant="outline" onClick={() => setSubjectsOpen(true)}><Tags className="h-4 w-4" />Subjects</Button>
@@ -528,6 +530,7 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
           )}
         </DialogContent>
       </Dialog>
+      {canManage && <QuestionReviewQueue open={reviewing} onOpenChange={setReviewing} rows={rows} subjects={subjectList} onEdit={(r) => setEditor({ open: true, q: r as unknown as EditableQuestion })} />}
       <QuestionEditor open={editor.open} onOpenChange={(o) => setEditor((e) => ({ ...e, open: o }))} question={editor.q} subjects={subjectList} roleCodes={roleCodes} />
       <QuestionImport open={importing} onOpenChange={setImporting} subjects={subjectList} />
       <AlertDialog open={!!retireImpact} onOpenChange={(o) => { if (!o) setRetireImpact(null); }}>

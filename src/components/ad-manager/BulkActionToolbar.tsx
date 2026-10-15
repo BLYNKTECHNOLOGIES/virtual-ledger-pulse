@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useAdsRights, NO_RIGHT } from './adsRights';
 import { Edit, Percent, Power, PowerOff, X, Blend, ShieldAlert, ListChecks, CreditCard, ArrowDownWideNarrow, Maximize2, ChevronUp } from 'lucide-react';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { adZone, zonesOf } from '@/lib/adZone';
@@ -57,6 +58,8 @@ export function BulkActionToolbar({
   onSelectAll,
   aboveBottomNav = false,
 }: BulkActionToolbarProps) {
+  // AM-SEC-2: edits need Manage; Activate/Deactivate need Toggle or Manage.
+  const { canManage, canToggle } = useAdsRights();
   const allFloating = selectedAds.every(ad => ad.priceType === 2);
   const hasFixed = selectedAds.some(ad => ad.priceType === 1);
   const hasFloating = selectedAds.some(ad => ad.priceType === 2);
@@ -117,6 +120,7 @@ export function BulkActionToolbar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="top" className="w-60">
+              {canManage ? (<>
               <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground">Price</DropdownMenuLabel>
               <DropdownMenuItem onClick={onBulkPriceLadder} disabled={!ladderReady}>
                 <ArrowDownWideNarrow className="mr-2 h-3.5 w-3.5" />
@@ -135,11 +139,14 @@ export function BulkActionToolbar({
               <DropdownMenuItem onClick={onBulkMaxQuantity}><Maximize2 className="mr-2 h-3.5 w-3.5" />Max quantity</DropdownMenuItem>
               <DropdownMenuItem onClick={onBulkEditPaymentMethods}><CreditCard className="mr-2 h-3.5 w-3.5" />Payment methods</DropdownMenuItem>
               <DropdownMenuItem onClick={onBulkRiskGuard} className="text-warning focus:text-warning"><ShieldAlert className="mr-2 h-3.5 w-3.5" />Risk guard</DropdownMenuItem>
+              </>) : (
+                <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">Price and limit edits: {NO_RIGHT.manage}</DropdownMenuLabel>
+              )}
               {(hasOffline || hasOnline) && <DropdownMenuSeparator />}
-              {hasOffline && (
+              {hasOffline && canToggle && (
                 <DropdownMenuItem onClick={onBulkActivate} className="text-success focus:text-success"><Power className="mr-2 h-3.5 w-3.5" />Activate</DropdownMenuItem>
               )}
-              {hasOnline && (
+              {hasOnline && canToggle && (
                 <DropdownMenuItem onClick={onBulkDeactivate} className="text-destructive focus:text-destructive"><PowerOff className="mr-2 h-3.5 w-3.5" />Deactivate</DropdownMenuItem>
               )}
             </DropdownMenuContent>

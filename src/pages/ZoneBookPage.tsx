@@ -1,3 +1,4 @@
+import { AdsAccessGate } from '@/components/ad-manager/AdsAccessGate';
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -190,6 +191,10 @@ function ZoneColumn({
 }
 
 export default function ZoneBookPage() {
+  return <AdsAccessGate><ZoneBookPageInner /></AdsAccessGate>;
+}
+
+function ZoneBookPageInner() {
   const navigate = useNavigate();
   const location = useLocation();
   const backTo = location.pathname.startsWith('/terminal') ? '/terminal/ads' : '/ad-manager';

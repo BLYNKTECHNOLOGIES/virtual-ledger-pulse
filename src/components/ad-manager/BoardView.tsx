@@ -1,5 +1,6 @@
+import { useAdsRights, NO_RIGHT } from './adsRights';
 import { useMemo, useState } from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from './SelectCheckbox';
 import { Switch } from '@/components/ui/switch';
 import { Lock, ChevronDown, ChevronRight, Megaphone, Clock3, EyeOff } from 'lucide-react';
 import { AdAutomationIndicator, useAdAutomationMap } from './AdAutomationIndicator';
@@ -45,6 +46,7 @@ function AdCard({
   exclusionPending: boolean;
   compact?: boolean;
 }) {
+  const { canToggle } = useAdsRights();
   const [editingPrice, setEditingPrice] = useState(false);
   const automationMap = useAdAutomationMap();
   const isOnline = ad.advStatus === BINANCE_AD_STATUS.ONLINE;
@@ -147,9 +149,9 @@ function AdCard({
           <Switch
             checked={isOnline || isPrivate}
             onCheckedChange={() => onToggleStatus(ad.advNo, ad.advStatus)}
-            disabled={isTogglingStatus}
+            disabled={isTogglingStatus || !canToggle}
             aria-label="Toggle ad status"
-            title={isOnline ? 'Switch off (take offline)' : isPrivate ? 'Switch off (private ad goes offline)' : 'Switch on (go online)'}
+            title={!canToggle ? NO_RIGHT.toggle : isOnline ? 'Switch off (take offline)' : isPrivate ? 'Switch off (private ad goes offline)' : 'Switch on (go online)'}
           />
           <span className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
             <StatusDot status={ad.advStatus} />

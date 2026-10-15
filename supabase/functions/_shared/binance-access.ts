@@ -113,3 +113,27 @@ export function adsRequestedAccounts(action: string, payload: Record<string, any
   if (action === "startAdRest") return restAccountsFromPayload(payload);
   return [accountIdFromPayload(payload)];
 }
+
+/**
+ * AM-SEC-1 / AM-SEC-2 — Terminal rights each Ads write needs (user callers only;
+ * service role / scheduler are trusted, so the automatic rest end is unaffected).
+ * The Ads screen (src/components/ad-manager/adsRights.tsx) uses the same rights.
+ */
+export const AD_WRITE_RULES: Record<string, { anyOf: string[]; message: string }> = {
+  postAd: { anyOf: ["terminal_ads_manage"], message: "Permission denied: you need the Ads 'Manage' right to create or edit ads." },
+  updateAd: { anyOf: ["terminal_ads_manage"], message: "Permission denied: you need the Ads 'Manage' right to create or edit ads." },
+  applyAdRiskGuard: { anyOf: ["terminal_ads_manage"], message: "Permission denied: you need the Ads 'Manage' right to apply risk settings to ads." },
+  updateAdStatus: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to switch ads on or off." },
+  setUserAdvVisible: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to change ad visibility." },
+  startAdRest: { anyOf: ["terminal_ads_rest_timer"], message: "Permission denied: you need the Ads 'Rest Timer' right to start a rest." },
+  endAdRest: { anyOf: ["terminal_ads_rest_timer"], message: "Permission denied: you need the Ads 'Rest Timer' right to resume ads." },
+  merchantOnline: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to take the merchant online or offline." },
+  merchantOffline: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to take the merchant online or offline." },
+};
+
+/** null = allowed (or not an Ads write); otherwise the refusal message. */
+export function adWriteDenial(action: string, perms: Set<string>, trustedCaller: boolean): string | null {
+  const rule = AD_WRITE_RULES[action];
+  if (!rule || trustedCaller) return null;
+  return rule.anyOf.some((p) => perms.has(p)) ? null : rule.message;
+}

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 import { Badge } from '@/components/ui/badge';
 import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud, History } from 'lucide-react';
@@ -574,6 +573,14 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
 
   const [isSending, setIsSending] = useState(false);
+
+  // Auto-grow the composer between 1 and ~5 lines; it scrolls beyond that (max-h).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 104)}px`;
+  }, [text]);
 
   const handleSend = async (messageText?: string) => {
     const msg = messageText || text.trim();

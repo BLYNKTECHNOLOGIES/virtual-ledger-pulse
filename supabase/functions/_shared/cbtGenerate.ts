@@ -132,7 +132,7 @@ export function makeMatchPair(r: Rng, level: Level, forceMatch?: boolean): Pair 
       continue;
     }
     if (kind === 1) {
-      return { left, right: line(rec, rec.amount, rec.name, rec.account_number, rec.ifsc).replace(`Rs ${rec.amount}`, `Rs ${moveDecimal(rec.amount)}`), match: false, difference: "Decimal point moved in the amount" };
+      return { left, right: line(rec, moveDecimal(rec.amount)), match: false, difference: "Decimal point moved in the amount" };
     }
     const part = rec.name.split(" ").find((p) => NEAR[p]);
     if (part) return { left, right: line(rec, rec.amount, rec.name.replace(part, NEAR[part])), match: false, difference: `Spelling ${part} vs ${NEAR[part]}` };

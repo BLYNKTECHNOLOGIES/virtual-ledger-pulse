@@ -28,6 +28,30 @@ export interface TerminalOrderClientProfile {
   pan_masked: string | null;
   /** Whether the viewer may open /clients/:id (clients_view or clients_manage). */
   can_open_profile?: boolean;
+  buyer_approved_at?: string | null;
+  seller_approved_at?: string | null;
+  /** Active relationship associate (ra_assignments). */
+  relationship_associate?: string | null;
+  /** Declared at onboarding (client_income_details). */
+  income?: { source: string | null; occupation: string | null } | null;
+}
+
+/** What the client's own Terminal history says about the order being viewed (same Binance userNos). */
+export interface TerminalOrderClientOrderContext {
+  /** Binance verified name on this order vs the ERP client name. */
+  name_check: 'match' | 'partial' | 'mismatch' | 'unknown';
+  binance_name: string | null;
+  /** Completed orders with us on this order's side, excluding this one, and their median total. */
+  side_completed: number;
+  side_median: number | null;
+  /** Other orders today (IST) on this side, not cancelled. */
+  today_other_count: number;
+  today_other_total: number;
+  orders_90d: number;
+  cancelled_90d: number;
+  appeals: number;
+  last_appeal_at: string | null;
+  last_appeal_status: string | null;
 }
 
 export interface TerminalOrderClientLinked {
@@ -42,7 +66,11 @@ export interface TerminalOrderClientLinked {
     pending_count?: number;
     /** True when the order being viewed is already inside buy_total or pending_total. */
     this_order_counted?: boolean;
+    /** What the client sold to us this IST month (exact Terminal purchase links). */
+    sell_total?: number;
+    sell_count?: number;
   };
+  order_context?: TerminalOrderClientOrderContext;
   history: {
     buy_count: number; buy_total: number; first_buy: string | null; last_buy: string | null;
     sell_count: number; sell_total: number; first_sell: string | null; last_sell: string | null;
@@ -55,6 +83,12 @@ export interface TerminalOrderClientLinked {
   };
   notes: { note: string; by: string | null; at: string }[];
   limit_request_pending: boolean;
+  /** Latest relationship-associate call remarks. */
+  ra_remarks?: { remark: string; by: string | null; outcome: string | null; at: string }[];
+  /** Other ERP client records carrying the same PAN. */
+  pan_shared?: { count: number; codes: string[] };
+  /** Active Binance accounts linked to this client. */
+  binance_accounts?: number;
 }
 
 export type TerminalOrderClientResult =

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { format } from 'date-fns';
 import {
   AlertTriangle, BadgeCheck, CircleAlert, ExternalLink, FileCheck2, Info,
-  Landmark, MapPin, Phone, RefreshCw, ShieldAlert, StickyNote, UserCheck,
+  Landmark, MapPin, Phone, PhoneCall, RefreshCw, ShieldAlert, StickyNote, UserCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -52,12 +52,21 @@ function inrShort(n: number) {
 }
 
 const orders = (n: number) => `${n} ${n === 1 ? 'order' : 'orders'}`;
+const ratioText = (x: number) => (x >= 10 ? String(Math.round(x)) : String(Math.round(x * 10) / 10));
+const SEVERITY: Record<AlertLevel, number> = { danger: 0, warning: 1, info: 2 };
+const bySeverity = (list: ClientAlert[]) => [...list].sort((a, b) => SEVERITY[a.level] - SEVERITY[b.level]);
 
 function dateText(value: string | null | undefined, pattern: string) {
   if (!value) return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : format(d, pattern);
 }
+
+/** NOT_REACHABLE → Not reachable */
+const humanize = (code: string) => {
+  const t = code.replace(/_/g, ' ').trim().toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 
 const isSellOrder = (ctx: OrderClientContext) => String(ctx.tradeType).toUpperCase() === 'SELL';
 
@@ -130,6 +139,41 @@ function limitAlerts(data: TerminalOrderClientLinked, ctx: OrderClientContext): 
   return [];
 }
 
+/** What the client's own Terminal history says about this order — shown on the card and in the tab. */
+function orderAlerts(data: TerminalOrderClientLinked, ctx: OrderClientContext): ClientAlert[] {
+  const oc = data.order_context;
+  if (!oc) return [];
+  const out: ClientAlert[] = [];
+  if (oc.name_check === 'mismatch') {
+    out.push({ level: 'danger', text: `Binance name “${oc.binance_name || 'not available'}” does not match this ERP client` });
+  }
+  const total = Number(ctx.orderTotal) || 0;
+  const median = Number(oc.side_median || 0);
+  if (total > 0 && oc.side_completed >= 3 && median > 0 && total >= 3 * median) {
+    out.push({ level: 'warning', text: `${ratioText(total / median)}× this client's usual order (usually ${inrShort(median)})` });
+  }
+  if (oc.appeals > 0) {
+    const when = dateText(oc.last_appeal_at, 'dd MMM yyyy');
+    out.push({ level: 'warning', text: `${oc.appeals} appeal${oc.appeals === 1 ? '' : 's'} on this client's orders${when ? ` · last ${when}` : ''}` });
+  }
+  const sell = isSellOrder(ctx);
+  // ERP may hold older orders than the Terminal (or ones from an unlinked account) — never call a known client a first-timer.
+  const erpOnSide = Number((sell ? data.history?.buy_count : data.history?.sell_count) || 0);
+  if (oc.side_completed === 0 && erpOnSide === 0) {
+    out.push({ level: 'info', text: sell ? 'First time this client buys from us' : 'First time this client sells to us' });
+  }
+  if (oc.today_other_count > 0) {
+    out.push({
+      level: 'info',
+      text: `${sell ? 'Also buying' : 'Also selling'} today: ${oc.today_other_count} other order${oc.today_other_count === 1 ? '' : 's'} · ${inrShort(Number(oc.today_other_total) || 0)}`,
+    });
+  }
+  return out;
+}
+
+const cardAlerts = (data: TerminalOrderClientLinked, ctx: OrderClientContext) =>
+  bySeverity([...limitAlerts(data, ctx), ...orderAlerts(data, ctx)]);
+
 function buildClientAlerts(data: TerminalOrderClientLinked, ctx: OrderClientContext): ClientAlert[] {
   const alerts: ClientAlert[] = [];
   const side = sideApproval(data, ctx);
@@ -143,8 +187,17 @@ function buildClientAlerts(data: TerminalOrderClientLinked, ctx: OrderClientCont
   const risk = String(data.client.risk_appetite || '').toUpperCase();
   if (risk === 'HIGH_RISK' || risk === 'HIGH') alerts.push({ level: 'danger', text: 'High-risk client' });
   else if (risk === 'CAUTIOUS') alerts.push({ level: 'warning', text: 'Cautious client — check payment carefully' });
+  alerts.push(...orderAlerts(data, ctx));
+  const ps = data.pan_shared;
+  if (ps && ps.count > 0) {
+    const codes = (ps.codes || []).filter(Boolean);
+    alerts.push({
+      level: 'warning',
+      text: `PAN on file is also on ${ps.count} other client record${ps.count === 1 ? '' : 's'}${codes.length ? `: ${codes.join(', ')}${ps.count > codes.length ? ', …' : ''}` : ''}`,
+    });
+  }
   if (data.limit_request_pending) alerts.push({ level: 'info', text: 'Limit increase request pending' });
-  return alerts;
+  return bySeverity(alerts);
 }
 
 const DOC_LABELS: Record<string, string> = {
@@ -229,7 +282,7 @@ export function OrderClientCard({ data, ctx, className = '' }: { data: TerminalO
   const kyc = kycChip(c.kyc_status);
   const risk = riskChip(c.risk_appetite);
   const lim = limitView(data, ctx);
-  const alerts = limitAlerts(data, ctx);
+  const alerts = cardAlerts(data, ctx);
   const since = dateText(c.since, 'MMM yyyy');
   const initials = initialsOf(c.name);
   return (
@@ -330,13 +383,35 @@ export function OrderClientDetails({ data, ctx }: { data: TerminalOrderClientLin
   const docs = documentTypes(data.documents);
   const pendingCount = Number(data.month?.pending_count || 0);
   const knowsPending = data.month?.pending_total !== undefined;
+  const approvedAt = side.approved ? dateText(sell ? c.buyer_approved_at : c.seller_approved_at, 'dd MMM yyyy') : null;
+  const oc = data.order_context;
+  const sellCount = Number(data.month?.sell_count || 0);
+  const notesFeed = [
+    ...data.notes.map((n) => ({ kind: 'note' as const, text: n.note, meta: [n.by, dateText(n.at, 'dd MMM yyyy, HH:mm')], at: n.at })),
+    ...(data.ra_remarks || []).map((r) => ({
+      kind: 'call' as const,
+      text: r.remark,
+      meta: [r.by ? `RA ${r.by}` : 'RA', r.outcome ? humanize(r.outcome) : null, dateText(r.at, 'dd MMM yyyy, HH:mm')],
+      at: r.at,
+    })),
+  ]
+    .filter((n) => n.text)
+    .sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0));
+  const nameNote = oc && oc.binance_name && (oc.name_check === 'partial' || oc.name_check === 'mismatch')
+    ? `${oc.binance_name} (${oc.name_check === 'partial' ? 'partial match' : 'no match'})`
+    : null;
+  const linkedAccounts = Number(data.binance_accounts || 0);
+  const lastAppeal = oc ? dateText(oc.last_appeal_at, 'dd MMM yyyy') : null;
+  const appealText = oc && oc.appeals > 0
+    ? [String(oc.appeals), lastAppeal ? `last ${lastAppeal}` : null, oc.last_appeal_status ? humanize(oc.last_appeal_status) : null].filter(Boolean).join(' · ')
+    : 'None';
   return (
     <div className="flex-1 overflow-y-auto">
       <section className="space-y-3 border-b border-border p-4">
         <div>
           <p className="text-sm font-medium text-foreground">{c.name}</p>
           <p className="t-mono text-[11px] text-muted-foreground">
-            {[c.code, since ? `client since ${since}` : null].filter(Boolean).join(' · ')}
+            {[c.code, since ? `client since ${since}` : null, approvedAt ? `approved ${approvedAt}` : null].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="flex flex-wrap gap-1">
@@ -432,6 +507,8 @@ export function OrderClientDetails({ data, ctx }: { data: TerminalOrderClientLin
         <dl className="divide-y divide-border/60">
           {c.pan_masked && <Row label="PAN" mono>{c.pan_masked}</Row>}
           <Row label="Documents on file" mono>{data.documents.count}</Row>
+          {c.income?.source && <Row label="Source of funds">{c.income.source}</Row>}
+          {c.income?.occupation && <Row label="Occupation">{c.income.occupation}</Row>}
           {c.purpose && <Row label="Purpose">{c.purpose}</Row>}
         </dl>
         {c.compliance_note && (
@@ -444,16 +521,18 @@ export function OrderClientDetails({ data, ctx }: { data: TerminalOrderClientLin
         )}
       </section>
 
-      {data.notes.length > 0 && (
+      {notesFeed.length > 0 && (
         <section className="space-y-2 border-b border-border p-4">
-          <div className={SECTION_LABEL}>Operator notes</div>
+          <div className={SECTION_LABEL}>Notes &amp; RA calls</div>
           <ul className="space-y-2">
-            {data.notes.map((n, i) => (
-              <li key={`${n.at}-${i}`} className="rounded-md border border-border bg-secondary/30 px-2.5 py-2">
-                <p className="whitespace-pre-wrap break-words text-xs text-foreground">{n.note}</p>
+            {notesFeed.map((n, i) => (
+              <li key={`${n.kind}-${n.at}-${i}`} className="rounded-md border border-border bg-secondary/30 px-2.5 py-2">
+                <p className="whitespace-pre-wrap break-words text-xs text-foreground">{n.text}</p>
                 <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <StickyNote className="h-3 w-3" aria-hidden="true" />
-                  {[n.by, dateText(n.at, 'dd MMM yyyy, HH:mm')].filter(Boolean).join(' · ')}
+                  {n.kind === 'call'
+                    ? <PhoneCall className="h-3 w-3" aria-hidden="true" />
+                    : <StickyNote className="h-3 w-3" aria-hidden="true" />}
+                  {n.meta.filter(Boolean).join(' · ')}
                 </p>
               </li>
             ))}
@@ -468,9 +547,33 @@ export function OrderClientDetails({ data, ctx }: { data: TerminalOrderClientLin
           {h.last_buy && <Row label="Last bought" mono>{dateText(h.last_buy, 'dd MMM yyyy')}</Row>}
           <Row label="Sold to us" mono>{orders(h.sell_count)} · {inr(h.sell_total)}</Row>
           {h.last_sell && <Row label="Last sold" mono>{dateText(h.last_sell, 'dd MMM yyyy')}</Row>}
+          {sellCount > 0 && <Row label="Sold to us this month" mono>{orders(sellCount)} · {inr(Number(data.month?.sell_total || 0))}</Row>}
         </dl>
         <p className="text-[10px] text-muted-foreground">“Sold to us” counts purchases made through the Terminal.</p>
       </section>
+
+      {oc && (
+        <section className="space-y-2 border-b border-border p-4">
+          <div className={SECTION_LABEL}>Terminal orders</div>
+          <dl className="divide-y divide-border/60">
+            {nameNote && <Row label="Binance name">{nameNote}</Row>}
+            <Row label={sell ? 'Usually buys' : 'Usually sells'} mono={oc.side_completed > 0 && Number(oc.side_median) > 0}>
+              {oc.side_completed > 0 && Number(oc.side_median) > 0
+                ? `${inr(Number(oc.side_median))} per order · ${orders(oc.side_completed)}`
+                : 'No other completed orders'}
+            </Row>
+            <Row label={sell ? 'Also buying today' : 'Also selling today'} mono={oc.today_other_count > 0}>
+              {oc.today_other_count > 0 ? `${orders(oc.today_other_count)} · ${inr(Number(oc.today_other_total) || 0)}` : 'No other orders'}
+            </Row>
+            {oc.orders_90d > 0 && <Row label="Cancelled (90 days)" mono>{oc.cancelled_90d} of {orders(oc.orders_90d)}</Row>}
+            <Row label="Appeals" mono={oc.appeals > 0}>{appealText}</Row>
+            {linkedAccounts > 1 && <Row label="Linked Binance accounts" mono>{linkedAccounts}</Row>}
+          </dl>
+          <p className="text-[10px] text-muted-foreground">
+            Across every Binance account linked to this client. “Usually” is the typical completed order on the same side as this one.
+          </p>
+        </section>
+      )}
 
       <section className="space-y-2 p-4">
         <div className={SECTION_LABEL}>Contact</div>
@@ -481,7 +584,8 @@ export function OrderClientDetails({ data, ctx }: { data: TerminalOrderClientLin
           <Row label="Phone" mono>
             <span className="inline-flex items-center gap-1">{c.phone_masked ? <><Phone className="h-3 w-3 text-muted-foreground" aria-hidden="true" />{c.phone_masked}</> : '—'}</span>
           </Row>
-          <Row label="Assigned operator">{c.assigned_operator || '—'}</Row>
+          {c.relationship_associate !== undefined && <Row label="Relationship associate">{c.relationship_associate || 'Not assigned'}</Row>}
+          {c.assigned_operator && <Row label="Operations associate">{c.assigned_operator}</Row>}
         </dl>
         <p className="text-[10px] text-muted-foreground">
           {c.can_open_profile === false ? 'Phone and PAN are masked here.' : 'Phone and PAN are masked here; the full profile is in ERP.'}

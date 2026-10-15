@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTerminalEditableUsers } from "@/hooks/useTerminalEditableUsers";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +68,7 @@ export function BiometricManagementDialog({
   displayName,
 }: BiometricManagementDialogProps) {
   const { isTerminalAdmin } = useTerminalAuth();
+  const resetBlockedReason = useTerminalEditableUsers().bioResetReason(userId);
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -384,6 +386,8 @@ export function BiometricManagementDialog({
                   size="sm"
                   className="h-8 text-xs gap-1 text-destructive hover:text-destructive"
                   onClick={handleDeleteAll}
+                  disabled={!!resetBlockedReason}
+                  title={resetBlockedReason ?? undefined}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Remove All

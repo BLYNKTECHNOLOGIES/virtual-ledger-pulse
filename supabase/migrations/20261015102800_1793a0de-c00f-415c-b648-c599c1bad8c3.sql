@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.fn_validate_leave_balance() FROM PUBLIC, anon, authenticated;

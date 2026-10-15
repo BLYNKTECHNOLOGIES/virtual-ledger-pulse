@@ -62,6 +62,16 @@ export function isAppealLikeBinanceStatus(raw: number | string | undefined | nul
   return s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT');
 }
 
+/**
+ * TD-FIX-B F2 — an order is an active appeal only while it is not final (same rule
+ * as the Appeals page and terminal_order_has_active_appeal_evidence), and either its
+ * status is appeal-like or it carries an active complaint flag.
+ */
+export function isActiveAppealOrder(o: { orderStatus?: number | string | null; hasActiveComplaint?: boolean | null }): boolean {
+  if (isFinalBinanceStatus(o.orderStatus)) return false;
+  return isAppealLikeBinanceStatus(o.orderStatus) || o.hasActiveComplaint === true;
+}
+
 export function hasActiveBinanceComplaint(detail: any): boolean {
   const d = detail?.data?.data || detail?.data || detail;
   if (!d || typeof d !== 'object') return false;

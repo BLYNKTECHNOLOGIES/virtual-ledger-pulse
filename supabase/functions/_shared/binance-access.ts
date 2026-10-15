@@ -177,7 +177,7 @@ export const CHAT_READ_ACTIONS = new Set<string>([
 /** AM-SEC-4b: archive label — signed-in callers can't choose it; trusted callers may. */
 export function serverCaptureSource(requested: unknown, trustedCaller: boolean): "history_sync" | string {
   if (!trustedCaller) return "history_sync";
-  const allowed = ["unknown", "listener_ws", "ui_ws", "history_sync"];
+  const allowed = ["unknown", "listener_ws", "ui_ws", "history_sync", "sweep_backstop"];
   return typeof requested === "string" && allowed.includes(requested) ? requested : "history_sync";
 }
 

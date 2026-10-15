@@ -29804,6 +29804,30 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_ad_zone_latest: {
+        Row: {
+          adv_no: string
+          captured_at: string
+          classify: string | null
+          updated_at: string
+          zone: string
+        }
+        Insert: {
+          adv_no: string
+          captured_at: string
+          classify?: string | null
+          updated_at?: string
+          zone: string
+        }
+        Update: {
+          adv_no?: string
+          captured_at?: string
+          classify?: string | null
+          updated_at?: string
+          zone?: string
+        }
+        Relationships: []
+      }
       terminal_alternate_upi_requests: {
         Row: {
           created_at: string
@@ -39203,6 +39227,10 @@ export type Database = {
         Args: { p_month?: number; p_year?: number }
         Returns: undefined
       }
+      refresh_terminal_ad_zone_latest: {
+        Args: { p_since?: string }
+        Returns: number
+      }
       refresh_terminal_chat_thread_summary: {
         Args: { p_order: string }
         Returns: undefined
@@ -39546,6 +39574,10 @@ export type Database = {
       terminal_order_status_group: {
         Args: { p_status: string }
         Returns: string
+      }
+      terminal_order_valuation_rows: {
+        Args: { p_order_numbers: string[] }
+        Returns: Json
       }
       terminal_revoke_all_access: { Args: { _uid: string }; Returns: Json }
       terminal_save_user_config: {

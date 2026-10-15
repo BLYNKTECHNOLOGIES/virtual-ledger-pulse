@@ -7,6 +7,8 @@ Deno.serve(async (req) => {
     const auth = await authAttempt(req, db);
     if (!auth.ok) return auth.response;
     const attempt = auth.attempt;
+    // QZ7a: an ended attempt (submitted, auto-submitted, abandoned, invalidated) can't be re-submitted
+    if (attempt.status !== "in_progress") return fail("not_running", "This test is no longer running.", 409);
     const { section_id } = await req.json().catch(() => ({}));
 
     const { data: section } = await db.from("cbt_attempt_sections").select("*").eq("id", section_id).eq("attempt_id", attempt.id).maybeSingle();

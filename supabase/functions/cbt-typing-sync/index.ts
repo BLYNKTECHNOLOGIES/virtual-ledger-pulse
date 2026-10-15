@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
     const prevElapsed = Number(metrics.elapsed_seconds ?? 0);
     const deltaSeconds = Math.max(1, elapsed - prevElapsed);
     const impliedWpm = (addedChars / 5) / (deltaSeconds / 60);
-    if (impliedWpm > 200) {
+    const burst = impliedWpm > 200;
+    if (burst) {
       await db.from("cbt_proctor_events").insert({
         attempt_id: attempt.id, event_type: "burst_input",
         meta: { implied_wpm: Math.round(impliedWpm), words: added.length, seconds: deltaSeconds },
@@ -74,6 +75,8 @@ Deno.serve(async (req) => {
         keystrokes: b.keystrokes ?? metrics.keystrokes ?? 0,
         backspaces: b.backspaces ?? metrics.backspaces ?? 0,
         wpm_timeline: timeline.slice(-400),
+        // QZ7a: an implausible burst is an integrity flag (finalize puts the attempt on Hold)
+        ...(burst || metrics.integrity_burst ? { integrity_burst: true } : {}),
       },
     }).eq("id", section.id);
 

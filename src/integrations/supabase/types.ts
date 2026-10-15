@@ -31039,6 +31039,78 @@ export type Database = {
           },
         ]
       }
+      to_fix_1_cleanup_sales_backup: {
+        Row: {
+          applied: boolean
+          cleaned_at: string
+          evidence: string
+          id: string
+          new_client_phone: string | null
+          new_client_state: string | null
+          old_client_phone: string | null
+          old_client_state: string | null
+          phone_source: string
+        }
+        Insert: {
+          applied?: boolean
+          cleaned_at?: string
+          evidence: string
+          id: string
+          new_client_phone?: string | null
+          new_client_state?: string | null
+          old_client_phone?: string | null
+          old_client_state?: string | null
+          phone_source: string
+        }
+        Update: {
+          applied?: boolean
+          cleaned_at?: string
+          evidence?: string
+          id?: string
+          new_client_phone?: string | null
+          new_client_state?: string | null
+          old_client_phone?: string | null
+          old_client_state?: string | null
+          phone_source?: string
+        }
+        Relationships: []
+      }
+      to_fix_1_cleanup_sync_backup: {
+        Row: {
+          applied: boolean
+          cleaned_at: string
+          evidence: string
+          id: string
+          new_contact_number: string | null
+          new_state: string | null
+          old_contact_number: string | null
+          old_state: string | null
+          phone_source: string
+        }
+        Insert: {
+          applied?: boolean
+          cleaned_at?: string
+          evidence: string
+          id: string
+          new_contact_number?: string | null
+          new_state?: string | null
+          old_contact_number?: string | null
+          old_state?: string | null
+          phone_source: string
+        }
+        Update: {
+          applied?: boolean
+          cleaned_at?: string
+          evidence?: string
+          id?: string
+          new_contact_number?: string | null
+          new_state?: string | null
+          old_contact_number?: string | null
+          old_state?: string | null
+          phone_source?: string
+        }
+        Relationships: []
+      }
       user_activity_log: {
         Row: {
           action: string

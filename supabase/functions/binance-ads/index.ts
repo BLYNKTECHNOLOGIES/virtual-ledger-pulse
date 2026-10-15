@@ -1303,6 +1303,7 @@ serve(async (req) => {
       case "applyAdRiskGuard": {
         // Permission (terminal_ads_manage) is enforced by the shared ads gate above.
         if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 
         const advNos = (Array.isArray(payload.advNos) ? payload.advNos : []).map(String).filter(Boolean);
@@ -1324,7 +1325,7 @@ serve(async (req) => {
           await new Promise((r) => setTimeout(r, 250));
         }
         await supabase.from("terminal_ad_risk_guard_logs").insert({
-          actor_user_id: authData.user.id,
+          actor_user_id: callerUserId,
           profile_name: String(payload.profileName || "Risk Guard"),
           adv_nos: advNos,
           requested_payload: requestedPayload,

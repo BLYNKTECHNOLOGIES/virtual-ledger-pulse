@@ -19,7 +19,7 @@
 - RazorpayX additions are pushed only under exact names from hr_razorpay_component_catalog, which mirrors the Component names in RazorpayX Settings → Salary Component Library (proxy maps or rejects; our wording goes in remarks), because RazorpayX rejects addition names that are not library components.
 - A mid-month CTC revision is held from RazorpayX until that month's cockpit Step 7 (payroll run complete) is done, then pushed automatically, because RazorpayX must pay the old CTC for the month being processed.
 - Reports & Analytics treats `hr_payslips_v` as payroll truth, employer payroll cost as gross plus employer contributions, approved leave as day totals rather than request counts, and canonical evidence-backed attendance only as workforce availability; owner exclusions must apply to every metric, drill-down and export.
-- The salary-register importer sums two header names for one figure only if they resolve to different columns, because an alias ("Loan Repayment" for "Loan Emi") can resolve both to one column and double the deduction.
+- Salary-register importer sums two headers for one figure only if they resolve to different columns (aliases can double a deduction).
 - Unit tests run with `bun run test` (vitest, vitest.config.ts); test files import from "vitest", never bun:test, so one command runs every test.
 
 - Leave days: total_days, apply check, approval recompute and consumption all use hr_leave_working_days (offs/holidays excluded), never fn_calculate_leave_days, so every count matches.
@@ -27,4 +27,4 @@
 - Approved leave: employee cancels only before day 1 (IST); HR not in locked periods; cancel/reject refunds net of worked-day restores, drops worked-day rows, unstamps evidence-free days — a withdrawn leave must not stay paid or refund twice.
 - User Management rights live in public.um_* SQL functions (um_my_access feeds the screen); every UI gate reads them, because screen and server must agree.
 - Auth owns sign-in times/logs; ERP-shell heartbeat is self-only for consistent presence. Legacy role_functions are immutable with retained role UUIDs after deletion, preserving history without blocking role removal.
-- Which Binance accounts a user may use comes only from public.binance_accounts_for_user (ExchangeAccountContext and binance-ads/binance-assets via _shared/binance-access.ts), so screen and server cannot drift.
+- Binance account access comes only from public.binance_accounts_for_user (screen + edge functions), so they cannot drift.

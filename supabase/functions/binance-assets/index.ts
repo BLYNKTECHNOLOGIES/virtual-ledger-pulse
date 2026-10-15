@@ -9,13 +9,15 @@ const corsHeaders = {
 };
 
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
+import { permissionSet, supabaseAccessDeps } from "../_shared/binance-access.ts";
+import { gateAssetsRequest } from "./accessGate.ts";
 import { checkOrder, computeFundingShortfall, fromUnits, rulesFromExchangeInfo, toUnits, type SymbolRules } from "./tradeRules.ts";
 
 const BINANCE_BASE = "https://api.binance.com";
 
 /** Money-moving asset actions — blocked on personal (view-only) devices. */
 const MUTATING_ASSET_ACTIONS = new Set<string>([
-  "transfer", "spotOrder", "spotOrderDirect", "executeTradeWithTransfer",
+  "executeTradeWithTransfer",
 ]);
 
 // ===== Live Binance trading rules (public exchangeInfo), cached ~1 hour per instance =====
@@ -136,19 +138,35 @@ serve(async (req) => {
     const { action, ...payload } = await req.json();
     console.info(`binance-assets: action=${action}`);
 
-    // === Personal (view-only) device guard for money-moving actions ===
-    if (MUTATING_ASSET_ACTIONS.has(action)) {
-      const authHeader = req.headers.get("Authorization") ?? "";
+    // === AM-SEC-5 (AS-SEC-1/2): signed-in staff or the service role only ===
+    {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-      if (!isServiceRole && authHeader.startsWith("Bearer ")) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const guardAdmin = createClient(supabaseUrl, serviceRoleKey);
-        const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-          global: { headers: { Authorization: authHeader } },
+      const gateAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const gate = await gateAssetsRequest({
+        serviceRoleKey,
+        async userIdFromToken(token) {
+          const c = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });
+          const { data, error } = await c.auth.getClaims(token);
+          if (error || !data?.claims?.sub || data.claims.role !== "authenticated") return null;
+          return String(data.claims.sub);
+        },
+        async permissions(uid) {
+          const { data, error } = await gateAdmin.rpc("get_terminal_permissions", { p_user_id: uid });
+          if (error) throw new Error(error.message);
+          return permissionSet(data);
+        },
+        access: supabaseAccessDeps(gateAdmin),
+      }, req.headers.get("Authorization"), String(action), payload);
+      if (!gate.ok) {
+        if (gate.status !== 401) console.warn(`binance-assets denied: action=${action} code=${gate.body.code}`);
+        return new Response(JSON.stringify(gate.body), {
+          status: gate.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-        const { data: userData } = await userClient.auth.getUser();
-        await assertTerminalWriteAllowed(guardAdmin, userData?.user?.id ?? null, `binance-assets:${action}`);
+      }
+      // Personal (view-only) device guard for trading.
+      if (gate.kind === "user" && MUTATING_ASSET_ACTIONS.has(action)) {
+        await assertTerminalWriteAllowed(gateAdmin, gate.userId, `binance-assets:${action}`);
       }
     }
 
@@ -269,30 +287,6 @@ serve(async (req) => {
         break;
       }
 
-      // ===== INTERNAL TRANSFER =====
-      case "transfer": {
-        const { asset, amount, type } = payload;
-        if (!asset || !amount || !type) throw new Error("Missing required fields: asset, amount, type");
-        result = await proxyCall("/sapi/v1/asset/transfer", { type, asset, amount: String(amount) });
-        break;
-      }
-
-      // ===== SPOT MARKET ORDER =====
-      case "spotOrder": {
-        const { symbol, side, quantity, quoteOrderQty } = payload;
-        if (!symbol || !side) throw new Error("Missing: symbol, side");
-        const params: Record<string, string> = { symbol, side, type: "MARKET" };
-        if (quoteOrderQty) params.quoteOrderQty = String(quoteOrderQty);
-        else if (quantity) params.quantity = String(quantity);
-        else throw new Error("Either quantity or quoteOrderQty required");
-
-        const qs2 = new URLSearchParams(params).toString();
-        const url2 = `${BINANCE_PROXY_URL}/api/api/v3/order?${qs2}`;
-        const res2 = await fetchWithRetry(url2, { method: "POST", headers: proxyHeaders });
-        result = JSON.parse(await res2.text());
-        break;
-      }
-
       // ===== AUTO-TRANSFER + SPOT ORDER =====
       case "executeTradeWithTransfer": {
         const { symbol, side, quantity, quoteOrderQty, dryRun } = payload;
@@ -389,22 +383,6 @@ serve(async (req) => {
       case "getSymbolRules": {
         const list = Array.isArray(payload.symbols) ? payload.symbols : [];
         result = await getSymbolRules(list.slice(0, 50), payload.force === true);
-        break;
-      }
-
-      // ===== SPOT ORDER via proxy query params (api/v3) =====
-      case "spotOrderDirect": {
-        const { symbol, side, quantity, quoteOrderQty } = payload;
-        if (!symbol || !side) throw new Error("Missing: symbol, side");
-        const params: Record<string, string> = { symbol, side, type: "MARKET" };
-        if (quoteOrderQty) params.quoteOrderQty = String(quoteOrderQty);
-        else if (quantity) params.quantity = String(quantity);
-        else throw new Error("Either quantity or quoteOrderQty required");
-
-        const qs = new URLSearchParams(params).toString();
-        const url = `${BINANCE_PROXY_URL}/api/api/v3/order?${qs}`;
-        const res = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders });
-        result = JSON.parse(await res.text());
         break;
       }
 

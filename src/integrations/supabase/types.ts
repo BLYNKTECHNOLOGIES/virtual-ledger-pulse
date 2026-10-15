@@ -35035,6 +35035,10 @@ export type Database = {
           result: string
         }[]
       }
+      binance_accounts_for_user: {
+        Args: { p_user_id?: string }
+        Returns: string[]
+      }
       calculate_user_risk_score: {
         Args: { user_uuid: string }
         Returns: number

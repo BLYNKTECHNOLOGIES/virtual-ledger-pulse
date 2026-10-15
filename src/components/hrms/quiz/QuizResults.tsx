@@ -16,7 +16,7 @@ import { fmtIst, pretty, quizRpc, statusLabel, statusVariant } from "./quizShare
 
 export type ResultRow = {
   id: string; public_ref: string; person: string | null; mobile: string | null; test: string | null; drive: string | null;
-  status: string; total_score: number | null; decision: string; decision_source: string; decision_reason: string | null;
+  status: string; total_score: number | null; decision: string | null; decision_source: string; decision_reason: string | null;
   warning_count: number; is_sandbox: boolean; created_at: string; started_at: string | null; submitted_at: string | null;
 };
 type Page = { total: number; rows: ResultRow[] };
@@ -59,7 +59,7 @@ export function QuizResults({ drives, tests, canManage }: { drives: { id: string
       }
       const sheet = XLSX.utils.json_to_sheet(all.map((r) => ({
         Reference: r.public_ref, Person: r.person ?? "Anonymized", Mobile: r.mobile ?? "", Test: r.test ?? "", Drive: r.drive ?? "",
-        Status: statusLabel(r.status), Total: r.total_score, Decision: pretty(r.decision),
+        Status: statusLabel(r.status), Total: r.total_score, Decision: decisionLabel(r.decision),
         "Decision by": r.decision_source === "manual" ? "HR" : "Automatic", "Decision reason": r.decision_reason ?? "",
         Warnings: r.warning_count, Sandbox: r.is_sandbox ? "Yes" : "No",
         "Registered (IST)": fmtIst(r.created_at), "Submitted (IST)": fmtIst(r.submitted_at),
@@ -122,7 +122,7 @@ export function QuizResults({ drives, tests, canManage }: { drives: { id: string
                     <TableCell><p>{r.test ?? "—"}</p><p className="text-xs text-muted-foreground">{r.drive}</p></TableCell>
                     <TableCell><Badge variant={statusVariant(r.status)}>{statusLabel(r.status)}</Badge></TableCell>
                     <TableCell numeric>{r.total_score ?? "—"}</TableCell>
-                    <TableCell><Badge variant={statusVariant(r.decision)}>{pretty(r.decision)}</Badge>{r.decision_source === "manual" && <span className="ml-1 text-xs text-muted-foreground">HR</span>}</TableCell>
+                    <TableCell><Badge variant={statusVariant(r.decision ?? "in_progress")}>{decisionLabel(r.decision)}</Badge>{r.decision_source === "manual" && <span className="ml-1 text-xs text-muted-foreground">HR</span>}</TableCell>
                     <TableCell numeric>{r.warning_count}</TableCell>
                     <TableCell className="text-xs">{fmtIst(r.created_at)}</TableCell>
                   </TableRow>
@@ -133,7 +133,7 @@ export function QuizResults({ drives, tests, canManage }: { drives: { id: string
           <div className="grid gap-2 md:hidden">
             {(data?.rows ?? []).map((r) => (
               <button key={r.id} className="rounded-lg border border-border bg-card p-3 text-left" onClick={() => setOpenId(r.id)}>
-                <div className="flex items-center justify-between gap-2"><p className="font-medium">{r.person ?? "Anonymized"}</p><Badge variant={statusVariant(r.decision)}>{pretty(r.decision)}</Badge></div>
+                <div className="flex items-center justify-between gap-2"><p className="font-medium">{r.person ?? "Anonymized"}</p><Badge variant={statusVariant(r.decision ?? "in_progress")}>{decisionLabel(r.decision)}</Badge></div>
                 <p className="mt-1 text-xs text-muted-foreground">{r.public_ref} · {r.test} · {statusLabel(r.status)} · total {r.total_score ?? "—"}</p>
               </button>
             ))}

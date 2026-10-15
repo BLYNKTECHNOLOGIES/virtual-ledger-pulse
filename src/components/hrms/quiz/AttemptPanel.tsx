@@ -23,7 +23,7 @@ type Section = {
 type Detail = {
   server_now: string;
   attempt: { id: string; public_ref: string; status: string; auto_submit_reason: string | null; created_at: string; started_at: string | null;
-    submitted_at: string | null; last_seen: string | null; total_score: number | null; decision: string; decision_reason: string | null;
+    submitted_at: string | null; last_seen: string | null; total_score: number | null; decision: string | null; decision_reason: string | null;
     decision_source: string; warning_count: number; is_sandbox: boolean };
   person: { full_name: string | null; mobile: string | null; email: string | null; city: string | null; qualification: string | null; experience_years: number | null; anonymized: boolean };
   drive: { name: string; code: string; mode: string };
@@ -106,7 +106,7 @@ export function AttemptPanel({ attemptId, onClose, canManage }: { attemptId: str
             <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div><p className="text-xs text-muted-foreground">Status</p><Badge variant={statusVariant(a.status)}>{statusLabel(a.status)}</Badge></div>
               <div><p className="text-xs text-muted-foreground">Total</p><p className="text-lg font-semibold tabular-nums">{a.total_score ?? "—"}</p></div>
-              <div><p className="text-xs text-muted-foreground">Decision</p><Badge variant={statusVariant(a.decision)}>{pretty(a.decision)}</Badge></div>
+              <div><p className="text-xs text-muted-foreground">Decision</p><Badge variant={statusVariant(a.decision ?? "in_progress")}>{decisionLabel(a.decision)}</Badge></div>
               <div><p className="text-xs text-muted-foreground">Set by</p><p className="text-sm font-medium">{a.decision_source === "manual" ? "HR override" : "Automatic"}</p></div>
               <p className="col-span-2 text-sm text-muted-foreground sm:col-span-4">{a.decision_reason ?? "No decision reason yet."}</p>
             </section>

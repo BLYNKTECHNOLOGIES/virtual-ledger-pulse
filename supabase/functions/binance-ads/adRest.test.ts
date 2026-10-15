@@ -1,6 +1,6 @@
 // AM-FIX-2 / AM-FIX-3 — rest start/end logic with mocked Binance calls and an in-memory store.
 import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { endAdRest, startAdRest, restAccountsFromPayload, MSG_ALREADY_RUNNING, MSG_LAST_STILL_ENDING, MSG_PRIVATE_SWITCHED_OFF, MSG_STILL_STARTING, MSG_UNCLEAR_OFF, type RestDeps, type RestTimerRow } from "../_shared/adRest.ts";
+import { endAdRest, startAdRest, restAccountsFromPayload, MSG_NOTHING_OFF, MSG_UNCLEAR_STILL_ON, MSG_ALREADY_RUNNING, MSG_LAST_STILL_ENDING, MSG_PRIVATE_SWITCHED_OFF, MSG_STILL_STARTING, MSG_UNCLEAR_OFF, type RestDeps, type RestTimerRow } from "../_shared/adRest.ts";
 
 const A1 = "acct-1", A2 = "acct-2";
 
@@ -23,6 +23,12 @@ type Opts = {
   lateOff?: Set<string>;
   /** The restore call for these ads never returns (function killed mid-end) — once. */
   hangRestore?: Set<string>;
+  /** AM-FIX-5: the status call throws (proxy refuses → no clear answer). */
+  throwOff?: Set<string>;
+  /** AM-FIX-5: restore calls for these ads wait until released by the test. */
+  slowRestore?: Map<string, Promise<void>>;
+  /** AM-FIX-5: first call for these ads is rate-limited. */
+  rateLimitOnce?: Set<string>;
 };
 
 const DEFAULT_LIVE = { "111": 1, "222": 2, "333": 1 };
@@ -39,6 +45,7 @@ function harness(opts: Opts = {}) {
   const deps: RestDeps = {
     primaryAccountId: A1,
     now: () => clock,
+    sleep: (_ms) => new Promise((r) => setTimeout(r, 10)),
     store: {
       async getActiveTimer() { return timers.filter((t) => t.is_active).at(-1) ?? null; },
       async insertTimer(row) {
@@ -55,11 +62,15 @@ function harness(opts: Opts = {}) {
         if (!keep) { t.is_active = false; t.ended_at = clock.toISOString(); }
         return true;
       },
-      async claimTimer(id, staleBefore) {
+      async claimTimer(id, staleBefore, by) {
         const t = timers.find((x) => x.id === id && x.is_active && (x.start_completed_at || x.started_at < staleBefore));
         if (!t) return null;
-        t.is_active = false; t.ended_at = clock.toISOString(); t.end_lease_at = clock.toISOString(); return { ...t };
+        t.is_active = false; t.ended_at = clock.toISOString(); t.end_lease_at = clock.toISOString();
+        t.ended_by_mode = by.mode; t.ended_by_user_id = by.userId; t.ended_by_name = by.userName;
+        return { ...t };
       },
+      async hasUnfinishedEnd(since) { return timers.some((t) => !t.is_active && t.ended_at && !t.end_completed_at && t.ended_at > since); },
+      async renewEndLease(id) { const t = timers.find((x) => x.id === id)!; if (!t.end_completed_at) t.end_lease_at = clock.toISOString(); },
       async getTimer(id) { const t = timers.find((x) => x.id === id); return t ? { ...t } : null; },
       async claimUnfinishedEnd(id, leaseStale) {
         const t = timers.find((x) => x.id === id && !x.is_active && !x.end_completed_at && (!x.end_lease_at || x.end_lease_at < leaseStale));
@@ -82,6 +93,9 @@ function harness(opts: Opts = {}) {
       async setStatus(accountId, advNo, status, fromStatus) {
         if (status === 3 && opts.beforeOff) await opts.beforeOff(advNo);
         calls.push({ accountId, advNo, status, fromStatus });
+        if (status === 3 && opts.throwOff?.has(advNo)) throw new Error("proxy refused (HTTP 500)");
+        if (opts.rateLimitOnce?.has(advNo)) { opts.rateLimitOnce.delete(advNo); return { ok: false, reason: "Binance -1003 Too many requests" }; }
+        if (status !== 3 && opts.slowRestore?.has(advNo)) await opts.slowRestore.get(advNo);
         if (status !== 3 && opts.hangRestore?.has(advNo)) { opts.hangRestore.delete(advNo); return new Promise(() => {}); }
         await new Promise((r) => setTimeout(r, 1));
         if (status === 3 && opts.lateOff?.has(advNo)) {
@@ -335,7 +349,7 @@ Deno.test("(F4-4) end interrupted part-way: next run finishes it once, even when
   // Within the lease nothing re-runs it.
   const early: any = await endAdRest(h.deps, { timerId: "t1", mode: "automatic", userId: null, userName: "automatic" });
   assertEquals(early.claimed, false);
-  h.advance(4);
+  h.advance(8); // AM-FIX-5: lease is now 7 min (was 3)
   h.calls.length = 0;
   const [x, y]: any[] = await Promise.all([
     endAdRest(h.deps, { timerId: "t1", mode: "automatic", userId: null, userName: "automatic" }),
@@ -375,4 +389,92 @@ Deno.test("(F4-6a) two starts at once: the second is told a rest is already runn
   assertEquals(rejected.length, 1);
   assertEquals(rejected[0].reason.message, MSG_ALREADY_RUNNING);
   assertEquals(h.timers.length, 1);
+});
+
+// ---- AM-FIX-5 ----
+
+Deno.test("(F5-1a) status calls fail at start: no rest, nothing reported as switched off", async () => {
+  const h = harness({ throwOff: new Set(["111", "222", "333"]) });
+  const r: any = await startAdRest(h.deps, { accountIds: BOTH, userId: "u1", userName: "Op" });
+  assertEquals(r.started, false);
+  assertEquals(r.switchedOff, []);
+  assertEquals(r.message, MSG_NOTHING_OFF);
+  assertEquals(r.failed.map((f: any) => [f.advNo, f.reason]), [["111", MSG_UNCLEAR_STILL_ON], ["222", MSG_UNCLEAR_STILL_ON], ["333", MSG_UNCLEAR_STILL_ON]]);
+  assertEquals(h.timers[0].is_active, false, "no running rest, so the engine keeps pricing");
+  assertEquals(h.live, { "111": 1, "222": 2, "333": 1 });
+  assertEquals(h.logs.find((l) => l.action_type === "ad.rest_started").metadata.deactivatedCount, 0);
+});
+
+Deno.test("(F5-1b) late switch-off confirmed by the re-read joins the rest; a still-on one is reported", async () => {
+  const h = harness({ lateOff: new Set(["111"]), throwOff: new Set(["333"]) });
+  const r: any = await startAdRest(h.deps, { accountIds: BOTH, userId: "u1", userName: "Op" });
+  assertEquals(r.started, true);
+  assertEquals(h.timers[0].deactivated_ad_nos, ["111", "222"]);
+  assertEquals(r.unclear.map((u: any) => u.advNo), ["111"]);
+  assertEquals(r.failed.map((f: any) => [f.advNo, f.reason]), [["333", MSG_UNCLEAR_STILL_ON]]);
+});
+
+Deno.test("(F5-2a) start refused while an earlier end is unfinished", async () => {
+  const h = harness();
+  h.timers.push({ id: "old", started_at: "2026-10-15T07:30:00Z", duration_minutes: 60, started_by: "x", is_active: false,
+    start_completed_at: "2026-10-15T07:30:00Z", ended_at: "2026-10-15T08:30:00Z", end_lease_at: "2026-10-15T08:58:00Z",
+    deactivated_ad_nos: ["111"], deactivated_ad_statuses: [{ advNo: "111", advStatus: 1, accountId: A1 }] });
+  await assertRejects(() => startAdRest(h.deps, { accountIds: BOTH, userId: "u1", userName: "Op" }), Error, MSG_LAST_STILL_ENDING);
+  assertEquals(h.calls.length, 0);
+});
+
+Deno.test("(F5-2b) a recovery leaves a running rest's ads off", async () => {
+  const h = harness({ live: { "111": 3, "333": 3 } });
+  h.timers.push({ id: "old", started_at: "2026-10-15T07:30:00Z", duration_minutes: 60, started_by: "x", is_active: false,
+    start_completed_at: "2026-10-15T07:30:00Z", ended_at: "2026-10-15T08:30:00Z", end_lease_at: "2026-10-15T08:30:00Z",
+    deactivated_ad_nos: ["111", "333"], deactivated_ad_statuses: [{ advNo: "111", advStatus: 1, accountId: A1 }, { advNo: "333", advStatus: 1, accountId: A2 }] });
+  // A rest that is running now (e.g. inserted by an old tab) holds 111.
+  h.timers.push({ id: "new", started_at: "2026-10-15T08:55:00Z", duration_minutes: 60, started_by: "y", is_active: true,
+    start_completed_at: "2026-10-15T08:55:00Z", deactivated_ad_nos: ["111"], deactivated_ad_statuses: [{ advNo: "111", advStatus: 1, accountId: A1 }] });
+  const r: any = await endAdRest(h.deps, { timerId: "old", mode: "automatic", userId: null, userName: "automatic" });
+  assertEquals(r.claimed, true);
+  assertEquals(r.skipped.map((s: any) => [s.advNo, s.reason]), [["111", "part of the rest running now"]]);
+  assertEquals(r.restored.map((s: any) => s.advNo), ["333"]);
+  assertEquals(h.live["111"], 3);
+});
+
+Deno.test("(F5-3) a slow first run is not overlapped by a recovery", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  const h = harness({ slowRestore: new Map([["333", gate]]) });
+  await startAdRest(h.deps, { accountIds: BOTH, userId: "u1", userName: "Op" });
+  h.advance(61);
+  h.calls.length = 0;
+  const first = endAdRest(h.deps, { mode: "automatic", userId: null, userName: "automatic" });
+  await new Promise((r) => setTimeout(r, 30));
+  h.advance(5); // beyond the old 3-min lease, still inside the new one
+  const rec: any = await endAdRest(h.deps, { timerId: "t1", mode: "automatic", userId: null, userName: "automatic" });
+  assertEquals(rec.claimed, false);
+  release();
+  const done: any = await first;
+  assertEquals(done.claimed, true);
+  assertEquals(done.restored.length, 3);
+  for (const a of ["111", "222", "333"]) assertEquals(h.calls.filter((c) => c.advNo === a && c.status !== 3).length, 1, `${a} switched on once`);
+  assertEquals(h.logs.filter((l) => l.action_type === "ad.rest_ended").length, 1);
+});
+
+Deno.test("(F5-4) a recovered manual end keeps who pressed Resume", async () => {
+  const h = harness({ hangRestore: new Set(["333"]) });
+  await startAdRest(h.deps, { accountIds: BOTH, userId: "u1", userName: "Op" });
+  endAdRest(h.deps, { mode: "manual", userId: "u2", userName: "Op2" });
+  await new Promise((r) => setTimeout(r, 30));
+  h.advance(8);
+  const r: any = await endAdRest(h.deps, { timerId: "t1", mode: "automatic", userId: null, userName: "automatic" });
+  assertEquals(r.claimed, true);
+  const log = h.logs.find((l) => l.action_type === "ad.rest_ended");
+  assertEquals([log.metadata.mode, log.metadata.ended_by, log.user_id, log.user_name, log.metadata.finished_by],
+    ["manual", "Op2", "u2", "Op2", "the automatic recovery"]);
+});
+
+Deno.test("(F5-5a) a rate-limited call is retried once before reporting", async () => {
+  const h = harness({ rateLimitOnce: new Set(["111"]) });
+  const r: any = await startAdRest(h.deps, { accountIds: BOTH, userId: "u1", userName: "Op" });
+  assertEquals(r.failed, []);
+  assertEquals(h.calls.filter((c) => c.advNo === "111").length, 2);
+  assertEquals(h.live["111"], 3);
 });

@@ -144,7 +144,7 @@ export async function refreshStaleOpenOrders<Ctx>(deps: RefreshDeps<Ctx>): Promi
     const acct = await deps.resolveAccount(accountKey || null);
     if (!acct.ok) {
       for (const r of list) {
-        await record({ ...base(r.order_number), outcome: "account_unavailable", message: acct.reason,
+        await record({ ...base(r.order_number), outcome: "account_unavailable", message: (acct as { ok: false; reason: string }).reason,
           backoffMinutes: BOUNDS.accountUnavailableBackoffMinutes });
       }
       continue;

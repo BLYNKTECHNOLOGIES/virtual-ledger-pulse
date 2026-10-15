@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { isTrustedJobCaller, schedulerSecretLookup, unauthorizedJob } from "../_shared/require-scheduler.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { listActiveAccounts, proxyHeadersFor, resolveAccount } from "../_shared/binance-account.ts";
 import { persistChatMessages } from "../_shared/binance-chat.ts";
@@ -130,6 +131,11 @@ serve(async (req) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+  // AM-SEC-6: service role or scheduler secret only.
+  if (!(await isTrustedJobCaller(req, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), schedulerSecretLookup(supabase)))) {
+    return unauthorizedJob(corsHeaders);
+  }
 
   // Single-order mode: called by the terminal_active_orders_cache trigger
   // when a chatUnreadCount increases. Sync just that order and return.

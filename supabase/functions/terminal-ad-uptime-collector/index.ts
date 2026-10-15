@@ -1,4 +1,5 @@
 // Ad uptime collector — captures the live state of every Binance ad once a minute
+import { isTrustedJobCaller, schedulerSecretLookup, unauthorizedJob } from "../_shared/require-scheduler.ts";
 // per exchange account and records whether it was ACTIVE (online + public),
 // PRIVATE (online but link-only) or OFFLINE.
 //
@@ -171,6 +172,11 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
+
+  // AM-SEC-6: service role or scheduler secret only.
+  if (!(await isTrustedJobCaller(req, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), schedulerSecretLookup(supabase)))) {
+    return unauthorizedJob(corsHeaders);
+  }
 
   const minute = new Date();
   minute.setUTCSeconds(0, 0);

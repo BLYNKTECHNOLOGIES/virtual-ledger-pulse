@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { isTrustedJobCaller, schedulerSecretLookup, unauthorizedJob } from "../_shared/require-scheduler.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveAccount, proxyHeadersFor, type ResolvedAccount } from "../_shared/binance-account.ts";
 
@@ -80,6 +81,11 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // AM-SEC-6: service role or scheduler secret only.
+    if (!(await isTrustedJobCaller(req, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), schedulerSecretLookup(supabase)))) {
+      return unauthorizedJob(corsHeaders);
+    }
 
     // Window: default last 90 minutes (well inside Binance's ~1h nickname window,
     // covering the 30-minute cron cadence plus slack). No small batch cap.

@@ -313,7 +313,7 @@ function AdManagerPage() {
   };
 
   const viewLabel = activeTab === 'buy' ? 'buy' : activeTab === 'sell' ? 'sell' : activeTab === 'block' ? 'block' : '';
-  const hasSelection = selectedAds.length > 0;
+  const hasSelection = selectedAds.length > 0 && adsRights.canBulk;
 
   const content = (
     <div className={cn('space-y-4 p-3 sm:p-4 md:p-6', hasSelection && 'pb-32 md:pb-36')}>

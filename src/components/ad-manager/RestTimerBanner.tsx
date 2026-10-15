@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Coffee, Play, Loader2, OctagonPause } from 'lucide-react';
-import { useAdRestTimer } from '@/hooks/useAdRestTimer';
+import { Coffee, Play, Loader2, OctagonPause, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { useAdRestTimer, describeOutcomes } from '@/hooks/useAdRestTimer';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { format } from 'date-fns';
 import {
@@ -29,7 +29,7 @@ function formatCountdown(ms: number): string {
 }
 
 export function RestTimerBanner({ onlineAds, activeAds }: Props) {
-  const { isResting, isBinanceBreakDetected, detectedBreak, remainingMs, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer();
+  const { isResting, isRestoring, endNotice, dismissEndNotice, isBinanceBreakDetected, detectedBreak, remainingMs, endTime, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer();
   const [countdown, setCountdown] = useState(remainingMs);
   const [confirmStart, setConfirmStart] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -65,7 +65,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
             <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">Rest mode is on — all ads are offline</div>
               <div className="text-xs text-muted-foreground">
-                Started by {activeTimer?.started_by || 'Operations Associate'} · ads stay off when the timer ends — press Resume ads to switch them back on
+                Started by {activeTimer?.started_by || 'Operations Associate'} · ads come back on at {endTime ? format(new Date(endTime), 'HH:mm') : '—'} · Resume ads ends it early
               </div>
             </div>
           </div>
@@ -104,6 +104,58 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
     );
   }
 
+  if (isRestoring) {
+    return (
+      <div role="status" className="order-first flex w-full items-center gap-3 rounded-lg border border-warning/35 bg-warning/10 px-3 py-2.5 sm:px-4">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-warning/30 bg-warning/15">
+          <Loader2 className="h-4 w-4 animate-spin text-warning" />
+        </span>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-foreground">Rest ended — switching ads back on…</div>
+          <div className="text-xs text-muted-foreground">Each ad is restored on its own account to how it was before the rest.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const notice = endNotice ? (
+    <div
+      role={endNotice.failed.length ? 'alert' : 'status'}
+      className={`order-first flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-2.5 sm:px-4 ${endNotice.failed.length ? 'border-destructive/35 bg-destructive/10' : 'border-success/35 bg-success/10'}`}
+    >
+      <div className="flex min-w-0 items-start gap-3">
+        {endNotice.failed.length
+          ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          : <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />}
+        <div className="min-w-0 text-xs text-muted-foreground">
+          <div className="text-sm font-semibold text-foreground">
+            {endNotice.failed.length
+              ? `Rest ended — ${endNotice.failed.length} ad${endNotice.failed.length !== 1 ? 's' : ''} still off`
+              : 'Rest ended — ads are back on'}
+          </div>
+          <div>
+            {endNotice.mode === 'automatic' ? 'Ended automatically' : `Resumed by ${endNotice.ended_by}`}
+            {endNotice.at ? ` at ${format(new Date(endNotice.at), 'HH:mm')}` : ''} · {endNotice.restored.length} back on
+            {endNotice.skipped.length ? ` · ${endNotice.skipped.length} left alone (${describeOutcomes(endNotice.skipped)})` : ''}
+          </div>
+          {endNotice.failed.length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {endNotice.failed.map((f) => (
+                <li key={f.advNo} className="text-foreground">
+                  <span className="t-mono">…{f.advNo.slice(-8)}</span>
+                  {f.wasPrivate ? ' (Private) — switch it on as Private in the Binance app' : ''}: {f.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={dismissEndNotice} aria-label="Dismiss">
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+  ) : null;
+
   if (isBinanceBreakDetected) {
     return (
       <div role="alert" className="order-first flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2.5 sm:px-4">
@@ -128,6 +180,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
 
   return (
     <>
+      {notice}
       <Button
         variant="outline"
         size="sm"
@@ -146,6 +199,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
             <AlertDialogTitle>Take a rest?</AlertDialogTitle>
             <AlertDialogDescription>
               This switches off <strong className="text-foreground">{activeAds.length}</strong> active ad{activeAds.length !== 1 ? 's' : ''} (including Private) and starts a 1-hour rest timer that every operator sees.
+              {' '}When the hour ends the ads come back on by themselves. Private ads come back as Private — if Binance refuses that, the ad stays off and you are told. Resume ads ends the rest early.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

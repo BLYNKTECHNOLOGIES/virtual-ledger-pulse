@@ -15,6 +15,29 @@ function getInternalAuthKey(): string {
   return key;
 }
 
+/** AM-FIX-2: end any rest whose hour is over through binance-ads endAdRest (atomic claim there). */
+async function endExpiredRests(supabase: any) {
+  try {
+    const { data: timers } = await supabase
+      .from("ad_rest_timer").select("id, started_at, duration_minutes").eq("is_active", true).limit(5);
+    for (const t of timers || []) {
+      const end = new Date(t.started_at).getTime() + Number(t.duration_minutes || 0) * 60_000;
+      if (Date.now() < end) continue;
+      const call = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getInternalAuthKey()}`, apikey: getInternalAuthKey() },
+        body: JSON.stringify({ action: "endAdRest", timerId: t.id, mode: "automatic" }),
+      }).then(async (r) => console.log("[rest-timer] automatic end:", r.status, (await r.text()).slice(0, 500)))
+        .catch((e) => console.error("[rest-timer] automatic end failed:", e));
+      // Let the restore finish even if the pricing cycle returns first.
+      // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime
+      if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(call); else await call;
+    }
+  } catch (e) {
+    console.error("[rest-timer] expired-rest check failed:", e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -54,6 +77,9 @@ serve(async (req) => {
 
 async function runCycle(supabase: any, singleRuleId: string | null): Promise<Response> {
   try {
+    // ===== AM-FIX-2: AUTOMATIC REST END (before the circuit breaker) =====
+    // An open breaker must never delay bringing ads back after a rest.
+    await endExpiredRests(supabase);
 
     // ===== AP-ARCH-01: CIRCUIT BREAKER CHECK =====
     let { data: engineState } = await supabase
@@ -104,11 +130,9 @@ async function runCycle(supabase: any, singleRuleId: string | null): Promise<Res
         return new Response(JSON.stringify({ success: true, message: "Rest timer active, skipping" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-      } else {
-        // Expired but still active — clean up
-        await supabase.from("ad_rest_timer").update({ is_active: false }).eq("id", timer.id);
-        console.log("[rest-timer] Expired timer cleaned up");
       }
+      // Expired: the timer is ended (and ads restored) by endExpiredRests via
+      // binance-ads endAdRest — never just flip is_active here.
     }
 
     let query = supabase.from("ad_pricing_rules").select("*");

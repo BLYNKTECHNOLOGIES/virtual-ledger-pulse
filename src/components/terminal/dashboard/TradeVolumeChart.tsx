@@ -3,7 +3,7 @@ import { Activity } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { TimePeriod } from './TimePeriodFilter';
-import { dayKeyToMs, formatDayFull, formatDayLabel, istDayKey } from '@/lib/orderSummary';
+import { buildDaySeries } from './daySeries';
 import { formatAxisRupees, formatExactRupees, formatIstDay, formatIstHour, formatIstTime, istHourStart } from './dashFormat';
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
   precomputedSeries?: { day: string; date: string; dateKey: number; buy: number; sell: number }[];
   /** Window of a single selected day (IST). When set, volume is plotted per hour. */
   hourWindow?: { startTimestamp: number; endTimestamp: number };
-  /** The selected range is longer than a year: axis labels carry a two-digit year. */
+  /** Force a two-digit year on axis labels (otherwise added only when two days share a label). */
   yearLabels?: boolean;
   /** Order history could not be read for the period. */
   unavailable?: boolean;
@@ -88,28 +88,8 @@ function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindo
       return { chartData, totalBuy: Math.round(totalBuy), totalSell: Math.round(totalSell), hourly: true };
     }
 
-    // TD-FIX-B F6: one point per real IST day ('YYYY-MM-DD', year included), the same key
-    // for pre-computed days and raw orders, whatever the browser's time zone.
-    const byDay = new Map<string, { buy: number; sell: number }>();
-    for (const p of pre) {
-      const entry = byDay.get(p.day) || { buy: 0, sell: 0 };
-      entry.buy += p.buy; entry.sell += p.sell;
-      byDay.set(p.day, entry);
-    }
-    for (const o of completed) {
-      const day = istDayKey(o.createTime);
-      const entry = byDay.get(day) || { buy: 0, sell: 0 };
-      const price = parseFloat(o.totalPrice || '0');
-      if (o.tradeType === 'BUY') entry.buy += price;
-      else entry.sell += price;
-      byDay.set(day, entry);
-    }
-    const days = Array.from(byDay.keys()).sort((a, b) => dayKeyToMs(a) - dayKeyToMs(b));
-    const withYear = yearLabels;
-    const chartData = days.map((day) => {
-      const v = byDay.get(day)!;
-      return { date: formatDayLabel(day, withYear), full: formatDayFull(day), buy: Math.round(v.buy), sell: Math.round(v.sell) };
-    });
+    // TD-FIX-B F6 / R1 R5: one point per real IST day; year in labels when two days would share one.
+    const chartData = buildDaySeries(pre, completed, yearLabels);
     return { chartData, totalBuy: Math.round(totalBuy), totalSell: Math.round(totalSell), hourly: false };
   }, [orders, precomputedSeries, hourWindow, yearLabels]);
 

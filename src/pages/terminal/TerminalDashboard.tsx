@@ -80,7 +80,7 @@ export default function TerminalDashboard() {
     isPlaceholderData: summaryPlaceholderRaw, dataUpdatedAt: summaryUpdatedAt, refetch: refetchSummary,
   } = useOrderSummary(summaryArgs);
   const {
-    data: cachedOrders, isLoading: rawLoading, isError: rawError, isFetching: rawFetching,
+    data: cachedOrders, isLoading: rawLoading, isError: rawError,
     isPlaceholderData: rawPlaceholderRaw, dataUpdatedAt: rawUpdatedAt, lastReadAt, refetch: refetchDb,
     refetchFailed: refetchFailedDb, retryBusy: rawRetryBusy,
   } = useDashboardOrders(windowPlan);

@@ -971,7 +971,7 @@ export default function TerminalAnalytics() {
             <p className="text-xs text-muted-foreground">{periodLabel} · {orders.length.toLocaleString('en-IN')} orders in view · {completed.length.toLocaleString('en-IN')} completed</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <TimePeriodFilter value={filter} onChange={setFilter} />
+            <TimePeriodFilter value={filter} onChange={setFilter} compact />
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <Database className="h-3 w-3" />
               <span>{lastSyncLabel}</span>

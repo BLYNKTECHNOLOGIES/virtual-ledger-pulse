@@ -168,24 +168,34 @@ export function getFilterLabel(filter: TimeFilter): string {
 
 // ─── Component ───
 const rangePeriods = [
-  { label: '7D', value: '7d' as const },
-  { label: '30D', value: '30d' as const },
-  { label: '1Y', value: '1y' as const },
+  { label: '7D', value: '7d' as const, title: 'Last 7 days' },
+  { label: '30D', value: '30d' as const, title: 'Last 30 days' },
+  { label: '1Y', value: '1y' as const, title: 'Last 1 year' },
 ];
 
-const shiftOptions: { label: string; value: ShiftKey }[] = [
-  { label: 'Full Day', value: 'all' },
-  { label: 'S1', value: 'shift1' },
-  { label: 'S2', value: 'shift2' },
-  { label: 'S3', value: 'shift3' },
+const shiftOptions: { label: string; short: string; value: ShiftKey; title: string }[] = [
+  { label: 'All day', short: 'All day', value: 'all', title: 'Whole day' },
+  { label: 'Night', short: 'S1', value: 'shift1', title: 'S1 · Night · 1 AM – 9 AM IST' },
+  { label: 'Morning', short: 'S2', value: 'shift2', title: 'S2 · Morning · 9 AM – 5:30 PM IST' },
+  { label: 'Evening', short: 'S3', value: 'shift3', title: 'S3 · Evening · 5:30 PM – 1 AM IST' },
 ];
+
+// Segmented controls: one look for every group (as on Terminal Orders). The chosen segment is
+// raised, coloured and outlined, so it stands out without relying on colour alone; idle labels
+// use foreground at 80% so they stay above 4.5:1 in the light theme.
+const SEG = 'inline-flex h-8 max-w-full items-center gap-0.5 rounded-md border border-border bg-secondary/60 p-0.5';
+const SEG_BTN =
+  'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[5px] px-2.5 text-xs font-medium text-foreground/80 transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const SEG_ON = 'bg-card text-primary shadow-sm ring-1 ring-inset ring-primary/70 hover:text-primary';
 
 interface Props {
   value: TimeFilter;
   onChange: (v: TimeFilter) => void;
+  /** Short shift labels (S1/S2/S3) for crowded headers; full names stay in the tooltips. */
+  compact?: boolean;
 }
 
-export function TimePeriodFilter({ value, onChange }: Props) {
+export function TimePeriodFilter({ value, onChange, compact = false }: Props) {
   const [calOpen, setCalOpen] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
   const isDayMode = value.mode === '1d';
@@ -197,147 +207,133 @@ export function TimePeriodFilter({ value, onChange }: Props) {
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {/* Single date picker */}
-      <Popover open={calOpen} onOpenChange={setCalOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant={isDayMode ? 'default' : 'outline'}
-            size="sm"
-            className={cn(
-              'h-7 text-xs px-2.5 gap-1.5',
-              isDayMode
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <CalendarIcon className="h-3 w-3" />
-            {isDayMode ? format(selectedDate, 'dd MMM') : 'Date'}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 t-scale-in" align="start">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(d) => {
-              if (d) {
-                onChange({ mode: '1d', date: d, shift: activeShift });
-                setCalOpen(false);
-              }
+    <div className="flex max-w-full flex-wrap items-center gap-2">
+      {/* Period: one day or a custom range, or a rolling preset */}
+      <div role="group" aria-label="Period" className="flex max-w-full flex-wrap items-center gap-2">
+        <div className={SEG}>
+          <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(SEG_BTN, isDayMode && SEG_ON)}
+                aria-current={isDayMode ? 'true' : undefined}
+                title="Pick one day"
+              >
+                <CalendarIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                {isDayMode ? format(selectedDate, 'dd MMM') : 'Date'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 t-scale-in" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => {
+                  if (d) {
+                    onChange({ mode: '1d', date: d, shift: activeShift });
+                    setCalOpen(false);
+                  }
+                }}
+                disabled={(d) => d > new Date()}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Popover
+            open={rangeOpen}
+            onOpenChange={(o) => {
+              setRangeOpen(o);
+              if (o) setDraftRange(isRangeMode ? { from: value.from, to: value.to } : undefined);
             }}
-            disabled={(d) => d > new Date()}
-            initialFocus
-            className="p-3 pointer-events-auto"
-          />
-        </PopoverContent>
-      </Popover>
-
-      {/* Custom date range picker */}
-      <Popover
-        open={rangeOpen}
-        onOpenChange={(o) => {
-          setRangeOpen(o);
-          if (o) setDraftRange(isRangeMode ? { from: value.from, to: value.to } : undefined);
-        }}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            variant={isRangeMode ? 'default' : 'outline'}
-            size="sm"
-            className={cn(
-              'h-7 text-xs px-2.5 gap-1.5',
-              isRangeMode
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
           >
-            <CalendarRange className="h-3 w-3" />
-            {isRangeMode
-              ? `${format(value.from, 'dd MMM')} – ${format(value.to, 'dd MMM')}`
-              : 'Range'}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 t-scale-in" align="start">
-          <Calendar
-            mode="range"
-            selected={draftRange}
-            onSelect={(r) => setDraftRange(r)}
-            disabled={(d) => d > new Date()}
-            numberOfMonths={2}
-            initialFocus
-            className="p-3 pointer-events-auto"
-          />
-          <div className="flex items-center justify-end gap-2 border-t border-border p-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => {
-                setDraftRange(undefined);
-                setRangeOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              disabled={!draftRange?.from}
-              onClick={() => {
-                if (draftRange?.from) {
-                  const from = draftRange.from;
-                  const to = draftRange.to ?? draftRange.from;
-                  onChange({ mode: 'range', from, to, shift: activeShift });
-                  setRangeOpen(false);
-                }
-              }}
-            >
-              Apply
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(SEG_BTN, isRangeMode && SEG_ON)}
+                aria-current={isRangeMode ? 'true' : undefined}
+                title="Pick a date range"
+              >
+                <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" />
+                {isRangeMode
+                  ? `${format(value.from, 'dd MMM')} – ${format(value.to, 'dd MMM')}`
+                  : 'Range'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 t-scale-in" align="start">
+              <Calendar
+                mode="range"
+                selected={draftRange}
+                onSelect={(r) => setDraftRange(r)}
+                disabled={(d) => d > new Date()}
+                numberOfMonths={2}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+              <div className="flex items-center justify-end gap-2 border-t border-border p-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    setDraftRange(undefined);
+                    setRangeOpen(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={!draftRange?.from}
+                  onClick={() => {
+                    if (draftRange?.from) {
+                      const from = draftRange.from;
+                      const to = draftRange.to ?? draftRange.from;
+                      onChange({ mode: 'range', from, to, shift: activeShift });
+                      setRangeOpen(false);
+                    }
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
 
+        <div className={SEG}>
+          {rangePeriods.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              className={cn(SEG_BTN, value.mode === p.value && SEG_ON)}
+              aria-pressed={value.mode === p.value}
+              title={p.title}
+              onClick={() => onChange({ mode: p.value, shift: activeShift })}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* Shift chips — apply to single date, custom range and presets */}
-      <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
+      {/* Shift — applies to a single date, a custom range and the presets */}
+      <div role="group" aria-label="Shift" className={SEG}>
         {shiftOptions.map((s) => (
           <button
             key={s.value}
             type="button"
-            className={cn(
-              'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
-              activeShift === s.value
-                ? 'bg-card text-foreground border border-border'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+            className={cn(SEG_BTN, activeShift === s.value && SEG_ON)}
+            aria-pressed={activeShift === s.value}
+            title={s.title}
             onClick={() => {
               if (value.mode === '1d') onChange({ mode: '1d', date: selectedDate, shift: s.value });
               else if (value.mode === 'range') onChange({ mode: 'range', from: value.from, to: value.to, shift: s.value });
               else onChange({ mode: value.mode, shift: s.value });
             }}
           >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Range presets */}
-      <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
-        {rangePeriods.map((p) => (
-          <button
-            key={p.value}
-            type="button"
-            className={cn(
-              'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
-              value.mode === p.value
-                ? 'bg-card text-foreground border border-border'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            onClick={() => onChange({ mode: p.value, shift: activeShift })}
-
-          >
-            {p.label}
+            {compact ? s.short : s.label}
           </button>
         ))}
       </div>

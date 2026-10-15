@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 
 import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud, History } from 'lucide-react';
+import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud, History, BookmarkPlus } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
@@ -14,16 +14,10 @@ import { isCardPayload } from './chat/ChatAdCard';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { AttachAdPicker } from './chat/AttachAdPicker';
 import { QuickReplyBar } from './chat/QuickReplyBar';
-import { CopilotStrip } from './chat/CopilotStrip';
-import {
-  useCopilotVisible, useCopilotPrefetch, useCopilotIsTrainer, copilotTeach,
-  type CopilotSuggestInput,
-} from '@/hooks/useCopilot';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+import { CopilotPanel, type CopilotPick } from './chat/CopilotPanel';
+import { CopilotEntryDialog } from './chat/CopilotEntryDialog';
+import { useCopilotAccess, copilotLearn, copilotUndo, type CopilotError, type LearnBody } from '@/hooks/useCopilotPlaybook';
+import { cycleIndex, latestUnanswered, learnToast, unfilledTokens } from '@/lib/copilot/copilotText';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
 import { playMessageSound } from '@/lib/chatSound';
@@ -102,9 +96,10 @@ interface Props {
   tradeType?: string;
   counterpartyVerifiedName?: string;
   exchangeAccountId?: string | null;
-  /** Current order status (numeric code or text) — drives copilot goal conditioning. */
+  /** Current order status (numeric code or text) — Copilot suggestions refresh when it changes. */
   orderStatus?: string | null;
   orderAsset?: string | null;
+  /** orderFiat, orderQuantity, orderPrice, orderType: no longer read here (old Copilot); kept so callers need no change. */
   orderFiat?: string | null;
   orderQuantity?: number | string | null;
   orderPrice?: number | string | null;
@@ -123,7 +118,7 @@ function normalizeChatTimestamp(value: unknown): number {
   return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
 }
 
-export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, orderAsset, orderFiat, orderQuantity, orderPrice, orderType, paymentMethod, templateValues }: Props) {
+export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, orderAsset, paymentMethod, templateValues }: Props) {
   // Sending and read state stay strictly attached to the opened order. Earlier
   // verified threads are rendered below as read-only, order-separated context.
   const orderNumber = openedOrderNumber;
@@ -572,6 +567,78 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   }, [historicalChats]);
 
 
+  // ── Copilot v2 (Playbook): approvers only. copilot_my_access gates the screen; the server checks again. ──
+  const { data: copilotAccess } = useCopilotAccess();
+  const isCopilotApprover = !!copilotAccess?.is_approver && !isEnquiryThread;
+  const copilotTrigger = useMemo(
+    () => (isCopilotApprover ? latestUnanswered(currentOrderMessages) : null),
+    [isCopilotApprover, currentOrderMessages],
+  );
+  // The suggestion currently in the composer; sending it saves it to the Playbook ("use = approve").
+  const copilotPickRef = useRef<CopilotPick | null>(null);
+  const copilotStateRef = useRef<{ requestId: string | null; picks: CopilotPick[] }>({ requestId: null, picks: [] });
+  const [copilotSaveOwn, setCopilotSaveOwn] = useState(false);
+  const [copilotEntryId, setCopilotEntryId] = useState<string | null>(null);
+  const handleCopilotState = useCallback((s: { requestId: string | null; picks: CopilotPick[] }) => { copilotStateRef.current = s; }, []);
+  useEffect(() => { copilotPickRef.current = null; setCopilotSaveOwn(false); }, [orderNumber]);
+  const copilotHint = useMemo(() => ({
+    tradeType: tradeType ?? null,
+    status: orderStatus ?? null,
+    totalPrice: templateValues?.amount ?? null,
+    asset: orderAsset ?? null,
+    payMethod: paymentMethod ?? null,
+  }), [tradeType, orderStatus, templateValues?.amount, orderAsset, paymentMethod]);
+
+  const teachCopilot = useCallback(async (cause: LearnBody['cause'], finalText: string, picked: CopilotPick | null, beforeAt?: number) => {
+    try {
+      const res = await copilotLearn({
+        cause,
+        orderNumber,
+        exchangeAccountId: exchangeAccountId ?? null,
+        requestId: beforeAt ? null : (picked?.requestId ?? copilotStateRef.current.requestId),
+        sourceEntryId: picked?.kind === 'entry' ? picked.entryId ?? null : null,
+        sourceCallId: picked?.kind === 'draft' ? picked.callId ?? null : null,
+        insertedText: picked?.text ?? null,
+        finalText,
+        templateValues,
+        hint: copilotHint,
+        beforeAt: beforeAt ?? null,
+      });
+      const t = learnToast(res);
+      (t.tone === 'warning' ? toast.warning : toast.success)(t.title, {
+        description: t.description,
+        duration: 9000,
+        action: res.eventId ? {
+          label: 'Undo',
+          onClick: () => {
+            copilotUndo(res.eventId!)
+              .then((u) => toast(u.undone ? 'Removed from the Playbook' : 'Already undone'))
+              .catch((e) => toast.error(e?.message || 'Could not undo'));
+          },
+        } : undefined,
+        cancel: res.entryId ? { label: 'Edit', onClick: () => setCopilotEntryId(res.entryId!) } : undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: ['copilot-access'] });
+    } catch (e) {
+      const err = e as CopilotError;
+      if (err?.code === 'no_question') toast('Not saved to the Playbook', { description: 'There was no client question to attach it to.' });
+      else toast.error('Could not save to the Playbook', { description: err?.message });
+    }
+  }, [orderNumber, exchangeAccountId, templateValues, copilotHint, queryClient]);
+
+  const insertCopilotPick = useCallback((pick: CopilotPick) => {
+    copilotPickRef.current = pick;
+    setText(pick.text);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    });
+  }, []);
+  const approveCopilotPick = useCallback((pick: CopilotPick) => { void teachCopilot('approved', pick.text, pick); }, [teachCopilot]);
+  const saveBubbleToPlaybook = useCallback((m: UnifiedMessage) => {
+    if (m.text) void teachCopilot('saved', m.text, null, (m.timestamp || Date.now()) + 1000);
+  }, [teachCopilot]);
+
   const [isSending, setIsSending] = useState(false);
 
   // Auto-grow the composer between 1 and ~5 lines; it scrolls beyond that (max-h).
@@ -585,9 +652,22 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const handleSend = async (messageText?: string) => {
     const msg = messageText || text.trim();
     if (!msg || isSending) return;
+    // Copilot: a placeholder such as {contact:kyc} (no number saved yet) must never reach the client.
+    if (copilotPickRef.current || msg.includes('{contact:')) {
+      const left = unfilledTokens(msg);
+      if (left.length) {
+        toast.error('Fill in the placeholder before sending', { description: `Replace ${left.join(', ')} with the real value.` });
+        return;
+      }
+    }
     if (!messageText) setText('');
     setIsSending(true);
     shouldAutoScrollRef.current = true;
+    // Copilot: a sent suggestion is saved to the Playbook; an own reply only when Save is switched on.
+    const picked = copilotPickRef.current;
+    const saveOwn = copilotSaveOwn;
+    copilotPickRef.current = null;
+    setCopilotSaveOwn(false);
 
     try {
       wsSendMessage(orderNumber, msg);
@@ -597,11 +677,15 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     } finally {
       setIsSending(false);
     }
+    if (isCopilotApprover && (picked || saveOwn)) {
+      void teachCopilot(picked ? 'sent' : 'saved', msg, picked);
+    }
   };
 
   // Insert (not send) the quick reply into the input with template tokens filled,
   // so the operator can review/adjust before sending. Tap-shaving per T1.
   const handleQuickReply = (replyText: string) => {
+    if (!(inputRef.current?.value ?? '').trim()) copilotPickRef.current = null;
     const filled = fillTemplate(replyText, templateValues || {});
     setText((prev) => (prev.trim() ? `${prev.trim()} ${filled}` : filled));
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -614,85 +698,9 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     if (reply?.message_text) handleQuickReply(reply.message_text);
   }), [hotkeyReplies, templateValues]);
 
-  // AI Copilot — only visible for allowlisted operators when enabled.
-  const copilotVisible = useCopilotVisible();
-  const copilotPrefetch = useCopilotPrefetch();
-  const isTrainer = useCopilotIsTrainer();
-  const { nameFor } = useExchangeAccount();
-  // Build the ENTIRE suggestion context client-side (no server order lookups).
-  const buildCopilotInput = useCallback((): CopilotSuggestInput => ({
-    order: {
-      number: orderNumber,
-      side: tradeType || null,
-      status: orderStatus ?? null,
-      amount: templateValues?.amount ?? null,
-      quantity: orderQuantity ?? null,
-      asset: orderAsset ?? null,
-      fiat: orderFiat ?? null,
-      price: orderPrice ?? null,
-      orderType: orderType ?? null,
-      paymentMethod: paymentMethod ?? null,
-    },
-    clientProfile: {},
-    messages: currentOrderMessages
-      .filter((m) => m.senderType !== 'system' && m.text)
-       .filter((m) => m.source !== 'local' || !m._deliveryStatus)
-      .slice(-40)
-      .map((m) => ({ isSelf: m.senderType === 'operator', text: (m.text as string).slice(0, 1000) })),
-    draftText: text.trim().slice(0, 1500) || null,
-    exchangeAccountId: exchangeAccountId ?? null,
-    accountLabel: exchangeAccountId ? nameFor(exchangeAccountId) : null,
-  }), [orderNumber, tradeType, orderStatus, orderAsset, orderFiat, orderQuantity, orderPrice, orderType, paymentMethod, templateValues, currentOrderMessages, text, exchangeAccountId, nameFor]);
-
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
   ).length;
-  const copilotTranscriptKey = useMemo(() => currentOrderMessages
-    .filter((m) => m.senderType !== 'system' && m.text && (m.source !== 'local' || !m._deliveryStatus))
-    .slice(-40)
-    .map((m) => `${m.id}:${m.text}`)
-    .join('|'), [currentOrderMessages]);
-
-  // Teach controls (trainers only): pin a golden reply / blacklist a phrase.
-  const [blacklistTarget, setBlacklistTarget] = useState<UnifiedMessage | null>(null);
-  const buildContextFor = useCallback((msg: UnifiedMessage): string => {
-    const idx = currentOrderMessages.findIndex((m) => m.id === msg.id);
-    const preceding = (idx > 0 ? currentOrderMessages.slice(0, idx) : [])
-      .filter((m) => m.senderType !== 'system' && m.text)
-      .slice(-6);
-    return preceding.map((m) => `${m.senderType === 'operator' ? 'Operations Associate' : 'Counterparty'}: ${m.text}`).join('\n');
-  }, [currentOrderMessages]);
-
-  const handlePin = useCallback(async (msg: UnifiedMessage) => {
-    if (!msg.text) return;
-    try {
-      await copilotTeach('pin', {
-        replyText: msg.text,
-        contextText: buildContextFor(msg),
-        side: tradeType || null,
-        orderNumber,
-        exchangeAccountId: exchangeAccountId ?? null,
-      });
-      toast.success('Pinned as golden reply');
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to pin');
-    }
-  }, [buildContextFor, tradeType, orderNumber, exchangeAccountId]);
-
-  const confirmBlacklist = useCallback(async () => {
-    const msg = blacklistTarget;
-    setBlacklistTarget(null);
-    if (!msg?.text) return;
-    try {
-      await copilotTeach('blacklist', {
-        patternText: msg.text,
-        exchangeAccountId: exchangeAccountId ?? null,
-      });
-      toast.success('Pattern blacklisted');
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to blacklist');
-    }
-  }, [blacklistTarget, exchangeAccountId]);
 
   const headerName = counterpartyNickname || 'Counterparty';
   const headerInitials = initialsOf(headerName);
@@ -825,9 +833,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                 <ChatBubble
                   key={message.id}
                   message={message}
-                  teachEnabled={isTrainer}
-                  onPin={handlePin}
-                  onBlacklist={(item) => setBlacklistTarget(item)}
+                  onSaveToPlaybook={isCopilotApprover ? saveBubbleToPlaybook : undefined}
                 />
               ))}
               <div ref={bottomRef} />
@@ -851,25 +857,31 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       </div>
 
 
-      {/* Composer: quick replies + AI Copilot, then the message box */}
+      {/* Composer: Copilot (approvers), quick replies, then the message box */}
       <div className="relative shrink-0 border-t border-border bg-card/60 px-3 pt-2 pb-3">
+        {isCopilotApprover && (
+          <div className="mb-2">
+            <CopilotPanel
+              orderNumber={orderNumber}
+              exchangeAccountId={exchangeAccountId}
+              tradeType={tradeType}
+              orderStatus={orderStatus}
+              totalPrice={templateValues?.amount ?? null}
+              asset={orderAsset}
+              payMethod={paymentMethod}
+              trigger={copilotTrigger}
+              templateValues={templateValues}
+              onInsert={insertCopilotPick}
+              onApprove={approveCopilotPick}
+              onState={handleCopilotState}
+            />
+          </div>
+        )}
         <div className="mb-2 flex items-start gap-2 empty:hidden">
           <QuickReplyBar
             tradeType={tradeType}
             onSelect={handleQuickReply}
           />
-          {copilotVisible && (
-            <CopilotStrip
-              cacheKey={`${orderNumber}:${orderStatus ?? ''}:${copilotTranscriptKey}`}
-              onInsert={(suggestion) => {
-                setText(fillTemplate(suggestion, templateValues || {}));
-                requestAnimationFrame(() => inputRef.current?.focus());
-              }}
-              buildInput={buildCopilotInput}
-              prefetch={copilotPrefetch}
-              prefetchSignal={counterpartyMsgCount}
-            />
-          )}
         </div>
 
         <div className="flex items-center gap-1 rounded-lg border border-border bg-input p-1 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20">
@@ -895,8 +907,33 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             data-terminal-chat-input
             rows={1}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (!e.target.value.trim()) copilotPickRef.current = null;
+            }}
             onKeyDown={(e) => {
+              // Copilot (approvers): Ctrl/Cmd+Enter approves without sending; Tab cycles the suggestions.
+              if (isCopilotApprover && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                const value = text.trim();
+                if (!value) return;
+                const picked = copilotPickRef.current;
+                copilotPickRef.current = null;
+                void teachCopilot(picked ? 'approved' : 'saved', value, picked);
+                return;
+              }
+              if (isCopilotApprover && e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                const { picks } = copilotStateRef.current;
+                const current = text.trim();
+                const last = copilotPickRef.current;
+                if (picks.length && (!current || (last && current === last.text.trim()))) {
+                  e.preventDefault();
+                  const idx = last ? picks.findIndex((p) => p.text === last.text) : -1;
+                  const next = picks[cycleIndex(picks.length, idx, e.shiftKey ? -1 : 1)];
+                  if (next) insertCopilotPick(next);
+                  return;
+                }
+              }
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
               else if (e.key === 'Escape') e.currentTarget.blur();
             }}
@@ -905,6 +942,20 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             aria-label="Message"
             className="flex-1 min-w-0 resize-none overflow-y-auto border-0 bg-transparent px-2 py-[7px] leading-[18px] min-h-8 max-h-[104px] text-[13px] text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
+          {isCopilotApprover && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 shrink-0 rounded-md ${copilotSaveOwn ? 'bg-primary/15 text-primary hover:bg-primary/20' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setCopilotSaveOwn((v) => !v)}
+              aria-pressed={copilotSaveOwn}
+              aria-label="Save this reply to the Playbook when sent"
+              title={copilotSaveOwn ? 'Will be saved to the Playbook when sent' : 'Save this reply to the Playbook when sent'}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             size="icon"
             className="h-8 w-8 shrink-0 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
@@ -925,23 +976,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
       </div>
 
-      <AlertDialog open={!!blacklistTarget} onOpenChange={(o) => { if (!o) setBlacklistTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Blacklist this phrase?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The copilot will stop suggesting replies similar to:
-              <span className="mt-2 block rounded bg-secondary/60 border border-border px-2 py-1 text-xs text-foreground">
-                {blacklistTarget?.text}
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmBlacklist}>Blacklist</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CopilotEntryDialog entryId={copilotEntryId} onOpenChange={(open) => { if (!open) setCopilotEntryId(null); }} />
     </div>
   );
 }

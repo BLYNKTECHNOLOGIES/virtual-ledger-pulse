@@ -105,6 +105,16 @@ Deno.test('without a stored request the question is rebuilt from the chat, skipp
   eq((await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Hello' })).status, 422)
 })
 
+Deno.test('saving an earlier message of ours uses the client question before that message', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const q1 = msg('client', 'TDS certificate kab milega?'), r1 = msg('us', 'Sir, it is emailed every quarter.')
+  const q2 = msg('client', 'ok and the rate?'), r2 = msg('us', 'Sir, the rate is shown on the order.')
+  s.rows = [q1, r1, q2, r2]
+  await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, it is emailed every quarter.', beforeAt: Number(r1.binance_create_time) + 1, requestId: id() })
+  eq(s.learnCalls[0].p_question_text, 'TDS certificate kab milega?')
+  eq(s.learnCalls[0].p_request_id, null, 'a stored request for the latest message is not used for an earlier one')
+})
+
 Deno.test('personal data never reaches the Playbook', async () => {
   const s = new FakeStore(), a = new FakeAi()
   s.spend = 25000

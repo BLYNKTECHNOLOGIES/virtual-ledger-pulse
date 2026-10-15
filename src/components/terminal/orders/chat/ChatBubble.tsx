@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
 import { ChatAdCard, parseAdCard } from './ChatAdCard';
 
-import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2, MoreVertical, Pin, Ban, Maximize2, Zap } from 'lucide-react';
+import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2, MoreVertical, BookmarkPlus, Maximize2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -84,13 +84,11 @@ function parseSystemMessage(text: string | null): string {
 
 interface ChatBubbleProps {
   message: UnifiedMessage;
-  /** Trainer-only teach controls on operator (self) messages. */
-  teachEnabled?: boolean;
-  onPin?: (msg: UnifiedMessage) => void;
-  onBlacklist?: (msg: UnifiedMessage) => void;
+  /** Copilot approvers: save one of our sent replies to the Playbook. */
+  onSaveToPlaybook?: (msg: UnifiedMessage) => void;
 }
 
-export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBubbleProps) {
+export function ChatBubble({ message, onSaveToPlaybook }: ChatBubbleProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const isOperator = message.senderType === 'operator';
@@ -137,23 +135,21 @@ export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBu
   return (
     <>
       <div className={`group flex items-center gap-1 ${isOperator ? 'justify-end' : 'justify-start'}`}>
-        {teachEnabled && isOperator && message.text && (
+        {onSaveToPlaybook && isOperator && message.text && message.source !== 'local' && String(message.messageType || '').toLowerCase() !== 'auto_reply' && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost" size="icon"
-                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                title="Teach copilot"
+                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                title="Message actions"
+                aria-label="Message actions"
               >
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => onPin?.(message)}>
-                <Pin className="h-3.5 w-3.5 mr-2" /> Pin as golden reply
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onBlacklist?.(message)}>
-                <Ban className="h-3.5 w-3.5 mr-2" /> Blacklist this pattern
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => onSaveToPlaybook(message)}>
+                <BookmarkPlus className="h-3.5 w-3.5 mr-2" /> Save to Playbook
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

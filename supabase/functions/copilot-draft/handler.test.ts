@@ -108,7 +108,19 @@ Deno.test('one model failing still returns the other draft; the failure is logge
   a.replies['google/gemini-4-argon'] = { ok: false, usage: { input: 0, output: 0, reasoning: 0, estimated: true }, latencyMs: 30000, status: 0, error: 'timeout' }
   const r = await run(s, a)
   eq(r.body.drafts.length, 1); eq(r.body.drafts[0].model, 'openai/gpt-6-astra')
+  eq(r.body.aiFailed, 1)
   ok(s.calls.some((c) => c.status === 'error' && c.error === 'timeout'))
+})
+
+Deno.test('both models failing: no drafts, the failure count tells the screen to offer a retry', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'Can I pay by IMPS?')]
+  const fail = { ok: false, usage: { input: 0, output: 0, reasoning: 0, estimated: true }, latencyMs: 30000, status: 0, error: 'timeout' }
+  a.replies['google/gemini-4-argon'] = fail
+  a.replies['openai/gpt-6-astra'] = fail
+  const r = await run(s, a)
+  eq(r.status, 200); eq(r.body.status, 'ready'); eq(r.body.drafts.length, 0); eq(r.body.aiFailed, 2)
+  eq(s.calls.filter((c) => c.status === 'error').length, 2)
 })
 
 Deno.test('personal numbers in the chat are masked before reaching any model; Playbook lookup uses the live order', async () => {

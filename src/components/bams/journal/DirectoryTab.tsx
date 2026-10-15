@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { isOperatingExpenseRow, countsInExpenseStats } from "@/lib/operatingExpense";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { fetchAllPaginatedParallel } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -161,7 +161,7 @@ export function DirectoryTab() {
 
       // Bank transactions - EXCLUDE purchase-related transactions to avoid duplicates
       const [bankData, salesData, purchaseData] = await Promise.all([
-        fetchAllPaginated<any>(
+        fetchAllPaginatedParallel<any>(
           () => supabase
             .from('bank_transactions')
             .select(`
@@ -183,9 +183,12 @@ export function DirectoryTab() {
             `)
             .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
             .order('transaction_date', { ascending: false })
+            .order('id'),
+          () => supabase.from('bank_transactions').select('id', { count: 'exact', head: true })
+            .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
         ),
         // Sales orders - only show orders that actually created bank transactions (non-payment gateway)
-        fetchAllPaginated<any>(
+        fetchAllPaginatedParallel<any>(
           () => supabase
             .from('sales_orders')
             .select(`
@@ -204,9 +207,11 @@ export function DirectoryTab() {
             `)
             .eq('settlement_status', 'DIRECT')
             .order('order_date', { ascending: false })
+            .order('id'),
+          () => supabase.from('sales_orders').select('id', { count: 'exact', head: true }).eq('settlement_status', 'DIRECT')
         ),
         // Purchase orders with bank account details - only show completed ones
-        fetchAllPaginated<any>(
+        fetchAllPaginatedParallel<any>(
           () => supabase
             .from('purchase_orders')
             .select(`
@@ -221,42 +226,21 @@ export function DirectoryTab() {
               created_by,
               bank_account_id,
               bank_accounts:bank_account_id(account_name, bank_name, id, account_number),
-              created_by_user:users!created_by(username, first_name, last_name)
+              created_by_user:users!created_by(username, first_name, last_name),
+              purchase_order_payment_splits(amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name, id, account_number))
             `)
             .eq('status', 'COMPLETED')
             .order('order_date', { ascending: false })
+            .order('id'),
+          () => supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('status', 'COMPLETED')
         ),
       ]);
 
-      // Fetch split payments for purchase orders (chunked IN-clause to stay under URL limits)
-      const purchaseIds = (purchaseData || []).map(p => p.id);
-      let splitPaymentsMap: Record<string, Array<{ amount: number; bank_account_id: string; bank_accounts: any }>> = {};
-
-      if (purchaseIds.length > 0) {
-        const SPLIT_CHUNK = 200;
-        const chunks: string[][] = [];
-        for (let i = 0; i < purchaseIds.length; i += SPLIT_CHUNK) {
-          chunks.push(purchaseIds.slice(i, i + SPLIT_CHUNK));
-        }
-        const results = await Promise.all(
-          chunks.map((chunk) =>
-            supabase
-              .from('purchase_order_payment_splits')
-              .select(`
-                purchase_order_id,
-                amount,
-                bank_account_id,
-                bank_accounts:bank_account_id(account_name, bank_name, id, account_number)
-              `)
-              .in('purchase_order_id', chunk)
-          )
-        );
-        const allSplits: any[] = results.flatMap((r) => r.data || []);
-        for (const split of allSplits) {
-          const poId = (split as any).purchase_order_id;
-          if (!splitPaymentsMap[poId]) splitPaymentsMap[poId] = [];
-          splitPaymentsMap[poId].push(split as any);
-        }
+      // Split payments arrive embedded with each purchase order (one request instead of dozens)
+      const splitPaymentsMap: Record<string, Array<{ amount: number; bank_account_id: string; bank_accounts: any }>> = {};
+      for (const p of purchaseData || []) {
+        const splits = (p as any).purchase_order_payment_splits;
+        if (splits?.length) splitPaymentsMap[p.id] = splits;
       }
 
       // Combine and format all transactions

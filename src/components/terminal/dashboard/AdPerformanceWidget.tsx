@@ -4,13 +4,47 @@ import { Megaphone, ArrowUpCircle, ArrowDownCircle, Power, ArrowUpRight, Refresh
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
-import { formatPrice } from './dashFormat';
+import { formatExactRupees, formatPrice, formatVolume } from './dashFormat';
+import { rankTopAdsByValue, type RankedAd } from './adRanking';
 import { useFocusAfterRetry, useRetryHold } from './dashHooks';
 
-const availableAmount = (ad: BinanceAd) => {
-  const amount = Number(ad.surplusAmount);
-  return Number.isFinite(amount) && amount > 0 ? amount : 0;
-};
+function TopAdsList({ title, side, rows, empty }: { title: string; side: 'BUY' | 'SELL'; rows: RankedAd<BinanceAd>[]; empty: string }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
+      {rows.length === 0 ? (
+        <div className="text-[11px] text-muted-foreground">{empty}</div>
+      ) : (
+        <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
+          {rows.map(({ ad, remaining, price, value }) => (
+            <li key={`${ad._exchangeAccountId || ''}-${ad.advNo}`} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-3 py-2 text-xs">
+              <div className="flex min-w-0 items-start gap-2">
+                <span
+                  className={cn(
+                    'mt-px inline-flex h-5 shrink-0 items-center rounded px-1.5 text-[10px] font-semibold',
+                    side === 'BUY' ? 'bg-trade-buy/10 text-trade-buy' : 'bg-trade-sell/10 text-trade-sell',
+                  )}
+                >
+                  {side}
+                </span>
+                <div className="min-w-0">
+                  <div className="font-medium text-foreground">{ad.asset}</div>
+                  <div className="break-all text-[10px] text-muted-foreground t-mono">#{ad.advNo}</div>
+                </div>
+              </div>
+              <div className="ml-auto text-right t-mono">
+                <div className="whitespace-nowrap font-semibold text-foreground" title={formatExactRupees(value)}>{formatVolume(value)}</div>
+                <div className="whitespace-nowrap text-[10px] text-muted-foreground">
+                  {remaining.toLocaleString('en-IN', { maximumFractionDigits: 8 })} {ad.asset} remaining{side === 'BUY' ? ' to buy' : ''} · {formatPrice(price)}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function AdPerformanceWidgetPanel() {
   const { data: allAdsData, isLoading, isError, refetch, isFetching } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
@@ -26,10 +60,8 @@ function AdPerformanceWidgetPanel() {
     Number(a.advVisibleRet.userSetVisible) !== 1 &&
     !getAdHiddenReason(a),
   );
-  const topAds = [...onlineAds]
-    .filter(a => availableAmount(a) > 0)
-    .sort((a, b) => availableAmount(b) - availableAmount(a))
-    .slice(0, 3);
+  // TD-FIX-B F1: one list per side, ranked by rupee value (Remaining × price).
+  const top = rankTopAdsByValue(onlineAds, 3);
   const visibilityUnknown = ads.filter(a => a.advStatus === BINANCE_AD_STATUS.ONLINE && a.advVisibleRet == null).length;
 
   const stats = [
@@ -110,34 +142,11 @@ function AdPerformanceWidgetPanel() {
               <div className="text-[11px] text-muted-foreground">Visibility unavailable for {visibilityUnknown} {visibilityUnknown === 1 ? 'ad' : 'ads'}; excluded from Online.</div>
             )}
             {ads.length === 0 && <div className="text-[11px] text-muted-foreground">No ads returned by Binance.</div>}
-            {topAds.length > 0 && (
-              <div>
-                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Top active ads · available quantity</div>
-                <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
-                  {topAds.map((ad) => (
-                    <li key={`${ad._exchangeAccountId || ''}-${ad.advNo}`} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-3 py-2 text-xs">
-                      <div className="flex min-w-0 items-start gap-2">
-                        <span
-                          className={cn(
-                            'mt-px inline-flex h-5 shrink-0 items-center rounded px-1.5 text-[10px] font-semibold',
-                            ad.tradeType === 'BUY' ? 'bg-trade-buy/10 text-trade-buy' : 'bg-trade-sell/10 text-trade-sell',
-                          )}
-                        >
-                          {ad.tradeType}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="font-medium text-foreground">{ad.asset}</div>
-                          <div className="break-all text-[10px] text-muted-foreground t-mono">#{ad.advNo}</div>
-                        </div>
-                      </div>
-                      <div className="ml-auto text-right t-mono">
-                        <div className="whitespace-nowrap text-foreground">{availableAmount(ad).toLocaleString('en-IN', { maximumFractionDigits: 8 })} {ad.asset}</div>
-                        <div className="whitespace-nowrap text-[10px] text-muted-foreground">{formatPrice(Number(ad.price))}</div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {onlineAds.length > 0 && (
+              <>
+                <TopAdsList title="Top sell ads · by value" side="SELL" rows={top.sell} empty="No online sell ads" />
+                <TopAdsList title="Top buy ads · by value" side="BUY" rows={top.buy} empty="No online buy ads" />
+              </>
             )}
           </div>
         )}

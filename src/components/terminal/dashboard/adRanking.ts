@@ -39,3 +39,15 @@ function rankSide<T extends RankableAd>(ads: T[], side: 'BUY' | 'SELL', limit: n
 export function rankTopAdsByValue<T extends RankableAd>(ads: T[], limit = 3): { sell: RankedAd<T>[]; buy: RankedAd<T>[] } {
   return { sell: rankSide(ads, 'SELL', limit), buy: rankSide(ads, 'BUY', limit) };
 }
+
+/**
+ * TD-FIX-B-R1 R7 — what each top-ads list says when it has no rows.
+ * `lists` false = Binance returned no ads at all (the widget says so once, no lists).
+ */
+export function topAdsEmptyLines<T extends RankableAd>(allAds: T[], onlineAds: T[]): { lists: boolean; sell: string; buy: string } {
+  const side = (s: 'SELL' | 'BUY', label: string) =>
+    onlineAds.some((a) => String(a.tradeType).toUpperCase() === s)
+      ? `No ${label} ads with a rupee price`
+      : `No online ${label} ads`;
+  return { lists: allAds.length > 0, sell: side('SELL', 'sell'), buy: side('BUY', 'buy') };
+}

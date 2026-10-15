@@ -2,17 +2,9 @@ import { useMemo } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
-import { TimeFilter, buildShiftWindows } from '@/components/terminal/dashboard/TimePeriodFilter';
 import { aggregateSummaryRows, EMPTY_SUMMARY, OrderSummaryRow, SummaryAggregate } from '@/lib/orderSummary';
 
-/** Orders older than this are final — they are served from pre-computed buckets. */
-export const SEALED_WINDOW_MS = 45 * 24 * 60 * 60 * 1000;
-const BUCKET_MS = 30 * 60 * 1000;
-
-/** Bucket-aligned sealed cutoff, stable for 30 minutes so caching works. */
-export function getSealedCutoffMs(now: number = Date.now()): number {
-  return Math.floor((now - SEALED_WINDOW_MS) / BUCKET_MS) * BUCKET_MS;
-}
+export { SEALED_WINDOW_MS, getSealedCutoffMs } from '@/lib/sealedSplit';
 
 export type OrderWindowPlan = {
   /** Whole selected window. */
@@ -27,29 +19,6 @@ export type OrderWindowPlan = {
   /** Per-day shift slices (empty array = whole span). */
   windows: [number, number][];
 };
-
-/**
- * Split the selected filter window into "pre-computed history" + "live tail".
- * Short windows (inside 45 days) keep the existing all-raw behaviour.
- */
-export function useOrderWindowPlan(filter: TimeFilter, bounds: { startTimestamp: number; endTimestamp: number }): OrderWindowPlan {
-  return useMemo(() => {
-    const sealedCutoff = getSealedCutoffMs();
-    const usesSummary = bounds.startTimestamp < sealedCutoff;
-    const shiftWindows = buildShiftWindows(filter);
-    return {
-      startTimestamp: bounds.startTimestamp,
-      endTimestamp: bounds.endTimestamp,
-      sealedCutoff,
-      usesSummary,
-      rawRange: {
-        startTimestamp: usesSummary ? sealedCutoff : bounds.startTimestamp,
-        endTimestamp: bounds.endTimestamp,
-      },
-      windows: shiftWindows.map((w) => [w.start, w.end] as [number, number]),
-    };
-  }, [filter, bounds.startTimestamp, bounds.endTimestamp]);
-}
 
 /**
  * Pre-computed totals for the sealed part of the window (server-side aggregate,

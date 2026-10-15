@@ -100,7 +100,8 @@ export function aggregateSummaryRows(rows: OrderSummaryRow[]): SummaryAggregate 
     const isBuy = (r.trade_type || '').toUpperCase() === 'BUY';
 
     out.totalOrders += count;
-    out.appeals += Number(r.appeal_count) || 0;
+    // TD-FIX-B-R1 R6: only the non-final group can hold an open appeal (same rule as isActiveAppealOrder).
+    if (r.status_group === 'OTHER') out.appeals += Number(r.appeal_count) || 0;
 
     const label = STATUS_LABEL[r.status_group] || r.status_group;
     out.statusCounts[label] = (out.statusCounts[label] || 0) + count;

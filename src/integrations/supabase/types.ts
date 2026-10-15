@@ -39239,6 +39239,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      terminal_may_grant_account: {
+        Args: { p_account: string; p_uid: string }
+        Returns: boolean
+      }
       terminal_may_manage_target: {
         Args: { p_manager: string; p_target: string }
         Returns: boolean

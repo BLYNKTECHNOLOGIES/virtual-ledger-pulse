@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { formatExactRupees, formatPrice, formatVolume } from './dashFormat';
-import { rankTopAdsByValue, type RankedAd } from './adRanking';
+import { rankTopAdsByValue, topAdsEmptyLines, type RankedAd } from './adRanking';
 import { useFocusAfterRetry, useRetryHold } from './dashHooks';
 
 function TopAdsList({ title, side, rows, empty }: { title: string; side: 'BUY' | 'SELL'; rows: RankedAd<BinanceAd>[]; empty: string }) {
@@ -62,6 +62,7 @@ function AdPerformanceWidgetPanel() {
   );
   // TD-FIX-B F1: one list per side, ranked by rupee value (Remaining × price).
   const top = rankTopAdsByValue(onlineAds, 3);
+  const emptyLines = topAdsEmptyLines(ads, onlineAds);
   const visibilityUnknown = ads.filter(a => a.advStatus === BINANCE_AD_STATUS.ONLINE && a.advVisibleRet == null).length;
 
   const stats = [
@@ -142,10 +143,10 @@ function AdPerformanceWidgetPanel() {
               <div className="text-[11px] text-muted-foreground">Visibility unavailable for {visibilityUnknown} {visibilityUnknown === 1 ? 'ad' : 'ads'}; excluded from Online.</div>
             )}
             {ads.length === 0 && <div className="text-[11px] text-muted-foreground">No ads returned by Binance.</div>}
-            {onlineAds.length > 0 && (
+            {emptyLines.lists && (
               <>
-                <TopAdsList title="Top sell ads · by value" side="SELL" rows={top.sell} empty="No online sell ads" />
-                <TopAdsList title="Top buy ads · by value" side="BUY" rows={top.buy} empty="No online buy ads" />
+                <TopAdsList title="Top sell ads · by value" side="SELL" rows={top.sell} empty={emptyLines.sell} />
+                <TopAdsList title="Top buy ads · by value" side="BUY" rows={top.buy} empty={emptyLines.buy} />
               </>
             )}
           </div>

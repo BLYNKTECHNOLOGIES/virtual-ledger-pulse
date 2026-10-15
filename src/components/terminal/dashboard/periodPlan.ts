@@ -1,19 +1,21 @@
 /**
- * TD-FIX-B F5 — Terminal Dashboard period plan as a pure function of one page clock.
+ * TD-FIX-B F5 (+ R1) — Terminal Dashboard period plan as a pure function of one page clock.
  *
  * Live periods (natural end after "now", or a rolling preset) read with stable bounds
  * and are trimmed in the browser with the windows of the page clock, so time changes
  * a read key at most once per IST day (1Y all-day summary: once per half hour).
- * Fixed periods keep exactly the bounds the dashboard used before this change.
- * Dashboard only — Terminal Analytics keeps its own reads.
+ * A period chosen while live (or within 24 h of its end) keeps the boundary where it
+ * was at its natural end, so its keys never change after the end (R2).
+ * Periods chosen more than 24 h after they ended keep exactly the bounds the dashboard
+ * used before TD-FIX-B. Dashboard only — Terminal Analytics keeps its own reads.
  */
 import {
   TimeFilter, TimeWindow, buildNaturalWindows, buildShiftWindows, getFilterShift,
   getNaturalEnd, getTimestampsForFilter,
 } from './TimePeriodFilter';
+import { BUCKET_MS, SEALED_WINDOW_MS, getSealedCutoffMs } from '@/lib/sealedSplit';
 
-export const SEALED_WINDOW_MS = 45 * 24 * 60 * 60 * 1000;
-export const BUCKET_MS = 30 * 60 * 1000;
+export { BUCKET_MS, SEALED_WINDOW_MS };
 const DAY_MS = 86400000;
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 /** A period that ended less than this ago keeps being re-read (late completions). */
@@ -21,9 +23,9 @@ export const RECENTLY_ENDED_MS = 24 * 60 * 60 * 1000;
 export const RECENT_REREAD_MS = 60 * 1000;
 export const OLDER_REREAD_MS = 30 * 60 * 1000;
 
-/** Same split rule as useOrderSummary.getSealedCutoffMs. */
+/** The 45-day split (one rule: lib/sealedSplit). */
 export function sealedCutoffAt(now: number): number {
-  return Math.floor((now - SEALED_WINDOW_MS) / BUCKET_MS) * BUCKET_MS;
+  return getSealedCutoffMs(now);
 }
 
 /** 00:00 IST of the IST day containing ts. */
@@ -48,40 +50,52 @@ export type DashboardPeriodPlan = {
   usesSummary: boolean;
   /** Summary arguments (only meaningful when usesSummary). */
   summary: { startTimestamp: number; windows: [number, number][] };
-  /** Recent read (always present) and older read (null when not needed). */
+  /** Recent read (always present) and older read (null when not needed). They may overlap by one IST day. */
   recent: ReadRange;
   older: ReadRange | null;
   /** Window for the chart (hour axis) — follows the clock for live periods. */
   chartWindow: { startTimestamp: number; endTimestamp: number };
 };
 
-export function planDashboardPeriod(filter: TimeFilter, now: number, heldSplit: number): DashboardPeriodPlan {
+/** Was the period live, or ended less than 24 h ago, at the moment it was chosen? */
+export function scheduledWhenChosen(filter: TimeFilter, chosenAt: number): boolean {
+  const end = getNaturalEnd(filter, chosenAt);
+  return end === null || chosenAt - end < RECENTLY_ENDED_MS;
+}
+
+/**
+ * @param now      page clock
+ * @param heldSplit 45-day split held from the moment the period was chosen
+ * @param chosenAt moment the period (or account) was chosen; defaults to `now`
+ */
+export function planDashboardPeriod(filter: TimeFilter, now: number, heldSplit: number, chosenAt: number = now): DashboardPeriodPlan {
   const naturalEnd = getNaturalEnd(filter, now);
   const live = naturalEnd === null || naturalEnd > now;
   const scheduled = live || (naturalEnd !== null && now - naturalEnd < RECENTLY_ENDED_MS);
   const shift = getFilterShift(filter);
   const rolling = filter.mode === '7d' || filter.mode === '30d' || filter.mode === '1y';
 
-  if (!live) {
-    // Fixed period: exactly the previous bounds, windows and split.
+  if (!scheduledWhenChosen(filter, chosenAt)) {
+    // Chosen long after it ended: exactly the previous bounds, windows and split, one read.
     const bounds = getTimestampsForFilter(filter, now);
     const clamped = buildShiftWindows(filter, now);
     const usesSummary = bounds.startTimestamp < heldSplit;
     const readStart = usesSummary ? heldSplit : bounds.startTimestamp;
-    const readEnd = bounds.endTimestamp;
-    const split = scheduled ? splitRecent(readStart, readEnd, now) : { recent: { startTimestamp: readStart, endTimestamp: readEnd }, older: null };
     return {
-      live, naturalEnd, scheduled,
+      live, naturalEnd, scheduled: false,
       windows: clamped,
       sealedCutoff: heldSplit,
       usesSummary,
       summary: { startTimestamp: bounds.startTimestamp, windows: clamped.map((w) => [w.start, w.end] as [number, number]) },
-      ...split,
+      recent: { startTimestamp: readStart, endTimestamp: bounds.endTimestamp },
+      older: null,
       chartWindow: bounds,
     };
   }
 
-  const windows = buildNaturalWindows(filter, now);
+  // The boundary follows the clock while live and stays where it was at the natural end.
+  const clock = naturalEnd === null ? now : Math.min(now, naturalEnd - 1);
+  const windows = buildNaturalWindows(filter, clock);
   const firstStart = Math.min(...windows.map((w) => w.start));
   // Stable read start: day/range/shift → first window start; 7D/30D all day → IST day start.
   const periodStart = rolling && shift === 'all'
@@ -89,8 +103,7 @@ export function planDashboardPeriod(filter: TimeFilter, now: number, heldSplit: 
     : firstStart;
   const usesSummary = periodStart < heldSplit;
   const readStart = usesSummary ? heldSplit : periodStart;
-  const readEnd = naturalEnd; // null = open
-  const split = splitRecent(readStart, readEnd, now);
+  const split = splitRecent(readStart, naturalEnd, clock);
 
   const summaryWindows: [number, number][] = shift === 'all'
     ? [[periodStart, heldSplit]]
@@ -109,22 +122,47 @@ export function planDashboardPeriod(filter: TimeFilter, now: number, heldSplit: 
   };
 }
 
-/** Recent part = from 00:00 IST yesterday (never before the read start); older part = the rest. */
-function splitRecent(readStart: number, readEnd: number | null, now: number): { recent: ReadRange; older: ReadRange | null } {
-  const recentStart = Math.max(readStart, istDayStart(now) - DAY_MS);
-  if (readEnd !== null && recentStart > readEnd) {
+/**
+ * Recent part = from 00:00 IST yesterday (never before the read start); older part = the rest,
+ * overlapping the recent part by one IST day (R1) so that at 00:00 IST, whichever new part
+ * lands first, the parts on screen still cover every order (merged by order number).
+ */
+function splitRecent(readStart: number, readEnd: number | null, clock: number): { recent: ReadRange; older: ReadRange | null } {
+  const recentStart = Math.max(readStart, istDayStart(clock) - DAY_MS);
+  if (recentStart <= readStart || (readEnd !== null && recentStart > readEnd)) {
     return { recent: { startTimestamp: readStart, endTimestamp: readEnd }, older: null };
   }
+  const olderEnd = recentStart + DAY_MS - 1;
   return {
     recent: { startTimestamp: recentStart, endTimestamp: readEnd },
-    older: recentStart > readStart ? { startTimestamp: readStart, endTimestamp: recentStart - 1 } : null,
+    older: { startTimestamp: readStart, endTimestamp: readEnd === null ? olderEnd : Math.min(olderEnd, readEnd) },
   };
 }
 
-/** Browser trim: inside a window, and strictly after the split when the summary covers the rest. */
+/**
+ * Browser trim: inside a window, and strictly after the split when the summary covers the rest.
+ * R9: only windows that can hold such a row are searched, by binary search over the sorted,
+ * non-overlapping windows (same result as scanning every window).
+ */
 export function makePlanPredicate(plan: DashboardPeriodPlan): (ts: number) => boolean {
-  const { windows, usesSummary, sealedCutoff } = plan;
-  return (ts: number) => (!usesSummary || ts > sealedCutoff) && windows.some((w) => ts >= w.start && ts <= w.end);
+  const { usesSummary, sealedCutoff } = plan;
+  const ws = plan.windows
+    .filter((w) => !usesSummary || w.end > sealedCutoff)
+    .slice()
+    .sort((a, b) => a.start - b.start);
+  const starts = ws.map((w) => w.start);
+  const ends = ws.map((w) => w.end);
+  const n = ws.length;
+  return (ts: number) => {
+    if (usesSummary && ts <= sealedCutoff) return false;
+    // last window with start <= ts
+    let lo = 0, hi = n - 1, idx = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (starts[mid] <= ts) { idx = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return idx >= 0 && ts <= ends[idx];
+  };
 }
 
 /** Query keys (for tests and the hooks). */

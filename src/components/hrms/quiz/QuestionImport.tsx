@@ -22,6 +22,7 @@ export function QuestionImport({ open, onOpenChange, subjects }: { open: boolean
   const [subject, setSubject] = useState("");
   const [status, setStatus] = useState("needs_review");
   const [items, setItems] = useState<ReturnType<typeof rowToItem>[]>([]);
+  const [sheetRows, setSheetRows] = useState<number[]>([]);
   const [raw, setRaw] = useState<Record<string, unknown>[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   useEffect(() => { if (open) { setItems([]); setRaw([]); setPreview(null); } }, [open]);
@@ -36,9 +37,13 @@ export function QuestionImport({ open, onOpenChange, subjects }: { open: boolean
 
   const readFile = async (file: File) => {
     const wb = XLSX.read(await file.arrayBuffer());
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: "" })
-      .map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k.trim().toLowerCase(), v])))
-      .filter((r) => Object.values(r).some((v) => String(v).trim()));
+    // keep each row's real spreadsheet number (SheetJS __rowNum__ is 0-based, header is row 1)
+    const read = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: "" })
+      .map((r) => ({ sheetRow: Number((r as { __rowNum__?: number }).__rowNum__ ?? 0) + 1,
+        data: Object.fromEntries(Object.entries(r).map(([k, v]) => [k.trim().toLowerCase(), v])) }))
+      .filter((r) => Object.values(r.data).some((v) => String(v).trim()));
+    const rows = read.map((r) => r.data);
+    setSheetRows(read.map((r) => r.sheetRow));
     setRaw(rows); setItems(rows.map(rowToItem)); setPreview(null);
   };
 
@@ -84,7 +89,7 @@ export function QuestionImport({ open, onOpenChange, subjects }: { open: boolean
                 <TableHeader><TableRow><TableHead numeric>Row</TableHead><TableHead>Question</TableHead><TableHead>Check</TableHead></TableRow></TableHeader>
                 <TableBody>{preview.rows.map((r) => (
                   <TableRow key={r.row}>
-                    <TableCell numeric>{r.row + 1}</TableCell>
+                    <TableCell numeric>{sheetRows[r.row - 1] ?? r.row + 1}</TableCell>
                     <TableCell className="max-w-[360px]"><p className="line-clamp-2 text-sm">{String(raw[r.row - 1]?.question ?? "")}</p></TableCell>
                     <TableCell>{r.ok ? <Badge variant="success">Ready</Badge> : <span className="text-sm text-destructive">{r.error}</span>}</TableCell>
                   </TableRow>

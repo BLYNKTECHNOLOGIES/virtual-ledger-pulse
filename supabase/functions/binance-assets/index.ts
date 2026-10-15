@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
-import { checkOrder, computeFundingShortfall, rulesFromExchangeInfo, type SymbolRules } from "./tradeRules.ts";
+import { checkOrder, computeFundingShortfall, fromUnits, rulesFromExchangeInfo, toUnits, type SymbolRules } from "./tradeRules.ts";
 
 const BINANCE_BASE = "https://api.binance.com";
 
@@ -321,7 +321,7 @@ serve(async (req) => {
           const t = (await getAllTickerPrices()).find((x) => x.symbol === rules.symbol);
           price = t?.price ?? "0";
         }
-        const available = String(Number(fundingFree) + Number(spotFree));
+        const available = fromUnits(toUnits(fundingFree) + toUnits(spotFree));
         const check = checkOrder({
           side, amount: side === "BUY" ? String(quoteOrderQty ?? "") : String(quantity ?? ""),
           available, price, rules, accountName: acct.accountName,

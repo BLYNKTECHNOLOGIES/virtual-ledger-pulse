@@ -43,7 +43,7 @@ async function adsCall(user: string, action: string, payload: Record<string, unk
     if (!r.ok) return { status: r.status, body: r.body, calls: b.calls };
   }
   b.send(action);
-  return { status: 200, body: { success: true }, calls: b.calls };
+  return { status: 200, body: { success: true, error: "", code: "OK" }, calls: b.calls };
 }
 
 for (const [action, payload] of [

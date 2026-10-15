@@ -30,5 +30,17 @@ export function useTerminalEditableUsers() {
     return "You can only change Terminal settings for people you manage.";
   };
 
-  return { editReason, isLoading: q.isLoading };
+  /** AM-SEC-7c: biometric reset — yourself, or someone you may manage. */
+  const bioResetReason = (targetUserId: string): string | null => {
+    if (targetUserId === userId) return null;
+    const r = editReason(targetUserId);
+    return r && !r.startsWith("Checking") && !r.startsWith("Couldn't") ? "You can only reset biometric registration for people you manage." : r;
+  };
+  /** AM-SEC-7c: biometric invite — only someone you may manage. */
+  const inviteReason = (targetUserId: string): string | null => {
+    const r = editReason(targetUserId);
+    return r && !r.startsWith("Checking") && !r.startsWith("Couldn't") ? "You can only send a biometric registration link to people you manage." : r;
+  };
+
+  return { editReason, bioResetReason, inviteReason, isLoading: q.isLoading };
 }

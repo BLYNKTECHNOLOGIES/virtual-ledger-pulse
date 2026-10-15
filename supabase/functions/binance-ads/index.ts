@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
+import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor, AccountUnavailableError } from "../_shared/binance-account.ts";
 import { advertiserBadges, normalizeZone, zoneClassifies } from "../_shared/adZone.ts";
 import { normalizeChatMessage, persistChatMessages } from "../_shared/binance-chat.ts";
 import {
@@ -12,7 +12,7 @@ import {
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
-import { AD_WRITE_RULES, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps } from "../_shared/binance-access.ts";
+import { AD_WRITE_RULES, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial } from "../_shared/binance-access.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -949,6 +949,28 @@ serve(async (req) => {
       }
     }
 
+    // === AM-SEC-5b: chat credentials (incl. the relay token) are server-only ===
+    const svcDenial = serviceOnlyDenial(action, callerIsServiceRole);
+    if (svcDenial) {
+      console.warn(`service-only action refused: user=${callerUserId} action=${action}`);
+      return new Response(JSON.stringify(svcDenial.body), {
+        status: svcDenial.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // === AM-SEC-5b: chat read markers only on accounts this user may use ===
+    // (no view-only device guard: read markers stay allowed on personal devices)
+    if (!callerIsServiceRole && !callerIsScheduler && callerUserId && CHAT_READ_ACTIONS.has(action)) {
+      const readAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const access = await checkAccountAccess(supabaseAccessDeps(readAdmin), callerUserId, [accountIdFromPayload(payload)]);
+      if (!access.ok) {
+        console.warn(`account access denied: user=${callerUserId} action=${action} code=${access.body.code}`);
+        return new Response(JSON.stringify(access.body), {
+          status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Scheduler-secret callers may only run internal read-only sync actions.
     if (callerIsScheduler && !callerIsServiceRole && !["syncTerminalOrdersForErp", "listActiveOrders"].includes(action)) {
       return new Response(JSON.stringify({ error: "Forbidden for scheduler caller" }), {
@@ -993,7 +1015,9 @@ serve(async (req) => {
             return { ok: false, reason: String(j?.error || `HTTP ${resp.status}`) };
           },
           async getStatus(accountId, advNo) {
-            const a = await resolveAccount(accountId);
+            // AM-SEC-5b: an explicit account never falls back to another one.
+            let a;
+            try { a = await resolveAccount(accountId, { strict: !!accountId }); } catch { return null; }
             const d = await restDetail(a.proxyUrl, proxyHeadersFor(a), advNo);
             if (!d) return null;
             const st = Number(d.advStatus);
@@ -1002,7 +1026,7 @@ serve(async (req) => {
             return st;
           },
           async listLive(accountId) {
-            const a = await resolveAccount(accountId);
+            const a = await resolveAccount(accountId, { strict: !!accountId });
             const headers = proxyHeadersFor(a);
             const all: any[] = [];
             for (let page = 1; page <= 50; page++) {
@@ -1073,7 +1097,21 @@ serve(async (req) => {
     // Whether the client explicitly scoped the request to one account. When true,
     // per-order actions (e.g. getOrderDetail) must NOT fall back to other accounts.
     const hasExplicitAccount = !!payload.exchange_account_id;
-    const acct = await resolveAccount(requestedAccountId);
+    // AM-SEC-5b: for Binance-changing actions and read markers an explicit account
+    // id must resolve to that very account — refuse (503) rather than fall back.
+    let acct;
+    try {
+      acct = await resolveAccount(requestedAccountId, {
+        strict: !!requestedAccountId && (MUTATING_ACTIONS.has(action) || CHAT_READ_ACTIONS.has(action)),
+      });
+    } catch (e) {
+      if (e instanceof AccountUnavailableError) {
+        return new Response(JSON.stringify({ success: false, error: e.message, code: e.code }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
+    }
     const EXCHANGE_ACCOUNT_ID = acct.id;
     const BINANCE_PROXY_URL = acct.proxyUrl;
     const BINANCE_API_KEY = acct.apiKey;

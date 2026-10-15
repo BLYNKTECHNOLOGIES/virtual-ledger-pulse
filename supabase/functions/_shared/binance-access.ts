@@ -137,3 +137,27 @@ export function adWriteDenial(action: string, perms: Set<string>, trustedCaller:
   if (!rule || trustedCaller) return null;
   return rule.anyOf.some((p) => perms.has(p)) ? null : rule.message;
 }
+
+/**
+ * AM-SEC-5b: chat read markers (`markOrderMessagesRead` / `markUserMessagesRead`)
+ * change state on Binance for a specific account, so a user may only call them
+ * on an account they may use. (No view-only device guard — read markers stay
+ * allowed on personal devices.)
+ */
+export const CHAT_READ_ACTIONS = new Set<string>(["markOrderMessagesRead", "markUserMessagesRead"]);
+
+/**
+ * AM-SEC-5b: `getChatCredential` returns the Binance chat token AND the shared
+ * relay token (BINANCE_PROXY_TOKEN), which together are enough to post into any
+ * order chat on that account. Only the service role and scheduler jobs may call
+ * it; a signed-in user gets 403.
+ */
+const SERVICE_ONLY_ACTIONS = new Set<string>(["getChatCredential"]);
+export function serviceOnlyDenial(action: string, callerIsServiceRole: boolean):
+  | { status: number; body: { success: false; error: string; code: string } } | null {
+  if (!SERVICE_ONLY_ACTIONS.has(action) || callerIsServiceRole) return null;
+  return {
+    status: 403,
+    body: { success: false, error: "This action is server-only.", code: "SERVICE_ONLY" },
+  };
+}

@@ -1,4 +1,5 @@
 import { memo, useMemo } from 'react';
+import { isActiveAppealOrder } from '@/lib/orderStatusMapper';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Clock, ShieldAlert, CheckCircle2, ArrowUpRight, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,10 +36,7 @@ function OperationalAlertsPanel({ orders, isLoading, unavailable, pending = fals
     const STALE_MS = 24 * 60 * 60 * 1000;
     const now = Date.now();
 
-    const appealOrders = orders.filter(o => {
-      const s = (o.orderStatus || '').toUpperCase();
-      return s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT') || (o as any).hasActiveComplaint;
-    });
+    const appealOrders = orders.filter(isActiveAppealOrder);
     if (appealOrders.length > 0) {
       items.push({
         icon: ShieldAlert,

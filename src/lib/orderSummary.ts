@@ -33,7 +33,7 @@ export type SummaryAggregate = {
   totalSellVolume: number;
   appeals: number;
   /** Chart-ready daily series (completed orders only), oldest first. */
-  series: { date: string; dateKey: number; buy: number; sell: number }[];
+  series: { day: string; date: string; dateKey: number; buy: number; sell: number }[];
   /** Status label -> count, using the same labels as OrderStatusBreakdown. */
   statusCounts: Record<string, number>;
 };
@@ -60,13 +60,29 @@ export const EMPTY_SUMMARY: SummaryAggregate = {
   statusCounts: {},
 };
 
-function labelForDay(dayIso: string): { label: string; key: number } {
-  const [y, m, d] = dayIso.split('-').map(Number);
-  const dt = new Date(y, (m || 1) - 1, d || 1);
-  return {
-    label: dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
-    key: dt.getTime(),
-  };
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+/** TD-FIX-B F6 — the IST calendar date of a timestamp as 'YYYY-MM-DD', whatever the browser's time zone. */
+export function istDayKey(ts: number): string {
+  return new Date(ts + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** Sortable number for a 'YYYY-MM-DD' day (UTC midnight of that date; time-zone independent). */
+export function dayKeyToMs(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return Date.UTC(y, (m || 1) - 1, d || 1);
+}
+
+/** Axis label: "28 Oct", or "28 Oct 25" when the chart spans more than a year. */
+export function formatDayLabel(day: string, withYear: boolean): string {
+  return new Date(dayKeyToMs(day)).toLocaleDateString('en-GB', withYear
+    ? { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }
+    : { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/** Tooltip date with the year: "15 Nov 2025". */
+export function formatDayFull(day: string): string {
+  return new Date(dayKeyToMs(day)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
 export function aggregateSummaryRows(rows: OrderSummaryRow[]): SummaryAggregate {
@@ -75,7 +91,8 @@ export function aggregateSummaryRows(rows: OrderSummaryRow[]): SummaryAggregate 
     series: [],
     statusCounts: {},
   };
-  const byDay = new Map<string, { date: string; dateKey: number; buy: number; sell: number }>();
+  // One point per real IST day (year included), keyed by day_ist.
+  const byDay = new Map<string, { day: string; date: string; dateKey: number; buy: number; sell: number }>();
 
   for (const r of rows) {
     const count = Number(r.order_count) || 0;
@@ -97,11 +114,11 @@ export function aggregateSummaryRows(rows: OrderSummaryRow[]): SummaryAggregate 
         out.sellCount += count;
         out.totalSellVolume += volume;
       }
-      const { label: dayLabel, key } = labelForDay(r.day_ist);
-      const entry = byDay.get(dayLabel) || { date: dayLabel, dateKey: key, buy: 0, sell: 0 };
+      const day = String(r.day_ist).slice(0, 10);
+      const entry = byDay.get(day) || { day, date: formatDayLabel(day, false), dateKey: dayKeyToMs(day), buy: 0, sell: 0 };
       if (isBuy) entry.buy += volume;
       else entry.sell += volume;
-      byDay.set(dayLabel, entry);
+      byDay.set(day, entry);
     } else if (r.status_group === 'CANCELLED' || r.status_group === 'AUTO_CANCELLED') {
       out.cancelledCount += count;
     } else if (r.status_group === 'EXPIRED') {

@@ -3,6 +3,7 @@ import { Activity } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { TimePeriod } from './TimePeriodFilter';
+import { dayKeyToMs, formatDayFull, formatDayLabel, istDayKey } from '@/lib/orderSummary';
 import { formatAxisRupees, formatExactRupees, formatIstDay, formatIstHour, formatIstTime, istHourStart } from './dashFormat';
 
 interface Props {
@@ -10,13 +11,11 @@ interface Props {
   isLoading: boolean;
   period: TimePeriod;
   /** Pre-computed daily totals for the sealed (older than 45 days) part of the window. */
-  precomputedSeries?: { date: string; dateKey: number; buy: number; sell: number }[];
+  precomputedSeries?: { day: string; date: string; dateKey: number; buy: number; sell: number }[];
   /** Window of a single selected day (IST). When set, volume is plotted per hour. */
   hourWindow?: { startTimestamp: number; endTimestamp: number };
-  /** Whole selected window; used to word the tooltips (presentation only). */
-  bounds?: { startTimestamp: number; endTimestamp: number };
-  /** When the window stops at the time it was chosen: that time, already worded (e.g. "4:40 PM"). */
-  endsLabel?: string | null;
+  /** The selected range is longer than a year: axis labels carry a two-digit year. */
+  yearLabels?: boolean;
   /** Order history could not be read for the period. */
   unavailable?: boolean;
 }
@@ -24,9 +23,7 @@ interface Props {
 type Point = { date: string; full: string; buy: number; sell: number };
 
 const HOUR_MS = 3600000;
-// Longer than a year: older daily totals arrive already merged by day and month,
-// so a tooltip must not claim a year for them.
-const YEAR_MS = 366 * 24 * HOUR_MS;
+
 
 const tooltipStyle = {
   backgroundColor: 'hsl(var(--popover))',
@@ -43,9 +40,8 @@ function hourTicks(points: Point[], plotWidth: number): string[] {
   return points.map((p) => p.date).filter((label) => Number(label.slice(0, 2)) % step === 0);
 }
 
-function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindow, bounds, endsLabel, unavailable }: Props) {
+function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindow, yearLabels = false, unavailable }: Props) {
   const [plotWidth, setPlotWidth] = useState(0);
-  const longWindow = !!bounds && bounds.endTimestamp - bounds.startTimestamp > YEAR_MS;
 
   const { chartData, totalBuy, totalSell, hourly } = useMemo(() => {
     const pre = precomputedSeries || [];
@@ -92,37 +88,36 @@ function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindo
       return { chartData, totalBuy: Math.round(totalBuy), totalSell: Math.round(totalSell), hourly: true };
     }
 
-    // Days are keyed by their date, not their short label.
-    const fullDate = (d: Date) => d.toLocaleDateString('en-IN', longWindow ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
-    const byDay = new Map<number, { date: string; full: string; buy: number; sell: number }>();
+    // TD-FIX-B F6: one point per real IST day ('YYYY-MM-DD', year included), the same key
+    // for pre-computed days and raw orders, whatever the browser's time zone.
+    const byDay = new Map<string, { buy: number; sell: number }>();
     for (const p of pre) {
-      const entry = byDay.get(p.dateKey) || { date: p.date, full: fullDate(new Date(p.dateKey)), buy: 0, sell: 0 };
+      const entry = byDay.get(p.day) || { buy: 0, sell: 0 };
       entry.buy += p.buy; entry.sell += p.sell;
-      byDay.set(p.dateKey, entry);
+      byDay.set(p.day, entry);
     }
     for (const o of completed) {
-      const d = new Date(o.createTime);
-      const dateKey = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      const label = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
-      const entry = byDay.get(dateKey) || { date: label, full: fullDate(d), buy: 0, sell: 0 };
+      const day = istDayKey(o.createTime);
+      const entry = byDay.get(day) || { buy: 0, sell: 0 };
       const price = parseFloat(o.totalPrice || '0');
       if (o.tradeType === 'BUY') entry.buy += price;
       else entry.sell += price;
-      byDay.set(dateKey, entry);
+      byDay.set(day, entry);
     }
-    const chartData = Array.from(byDay.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([, v]) => ({ date: v.date, full: v.full, buy: Math.round(v.buy), sell: Math.round(v.sell) }));
+    const days = Array.from(byDay.keys()).sort((a, b) => dayKeyToMs(a) - dayKeyToMs(b));
+    const withYear = yearLabels;
+    const chartData = days.map((day) => {
+      const v = byDay.get(day)!;
+      return { date: formatDayLabel(day, withYear), full: formatDayFull(day), buy: Math.round(v.buy), sell: Math.round(v.sell) };
+    });
     return { chartData, totalBuy: Math.round(totalBuy), totalSell: Math.round(totalSell), hourly: false };
-  }, [orders, precomputedSeries, hourWindow, longWindow]);
+  }, [orders, precomputedSeries, hourWindow, yearLabels]);
 
   // Bars for hours and for very short day ranges (an area needs at least a few points).
   const asBars = hourly || chartData.length <= 2;
   const ticks = hourly ? hourTicks(chartData, plotWidth) : undefined;
   // One unit for the whole axis, chosen from the largest bar or point.
   const yMax = chartData.reduce((m, d) => Math.max(m, d.buy, d.sell), 0);
-  // Older daily totals arrive merged by day and month, so a range longer than a year adds up both years' days.
-  const mergedYears = longWindow && !!precomputedSeries?.length;
   const fullLabel = (label: unknown, payload: ReadonlyArray<{ payload?: Point }>) => payload?.[0]?.payload?.full || String(label);
   const formatValue = (value: unknown, name: unknown): [string, string] => [formatExactRupees(Number(value)), name === 'buy' ? 'Buy volume' : 'Sell volume'];
   const xAxis = (
@@ -165,7 +160,6 @@ function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindo
         {ready && (
           <span className="text-[10px] text-muted-foreground">
             · completed, {hourly ? 'by hour' : 'by day'}
-            {endsLabel ? `, up to ${endsLabel}` : ''}
           </span>
         )}
         {ready && (
@@ -237,11 +231,6 @@ function TradeVolumeChartPanel({ orders, isLoading, precomputedSeries, hourWindo
               )}
             </ResponsiveContainer>
           </div>
-          {mergedYears && (
-            <div className="mt-2 text-[10px] text-muted-foreground">
-              For ranges longer than a year, days with the same date in different years are added together in this chart. The totals above are exact.
-            </div>
-          )}
           </>
         )}
       </div>

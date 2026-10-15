@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withActiveAccount } from '@/lib/activeExchangeAccount';
+import { isActiveAppealOrder } from '@/lib/orderStatusMapper';
 
 export interface C2COrderHistoryItem {
   orderNumber: string;
@@ -55,9 +56,6 @@ function isFinalStatus(s: string): boolean {
     s.includes('CANCEL') || s.includes('EXPIRED') || s.includes('TIMEOUT');
 }
 
-function isAppealStatus(s: string): boolean {
-  return s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT');
-}
 
 /**
  * Compute dashboard stats from order history.
@@ -122,8 +120,8 @@ export function computeOrderStats(
       }
     }
 
-    // Appeals: status-based OR active complaint flag (catches appeals on completed orders)
-    if (isAppealStatus(status) || o.hasActiveComplaint) {
+    // Appeals: only while the order is not final — appeal-like status or active complaint flag (TD-FIX-B F2).
+    if (isActiveAppealOrder(o)) {
       appeals++;
     }
   }

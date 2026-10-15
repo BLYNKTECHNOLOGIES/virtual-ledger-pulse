@@ -55,7 +55,7 @@ export function useOrderWindowPlan(filter: TimeFilter, bounds: { startTimestamp:
  * Pre-computed totals for the sealed part of the window (server-side aggregate,
  * shared by every user — no Binance call, no per-browser row download).
  */
-export function useOrderSummary(plan: OrderWindowPlan) {
+export function useOrderSummary(plan: Pick<OrderWindowPlan, 'usesSummary' | 'startTimestamp' | 'sealedCutoff' | 'windows'>) {
   const { accountsToQuery } = useExchangeAccount();
 
   const query = useQuery({

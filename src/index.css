@@ -529,11 +529,12 @@
     --accent: 231 40% 94%;             /* less saturated hover tint */
     --accent-foreground: 231 60% 32%;
 
-    /* ── Status / semantic (AA on the new paper) ── */
-    --destructive: 0 72% 46%;
+    /* ── Status / semantic (AA on the new paper) ──
+       Red, green and amber are dark enough for 10–12px text on their own 10% tint over the paper (≥4.5:1). */
+    --destructive: 0 74% 40%;
     --destructive-foreground: 0 0% 100%;
-    --success: 152 62% 32%;
-    --warning: 32 88% 40%;
+    --success: 152 66% 25%;
+    --warning: 28 90% 31%;
     --info: 213 82% 45%;
 
     /* ── Borders ── */
@@ -546,10 +547,10 @@
     --surface-canvas: 220 18% 93%;      /* matches background */
     --surface-elevated: 0 0% 99%;       /* card elevation */
 
-    /* ── Trading semantics (darkened for light bg) ── */
-    --trade-buy: 152 64% 31%;
-    --trade-sell: 0 72% 47%;
-    --trade-pending: 32 88% 40%;
+    /* ── Trading semantics (darkened for light bg; text stays ≥4.5:1 on its 10% tint) ── */
+    --trade-buy: 152 66% 25%;
+    --trade-sell: 0 74% 40%;
+    --trade-pending: 28 90% 31%;
 
     /* ── Charts ── */
     --chart-1: 231 78% 55%;

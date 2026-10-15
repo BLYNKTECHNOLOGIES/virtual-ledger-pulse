@@ -39,7 +39,10 @@ export async function readEdgeErrorMessage(error: any): Promise<string> {
 }
 
 export async function callBinanceAds(action: string, payload: Record<string, any> = {}, accountId?: string) {
-  const timeoutMs = action === 'sendChatMessage' ? BINANCE_CHAT_SEND_TIMEOUT_MS : BINANCE_CALL_TIMEOUT_MS;
+  // Rest start/end switch every ad one by one on the server, so they get longer.
+  const timeoutMs = action === 'sendChatMessage'
+    ? BINANCE_CHAT_SEND_TIMEOUT_MS
+    : (action === 'startAdRest' || action === 'endAdRest') ? 120_000 : BINANCE_CALL_TIMEOUT_MS;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

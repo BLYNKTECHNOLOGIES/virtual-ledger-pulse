@@ -11,6 +11,7 @@ import {
   isFundPwdEligible,
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
+import { startAdRest, endAdRest, supabaseRestStore, type RestDeps } from "../_shared/adRest.ts";
 
 /**
  * Every state-changing terminal action. A personal (view-only) device may call
@@ -19,6 +20,7 @@ import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 const MUTATING_ACTIONS = new Set<string>([
   // Ads
   "postAd", "updateAd", "updateAdStatus", "applyAdRiskGuard", "setUserAdvVisible",
+  "startAdRest", "endAdRest",
   // Orders
   "cancelOrder", "markOrderAsPaid", "releaseCoin", "confirmOrderVerified",
   // Chat sending (read markers stay allowed)
@@ -887,6 +889,8 @@ serve(async (req) => {
       applyAdRiskGuard: { anyOf: ["terminal_ads_manage"], message: "Permission denied: you need the Ads 'Manage' right to apply risk settings to ads." },
       updateAdStatus: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to switch ads on or off." },
       setUserAdvVisible: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to change ad visibility." },
+      startAdRest: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to start a rest." },
+      endAdRest: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to resume ads." },
       merchantOnline: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to take the merchant online or offline." },
       merchantOffline: { anyOf: ["terminal_ads_toggle", "terminal_ads_manage"], message: "Permission denied: you need the Ads 'Toggle On/Off' right to take the merchant online or offline." },
     };
@@ -929,6 +933,68 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // === AM-FIX-2: rest start / end (one server path for Resume and automatic end) ===
+    if (action === "startAdRest" || action === "endAdRest") {
+      const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      const selfUrl = `${SUPABASE_URL}/functions/v1/binance-ads`;
+      const primary = await resolveAccount(null);
+      const deps: RestDeps = {
+        store: supabaseRestStore(admin),
+        primaryAccountId: primary.id,
+        binance: {
+          // Re-enters this function as the service role so the existing
+          // updateAdStatus path (incl. Private = advStatus 2 from 3, with revert) is reused.
+          async setStatus(accountId, advNo, status, fromStatus) {
+            const resp = await fetch(selfUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, apikey: SUPABASE_SERVICE_ROLE_KEY! },
+              body: JSON.stringify({
+                action: "updateAdStatus", advNos: [advNo], advStatus: status,
+                ...(fromStatus !== undefined ? { fromStatus } : {}),
+                ...(accountId ? { exchange_account_id: accountId } : {}),
+              }),
+            });
+            const j = await resp.json().catch(() => null);
+            return j?.success ? { ok: true } : { ok: false, reason: String(j?.error || `HTTP ${resp.status}`) };
+          },
+          async getStatus(accountId, advNo) {
+            const a = await resolveAccount(accountId);
+            const d = await fetchAdDetail(a.proxyUrl, proxyHeadersFor(a), advNo);
+            const st = Number(d?.advStatus);
+            return Number.isFinite(st) ? st : null;
+          },
+        },
+      };
+      let userName = String(payload.userName || "").slice(0, 80);
+      if (callerUserId) {
+        const { data: u } = await admin.from("users").select("username, first_name, last_name").eq("id", callerUserId).maybeSingle();
+        const full = [u?.first_name, u?.last_name].filter(Boolean).join(" ").trim();
+        userName = full || u?.username || userName || "Operations Associate";
+      }
+      const isAutomatic = action === "endAdRest" && payload.mode === "automatic" && callerIsServiceRole;
+      try {
+        const out = action === "startAdRest"
+          ? await startAdRest(deps, {
+              ads: (Array.isArray(payload.ads) ? payload.ads : []).map((a: any) => ({
+                advNo: String(a?.advNo ?? ""), advStatus: Number(a?.advStatus), accountId: a?.accountId ?? null,
+              })),
+              userId: callerUserId, userName: userName || "Operations Associate",
+            })
+          : await endAdRest(deps, {
+              timerId: payload.timerId ?? null,
+              mode: isAutomatic ? "automatic" : "manual",
+              userId: callerUserId, userName: userName || (isAutomatic ? "automatic" : "Operations Associate"),
+            });
+        return new Response(JSON.stringify({ success: true, data: out }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: (e as Error).message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Resolve which Binance account this request targets (defaults to primary).

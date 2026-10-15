@@ -4,11 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { BINANCE_AD_STATUS, BinanceAd } from '@/hooks/useBinanceAds';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { useToast } from '@/hooks/use-toast';
-import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
+import { AdActionTypes } from '@/hooks/useAdActionLog';
 
 interface AdStatusSnapshot {
   advNo: string;
-  advStatus: number; // 1=Online, 2=Private
+  advStatus: number; // 1=Online, 2=Private (status before the rest)
+  accountId?: string | null;
 }
 
 interface RestTimer {
@@ -19,6 +20,30 @@ interface RestTimer {
   is_active: boolean;
   deactivated_ad_nos: string[];
   deactivated_ad_statuses: AdStatusSnapshot[] | null;
+}
+
+export interface RestAdOutcome {
+  advNo: string;
+  accountId: string | null;
+  reason?: string;
+  wasPrivate?: boolean;
+}
+
+export interface RestEndResult {
+  logId?: string;
+  at?: string;
+  timer_id: string;
+  mode: 'manual' | 'automatic';
+  ended_by: string;
+  restored: RestAdOutcome[];
+  skipped: RestAdOutcome[];
+  failed: RestAdOutcome[];
+}
+
+const DISMISSED_KEY = 'terminal_rest_end_notice_dismissed';
+const shortNo = (n: string) => `…${String(n).slice(-8)}`;
+export function describeOutcomes(list: RestAdOutcome[]): string {
+  return list.map((f) => `${shortNo(f.advNo)}${f.wasPrivate ? ' (Private)' : ''}: ${f.reason || 'refused'}`).join('; ');
 }
 
 const BINANCE_BREAK_STORAGE_KEY = 'terminal_binance_break_detected';
@@ -82,95 +107,142 @@ export function useAdRestTimer() {
     refetchInterval: 30_000,
   });
 
+  // Latest rest and its end result (written by the server, manual or automatic).
+  const { data: lastEnd } = useQuery({
+    queryKey: ['ad-rest-last-end'],
+    queryFn: async () => {
+      const { data: latest } = await supabase
+        .from('ad_rest_timer')
+        .select('id, started_at, duration_minutes, is_active, deactivated_ad_nos')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const { data: log } = await supabase
+        .from('ad_action_logs')
+        .select('id, created_at, metadata')
+        .eq('action_type', AdActionTypes.AD_REST_ENDED)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const meta = (log?.metadata || null) as any;
+      const result: RestEndResult | null = meta?.timer_id
+        ? { ...meta, logId: log!.id, at: log!.created_at, restored: meta.restored || [], skipped: meta.skipped || [], failed: meta.failed || [] }
+        : null;
+      return { latest: latest as any, result };
+    },
+    refetchInterval: 15_000,
+  });
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(i);
+  }, []);
+
   // Check if timer has expired
   const timerState = useMemo(() => {
-    if (!activeTimer) return { isResting: false, remainingMs: 0 };
+    if (!activeTimer) return { isResting: false, remainingMs: 0, endTime: undefined as number | undefined };
     const endTime = new Date(activeTimer.started_at).getTime() + activeTimer.duration_minutes * 60_000;
-    const remaining = endTime - Date.now();
+    const remaining = endTime - now;
     return { isResting: remaining > 0, remainingMs: Math.max(0, remaining), endTime };
-  }, [activeTimer]);
+  }, [activeTimer, now]);
 
-  // Auto-expire timer
+  // Hour is over but the server has not finished bringing the ads back yet.
+  // (No client write here: ending + restoring is done once, on the server.)
+  const isRestoring = useMemo(() => {
+    if (activeTimer && !timerState.isResting) return true;
+    const latest = lastEnd?.latest;
+    if (!latest || latest.is_active || !(latest.deactivated_ad_nos?.length > 0)) return false;
+    const ended = lastEnd?.result?.timer_id === latest.id;
+    const endAt = new Date(latest.started_at).getTime() + latest.duration_minutes * 60_000;
+    // Ended (claimed) but no result logged yet; give up showing it after 10 min.
+    return !ended && now - Math.min(endAt, now) < 10 * 60_000;
+  }, [activeTimer, timerState.isResting, lastEnd, now]);
+
   useEffect(() => {
-    if (activeTimer && !timerState.isResting) {
-      supabase
-        .from('ad_rest_timer')
-        .update({ is_active: false })
-        .eq('id', activeTimer.id)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] }));
-    }
-  }, [activeTimer, timerState.isResting]);
+    if (!isRestoring) return;
+    const i = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });
+      queryClient.invalidateQueries({ queryKey: ['ad-rest-last-end'] });
+    }, 10_000);
+    return () => clearInterval(i);
+  }, [isRestoring, queryClient]);
 
-  // Start rest — deactivate all active ads (Online + Private) and store their statuses
+  const [dismissedId, setDismissedId] = useState<string | null>(() => localStorage.getItem(DISMISSED_KEY));
+  const endNotice = useMemo(() => {
+    const r = lastEnd?.result;
+    if (!r?.logId || r.logId === dismissedId) return null;
+    const recent = r.at ? now - new Date(r.at).getTime() < 15 * 60_000 : false;
+    // Problems stay until dismissed; a clean result shows briefly.
+    if (r.failed.length > 0 || recent) return r;
+    return null;
+  }, [lastEnd, dismissedId, now]);
+  const dismissEndNotice = () => {
+    const id = lastEnd?.result?.logId;
+    if (!id) return;
+    localStorage.setItem(DISMISSED_KEY, id);
+    setDismissedId(id);
+  };
+
+  const refreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });
+    queryClient.invalidateQueries({ queryKey: ['ad-rest-last-end'] });
+    queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+  };
+
+  // Start rest — the server switches each active ad (Online + Private) off on its own
+  // account, records what actually went off, and starts the timer.
   const startRest = useMutation({
     mutationFn: async ({ activeAds, userName }: { activeAds: BinanceAd[]; userName?: string }) => {
-      const advNos = activeAds.map(a => a.advNo);
-      const adStatuses: AdStatusSnapshot[] = activeAds.map(a => ({ advNo: a.advNo, advStatus: a.advStatus }));
-
-      // Deactivate all active ads via Binance API
-      if (advNos.length > 0) {
-        await callBinanceAds('updateAdStatus', { advNos, advStatus: BINANCE_AD_STATUS.OFFLINE });
-      }
-
-      // Store timer in DB with per-ad status snapshots
-      const { error } = await supabase.from('ad_rest_timer').insert({
-        started_by: userName || 'Operations Associate',
-        duration_minutes: 60,
-        deactivated_ad_nos: advNos,
-        deactivated_ad_statuses: adStatuses as any,
-        is_active: true,
-      });
-      if (error) throw error;
+      return await callBinanceAds('startAdRest', {
+        userName,
+        ads: activeAds.map((a) => ({ advNo: a.advNo, advStatus: a.advStatus, accountId: a._exchangeAccountId ?? null })),
+      }) as { started: boolean; switchedOff: AdStatusSnapshot[]; failed: RestAdOutcome[] };
     },
-    onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });
-      queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
-      toast({ title: 'Rest Mode Activated', description: 'All ads deactivated. 1-hour timer started.' });
-      logAdAction({
-        actionType: AdActionTypes.AD_REST_STARTED,
-        metadata: { deactivatedCount: vars.activeAds.length, advNos: vars.activeAds.map(a => a.advNo) },
-      });
+    onSuccess: (res) => {
+      refreshAll();
+      const failed = res?.failed || [];
+      if (!res?.started) {
+        toast({ title: 'Rest not started', description: `No ad could be switched off. ${describeOutcomes(failed)}`, variant: 'destructive' });
+      } else if (failed.length) {
+        toast({
+          title: 'Rest started — some ads stayed on',
+          description: `${res.switchedOff.length} ads switched off. Binance refused ${failed.length}: ${describeOutcomes(failed)}`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Rest Mode Activated', description: `${res.switchedOff.length} ads switched off. They come back on by themselves in 1 hour.` });
+      }
     },
     onError: (e: Error) => {
+      refreshAll();
       toast({ title: 'Failed', description: e.message, variant: 'destructive' });
     },
   });
 
-  // End rest — restore ads to their original statuses (Online or Private→Online via API)
+  // End rest early — same server path as the automatic end.
   const endRest = useMutation({
     mutationFn: async () => {
       if (!activeTimer) throw new Error('No active timer found');
-
-      // First, mark timer as inactive in DB
-      const { error: dbError } = await supabase
-        .from('ad_rest_timer')
-        .update({ is_active: false })
-        .eq('id', activeTimer.id);
-      if (dbError) throw dbError;
-
-      // Re-activate previously deactivated ads via Binance API
-      // All ads go back to ONLINE (Binance API only supports 1=Online, 3=Offline)
-      const advNos = activeTimer.deactivated_ad_nos || [];
-      if (advNos.length > 0) {
-        try {
-          await callBinanceAds('updateAdStatus', { advNos, advStatus: BINANCE_AD_STATUS.ONLINE });
-        } catch (e) {
-          console.warn('Failed to re-activate ads via Binance, timer was still ended:', e);
-          toast({ title: 'Warning', description: 'Rest ended but some ads may need manual re-activation.', variant: 'destructive' });
-        }
-      }
+      return await callBinanceAds('endAdRest', { timerId: activeTimer.id }) as
+        (RestEndResult & { claimed: true }) | { claimed: false; reason: string };
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       clearAdBreakDetected();
-      queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });
-      queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
-      toast({ title: 'Rest Ended', description: 'Ads re-activated successfully.' });
-      logAdAction({
-        actionType: AdActionTypes.AD_REST_ENDED,
-        metadata: { reactivatedAdvNos: activeTimer?.deactivated_ad_nos || [] },
-      });
+      refreshAll();
+      if (!res?.claimed) {
+        toast({ title: 'Rest already ended', description: res?.reason || 'Someone else ended this rest.' });
+        return;
+      }
+      const failed: RestAdOutcome[] = res.failed || [];
+      const skipped: RestAdOutcome[] = res.skipped || [];
+      const parts = [`${(res.restored || []).length} ads back on.`];
+      if (skipped.length) parts.push(`Left alone ${skipped.length}: ${describeOutcomes(skipped)}.`);
+      if (failed.length) parts.push(`Still off ${failed.length}: ${describeOutcomes(failed)}.`);
+      toast({ title: failed.length ? 'Rest ended — some ads still off' : 'Rest Ended', description: parts.join(' '), variant: failed.length ? 'destructive' : undefined });
     },
     onError: (e: Error) => {
+      refreshAll();
       toast({ title: 'Failed', description: e.message, variant: 'destructive' });
     },
   });
@@ -178,6 +250,9 @@ export function useAdRestTimer() {
   return {
     activeTimer,
     isResting: timerState.isResting && !!activeTimer,
+    isRestoring,
+    endNotice,
+    dismissEndNotice,
     isBinanceBreakDetected: !!detectedBreak,
     detectedBreak,
     remainingMs: timerState.remainingMs,

@@ -303,7 +303,7 @@ function InternalChatBubble({ message, isOwn }: { message: InternalMessage; isOw
 
         {/* Image */}
         {message.message_type === 'image' && message.file_url && !imgError && (
-          <a href={message.file_url} target="_blank" rel="noopener noreferrer" className="block mb-1.5">
+          <a href={signedFileUrl || undefined} target="_blank" rel="noopener noreferrer" className="block mb-1.5" aria-disabled={!signedFileUrl}>
             <img
               src={signedFileUrl}
               alt={message.file_name || 'Image'}
@@ -315,9 +315,9 @@ function InternalChatBubble({ message, isOwn }: { message: InternalMessage; isOw
         )}
 
         {/* File attachment */}
-        {message.message_type === 'file' && message.file_url && (
+        {message.message_type === 'file' && message.file_url && signedFileUrl && (
           <a
-            href={message.file_url}
+            href={signedFileUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 mb-1.5 px-2 py-1.5 rounded bg-muted/40 border border-border/50 hover:bg-muted/60 transition-colors"

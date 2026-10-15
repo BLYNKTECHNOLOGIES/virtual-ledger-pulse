@@ -68,12 +68,12 @@ export function OrderActions({
 
   const needsVerification = tradeType === 'SELL' && additionalKycVerify === 1;
 
-  // Quick Receive eligibility — strictly BUY + Pending Release + within fiat ceiling.
+  // Quick Receive eligibility — strictly BUY + buyer has paid (mapped as 'Releasing' on BUY) + within fiat ceiling.
   // Per Binance SAPI v7.4: confirmPaidType="quick" on releaseCoin lets the buyer auto-release
   // the seller's crypto using our merchant security deposit, capped at quickConfirmAmountUpLimit.
   const quickReceiveEligible =
     tradeType === 'BUY'
-    && opStatus === 'Pending Release'
+    && opStatus === 'Releasing'
     && totalPrice !== undefined
     && quickConfirmAmountUpLimit !== undefined
     && isQuickReceiveEligible(totalPrice, quickConfirmAmountUpLimit);

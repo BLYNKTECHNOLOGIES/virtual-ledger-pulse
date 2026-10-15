@@ -144,3 +144,24 @@ Deno.test("assets: read actions open to any signed-in staff; service role truste
   const s = await gateAssetsRequest(assetsDeps(), `Bearer ${SERVICE}`, "getBalances", {});
   assert(s.ok && s.kind === "service");
 });
+
+// ---------- AM-SEC-2: rest needs the Rest Timer right ----------
+import { adWriteDenial } from "./binance-access.ts";
+const OPS_NO_REST = new Set(["terminal_ads_view", "terminal_ads_manage", "terminal_ads_toggle"]);
+const WITH_REST = new Set(["terminal_ads_view", "terminal_ads_rest_timer"]);
+for (const action of ["startAdRest", "endAdRest"]) {
+  Deno.test(`ads: ${action} refused without terminal_ads_rest_timer (Manage + Toggle not enough)`, () => {
+    const msg = adWriteDenial(action, OPS_NO_REST, false);
+    assert(msg && msg.includes("'Rest Timer'"));
+  });
+  Deno.test(`ads: ${action} allowed with terminal_ads_rest_timer`, () => {
+    assertEquals(adWriteDenial(action, WITH_REST, false), null);
+  });
+}
+Deno.test("ads: automatic end (service role) unaffected — no rights needed", () => {
+  assertEquals(adWriteDenial("endAdRest", new Set(), true), null);
+});
+Deno.test("ads: status switch still Toggle or Manage", () => {
+  assertEquals(adWriteDenial("updateAdStatus", OPS_NO_REST, false), null);
+  assert(adWriteDenial("updateAdStatus", WITH_REST, false));
+});

@@ -12,7 +12,7 @@ import {
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
-import { AD_WRITE_RULES, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps } from "../_shared/binance-access.ts";
+import { AD_WRITE_RULES, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps } from "../_shared/binance-access.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -919,9 +919,10 @@ serve(async (req) => {
           typeof p === "string" ? p : p?.get_terminal_permissions ?? p?.permission
         )
       );
-      if (!adRule.anyOf.some((p) => perms.has(p))) {
+      const denial = adWriteDenial(action, perms, false);
+      if (denial) {
         console.warn(`ads permission denied: user=${callerUserId} action=${action}`);
-        return deny(adRule.message);
+        return deny(denial);
       }
     }
 

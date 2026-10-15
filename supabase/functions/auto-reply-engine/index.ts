@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchAllRows } from "../_shared/paginate.ts";
 import { requireCaller } from "../_shared/require-caller.ts";
+import { gateAutoReplyCaller, supabaseOrderAccount } from "./callerGate.ts";
+import { permissionSet, supabaseAccessDeps } from "../_shared/binance-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -426,6 +428,23 @@ serve(async (req) => {
       } catch {
         // no body — full poll mode
       }
+    }
+
+    // === AM-SEC-4b: signed-in callers need the chat right + account access ===
+    const gate = await gateAutoReplyCaller({
+      permissions: async (uid) => {
+        const { data, error } = await caller.admin.rpc("get_terminal_permissions", { p_user_id: uid });
+        if (error) throw new Error(error.message);
+        return permissionSet(data);
+      },
+      orderAccount: supabaseOrderAccount(caller.admin),
+      access: supabaseAccessDeps(caller.admin),
+    }, caller.kind, caller.userId, forcedOrderNumber);
+    if (!gate.ok) {
+      console.warn(`auto-reply refused: user=${caller.userId} order=${forcedOrderNumber} code=${gate.body.code}`);
+      return new Response(JSON.stringify(gate.body), {
+        status: gate.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";

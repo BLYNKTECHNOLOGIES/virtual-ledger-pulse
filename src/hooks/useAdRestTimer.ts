@@ -218,7 +218,7 @@ export function useAdRestTimer({ full = false }: { full?: boolean } = {}) {
     // The server reads each ad's live state on Binance for these accounts.
     mutationFn: async ({ accountIds, userName }: { accountIds: string[]; userName?: string }) => {
       return await callBinanceAds('startAdRest', { userName, accountIds }) as {
-        started: boolean; switchedOff: AdStatusSnapshot[]; failed: RestAdOutcome[]; unreadable?: RestAdOutcome[];
+        started: boolean; switchedOff: AdStatusSnapshot[]; failed: RestAdOutcome[]; unclear?: RestAdOutcome[]; unreadable?: RestAdOutcome[];
         endedDuringStart?: boolean; restoredAfterEnd?: RestAdOutcome[]; lostAfterEnd?: RestAdOutcome[];
       };
     },
@@ -228,6 +228,10 @@ export function useAdRestTimer({ full = false }: { full?: boolean } = {}) {
       const unreadable = res?.unreadable || [];
       const unreadText = unreadable.length
         ? ` Left as they are (${unreadable.length}): ${unreadable.map((u) => u.advNo === '*' ? (u.reason || 'account unreadable') : `${shortNo(u.advNo)}: ${u.reason || 'could not read its current state'}`).join('; ')}.`
+        : '';
+      const unclear = res?.unclear || [];
+      const unclearText = unclear.length
+        ? ` No clear answer from Binance for ${unclear.length} (${unclear.map((u) => shortNo(u.advNo)).join(', ')}) — they are kept in the rest and checked when it ends.`
         : '';
       if (res?.endedDuringStart) {
         const lost = res.lostAfterEnd || [];
@@ -243,14 +247,14 @@ export function useAdRestTimer({ full = false }: { full?: boolean } = {}) {
       } else if (failed.length) {
         toast({
           title: 'Rest started — some ads stayed on',
-          description: `${res.switchedOff.length} ads switched off. Binance refused ${failed.length}: ${describeOutcomes(failed)}.${unreadText}`,
+          description: `${res.switchedOff.length} ads switched off. Binance refused ${failed.length}: ${describeOutcomes(failed)}.${unclearText}${unreadText}`,
           variant: 'destructive',
         });
       } else {
         toast({
           title: 'Rest Mode Activated',
-          description: `${res.switchedOff.length} ads switched off. They come back on by themselves in 1 hour.${unreadText}`,
-          variant: unreadable.length ? 'destructive' : undefined,
+          description: `${res.switchedOff.length} ads switched off. They come back on by themselves in 1 hour.${unclearText}${unreadText}`,
+          variant: unreadable.length || unclear.length ? 'destructive' : undefined,
         });
       }
     },
@@ -272,6 +276,10 @@ export function useAdRestTimer({ full = false }: { full?: boolean } = {}) {
       refreshAll();
       if (!res?.claimed && res?.starting) {
         toast({ title: 'Rest is still starting', description: res.reason });
+        return;
+      }
+      if (!res?.claimed && res?.retryLater) {
+        toast({ title: 'Rest not ended yet', description: res.reason, variant: 'destructive' });
         return;
       }
       if (!res?.claimed) {

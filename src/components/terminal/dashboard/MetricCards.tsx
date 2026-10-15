@@ -160,8 +160,6 @@ interface MetricCardsProps {
   liveUnavailable?: boolean;
   /** Order history could not be read: show dashes, not zeros. */
   periodUnavailable?: boolean;
-  /** End of the period when it stops at the time it was chosen (rolling filters). */
-  periodEndsAt?: number | null;
   /** The figures on screen still belong to the previous period while the new one loads. */
   periodUpdating?: boolean;
 }
@@ -170,7 +168,7 @@ export function MetricCards({
   activeOrders, awaitingPayment, awaitingRelease, completedInPeriod, appeals,
   totalBuyVolume, totalSellVolume, avgOrderSize, completionRate, buySellRatio,
   isLoading, periodLabel, liveSource = 'live', liveUpdatedAt, liveUnavailable = false,
-  periodUnavailable = false, periodEndsAt = null, periodUpdating = false,
+  periodUnavailable = false, periodUpdating = false,
 }: MetricCardsProps) {
   const liveTitleId = useId();
   const periodTitleId = useId();
@@ -249,14 +247,6 @@ export function MetricCards({
           {periodLabel && (
             <span className="inline-flex h-5 items-center rounded-full border border-border bg-secondary/60 px-2 text-[11px] text-foreground">{periodLabel}</span>
           )}
-          {periodEndsAt ? (
-            <span
-              className={CANVAS_NOTE}
-              title={`This period was fixed at ${formatIstClock(periodEndsAt)}, when it was chosen. Newer orders appear after you pick another period and come back, or reload the page.`}
-            >
-              Up to {formatIstWhen(periodEndsAt)}
-            </span>
-          ) : null}
           {periodUpdating && !isLoading && <span className={cn(CANVAS_NOTE, 'text-primary')}>Updating…</span>}
         </div>
         <div className={cn('transition-opacity duration-150', periodUpdating && 'opacity-60')}>

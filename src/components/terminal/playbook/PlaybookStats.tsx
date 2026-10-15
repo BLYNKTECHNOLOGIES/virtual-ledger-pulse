@@ -45,7 +45,7 @@ export function PlaybookStats({ onOpenEntry }: { onOpenEntry: (entryId: string) 
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">Coverage, models and saves over the last {s.days} days; spend for this month (IST).</p>
-        <SegmentedControl<'7' | '30' | '90'> size="sm" value={days} onValueChange={setDays} aria-label="Period"
+        <SegmentedControl size="sm" value={days} onValueChange={(v) => setDays(v as '7' | '30' | '90')} aria-label="Period"
           options={[{ value: '7', label: '7 days' }, { value: '30', label: '30 days' }, { value: '90', label: '90 days' }]} />
       </div>
 

@@ -1,0 +1,1 @@
+ALTER FUNCTION public.fn_validate_leave_balance() SECURITY DEFINER;

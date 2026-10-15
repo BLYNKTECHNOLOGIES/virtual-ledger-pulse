@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Blend, Save } from 'lucide-react';
 import { useHybridPriceAdjuster, useUpdateHybridPriceAdjuster } from '@/hooks/useHybridPriceAdjuster';
 import { useToast } from '@/hooks/use-toast';
+import { Field, InlineNotice, Panel, SectionHead, UNIT } from './automationUi';
 
 export function HybridPriceAdjuster() {
-  const { data: adjuster = 0, isLoading } = useHybridPriceAdjuster();
+  const adjusterQuery = useHybridPriceAdjuster();
+  const { data: adjuster = 0, isLoading } = adjusterQuery;
+  // A failed read shows 0 (the default) — say so instead of letting it look like the stored value.
+  const readFailed = adjusterQuery.isError && adjusterQuery.data === undefined;
   const updateAdjuster = useUpdateHybridPriceAdjuster();
   const { toast } = useToast();
   const [value, setValue] = useState('');
@@ -30,36 +32,46 @@ export function HybridPriceAdjuster() {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Blend className="h-4 w-4 text-primary" />
-          Hybrid Price Difference Adjuster
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">
-          This value is subtracted from the calculated floating ratio when using Hybrid Adjust in Ads Manager.
-          For example, if the calculated ratio is 105.3% and adjuster is 0.3, the final ratio will be 105.0%.
-        </p>
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Label className="text-xs">Adjuster Value</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              placeholder="0.3"
-              disabled={isLoading}
-            />
+    <Panel labelledBy="hy-title">
+      <SectionHead
+        icon={<Blend />}
+        title="Hybrid price difference adjuster"
+        titleId="hy-title"
+        description="This value is subtracted from the calculated floating ratio when using Hybrid Adjust in Ads Manager."
+      />
+      <div className="space-y-3 px-4 py-3">
+        {readFailed && (
+          // Save upserts the setting, so a save now replaces whatever is stored.
+          <InlineNotice tone="danger" title="Couldn't load the saved settings">
+            The value below is the default, not what is saved. Saving replaces the stored value.
+          </InlineNotice>
+        )}
+        <Field label="Adjuster Value" htmlFor="hy-adjuster" hint="Percentage points of the floating ratio.">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* unit next to the box, not inside it (spin buttons) */}
+            <div className="flex items-center gap-1.5">
+              <Input
+                id="hy-adjuster"
+                type="number"
+                step="0.01"
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                placeholder="0.3"
+                disabled={isLoading}
+                className="h-8 w-32 text-sm t-mono tabular-nums placeholder:font-sans"
+              />
+              <span aria-hidden="true" className={UNIT}>%</span>
+            </div>
+            <Button size="sm" className="h-8 gap-1.5 px-3 text-xs [&_svg]:size-3.5" onClick={handleSave} disabled={updateAdjuster.isPending}>
+              <Save />
+              Save
+            </Button>
           </div>
-          <Button size="sm" onClick={handleSave} disabled={updateAdjuster.isPending}>
-            <Save className="h-3.5 w-3.5 mr-1.5" />
-            Save
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </Field>
+        <InlineNotice tone="info">
+          For example, if the calculated ratio is 105.3% and adjuster is 0.3, the final ratio will be 105.0%.
+        </InlineNotice>
+      </div>
+    </Panel>
   );
 }

@@ -287,6 +287,10 @@ export function hrmsNavLabel(pathname: string, search = ""): string | null {
 const HRMS_ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/hrms/quiz": ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_evaluate", "hrms_quiz_admin"],
   "/hrms/lms": ["hrms_lms_view", "hrms_lms_manage"],
+  // Quiz sub-items: grading-only people see Grading alone (the page shows them nothing else).
+  "/hrms/quiz?view=grading": ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_evaluate", "hrms_quiz_admin"],
+  ...Object.fromEntries(["", "?view=drives", "?view=results", "?view=tests", "?view=questions", "?view=settings"]
+    .map((q) => [`/hrms/quiz${q}#child`, ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_admin"]])),
 };
 
 
@@ -330,7 +334,7 @@ export function HorillaSidebar({
   };
 
   const canAccessPath = useCallback((path: string) => {
-    const own = HRMS_ROUTE_PERMISSIONS[path.split("?")[0]];
+    const own = HRMS_ROUTE_PERMISSIONS[path] ?? HRMS_ROUTE_PERMISSIONS[path.split("?")[0]];
     return own ? hasAnyPermission(expandPermissions(own)) : hasAnyPermission(["hrms_view", "hrms_manage"]);
   }, [hasAnyPermission]);
 

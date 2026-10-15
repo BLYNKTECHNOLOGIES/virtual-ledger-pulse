@@ -1,0 +1,2 @@
+ALTER TABLE public.cbt_attempts ADD COLUMN IF NOT EXISTS start_claimed_at timestamptz;
+COMMENT ON COLUMN public.cbt_attempts.start_claimed_at IS 'QZ7c: set atomically by the one cbt-start-attempt request allowed to build the sections; stale after 2 minutes.';

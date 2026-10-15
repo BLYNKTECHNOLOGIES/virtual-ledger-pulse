@@ -171,15 +171,20 @@ export function QuestionReviewQueue({ open, onOpenChange, rows, subjects, onEdit
 
   useEffect(() => {
     if (!open || !row) return;
+    // eslint-disable-next-line prefer-const
+    let shownAt = 0;
     const onKey = (e: KeyboardEvent) => {
-      if (!isReviewShortcut(e) || act.isPending) return;
+      if (e.repeat || !isReviewShortcut(e) || act.isPending) return;
       const k = e.key.toLowerCase();
+      // QZ7c: A/R act only once the item has been on screen for about a second
+      if ((k === "a" || k === "r") && Date.now() - shownAt < 1000) return;
       if (k === "a") { e.preventDefault(); act.mutate({ id: row.question_id, action: "approve" }); }
       else if (k === "e") { e.preventDefault(); onEdit(row); }
       else if (k === "r") { e.preventDefault(); act.mutate({ id: row.question_id, action: "retire" }); }
       else if (k === "s" || e.key === "ArrowRight") { e.preventDefault(); advance(row.question_id, false); }
       else if (e.key === "ArrowLeft") { e.preventDefault(); setPos((p) => Math.max(0, p - 1)); }
     };
+    shownAt = Date.now();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, row, act, onEdit, advance]);

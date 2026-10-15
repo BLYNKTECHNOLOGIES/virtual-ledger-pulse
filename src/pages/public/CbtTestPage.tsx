@@ -203,8 +203,13 @@ export default function CbtTestPage() {
   const startAttempt = async () => {
     setBusy(true);
     try {
-      const res = await cbtCall<CbtState>('cbt-start-attempt');
-      applyState(res);
+      // QZ7c: a parallel start is still building the test — keep asking until it is ready
+      let res: CbtState | null = null;
+      for (let i = 0; i < 10 && !res; i++) {
+        try { res = await cbtCall<CbtState>('cbt-start-attempt'); }
+        catch (e) { if ((e as { code?: string })?.code !== 'preparing' || i === 9) throw e; await new Promise((r) => setTimeout(r, 2000)); }
+      }
+      applyState(res!);
       await requestFullscreen();
     } catch (e) {
       handleError(e);

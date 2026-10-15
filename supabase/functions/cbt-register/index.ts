@@ -82,7 +82,12 @@ Deno.serve(async (req) => {
       qualification: b.qualification, experience_years: b.experience_years, source: b.source,
       shift_availability: b.shift_availability, consent_at: new Date().toISOString(), consent_version: "2026-09",
     };
-    if (!candidateId) {
+    if (candidateId) {
+      // QZ7c: a returning person — record new consent and changed details; name, mobile and email never change
+      const { full_name: _n, mobile: _m, email: _e, ...details } = candidatePayload;
+      const { error } = await db.from("cbt_candidates").update(details).eq("id", candidateId);
+      if (error) return fail("server_error", error.message, 500);
+    } else {
       const { data: created, error } = await db.from("cbt_candidates").insert(candidatePayload).select("id").single();
       if (error) return fail("server_error", error.message, 500);
       candidateId = created!.id;

@@ -79,7 +79,8 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   const [allRoles, setAllRoles] = useState<TerminalRole[]>([]);
   const [currentRoleIds, setCurrentRoleIds] = useState<string[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
-  const [myHierarchyLevel, setMyHierarchyLevel] = useState<number | null>(null);
+  // AM-SEC-7b: the server's answer for each role (null = may give/remove).
+  const [roleRefusals, setRoleRefusals] = useState<Map<string, string | null>>(new Map());
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -99,7 +100,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
         supabase.from("terminal_user_supervisor_mappings").select("supervisor_id").eq("user_id", userId),
         supabase.rpc("list_terminal_roles"),
         supabase.from("p2p_terminal_user_roles").select("role_id").eq("user_id", userId),
-        myUserId ? supabase.from("p2p_terminal_user_roles").select("role_id").eq("user_id", myUserId) : Promise.resolve({ data: [] }),
+        myUserId ? supabase.rpc("terminal_assignable_roles" as any, { p_target: userId }) : Promise.resolve({ data: [] }),
       ]);
 
       if (profileRes.data) {
@@ -123,12 +124,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
       setCurrentRoleIds(targetRoleIds);
       setSelectedRoleId(targetRoleIds[0] || "");
 
-      // Determine my hierarchy level (lowest number = highest rank)
-      const myRoleIds = ((myRolesRes as any).data || []).map((r: any) => r.role_id);
-      const myLevels = myRoleIds
-        .map((rid: string) => roles.find(r => r.id === rid)?.hierarchy_level)
-        .filter((l: number | null | undefined) => l !== null && l !== undefined) as number[];
-      setMyHierarchyLevel(myLevels.length > 0 ? Math.min(...myLevels) : null);
+      setRoleRefusals(new Map((((myRolesRes as any).data || []) as any[]).map((r) => [String(r.role_id), r.refusal ?? null])));
 
       setAllUsers((usersRes.data || []).filter(u => u.id !== userId));
       setExchangeAccounts(exchangeRes.data || []);
@@ -152,74 +148,24 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
     if (saveBlockedReason) { toast.error(saveBlockedReason); return; }
     setIsSaving(true);
     try {
-      // Upsert profile
-      const { error: profileErr } = await supabase
-        .from("terminal_user_profiles")
-        .upsert({
-          user_id: userId,
+      // AM-SEC-7b: one all-or-nothing save on the server. Any refusal changes nothing.
+      const rangesToSave = selectAllSizeRanges ? sizeRanges.map(sr => sr.id) : Array.from(selectedSizeRanges);
+      const roleChanged = !!selectedRoleId && !(currentRoleIds.length === 1 && currentRoleIds[0] === selectedRoleId);
+      const { error: saveErr } = await supabase.rpc("terminal_save_user_config" as any, {
+        p_user_id: userId,
+        p_profile: {
           specialization: profile.specialization,
           shift: profile.shift || null,
           is_active: profile.is_active,
           automation_included: profile.automation_included,
           select_all_size_ranges: selectAllSizeRanges,
-        }, { onConflict: "user_id" });
-
-      if (profileErr) throw profileErr;
-
-      // Update role if changed
-      if (selectedRoleId && !currentRoleIds.includes(selectedRoleId)) {
-        const { getSessionUserId: getId } = await import("@/lib/session-cache");
-        const assignedBy = getId() || undefined;
-        // Remove old roles
-        for (const oldRoleId of currentRoleIds) {
-          const { error: rmErr } = await supabase.rpc("remove_terminal_role", { p_user_id: userId, p_role_id: oldRoleId });
-          if (rmErr) throw rmErr;
-        }
-        // Assign new role
-        const { error: roleErr } = await supabase.rpc("assign_terminal_role", {
-          p_user_id: userId,
-          p_role_id: selectedRoleId,
-          p_assigned_by: assignedBy,
-        });
-        if (roleErr) throw roleErr;
-      }
-
-      // Sync supervisor mappings
-      await supabase.from("terminal_user_supervisor_mappings").delete().eq("user_id", userId);
-      if (selectedSupervisors.size > 0) {
-        const rows = Array.from(selectedSupervisors).map(sid => ({
-          user_id: userId,
-          supervisor_id: sid,
-        }));
-        const { error: supErr } = await supabase.from("terminal_user_supervisor_mappings").insert(rows);
-        if (supErr) throw supErr;
-      }
-
-      // Sync exchange mappings
-      await supabase.from("terminal_user_exchange_mappings").delete().eq("user_id", userId);
-      if (selectedExchanges.size > 0) {
-        const rows = Array.from(selectedExchanges).map(eid => ({
-          user_id: userId,
-          exchange_account_id: eid,
-        }));
-        const { error: exchErr } = await supabase.from("terminal_user_exchange_mappings").insert(rows);
-        if (exchErr) throw exchErr;
-      }
-
-      // Sync size range mappings
-      await supabase.from("terminal_user_size_range_mappings").delete().eq("user_id", userId);
-      // If select all is enabled, insert ALL active size ranges; otherwise only selected ones
-      const rangesToSave = selectAllSizeRanges
-        ? sizeRanges.map(sr => sr.id)
-        : Array.from(selectedSizeRanges);
-      if (rangesToSave.length > 0) {
-        const rows = rangesToSave.map(sid => ({
-          user_id: userId,
-          size_range_id: sid,
-        }));
-        const { error: sizeErr } = await supabase.from("terminal_user_size_range_mappings").insert(rows);
-        if (sizeErr) throw sizeErr;
-      }
+        },
+        p_role_id: roleChanged ? selectedRoleId : null,
+        p_supervisors: Array.from(selectedSupervisors),
+        p_accounts: Array.from(selectedExchanges),
+        p_size_ranges: rangesToSave,
+      });
+      if (saveErr) throw saveErr;
 
       toast.success("User configuration saved");
       onSaved();
@@ -251,53 +197,12 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   const getUserLabel = (u: { first_name: string | null; last_name: string | null; username: string }) =>
     u.first_name && u.last_name ? `${u.first_name} ${u.last_name} (@${u.username})` : `@${u.username}`;
 
-  // Filter roles: only show roles with hierarchy_level strictly greater than my level (lower rank)
-  // EXCEPT: Super Admin (-1) can assign anything.
-  // Admin (0) can assign anything >= 0.
-  const assignableRoles = allRoles.filter(r => {
-    // Super Admin from ERP can assign any role
-    if (isTerminalAdmin) return true;
-    if (myHierarchyLevel === null) return false; // can't assign if no hierarchy
-    
-    // Super Admin (-1) can assign all roles
-    if (myHierarchyLevel < 0) return true;
-
-    // Admin (0) can assign roles with level >= 0 (cannot assign Super Admin)
-    if (myHierarchyLevel === 0) {
-      if (r.hierarchy_level === null) return true;
-      return r.hierarchy_level >= 0;
-    }
-
-    if (r.hierarchy_level === null) return true; // roles without level (like Viewer)
-    return r.hierarchy_level > myHierarchyLevel; // can only assign roles below
-  });
-
-  // Get target user's current hierarchy level
-  const targetHierarchyLevel = (() => {
-    const levels = currentRoleIds
-      .map(rid => allRoles.find(r => r.id === rid)?.hierarchy_level)
-      .filter((l): l is number => l !== null && l !== undefined);
-    return levels.length > 0 ? Math.min(...levels) : null;
-  })();
-
-  // Can current user change this user's role?
-  const canChangeRole = (() => {
-    // Super Admin from ERP always has full control
-    if (isTerminalAdmin) return true;
-    if (myHierarchyLevel === null) return false;
-    // Super Admin (-1) can change anyone
-    if (myHierarchyLevel < 0) return true;
-
-    // Admin (0) can change anyone with level > 0
-    // Cannot change other Admins (0) or Super Admins (<0)
-    if (myHierarchyLevel === 0) {
-      if (targetHierarchyLevel === null) return true;
-      return targetHierarchyLevel > 0;
-    }
-
-    if (targetHierarchyLevel === null) return true; // target has no hierarchy role
-    return myHierarchyLevel < targetHierarchyLevel; // can only change users below in hierarchy
-  })();
+  // AM-SEC-7b: roles come from the server rule (um_terminal_refusal via terminal_assignable_roles).
+  const roleReason = (id: string) => (roleRefusals.has(id) ? roleRefusals.get(id) ?? null : "Checking your rights…");
+  const changeRoleReason = saveBlockedReason
+    ?? currentRoleIds.map(roleReason).find((r) => r) ?? null;
+  const canChangeRole = !changeRoleReason;
+  const assignableRoles = allRoles;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -326,12 +231,15 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                   <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select role" /></SelectTrigger>
                   <SelectContent>
                     {assignableRoles.map(r => (
-                      <SelectItem key={r.id} value={r.id}>
+                      <SelectItem key={r.id} value={r.id} disabled={!!roleReason(r.id) && !currentRoleIds.includes(r.id)}>
                         {r.name}
                         {r.hierarchy_level !== null && (
                           <span className="text-muted-foreground ml-1">
                             (Level {r.hierarchy_level})
                           </span>
+                        )}
+                        {roleReason(r.id) && !currentRoleIds.includes(r.id) && (
+                          <span className="block text-[10px] text-muted-foreground">{roleReason(r.id)}</span>
                         )}
                       </SelectItem>
                     ))}
@@ -347,7 +255,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                       </Badge>
                     ) : null;
                   })}
-                  <span className="text-[10px] text-muted-foreground italic">Cannot change — higher or equal rank</span>
+                  <span className="text-[10px] text-muted-foreground italic">Cannot change — {changeRoleReason}</span>
                 </div>
               )}
             </div>

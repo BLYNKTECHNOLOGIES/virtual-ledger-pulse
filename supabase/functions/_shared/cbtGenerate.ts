@@ -94,10 +94,10 @@ function lookAlike(r: Rng, s: string): string | null {
   const i = pick(r, idx);
   return s.slice(0, i) + LOOK[s[i]] + s.slice(i + 1);
 }
-function moveDecimal(s: string): string {
-  const plain = s.replace(/,/g, "");
-  const [w, p] = plain.split(".");
-  return `${w.slice(0, -1)}.${w.slice(-1)}${p}`; // 4520.75 → 452.075
+/** Same amount with the decimal point one place left, in the usual INR format: 4,52,075.00 → 45,207.50 */
+export function moveDecimal(s: string): string {
+  const paise = Math.round(Number(s.replace(/,/g, "")) * 100);
+  return inr(Math.floor(paise / 10) / 100); // the same digits, one place to the right
 }
 
 export function makeMatchPair(r: Rng, level: Level, forceMatch?: boolean): Pair {
@@ -132,8 +132,7 @@ export function makeMatchPair(r: Rng, level: Level, forceMatch?: boolean): Pair 
       continue;
     }
     if (kind === 1) {
-      const plainLeft = line(rec, rec.amount.replace(/,/g, ""));
-      return { left: plainLeft, right: line(rec, moveDecimal(rec.amount)), match: false, difference: "Decimal point moved in the amount" };
+      return { left, right: line(rec, moveDecimal(rec.amount)), match: false, difference: "Decimal point moved in the amount" };
     }
     const part = rec.name.split(" ").find((p) => NEAR[p]);
     if (part) return { left, right: line(rec, rec.amount, rec.name.replace(part, NEAR[part])), match: false, difference: `Spelling ${part} vs ${NEAR[part]}` };

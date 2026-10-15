@@ -19,6 +19,9 @@ export async function quizRpc<T = unknown>(fn: string, args: Record<string, unkn
 export const pretty = (value?: string | null) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
 
+/** A running attempt carries no decision yet (QZ7a). */
+export const decisionLabel = (decision?: string | null) => (decision ? pretty(decision) : "In progress");
+
 export const fmtIst = (value?: string | null, opts: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" }) =>
   value ? new Intl.DateTimeFormat("en-IN", { ...opts, timeZone: "Asia/Kolkata" }).format(new Date(value)) + " IST" : "—";
 

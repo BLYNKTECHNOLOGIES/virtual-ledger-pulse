@@ -28,11 +28,10 @@ Deno.serve(async (req) => {
         starts_at: drive.starts_at, ends_at: drive.ends_at,
       });
     }
-    const { data: roles } = await db
-      .from("cbt_job_roles")
-      .select("id, code, name")
-      .in("id", drive.job_role_ids ?? [])
-      .eq("is_active", true);
+    // QZ7a: a "Try it" drive offers its test even before the test is switched on; real drives only offer active tests
+    let rq = db.from("cbt_job_roles").select("id, code, name").in("id", drive.job_role_ids ?? []);
+    if (!drive.is_try_run) rq = rq.eq("is_active", true);
+    const { data: roles } = await rq;
     const { data: settings } = await db.from("cbt_settings").select("*").eq("id", true).single();
 
     // successful validation resets the lockout counter for this IP

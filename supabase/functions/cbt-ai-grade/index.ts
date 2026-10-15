@@ -16,6 +16,7 @@ async function callGateway(input: GradeInput) {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Lovable-AIG-SDK": "fetch" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000), // QZ7a: owner-requested ceiling; a timeout is retried (max 3 tries)
     });
     if (!resp.ok) {
       const txt = (await resp.text().catch(() => "")).slice(0, 200);
@@ -68,6 +69,7 @@ Deno.serve(async (req) => {
       const { data } = await db.rpc("cbt_ai_record", {
         p_eval_id: item.evaluation_id, p_outcome: outcome, p_model: AI_GRADE_MODEL,
         p_result: r.kind === "ok" ? r.result : null, p_error: (r as any).error ?? null, p_http: r.status,
+        p_raw: (r as any).content ?? null,
       });
       results.push({ evaluation_id: item.evaluation_id, ...(data ?? {}) });
     }

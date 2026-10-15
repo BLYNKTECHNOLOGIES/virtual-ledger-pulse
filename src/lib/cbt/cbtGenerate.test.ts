@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeDataEntry, makeMatchPairs, rngFrom, splitSource, LEVEL_DIFFICULTY, type Level } from "../../../supabase/functions/_shared/cbtGenerate";
+import { makeDataEntry, makeMatchPairs, moveDecimal, rngFrom, splitSource, LEVEL_DIFFICULTY, type Level } from "../../../supabase/functions/_shared/cbtGenerate";
 
 const levels: Level[] = ["beginner", "intermediate", "advanced"];
 
@@ -46,4 +46,19 @@ describe("item source split", () => {
     expect(LEVEL_DIFFICULTY.beginner[0]).toBe("easy");
     expect(LEVEL_DIFFICULTY.advanced[0]).toBe("hard");
   });
+});
+
+describe("QZ7a decimal-moved mismatches", () => {
+  it("keep INR commas and 2 decimals on both sides", () => {
+    const r = rngFrom(5);
+    let seen = 0;
+    for (let i = 0; i < 400; i++) {
+      const p = makeMatchPairs(r, "advanced", 10).find((x) => x.key.difference === "Decimal point moved in the amount");
+      if (!p) continue;
+      seen++;
+      for (const side of [p.content.left, p.content.right]) expect(side).toMatch(/Rs \d{1,2}(,\d{2})*(,\d{3})?\.\d{2}$|Rs \d{1,3}\.\d{2}$/);
+    }
+    expect(seen).toBeGreaterThan(10);
+  });
+  it("moves the digits one place", () => expect(moveDecimal("4,52,075.00")).toBe("45,207.50"));
 });

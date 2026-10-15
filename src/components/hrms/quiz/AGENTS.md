@@ -9,3 +9,11 @@
 - Written grades are stored out of 20 everywhere; AI totals out of a guide's max_marks are scaled to 20 in supabase/functions/_shared/cbtAiGrade.ts, because cbt_score_section scores written items as total/20.
 - AI grades are applied only by cbt_ai_record (confident, unflagged, not within the borderline margin of a cut-off or pass mark); everything else waits in "Needs a check" and graders get one hr_notifications notice per attempt (cbt_grading_notices), because an AI mistake must never flip a decision near a cut-off.
 - Graders read answers only through cbt_grading_queue (no identity, no try runs), because grading stays blind without widening table reads.
+
+## QZ7a rules
+- Written answers are AI-graded only after the attempt has ended (submitted/auto-submitted): cbt_ai_claim, the minute re-kick and Grading lists filter on cbt_eval_attempt_ended, and trg_cbt_attempt_end_kick wakes the worker, because "borderline" must be judged on the final total.
+- Blank written answers are stored as graded_by_kind='auto', ai_status='skipped', total 0; abandoned/invalidated attempts get no evaluations, because a blank or unreached answer must not cost an AI call or a person's time.
+- Running attempts have decision NULL (UI shows "In progress"); cbt_finalize_attempt always refreshes total_score and keeps a manual decision.
+- cbt_save_drive, cbt_save_role_blueprint and cbt_set_question_status are readiness wrappers around *_core functions (not callable by users): they refuse changes that create new readiness problems on live real drives; retiring needs p_confirm after a CONFIRM_RETIRE error.
+- Candidate state sends items only for the section in progress; a running typing section returns recorded_words (the candidate's own text) so typing resumes after a reload.
+- Typing scoring credits at most 120 net WPM and uses configured minutes plus added time; a >200 WPM burst sets metrics.integrity_burst → Hold "Integrity review: typing".

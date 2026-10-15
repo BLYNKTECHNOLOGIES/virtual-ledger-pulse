@@ -207,7 +207,9 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
 
   let items: any[] = [];
   let stimulus: any = null;
-  if (current) {
+  // QZ7a: questions reach the browser only for the section in progress; a pending section
+  // (transition screen) sends its title, type, minutes and item count only.
+  if (current && current.status === "in_progress") {
     const { data: rows } = await db
       .from("cbt_attempt_items")
       .select(
@@ -304,6 +306,10 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
         started_at: current.started_at, deadline_at: current.deadline_at,
         ...(sanitize(cfgFor(current.order_index)) as Record<string, unknown>),
         items, stimulus,
+        // QZ7a: the candidate's own words already recorded, so typing survives a reload or resume
+        ...(current.section_type === "typing" && current.status === "in_progress"
+          ? { recorded_words: Array.isArray((current.metrics as any)?.committed_words) ? (current.metrics as any).committed_words : [] }
+          : {}),
       }
       : null,
   };

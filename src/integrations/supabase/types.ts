@@ -4463,7 +4463,7 @@ export type Database = {
           candidate_id: string
           created_at: string
           current_section_index: number
-          decision: Database["public"]["Enums"]["cbt_decision"]
+          decision: Database["public"]["Enums"]["cbt_decision"] | null
           decision_reason: string | null
           decision_source: Database["public"]["Enums"]["cbt_decision_source"]
           drive_id: string
@@ -4491,7 +4491,7 @@ export type Database = {
           candidate_id: string
           created_at?: string
           current_section_index?: number
-          decision?: Database["public"]["Enums"]["cbt_decision"]
+          decision?: Database["public"]["Enums"]["cbt_decision"] | null
           decision_reason?: string | null
           decision_source?: Database["public"]["Enums"]["cbt_decision_source"]
           drive_id: string
@@ -4519,7 +4519,7 @@ export type Database = {
           candidate_id?: string
           created_at?: string
           current_section_index?: number
-          decision?: Database["public"]["Enums"]["cbt_decision"]
+          decision?: Database["public"]["Enums"]["cbt_decision"] | null
           decision_reason?: string | null
           decision_source?: Database["public"]["Enums"]["cbt_decision_source"]
           drive_id?: string
@@ -5324,6 +5324,7 @@ export type Database = {
           ai_last_error: string | null
           ai_model: string | null
           ai_next_at: string
+          ai_raw: string | null
           ai_result: Json | null
           ai_route_reason: string | null
           ai_status: string
@@ -5344,6 +5345,7 @@ export type Database = {
           ai_last_error?: string | null
           ai_model?: string | null
           ai_next_at?: string
+          ai_raw?: string | null
           ai_result?: Json | null
           ai_route_reason?: string | null
           ai_status?: string
@@ -5364,6 +5366,7 @@ export type Database = {
           ai_last_error?: string | null
           ai_model?: string | null
           ai_next_at?: string
+          ai_raw?: string | null
           ai_result?: Json | null
           ai_route_reason?: string | null
           ai_status?: string
@@ -34379,6 +34382,7 @@ export type Database = {
           p_http?: number
           p_model: string
           p_outcome: string
+          p_raw?: string
           p_result: Json
         }
         Returns: Json
@@ -34427,6 +34431,7 @@ export type Database = {
         Returns: Json
       }
       cbt_drives_list: { Args: never; Returns: Json }
+      cbt_eval_attempt_ended: { Args: { p_item: string }; Returns: boolean }
       cbt_finalize_attempt: {
         Args: { p_attempt_id: string }
         Returns: undefined
@@ -34458,6 +34463,14 @@ export type Database = {
       }
       cbt_issue_resume_code: { Args: { p_attempt_id: string }; Returns: Json }
       cbt_kick_ai_grader: { Args: never; Returns: undefined }
+      cbt_live_new_problems: {
+        Args: { p_after: Json; p_before: Json }
+        Returns: string
+      }
+      cbt_live_readiness: {
+        Args: { p_drive_id?: string; p_role_id?: string }
+        Returns: Json
+      }
       cbt_new_access_code: { Args: never; Returns: string }
       cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }
@@ -34561,11 +34574,38 @@ export type Database = {
         }
         Returns: Json
       }
+      cbt_save_drive_core: {
+        Args: {
+          p_access_code: string
+          p_drive_id: string
+          p_ends_at: string
+          p_is_sandbox: boolean
+          p_job_role_ids: string[]
+          p_mode: string
+          p_name: string
+          p_show_scores: boolean
+          p_starts_at: string
+        }
+        Returns: Json
+      }
       cbt_save_question: {
         Args: { p: Json; p_question_id: string }
         Returns: Json
       }
       cbt_save_role_blueprint: {
+        Args: {
+          p_code?: string
+          p_hold_cutoff?: number
+          p_is_active?: boolean
+          p_position_id?: string
+          p_retake_cooldown_days?: number
+          p_role_id?: string
+          p_sections?: Json
+          p_shortlist_cutoff?: number
+        }
+        Returns: string
+      }
+      cbt_save_role_blueprint_core: {
         Args: {
           p_code?: string
           p_hold_cutoff?: number
@@ -34598,6 +34638,15 @@ export type Database = {
         Returns: Json
       }
       cbt_set_question_status: {
+        Args: {
+          p_action: string
+          p_confirm?: boolean
+          p_question_id: string
+          p_reason?: string
+        }
+        Returns: string
+      }
+      cbt_set_question_status_core: {
         Args: { p_action: string; p_question_id: string; p_reason?: string }
         Returns: string
       }

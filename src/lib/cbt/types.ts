@@ -46,6 +46,8 @@ export type CbtItem = {
 
 export type CbtCurrentSection = CbtSectionSummary & {
   items: CbtItem[];
+  /** Typing: the candidate's own words the server already recorded (never a key). */
+  recorded_words?: string[];
   stimulus?: { title?: string; body?: string } | null;
 };
 

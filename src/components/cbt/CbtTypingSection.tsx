@@ -23,7 +23,11 @@ export function CbtTypingSection({
   }, [section.items]);
   const passageWords = useMemo(() => passage.trim().split(/\s+/).filter(Boolean), [passage]);
 
-  const [committed, setCommitted] = useState<string[]>([]);
+  // Continue from the words the server already recorded (reload, crash or resume on another PC).
+  const [committed, setCommitted] = useState<string[]>(() => section.recorded_words ?? []);
+  const [restoredNote, setRestoredNote] = useState<string | null>(
+    section.recorded_words?.length ? `Welcome back — your ${section.recorded_words.length} saved words are kept. Carry on from the highlighted word.` : null,
+  );
   const [current, setCurrent] = useState('');
   const keystrokes = useRef(0);
   const backspaces = useRef(0);
@@ -32,7 +36,19 @@ export function CbtTypingSection({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // the newest set of locked words, so a sync that had to wait always sends the latest list
-  const latest = useRef<string[]>([]);
+  const latest = useRef<string[]>(section.recorded_words ?? []);
+
+  // The server's list wins: reload it and continue from there (no recorded word is ever lost).
+  const resyncFromServer = useCallback(async () => {
+    try {
+      const st = await cbtCall<any>('cbt-get-state');
+      noteServerNow(st.server_now);
+      const words: string[] = st?.current_section?.id === section.id ? (st.current_section.recorded_words ?? []) : latest.current;
+      latest.current = words;
+      setCommitted(words);
+      setRestoredNote(`Your typing was re-synced from the last saved word (${words.length} words kept). Carry on from the highlighted word.`);
+    } catch { /* the next sync retries */ }
+  }, [section.id]);
 
   const sync = useCallback(async () => {
     if (syncing.current) {
@@ -56,13 +72,16 @@ export function CbtTypingSection({
       }
     } catch (e: any) {
       dirty.current = true;
-      if (e?.code === 'second_session' || e?.code === 'no_token' || e?.code === 'expired') {
+      if (e?.code === 'conflict') {
+        dirty.current = false;
+        await resyncFromServer();
+      } else if (e?.code === 'second_session' || e?.code === 'no_token' || e?.code === 'expired') {
         onSessionError(e.code, e.message);
       }
     } finally {
       syncing.current = false;
     }
-  }, [section.id, onSessionError]);
+  }, [section.id, onSessionError, resyncFromServer]);
 
   // periodic sync (every 5s while there is something new)
   useEffect(() => {
@@ -143,6 +162,9 @@ export function CbtTypingSection({
 
   return (
     <div className="space-y-4">
+      {restoredNote && (
+        <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-foreground" role="status">{restoredNote}</p>
+      )}
       <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
         {[
           { label: 'Net WPM', value: liveStats.net, hint: targetWpm ? `target ${targetWpm}` : undefined },

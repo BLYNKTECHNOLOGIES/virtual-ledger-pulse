@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { fetchCachedOrderRows, fetchSyncMetadata } from '@/hooks/useBinanceOrderSync';
+import { isUserChangePending } from './periodPlan';
 import { DashboardPeriodPlan, OLDER_REREAD_MS, RECENT_REREAD_MS, ReadRange } from './periodPlan';
 
 /** "Now" for every period calculation: advances every 60 s, on tab show, and on bump(). */
@@ -78,5 +79,5 @@ export function useDashboardSyncMetadata() {
 export function useUserChangePending(userKey: string, placeholder: boolean): boolean {
   const [settledKey, setSettledKey] = useState<string | null>(null);
   useEffect(() => { if (!placeholder) setSettledKey(userKey); }, [placeholder, userKey]);
-  return placeholder && settledKey !== userKey;
+  return isUserChangePending(settledKey, userKey, placeholder);
 }

@@ -132,3 +132,8 @@ export function readKey(r: ReadRange): string { return `${r.startTimestamp}|${r.
 export function summaryKey(plan: DashboardPeriodPlan): string | null {
   return plan.usesSummary ? `${plan.summary.startTimestamp}|${plan.sealedCutoff}|${JSON.stringify(plan.summary.windows)}` : null;
 }
+
+/** "Updating…" only when the shown rows belong to a different user choice (period/account). */
+export function isUserChangePending(settledKey: string | null, userKey: string, placeholder: boolean): boolean {
+  return placeholder && settledKey !== userKey;
+}

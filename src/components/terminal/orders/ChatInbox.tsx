@@ -338,11 +338,11 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
       }
       orderNumbers.forEach((n) => {
-        callBinanceAds('markOrderMessagesRead', { orderNo: n }).catch((err) => {
+        callBinanceAds('markOrderMessagesRead', { orderNo: n }, conv.exchangeAccountId || undefined).catch((err) => {
           console.warn('Failed to mark Binance chat read:', err);
         });
       });
-      callBinanceAds('markUserMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
+      callBinanceAds('markUserMessagesRead', { orderNo: conv.orderNumber }, conv.exchangeAccountId || undefined).catch((err) => {
         console.warn('Failed to mark counterparty user chats read:', err);
       });
     },
@@ -379,10 +379,18 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         p_source: 'operator',
       });
       if (error) throw error;
-      callBinanceAds('markUserMessagesRead', {}).catch(() => undefined);
+      // Each merged row's threads share its account (the merge key includes it).
+      const accountByOrder = new Map<string, string | undefined>();
+      merged
+        .filter((c) => c.chatUnreadCount > 0)
+        .forEach((c) => [c.orderNumber, ...(c.mergedOrderNumbers || [])]
+          .forEach((n) => accountByOrder.set(n, c.exchangeAccountId || undefined)));
+      // markUserMessagesRead is account-wide: call it once per account involved.
+      new Set(Array.from(accountByOrder.values())).forEach((acc) =>
+        callBinanceAds('markUserMessagesRead', {}, acc).catch(() => undefined));
       orderNumbers
         .filter((n) => !n.startsWith('INQ-'))
-        .forEach((n) => callBinanceAds('markOrderMessagesRead', { orderNo: n }).catch(() => undefined));
+        .forEach((n) => callBinanceAds('markOrderMessagesRead', { orderNo: n }, accountByOrder.get(n)).catch(() => undefined));
       queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
       toast.success(`Marked ${orderNumbers.length} chats read`);

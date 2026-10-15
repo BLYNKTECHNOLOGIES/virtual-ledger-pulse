@@ -1291,7 +1291,7 @@ function TerminalOrdersContent() {
       const num = order.binance_order_number;
       if (!num || seen.has(num) || storedVerifiedNames[num]) continue;
       seen.add(num);
-      out.push({ orderNumber: num, accountId: (order as any).exchange_account_id || undefined });
+      out.push({ orderNumber: num, accountId: (order as any).exchange_account_id || undefined, tradeType: order.trade_type });
       if (out.length >= 8) break;
     }
     return out;
@@ -1305,10 +1305,13 @@ function TerminalOrdersContent() {
     queryFn: async () => {
       const map: Record<string, string> = {};
       const results = await Promise.allSettled(
-        missingVerifiedOrders.map(async ({ orderNumber, accountId }) => {
+        missingVerifiedOrders.map(async ({ orderNumber, accountId, tradeType }) => {
           const response = await callBinanceAds('getOrderDetail', { orderNumber }, accountId);
           const detail = (response as any)?.data?.data ?? (response as any)?.data ?? response;
-          const value = detail?.buyerRealName ?? detail?.buyerName ?? detail?.sellerRealName ?? detail?.sellerName ?? null;
+          // Side-aware: on BUY we are the buyer, so the counterparty is the seller.
+          const value = tradeType === 'BUY'
+            ? (detail?.sellerRealName ?? detail?.sellerName ?? null)
+            : (detail?.buyerRealName ?? detail?.buyerName ?? null);
           const name = typeof value === 'string' ? value.trim() : '';
           return { orderNumber, name };
         }),
@@ -1336,7 +1339,7 @@ function TerminalOrdersContent() {
     }).then(({ error }) => {
       if (error) console.warn('Failed to record team chat read:', error.message);
     });
-    callBinanceAds('markOrderMessagesRead', { orderNo: order.binance_order_number }).catch((err) => {
+    callBinanceAds('markOrderMessagesRead', { orderNo: order.binance_order_number }, (order as any).exchange_account_id || undefined).catch((err) => {
       console.warn('Failed to mark Binance chat read:', err);
     });
     setSelectedOrder(order);
@@ -1362,7 +1365,7 @@ function TerminalOrdersContent() {
       }).then(({ error }) => {
         if (error) console.warn('Failed to record team chat read:', error.message);
       });
-      callBinanceAds('markOrderMessagesRead', { orderNo: next.binance_order_number }).catch(() => {});
+      callBinanceAds('markOrderMessagesRead', { orderNo: next.binance_order_number }, (next as any).exchange_account_id || undefined).catch(() => {});
       return next;
     });
   }, [visibleOrders]);

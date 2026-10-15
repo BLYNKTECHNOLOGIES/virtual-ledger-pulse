@@ -178,7 +178,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     return saved !== 'false';
   });
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
   const prevBinanceIdsRef = useRef<Set<number>>(new Set());
@@ -883,19 +883,20 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             }
           />
 
-          <Input
+          <textarea
             ref={inputRef}
             data-terminal-chat-input
+            rows={1}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) handleSend();
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
               else if (e.key === 'Escape') e.currentTarget.blur();
             }}
             placeholder={isEnquiryThread ? 'Reply on the Binance app — this chat has no order' : 'Type a message...'}
             disabled={isEnquiryThread}
             aria-label="Message"
-            className="h-8 flex-1 min-w-0 border-0 bg-transparent px-2 text-[13px] text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="flex-1 min-w-0 resize-none overflow-y-auto border-0 bg-transparent px-2 py-[7px] leading-[18px] min-h-8 max-h-[104px] text-[13px] text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
           <Button
             size="icon"

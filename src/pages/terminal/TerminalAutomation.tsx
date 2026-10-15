@@ -67,7 +67,7 @@ import { SmallOrdersConfig } from '@/components/terminal/automation/SmallOrdersC
 import { HybridPriceAdjuster } from '@/components/terminal/automation/HybridPriceAdjuster';
 import { AutoPricingRules } from '@/components/terminal/automation/AutoPricingRules';
 import { AutoScreenshotConfig } from '@/components/terminal/automation/AutoScreenshotConfig';
-import { CopilotSettings } from '@/components/terminal/automation/CopilotSettings';
+import { CopilotPlaybookSettings } from '@/components/terminal/automation/CopilotPlaybookSettings';
 
 
 
@@ -458,7 +458,7 @@ export default function TerminalAutomation() {
 
         {/* ═══ AI COPILOT ═══ */}
         <TabsContent value="ai-copilot" className="mt-4">
-          <CopilotSettings />
+          <CopilotPlaybookSettings />
         </TabsContent>
       </Tabs>
 

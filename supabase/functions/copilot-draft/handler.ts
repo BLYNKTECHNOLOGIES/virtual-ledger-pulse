@@ -156,6 +156,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
     let spent = await store.monthSpend()
     let status: 'ready' | 'capped' = 'ready'
     const drafts: any[] = []
+    let aiFailed = 0
     let skippedReason: string | null = needAi ? null : (approvedFits ? 'approved_reply_found' : 'conflict_found')
     if (needAi) {
       const avoid = vectors ? await store.rejections(vectors[0], 0.75, 3) : []
@@ -196,6 +197,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
           const cost = costInr(model, r.usage, cfg.model_prices, cfg.usd_inr)
           spent += cost
           if (!r.ok) {
+            aiFailed++
             await store.logCall({
               ...logBase, purpose: mode === 'redraft' ? 'redraft' : 'draft', model, variant: LABELS[i], status: 'error',
               input_tokens: r.usage.input, output_tokens: r.usage.output, reasoning_tokens: r.usage.reasoning, tokens_estimated: r.usage.estimated,
@@ -228,7 +230,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
       status, skippedReason, context: summary,
       question: question ? { text: question, language: detectLang(question) === 'hi' ? 'hi' : 'en' } : null,
       playbook, related: relatedItems, drafts, contactPurposes: [...purposes],
-      aiAvailable: status !== 'capped',
+      aiAvailable: status !== 'capped', aiFailed,
     }
     await store.updateRequest(requestId!, {
       status, question_text: question || null, question_language: question ? (detectLang(question) === 'hi' ? 'hi' : 'en') : null,

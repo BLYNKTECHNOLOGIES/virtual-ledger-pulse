@@ -25,6 +25,8 @@ export interface LearnInput {
   finalText?: string
   templateValues?: TemplateValues | null
   hint?: OrderHint | null
+  /** Saving one of our earlier messages: only the chat before this time (ms) is used to find the question. */
+  beforeAt?: number | null
   callId?: string
   reason?: string
   eventId?: string
@@ -85,7 +87,7 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
   let embedding: number[] | null = null
   let useRequestEmbedding = false
   let ctxInfo: { side: string | null; status: string; category: string; accountId: string | null; clientState: string }
-  const req = requestId ? await store.getRequest(requestId) : null
+  const req = requestId && !input?.beforeAt ? await store.getRequest(requestId) : null
   if (req && req.order_number === orderNumber && req.question_text) {
     question = req.question_text
     questionLang = req.question_language === 'hi' ? 'hi' : 'en'
@@ -96,7 +98,8 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     const accountHint = uuidOrNull(input?.exchangeAccountId)
     const ctx = await buildChatContext(store, cfg, orderNumber, accountHint, input?.hint ?? null, now)
     // The reply may already be in the chat: look at the client's messages before our latest replies.
-    let t = ctx.transcript
+    const before = Number(input?.beforeAt)
+    let t = Number.isFinite(before) && before > 0 ? ctx.transcript.filter((m) => m.at < before) : ctx.transcript
     while (t.length && (t[t.length - 1].who === 'us' || t[t.length - 1].who === 'auto')) t = t.slice(0, -1)
     const turn = clientTurn(t)
     if (!turn) return { status: 422, body: { error: 'no_question', message: 'There is no client question to attach this reply to.' } }

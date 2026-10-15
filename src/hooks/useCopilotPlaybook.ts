@@ -41,9 +41,18 @@ export interface CopilotContext {
   language: 'en' | 'hi';
   language_reason: string;
   risks: CopilotRisk[];
+  /** What the client is waiting for now (situation code and label), why, and whether an approver set it. */
+  situation?: string | null;
+  situation_label?: string | null;
+  situation_evidence?: string;
+  situation_detected?: string | null;
+  situation_detected_label?: string | null;
+  situation_marked?: { by: string | null; at: string } | null;
+  situation_ready_at?: string | null;
 }
 export interface PlaybookSuggestion {
   entryId: string;
+  topicId?: string;
   title: string;
   status: 'approved' | 'tentative';
   conflict: boolean;
@@ -52,6 +61,13 @@ export interface PlaybookSuggestion {
   language: 'en' | 'hi';
   machineTranslated: boolean;
   missingLanguage: boolean;
+  /** 'hindi_outdated' etc.: the chat's language copy is out of date (or missing), so the other one is shown. */
+  languageNote?: string | null;
+  /** Situations this reply is limited to (labels); empty = any situation. */
+  situations?: string[];
+  specific?: boolean;
+  /** How closely this chat resembles the chats the reply was used in (0–1), null when it has none yet. */
+  contextSimilarity?: number | null;
   risk: string;
   note: string | null;
   version: number;
@@ -84,6 +100,10 @@ export interface DraftResponse {
   cached?: boolean;
   /** How many draft models failed this time (0 when all answered). */
   aiFailed?: number;
+  /** Known questions with approved replies only for other situations. */
+  otherSituations?: Array<{ topicId: string; title: string; similarity: number; situations: string[] }>;
+  /** Approved replies not offered here, and why (e.g. asks to pay before verification). */
+  heldBack?: Array<{ entryId: string; title: string; reason: string }>;
 }
 export interface OrderHint {
   tradeType?: string | null;
@@ -140,6 +160,14 @@ export interface LearnBody {
 
 export function copilotLearn(body: LearnBody): Promise<LearnResult> {
   return invoke<LearnResult>('copilot-learn', { action: 'learn', ...body });
+}
+/** Makes phrasings and example chats added since the last chat searchable right away (approvers; one small call). */
+export function copilotIndex(): Promise<{ indexed: number; left: number }> {
+  return invoke('copilot-learn', { action: 'index' });
+}
+/** "Rewrite Hindi from English" (and back): the AI's rewrite, for the approver to check before saving. */
+export function copilotTranslate(text: string, to: 'en' | 'hi'): Promise<{ text: string; language: 'en' | 'hi' }> {
+  return invoke('copilot-learn', { action: 'translate', text, to });
 }
 export function copilotReject(callId: string, reason: string): Promise<{ rejected: boolean }> {
   return invoke('copilot-learn', { action: 'reject', callId, reason });

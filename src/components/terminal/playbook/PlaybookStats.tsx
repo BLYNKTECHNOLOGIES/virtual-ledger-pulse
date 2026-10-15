@@ -6,7 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2 } from 'lucide-react';
 import { modelLabel } from '@/lib/copilot/copilotText';
 import { ACTION_LABEL, CAUSE_LABEL, inr, istShort, pct, rankModels } from '@/lib/copilot/playbookAdmin';
-import { useCopilotStats, useUserNames, userLabel } from '@/hooks/useCopilotAdmin';
+import { situationLabel } from '@/lib/copilot/situations';
+import { useCopilotSituations, useCopilotStats, useUserNames, userLabel } from '@/hooks/useCopilotAdmin';
 
 function Kpi({ label, value, sub, children }: { label: string; value: string; sub?: string; children?: React.ReactNode }) {
   return (
@@ -23,6 +24,7 @@ export function PlaybookStats({ onOpenEntry }: { onOpenEntry: (entryId: string) 
   const [days, setDays] = useState<'7' | '30' | '90'>('30');
   const { data: s, isLoading, error } = useCopilotStats(Number(days), true);
   const { data: users = [] } = useUserNames();
+  const { data: situations } = useCopilotSituations();
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
   const models = useMemo(() => rankModels(s?.models ?? []), [s?.models]);
 
@@ -56,11 +58,36 @@ export function PlaybookStats({ onOpenEntry }: { onOpenEntry: (entryId: string) 
         <Kpi label="Questions answered from the Playbook" value={pct(s.coverage.approved, s.coverage.questions)}
           sub={s.coverage.questions ? `${s.coverage.approved} of ${s.coverage.questions} client questions had an approved reply · target 80%` : 'No client questions yet in this period'} />
         <Kpi label="Tentative · conflicts" value={`${s.entries.tentative} · ${s.entries.conflicts}`}
-          sub={`${s.entries.expired} trial${s.entries.expired === 1 ? '' : 's'} ended unused · ${s.entries.retired} retired`} />
+          sub={`${s.entries.expired} trial${s.entries.expired === 1 ? '' : 's'} ended unused · ${s.entries.retired} retired${s.entries.questions != null ? ` · ${s.entries.questions} questions` : ''}${s.entries.outdated_copies ? ` · ${s.entries.outdated_copies} out-of-date language cop${s.entries.outdated_copies === 1 ? 'y' : 'ies'}` : ''}`} />
         <Kpi label="AI spend this month" value={inr(s.spend.month_inr)} sub={`of ${inr(s.spend.limit_inr)} · alerts at ${s.spend.alert_pcts.join('% and ')}%`}>
           <Progress value={spendPct} className="mt-1 h-1.5" />
         </Kpi>
       </div>
+
+      {s.situations && (
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Situations</CardTitle>
+            <CardDescription className="text-xs">
+              How often you changed the situation the Copilot worked out for a chat — {s.situations.corrected} change{s.situations.corrected === 1 ? '' : 's'} in {s.situations.checked} suggestion{s.situations.checked === 1 ? '' : 's'} ({pct(s.situations.corrected, s.situations.checked)}). Frequent changes show where the detection should learn a new pattern.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!s.situations.changes.length ? <p className="text-xs text-muted-foreground">No changes in this period.</p> : (
+              <ul className="space-y-1 text-xs">
+                {s.situations.changes.map((c) => (
+                  <li key={`${c.detected}-${c.set}`} className="flex flex-wrap items-baseline gap-x-1.5">
+                    <span className="tabular-nums font-semibold text-foreground">{c.n}×</span>
+                    <span className="text-muted-foreground">{c.detected ? situationLabel(c.detected, situations) : 'Unknown'}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-medium text-foreground">{situationLabel(c.set, situations)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-border bg-card">
         <CardHeader className="pb-2">
@@ -164,9 +191,9 @@ export function PlaybookStats({ onOpenEntry }: { onOpenEntry: (entryId: string) 
                     <span className="shrink-0 tabular-nums text-muted-foreground">{istShort(r.at)}</span>
                     {r.entry_id ? (
                       <button type="button" onClick={() => onOpenEntry(r.entry_id!)} className={`min-w-0 truncate text-left font-medium hover:underline ${r.undone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                        {r.title ?? 'Entry'}
+                        {r.title ?? 'Reply'}
                       </button>
-                    ) : <span className="text-muted-foreground">Removed entry</span>}
+                    ) : <span className="text-muted-foreground">Removed reply</span>}
                     <span className="text-muted-foreground">— {ACTION_LABEL[r.action] ?? r.action}, {CAUSE_LABEL[r.cause] ?? r.cause} by {userLabel(userById.get(r.user_id), r.user_id)}{r.undone ? ' (undone)' : ''}</span>
                   </li>
                 ))}

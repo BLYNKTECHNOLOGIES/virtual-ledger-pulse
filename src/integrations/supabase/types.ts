@@ -6736,7 +6736,15 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "copilot_contacts_team_fkey"
+            columns: ["purpose"]
+            isOneToOne: false
+            referencedRelation: "copilot_teams"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       copilot_exemplars: {
         Row: {
@@ -6867,6 +6875,7 @@ export type Database = {
           created_at: string
           draft_call_id: string | null
           entry_id: string | null
+          example_id: string | null
           exchange_account_id: string | null
           id: string
           inbox_item_id: string | null
@@ -6887,6 +6896,7 @@ export type Database = {
           created_at?: string
           draft_call_id?: string | null
           entry_id?: string | null
+          example_id?: string | null
           exchange_account_id?: string | null
           id?: string
           inbox_item_id?: string | null
@@ -6907,6 +6917,7 @@ export type Database = {
           created_at?: string
           draft_call_id?: string | null
           entry_id?: string | null
+          example_id?: string | null
           exchange_account_id?: string | null
           id?: string
           inbox_item_id?: string | null
@@ -6925,6 +6936,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copilot_learning_events_example_id_fkey"
+            columns: ["example_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_examples"
             referencedColumns: ["id"]
           },
           {
@@ -6964,8 +6982,10 @@ export type Database = {
           last_used_at: string | null
           reply_en: string | null
           reply_en_auto: boolean
+          reply_en_stale: boolean
           reply_hi: string | null
           reply_hi_auto: boolean
+          reply_hi_stale: boolean
           risk: string
           scope: Json
           seed_batch: string | null
@@ -6974,6 +6994,7 @@ export type Database = {
           status: string
           step_key: string | null
           title: string
+          topic_id: string
           updated_at: string
           updated_by: string | null
           use_count: number
@@ -6992,8 +7013,10 @@ export type Database = {
           last_used_at?: string | null
           reply_en?: string | null
           reply_en_auto?: boolean
+          reply_en_stale?: boolean
           reply_hi?: string | null
           reply_hi_auto?: boolean
+          reply_hi_stale?: boolean
           risk?: string
           scope?: Json
           seed_batch?: string | null
@@ -7002,6 +7025,7 @@ export type Database = {
           status?: string
           step_key?: string | null
           title: string
+          topic_id: string
           updated_at?: string
           updated_by?: string | null
           use_count?: number
@@ -7020,8 +7044,10 @@ export type Database = {
           last_used_at?: string | null
           reply_en?: string | null
           reply_en_auto?: boolean
+          reply_en_stale?: boolean
           reply_hi?: string | null
           reply_hi_auto?: boolean
+          reply_hi_stale?: boolean
           risk?: string
           scope?: Json
           seed_batch?: string | null
@@ -7030,12 +7056,71 @@ export type Database = {
           status?: string
           step_key?: string | null
           title?: string
+          topic_id?: string
           updated_at?: string
           updated_by?: string | null
           use_count?: number
           version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "copilot_playbook_entries_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copilot_playbook_examples: {
+        Row: {
+          chat: Json
+          context_embedding: string | null
+          context_text: string
+          created_at: string
+          created_by: string | null
+          embedding_model: string | null
+          entry_id: string
+          id: string
+          order_number: string | null
+          situation: string | null
+          source: string
+        }
+        Insert: {
+          chat: Json
+          context_embedding?: string | null
+          context_text: string
+          created_at?: string
+          created_by?: string | null
+          embedding_model?: string | null
+          entry_id: string
+          id?: string
+          order_number?: string | null
+          situation?: string | null
+          source: string
+        }
+        Update: {
+          chat?: Json
+          context_embedding?: string | null
+          context_text?: string
+          created_at?: string
+          created_by?: string | null
+          embedding_model?: string | null
+          entry_id?: string
+          id?: string
+          order_number?: string | null
+          situation?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_playbook_examples_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       copilot_playbook_questions: {
         Row: {
@@ -7043,36 +7128,39 @@ export type Database = {
           created_by: string | null
           embedding: string | null
           embedding_model: string | null
-          entry_id: string
+          entry_id: string | null
           id: string
           language: string
           normalized: string
           question_text: string
           source: string
+          topic_id: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           embedding?: string | null
           embedding_model?: string | null
-          entry_id: string
+          entry_id?: string | null
           id?: string
           language?: string
           normalized: string
           question_text: string
           source?: string
+          topic_id: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
           embedding?: string | null
           embedding_model?: string | null
-          entry_id?: string
+          entry_id?: string | null
           id?: string
           language?: string
           normalized?: string
           question_text?: string
           source?: string
+          topic_id?: string
         }
         Relationships: [
           {
@@ -7082,7 +7170,44 @@ export type Database = {
             referencedRelation: "copilot_playbook_entries"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "copilot_playbook_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_topics"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      copilot_playbook_topics: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          seed_batch: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          seed_batch?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          seed_batch?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       copilot_playbook_versions: {
         Row: {
@@ -7122,6 +7247,7 @@ export type Database = {
       copilot_requests: {
         Row: {
           context: Json
+          context_embedding: string | null
           created_at: string
           error: string | null
           exchange_account_id: string | null
@@ -7142,6 +7268,7 @@ export type Database = {
         }
         Insert: {
           context?: Json
+          context_embedding?: string | null
           created_at?: string
           error?: string | null
           exchange_account_id?: string | null
@@ -7162,6 +7289,7 @@ export type Database = {
         }
         Update: {
           context?: Json
+          context_embedding?: string | null
           created_at?: string
           error?: string | null
           exchange_account_id?: string | null
@@ -7227,6 +7355,80 @@ export type Database = {
         }
         Relationships: []
       }
+      copilot_situation_marks: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string
+          detected_code: string | null
+          id: string
+          order_number: string
+          side: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string
+          detected_code?: string | null
+          id?: string
+          order_number: string
+          side?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string
+          detected_code?: string | null
+          id?: string
+          order_number?: string
+          side?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_situation_marks_code_fkey"
+            columns: ["code"]
+            isOneToOne: false
+            referencedRelation: "copilot_situations"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      copilot_situations: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          description: string
+          detectable: boolean
+          label: string
+          side: string | null
+          sort: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          description: string
+          detectable?: boolean
+          label: string
+          side?: string | null
+          sort?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          description?: string
+          detectable?: boolean
+          label?: string
+          side?: string | null
+          sort?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       copilot_suggestion_log: {
         Row: {
           created_at: string
@@ -7260,6 +7462,42 @@ export type Database = {
           situation_class?: string | null
           status?: string
           suggestion_text?: string
+        }
+        Relationships: []
+      }
+      copilot_teams: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string
+          label: string
+          sort: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          label: string
+          sort?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          label?: string
+          sort?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -35559,7 +35797,12 @@ export type Database = {
         Returns: string
       }
       copilot_add_question: {
-        Args: { p_entry_id: string; p_language?: string; p_text: string }
+        Args: {
+          p_entry_id?: string
+          p_language?: string
+          p_text?: string
+          p_topic_id?: string
+        }
         Returns: string
       }
       copilot_inbox_decide: {
@@ -35574,6 +35817,9 @@ export type Database = {
           p_context?: Json
           p_draft_call_id?: string
           p_draft_edited?: boolean
+          p_example_chat?: Json
+          p_example_embedding?: Json
+          p_example_text?: string
           p_kind?: string
           p_order_number?: string
           p_question_embedding: Json
@@ -35585,8 +35831,10 @@ export type Database = {
           p_reply_text: string
           p_request_id?: string
           p_scope: Json
+          p_stage?: string
           p_step_key?: string
           p_target_entry_id: string
+          p_target_topic_id?: string
           p_title: string
           p_user_id: string
         }
@@ -35597,17 +35845,21 @@ export type Database = {
           p_account_id: string
           p_category: string
           p_client_state: string
+          p_context_embedding?: Json
           p_embeddings: Json
           p_include_conflicts: boolean
           p_include_tentative: boolean
           p_limit?: number
           p_min_similarity?: number
           p_side: string
+          p_stage?: string
           p_status: string
         }
         Returns: {
           conflict_open: boolean
+          context_similarity: number
           entry_id: string
+          fits: boolean
           input_index: number
           internal_note: string
           kind: string
@@ -35615,14 +35867,18 @@ export type Database = {
           question_text: string
           reply_en: string
           reply_en_auto: boolean
+          reply_en_stale: boolean
           reply_hi: string
           reply_hi_auto: boolean
+          reply_hi_stale: boolean
           risk: string
           scope: Json
           similarity: number
+          specificity: number
           status: string
           step_key: string
           title: string
+          topic_id: string
           use_count: number
           version: number
         }[]
@@ -35630,6 +35886,13 @@ export type Database = {
       copilot_month_spend_inr: { Args: { p_at?: string }; Returns: number }
       copilot_my_access: { Args: never; Returns: Json }
       copilot_normalize: { Args: { p_text: string }; Returns: string }
+      copilot_pending_examples: {
+        Args: { p_limit?: number }
+        Returns: {
+          context_text: string
+          id: string
+        }[]
+      }
       copilot_pending_questions: {
         Args: { p_limit?: number }
         Returns: {
@@ -35656,6 +35919,19 @@ export type Database = {
         Args: { p_entry_id: string; p_status: string }
         Returns: Json
       }
+      copilot_set_example_embeddings: {
+        Args: { p_items: Json; p_model: string }
+        Returns: number
+      }
+      copilot_set_order_situation: {
+        Args: {
+          p_code: string
+          p_detected?: string
+          p_order_number: string
+          p_side: string
+        }
+        Returns: Json
+      }
       copilot_set_question_embeddings: {
         Args: { p_items: Json; p_model: string }
         Returns: number
@@ -35670,6 +35946,10 @@ export type Database = {
           rejected_at: string
           similarity: number
         }[]
+      }
+      copilot_situation_covers: {
+        Args: { p_code: string; p_scope_code: string }
+        Returns: boolean
       }
       copilot_stats: { Args: { p_days?: number }; Returns: Json }
       copilot_to_vector: { Args: { p: Json }; Returns: string }

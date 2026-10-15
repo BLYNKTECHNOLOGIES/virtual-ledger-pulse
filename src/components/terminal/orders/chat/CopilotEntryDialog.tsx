@@ -1,61 +1,47 @@
-// Quick edit of one Playbook entry, opened from the "Saved to Playbook" toast. Approvers only (the table's
-// access rules allow approvers alone to read or change entries); every change is versioned by the database.
+// Quick edit of one Playbook reply, opened from the "Saved to Playbook" toast. Approvers only (the tables' access
+// rules allow approvers alone to read or change replies); each change to a reply is a new version in the database.
+// The question's name is shared by all its replies, so renaming it here renames the question. Situations,
+// phrasings and example chats are edited on the Playbook page ("Open in Playbook").
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesUpdate } from '@/integrations/supabase/types';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2 } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Languages, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { copilotAdmin } from '@/hooks/useCopilotAdmin';
+import { copilotAdmin, useCopilotSituations, useCopilotTeams, useRefreshCopilot } from '@/hooks/useCopilotAdmin';
+import { copyChangeNote, scopeSummary, staleFlagForEdit, STATUS_LABEL, type EntryStatus, type Scope } from '@/lib/copilot/playbookAdmin';
+import { stagesSummary, unknownStages } from '@/lib/copilot/situations';
 
-interface Entry {
-  id: string;
-  title: string;
-  status: 'tentative' | 'approved' | 'retired';
-  reply_en: string | null;
-  reply_hi: string | null;
-  reply_en_auto: boolean;
-  reply_hi_auto: boolean;
-  internal_note: string | null;
-  scope: Record<string, string[]>;
-  version: number;
-  use_count: number;
-}
-
-function scopeText(scope: Record<string, string[]> | null | undefined): string {
-  const s = scope ?? {};
-  const parts: string[] = [];
-  if (s.sides?.length) parts.push(s.sides.join('/') + ' orders');
-  if (s.statuses?.length) parts.push('status ' + s.statuses.join('/'));
-  if (s.categories?.length) parts.push(s.categories.join('/') + ' orders');
-  if (s.client_states?.length) parts.push(s.client_states.join('/') + ' clients');
-  if (s.account_ids?.length) parts.push('one Binance account');
-  return parts.length ? parts.join(' · ') : 'All orders';
+function StaleNote({ children, onRewrite, onKeep, busy, rewriting, canRewrite, rewriteLabel, dirty }: {
+  children: React.ReactNode; onRewrite: () => void; onKeep: () => void; busy: boolean; rewriting: boolean; canRewrite: boolean; rewriteLabel: string; dirty: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-[11px] text-warning">
+      <span className="min-w-0 flex-1 basis-48">{children}</span>
+      <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" loading={rewriting} disabled={busy || !canRewrite} onClick={onRewrite}>{rewriteLabel}</Button>
+      <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" disabled={busy || dirty} title={dirty ? 'Save or undo your changes first' : undefined} onClick={onKeep}>Still right</Button>
+    </div>
+  );
 }
 
 export function CopilotEntryDialog({ entryId, onOpenChange }: { entryId: string | null; onOpenChange: (open: boolean) => void }) {
-  const qc = useQueryClient();
+  const refresh = useRefreshCopilot();
   const { data: entry, isLoading } = useQuery({
     queryKey: ['copilot-entry', entryId],
     enabled: !!entryId,
-    queryFn: async (): Promise<Entry | null> => {
-      const { data, error } = await supabase.from('copilot_playbook_entries')
-        .select('id, title, status, reply_en, reply_hi, reply_en_auto, reply_hi_auto, internal_note, scope, version, use_count')
-        .eq('id', entryId!).maybeSingle();
-      if (error) throw error;
-      return data as unknown as Entry | null;
-    },
+    queryFn: () => copilotAdmin.getEntry(entryId!),
   });
+  const { data: situations } = useCopilotSituations(!!entryId);
+  const { data: teams = [] } = useCopilotTeams(!!entryId);
   const [title, setTitle] = useState('');
   const [en, setEn] = useState('');
   const [hi, setHi] = useState('');
   const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
     if (!entry) return;
@@ -65,72 +51,124 @@ export function CopilotEntryDialog({ entryId, onOpenChange }: { entryId: string 
     setNote(entry.internal_note ?? '');
   }, [entry]);
 
-  const save = async (retire = false) => {
-    if (!entry) return;
-    if (!retire && !en.trim() && !hi.trim()) { toast.error('Keep at least one language version'); return; }
-    setSaving(true);
-    if (retire) {
-      // Through the database function, so the entry's open inbox items close with it.
-      try {
-        await copilotAdmin.setEntryStatus(entry.id, 'retired');
-      } catch (e) {
-        setSaving(false);
-        toast.error((e as Error).message || 'Could not retire');
-        return;
-      }
-      setSaving(false);
-      qc.invalidateQueries({ queryKey: ['copilot-entry', entry.id] });
-      qc.invalidateQueries({ queryKey: ['copilot-access'] });
-      toast.success('Entry retired — it will no longer be suggested');
-      onOpenChange(false);
-      return;
+  const replyDirty = !!entry && (en.trim() !== (entry.reply_en ?? '') || hi.trim() !== (entry.reply_hi ?? '') || note.trim() !== (entry.internal_note ?? ''));
+  const titleDirty = !!entry && !!title.trim() && title.trim() !== entry.title;
+  const scope = (entry?.scope ?? {}) as Scope;
+  const lostSituation = unknownStages(scope.stages, situations).length > 0;
+  const teamTokens = teams.filter((t) => t.active).map((t) => `{contact:${t.code}}`);
+
+  const run = async (what: string, fn: () => Promise<unknown>, done: string, close = false) => {
+    setSaving(what);
+    try {
+      await fn();
+      refresh();
+      toast.success(done);
+      if (close) onOpenChange(false);
+    } catch (e) {
+      toast.error((e as Error).message || 'Not changed');
+    } finally {
+      setSaving(null);
     }
-    const patch: TablesUpdate<'copilot_playbook_entries'> = {
-      title: title.trim() || entry.title,
-      reply_en: en.trim() || null,
-      reply_hi: hi.trim() || null,
-      reply_en_auto: en.trim() === (entry.reply_en ?? '') ? entry.reply_en_auto : false,
-      reply_hi_auto: hi.trim() === (entry.reply_hi ?? '') ? entry.reply_hi_auto : false,
-      internal_note: note.trim() || null,
-    };
-    const { error } = await supabase.from('copilot_playbook_entries').update(patch).eq('id', entry.id);
-    setSaving(false);
-    if (error) { toast.error(error.message || 'Could not save'); return; }
-    qc.invalidateQueries({ queryKey: ['copilot-entry', entry.id] });
-    qc.invalidateQueries({ queryKey: ['copilot-access'] });
-    toast.success('Playbook entry saved');
-    onOpenChange(false);
   };
 
+  const save = () => {
+    if (!entry) return;
+    const e = en.trim(), h = hi.trim();
+    if (!e && !h) { toast.error('Keep at least one language version'); return; }
+    void run('save', async () => {
+      if (titleDirty) await copilotAdmin.renameTopic(entry.topic_id, title.trim());
+      if (replyDirty) {
+        await copilotAdmin.updateEntry(entry.id, {
+          reply_en: e || null,
+          reply_hi: h || null,
+          // Saving an AI rewrite after reading it makes it the approver's own wording.
+          reply_en_auto: e === (entry.reply_en ?? '') ? entry.reply_en_auto : false,
+          reply_hi_auto: h === (entry.reply_hi ?? '') ? entry.reply_hi_auto : false,
+          internal_note: note.trim() || null,
+          ...staleFlagForEdit(entry, e, h),
+        });
+      }
+    }, 'Playbook reply saved', true);
+  };
+
+  const rewrite = (to: 'en' | 'hi') => {
+    const from = (to === 'hi' ? en : hi).trim();
+    if (!from) return;
+    void (async () => {
+      setSaving(`rewrite-${to}`);
+      try {
+        const r = await copilotAdmin.translate(from, to);
+        if (to === 'hi') setHi(r.text); else setEn(r.text);
+        toast.success(to === 'hi' ? 'Hindi rewritten — check it, then save' : 'English rewritten — check it, then save');
+      } catch (err) {
+        toast.error((err as Error).message || 'Could not rewrite');
+      } finally {
+        setSaving(null);
+      }
+    })();
+  };
+  const keep = (lang: 'en' | 'hi') => entry && void run(`keep-${lang}`,
+    () => copilotAdmin.updateEntry(entry.id, lang === 'hi' ? { reply_hi_stale: false } : { reply_en_stale: false }),
+    lang === 'hi' ? 'Hindi kept as it is' : 'English kept as it is');
+  const retire = () => entry && void run('retire', () => copilotAdmin.setEntryStatus(entry.id, 'retired'), 'Reply retired — it will no longer be suggested', true);
+
+  const busy = !!saving;
   return (
     <Dialog open={!!entryId} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Playbook entry</DialogTitle>
+          <DialogTitle>Edit Playbook reply</DialogTitle>
           <DialogDescription>
-            Write replies with “sir”; the Copilot switches to “ma'am” when needed. Placeholders: {'{amount}'} {'{orderNo}'} {'{name}'} {'{upi}'} {'{contact:kyc}'} {'{contact:rm}'} {'{contact:support}'}.
+            Write replies with “sir”; the Copilot switches to “ma'am” when needed. Placeholders: {'{amount}'} {'{orderNo}'} {'{name}'} {'{upi}'}
+            {teamTokens.length ? <>, and a team's number: {teamTokens.join(' ')}</> : null}. Give a number only when the client asks for one.
           </DialogDescription>
         </DialogHeader>
         {isLoading || !entry ? (
           <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entry not found.'}
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reply not found.'}
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-[11px] text-muted-foreground">
-              {entry.status === 'approved' ? 'Approved' : entry.status === 'tentative' ? 'Tentative' : 'Retired'} · used {entry.use_count} times · version {entry.version} · applies to: {scopeText(entry.scope)}
-            </p>
+            <div className="space-y-0.5 text-[11px] text-muted-foreground">
+              <p>{STATUS_LABEL[entry.status as EntryStatus] ?? entry.status} · used {entry.use_count} times · version {entry.version}</p>
+              <p>Applies to: <span className="text-foreground">{scopeSummary(scope, undefined, (codes) => stagesSummary(codes, situations))}</span></p>
+            </div>
+            {lostSituation && (
+              <p className="flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-[11px] text-warning">
+                <AlertTriangle className="mt-px h-3 w-3 shrink-0" />Its situation no longer exists, so it is not offered. Pick one in the Playbook.
+              </p>
+            )}
             <div className="space-y-1">
-              <Label htmlFor="cp-title" className="text-xs">Topic</Label>
+              <Label htmlFor="cp-title" className="text-xs">Question <span className="font-normal text-muted-foreground">(shared by all its replies)</span></Label>
               <Input id="cp-title" value={title} onChange={(e) => setTitle(e.target.value.slice(0, 160))} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="cp-en" className="text-xs">English reply {entry.reply_en_auto && <span className="font-normal text-muted-foreground">(translated automatically — check it)</span>}</Label>
+              <Label htmlFor="cp-en" className="text-xs">English reply {entry.reply_en_auto && <span className="font-normal text-warning">(written by the AI — check it)</span>}</Label>
+              {entry.reply_en_stale && (
+                <StaleNote busy={busy} rewriting={saving === 'rewrite-en'} canRewrite={!!hi.trim()} rewriteLabel="Rewrite from Hindi" dirty={replyDirty}
+                  onRewrite={() => rewrite('en')} onKeep={() => keep('en')}>
+                  Older than the Hindi copy, which was edited after it.
+                </StaleNote>
+              )}
               <Textarea id="cp-en" value={en} onChange={(e) => setEn(e.target.value.slice(0, 2000))} rows={3} className="text-sm" />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="cp-hi" className="text-xs">Hindi reply, in English letters {entry.reply_hi_auto && <span className="font-normal text-muted-foreground">(translated automatically — check it)</span>}</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="cp-hi" className="text-xs">Hindi reply, in English letters {entry.reply_hi_auto && <span className="font-normal text-warning">(written by the AI — check it)</span>}</Label>
+                {!entry.reply_hi_stale && (
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" disabled={!en.trim() || busy} loading={saving === 'rewrite-hi'} onClick={() => rewrite('hi')}>
+                    <Languages className="h-3 w-3" />{hi.trim() ? 'Rewrite from English' : 'Write from English'}
+                  </Button>
+                )}
+              </div>
+              {entry.reply_hi_stale && (
+                <StaleNote busy={busy} rewriting={saving === 'rewrite-hi'} canRewrite={!!en.trim()} rewriteLabel="Rewrite from English" dirty={replyDirty}
+                  onRewrite={() => rewrite('hi')} onKeep={() => keep('hi')}>
+                  Out of date: the English was edited after it. Clients writing Hindi get the English reply until this is fixed.
+                </StaleNote>
+              )}
               <Textarea id="cp-hi" value={hi} onChange={(e) => setHi(e.target.value.slice(0, 2000))} rows={3} className="text-sm" />
+              {copyChangeNote(entry, en, hi) && <p className="text-[11px] text-muted-foreground">{copyChangeNote(entry, en, hi)}</p>}
             </div>
             <div className="space-y-1">
               <Label htmlFor="cp-note" className="text-xs">Note for approvers (never sent)</Label>
@@ -139,14 +177,19 @@ export function CopilotEntryDialog({ entryId, onOpenChange }: { entryId: string 
           </div>
         )}
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="ghost" className="text-destructive hover:text-destructive" disabled={!entry || saving || entry.status === 'retired'} onClick={() => void save(true)}>
-            Retire entry
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" className="text-destructive hover:text-destructive" disabled={!entry || busy || entry.status === 'retired'} onClick={retire}>
+              Retire reply
+            </Button>
+            {entry && (
+              <Button asChild variant="ghost">
+                <Link to={`/terminal/playbook?entry=${entry.id}`} onClick={() => onOpenChange(false)}>Open in Playbook<ExternalLink className="ml-1.5 h-3.5 w-3.5" /></Link>
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button disabled={!entry || saving} onClick={() => void save(false)}>
-              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}Save
-            </Button>
+            <Button disabled={!entry || busy || (!replyDirty && !titleDirty)} loading={saving === 'save'} onClick={save}>Save</Button>
           </div>
         </DialogFooter>
       </DialogContent>

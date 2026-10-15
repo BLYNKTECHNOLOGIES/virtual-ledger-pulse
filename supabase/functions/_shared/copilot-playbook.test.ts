@@ -90,6 +90,9 @@ Deno.test('buildTranscript: system notices, KYC card, duplicate auto-replies, re
   eq(t[3].text, '[image]')
   eq(t[4].text, 'uploaded, please check')
   eq(buildTranscript(rows, { id: 'i1', text: '[image]' }).length, 4, 'hint already captured is not duplicated')
+  eq(t[0].event, 'order_created_with_additional_kyc_maker_sell', 'Binance event kept for the situation')
+  eq(t[2].event, 'kyc_card')
+  eq(t[1].event, undefined)
 })
 
 Deno.test('clientTurn: messages after our last human reply; auto-replies do not count as an answer', () => {
@@ -123,6 +126,25 @@ Deno.test('guardDraft: blocks release promises, outside-Binance offers and typed
   eq(guardDraft('Please pay ₹5,000 now').flags, ['number_check'])
   eq(guardDraft('Use { contact_RM } please').text, 'Use {contact:rm} please')
   eq(guardDraft('Hello {client_name}').flags, ['unknown_placeholder'])
+})
+
+Deno.test('guardDraft: Hinglish release promises are held back unless tied to the payment check', () => {
+  ok(guardDraft('Sir, USDT abhi release kar denge.').blocked, 'release now')
+  ok(guardDraft('Sir, thodi der mein release ho jayega.').blocked)
+  ok(!guardDraft('Thank you sir, payment check karke USDT release kar denge.').blocked, 'after the check')
+  ok(!guardDraft('Sir, payment confirm hote hi USDT release kar denge.').blocked, 'as soon as confirmed')
+  ok(!guardDraft('Sir, payment milte hi release kar denge.').blocked)
+})
+
+Deno.test('guardDraft: on a sell order before verification, a request to pay is held back', () => {
+  const kyc = { side: 'SELL' as const, situation: 'sell.kyc.review' }
+  eq(guardDraft('Yes sir, please pay to {upi}.', kyc).flags, ['pay_before_verification'])
+  ok(guardDraft('Sir, aap payment kar dijiye.', kyc).blocked, 'Hinglish request to pay')
+  ok(!guardDraft('Please wait, sir. We will share the payment details as soon as your verification is complete.', kyc).blocked)
+  ok(!guardDraft('Sir, verification complete hote hi payment details share kar denge.', kyc).blocked)
+  ok(!guardDraft('Yes sir, please pay to {upi}.', { side: 'SELL', situation: 'sell.pay.ready' }).blocked, 'fine once the client can pay')
+  ok(!guardDraft('Please pay now, sir.', { side: 'BUY', situation: 'buy.details' }).blocked, 'not on buy orders')
+  ok(!guardDraft('Yes sir, please pay to {upi}.').blocked, 'without a situation there is nothing to check')
 })
 
 Deno.test('orderCategory uses the small-order ranges per side', () => {
@@ -171,7 +193,9 @@ Deno.test('draft prompt carries the rules, the address, the language and no unma
     avoid: [{ draft: 'We will release now', why: 'Promises release' }], chat: [{ from: 'client', at: '20:30', text: 'tds kitna hai' }],
     answerThis: 'tds kitna hai', instruction: 'Make it shorter: one sentence if possible.', risks: [], now: '15 Oct, 20:31',
   })
-  ok(system.includes('Hindi written in English letters'))
+  ok(system.includes('Hinglish in English letters'), 'Hinglish style for Hindi drafts')
+  ok(system.includes('not "kripya"'), 'no bookish Hindi')
+  ok(system.includes('order.situation'), 'the situation rule')
   ok(system.includes(`Address the client as "ma'am"`))
   ok(system.includes('start with "Good evening, ma\'am."'))
   ok(system.includes("Manager's instruction for this draft: Make it shorter"))

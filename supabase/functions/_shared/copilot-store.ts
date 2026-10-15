@@ -106,6 +106,9 @@ export interface Store {
   questionsFor(ids: string[]): Promise<Array<{ entry_id: string; question_text: string }>>
   learnApply(params: Record<string, unknown>): Promise<{ data?: any; error?: DbError }>
   undo(userId: string, eventId: string): Promise<{ data?: any; error?: DbError }>
+  /** Phrasings without an embedding yet (seeded, or added on the Playbook page). */
+  pendingQuestions(limit: number): Promise<Array<{ id: string; question_text: string }>>
+  setQuestionEmbeddings(items: Array<{ id: string; v: number[] }>, model: string): Promise<number>
 }
 
 const vec = (v: number[] | string) => (typeof v === 'string' ? v : `[${v.join(',')}]`)
@@ -240,6 +243,21 @@ export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
     async undo(userId, eventId) {
       const { data, error } = await db.rpc('copilot_undo_learning', { p_user_id: userId, p_event_id: eventId })
       return error ? { error: { message: error.message, code: error.code } } : { data }
+    },
+    async pendingQuestions(limit) {
+      const { data, error } = await db.rpc('copilot_pending_questions', { p_limit: limit })
+      if (error) return []
+      return (data ?? []).map((r: any) => ({ id: String(r.id), question_text: String(r.question_text ?? '') }))
+    },
+    async setQuestionEmbeddings(items, model) {
+      let n = 0
+      // Small batches keep each request well under the API's body limit (1536 numbers per phrasing).
+      for (let i = 0; i < items.length; i += 25) {
+        const { data, error } = await db.rpc('copilot_set_question_embeddings', { p_items: items.slice(i, i + 25), p_model: model })
+        if (error) { console.error(JSON.stringify({ fn: 'copilot', outcome: 'set_embeddings_failed', code: error.code })); break }
+        n += Number(data ?? 0)
+      }
+      return n
     },
   }
 }

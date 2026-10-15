@@ -35,9 +35,11 @@ import {
   Clock,
   Keyboard,
   TerminalSquare,
+  BookOpen,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useCopilotAccess } from '@/hooks/useCopilotPlaybook';
 import type { TerminalPermission } from '@/lib/permissions/terminalCatalog';
 import { usePayerOrders } from '@/hooks/usePayerModule';
 import { usePendingAppealCheckInCount } from '@/hooks/useTerminalAppeals';
@@ -54,6 +56,8 @@ interface NavItem {
   badge?: string;
   requiredPermission?: TerminalPermission;
   comingSoon?: boolean;
+  /** Shown only to Copilot approvers (copilot_my_access); the count is their open Playbook inbox. */
+  copilotApproversOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -61,6 +65,7 @@ const navItems: NavItem[] = [
   { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone, tone: 'buy', requiredPermission: 'terminal_ads_view' },
   { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, tone: 'pending', showActiveCount: true, requiredPermission: 'terminal_orders_view' },
   { title: 'Automation', url: '/terminal/automation', icon: Bot, tone: 'info', requiredPermission: 'terminal_pricing_view' },
+  { title: 'Playbook', url: '/terminal/playbook', icon: BookOpen, tone: 'primary', copilotApproversOnly: true },
   { title: 'Assets', url: '/terminal/assets', icon: Wallet, tone: 'success', requiredPermission: 'terminal_assets_view' },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, tone: 'info', requiredPermission: 'terminal_analytics_view' },
   { title: 'MPI', url: '/terminal/mpi', icon: BarChart3, tone: 'primary', requiredPermission: 'terminal_mpi_view_own' },
@@ -85,6 +90,7 @@ export function TerminalSidebar() {
   const { orders: payerPendingOrders = [] } = usePayerOrders();
   const { data: pendingAppealCheckInCount = 0 } = usePendingAppealCheckInCount();
   const { hasPermission } = useTerminalAuth();
+  const { data: copilotAccess } = useCopilotAccess();
 
   const activeCount = (() => {
     if (!activeOrdersData) return 0;
@@ -107,6 +113,7 @@ export function TerminalSidebar() {
 
   // Only show items user has permission for (no fallback to show all)
   const visibleItems = navItems.filter((item) => {
+    if (item.copilotApproversOnly) return !!copilotAccess?.is_approver;
     if (!item.requiredPermission) return true;
     return hasPermission(item.requiredPermission);
   });
@@ -115,6 +122,7 @@ export function TerminalSidebar() {
     if (item.showActiveCount) return activeCount;
     if (item.showPayerPendingCount) return payerPendingOrders.length;
     if (item.showAppealPendingCount) return pendingAppealCheckInCount;
+    if (item.copilotApproversOnly) return copilotAccess?.open_inbox ?? 0;
     return 0;
   };
 

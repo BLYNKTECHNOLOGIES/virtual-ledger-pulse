@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   contactAvailableNow, contactsUsed, cycleIndex, fillCopilotText, hasUnfilledToken, latestUnanswered, learnToast, modelLabel, PHONE_RE,
-  statusLabel, unfilledTokens, type PanelMessage,
+  maskPersonal, statusLabel, unfilledTokens, type PanelMessage,
 } from './copilotText';
 
 describe('fillCopilotText', () => {
@@ -18,6 +18,22 @@ describe('fillCopilotText', () => {
   it('lists placeholders still to fill, once each', () => {
     expect(unfilledTokens('Call {contact:support} or {contact:support} about {orderNo}')).toEqual(['{contact:support}', '{orderNo}']);
     expect(unfilledTokens('Sir, {unknown} stays as typed')).toEqual([]);
+  });
+});
+
+describe('maskPersonal (same results as the server maskPII)', () => {
+  it('hides personal numbers and handles but keeps amounts and short numbers', () => {
+    expect(maskPersonal('my upi is ravi.k@okaxis')).toBe('my upi is [upi]');
+    expect(maskPersonal('mail me at ravi@gmail.com')).toBe('mail me at [email]');
+    expect(maskPersonal('call 9876543210 or +91 98765 43210')).toBe('call [phone] or [phone]');
+    expect(maskPersonal('PAN ABCDE1234F, IFSC HDFC0001234')).toBe('PAN [pan], IFSC [ifsc]');
+    expect(maskPersonal('aadhaar 1234 5678 9012')).toBe('aadhaar [aadhaar]');
+    expect(maskPersonal('UTR 412345678901 ref')).toBe('UTR [number] ref');
+    expect(maskPersonal('paid 45,000 for order in 15 minutes')).toBe('paid 45,000 for order in 15 minutes');
+    expect(maskPersonal('account 50100123456789')).toBe('account [number]');
+    expect(maskPersonal('UTR 412345678901, ok. Ref 123456789.')).toBe('UTR [number], ok. Ref [number].');
+    expect(maskPersonal('total 1,00,00,000.50')).toBe('total 1,00,00,000.50');
+    expect(maskPersonal('Can I pay now?')).toBe('Can I pay now?');
   });
 });
 

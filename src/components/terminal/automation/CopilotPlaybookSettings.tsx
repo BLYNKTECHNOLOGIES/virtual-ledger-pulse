@@ -20,7 +20,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { BookOpen, Loader2, Phone, Plus, Pencil, Trash2, Users, Wallet, Languages, Cpu, ShieldCheck, ChevronDown } from 'lucide-react';
+import { BookOpen, Loader2, Phone, Plus, Pencil, Trash2, Users, Wallet, Languages, Cpu, ShieldCheck, ChevronDown, ArrowRight } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface Config {
@@ -242,6 +243,7 @@ export function CopilotPlaybookSettings() {
   });
 
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
+  const onPlaybookPage = useLocation().pathname.startsWith('/terminal/playbook');
   const now = new Date();
 
   if (accessLoading || isLoading) {
@@ -296,6 +298,11 @@ export function CopilotPlaybookSettings() {
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground">Operators: off. Approved replies for operators (no AI) are a separate step after about 50 approved replies.</p>
+        {!onPlaybookPage && (
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+            <Link to="/terminal/playbook">Open the Playbook — inbox, entries and stats<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Link>
+          </Button>
+        )}
       </Section>
 
       <Section icon={<Users className="h-4 w-4 text-primary" />} title="Approvers" description="Only these people see AI drafts, and only what they send, approve or save goes into the Playbook.">

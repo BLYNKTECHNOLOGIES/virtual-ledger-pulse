@@ -141,3 +141,38 @@ Deno.test('embedding outage: still drafts, without Playbook matches', async () =
   eq(r.body.drafts.length, 2); eq(s.matchCalls.length, 0)
   ok(s.calls.some((c) => c.purpose === 'embed' && c.status === 'error'))
 })
+
+Deno.test('phrasings added by the seed or on the Playbook page are embedded alongside the lookup, masked, and stored', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'Can I pay now?')]
+  s.pending = [{ id: 'q-1', question_text: 'Can I pay now?' }, { id: 'q-2', question_text: 'call me on 9876543210 please' }]
+  const r = await run(s, a)
+  eq(r.status, 200)
+  eq(a.embeds.length, 2, 'the question and the phrasings in two parallel calls')
+  eq(a.embeds[0], ['Can I pay now?'], 'the lookup embeds only the question')
+  eq(a.embeds[1].length, 2)
+  ok(!a.embeds[1].join(' ').includes('9876543210'), 'phrasings are masked before embedding')
+  eq(s.embedded.map((e) => e.id).join(','), 'q-1,q-2')
+  eq(s.embedded[0].v.length, 1536); eq(s.embedded[0].model, 'openai/text-embedding-3-small')
+  eq(s.matchCalls[0].embeddings.length, 1, 'only the question is matched')
+  eq(s.calls.filter((c) => c.purpose === 'embed').length, 2)
+})
+
+Deno.test('a failing phrasing batch never costs the chat its lookup; the phrasings wait for the next chat', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'Can I pay now?')]
+  s.pending = [{ id: 'q-3', question_text: 'Shall I pay?' }]
+  a.embedFailsWhen = (texts) => texts.includes('Shall I pay?')
+  const r = await run(s, a)
+  eq(r.status, 200)
+  eq(s.embedded.length, 0)
+  eq(s.matchCalls.length, 1, 'the lookup still ran')
+  eq(s.calls.filter((c) => c.purpose === 'embed').map((c) => c.status).sort().join(','), 'error,ok')
+})
+
+Deno.test('no phrasings waiting: one embedding call, as before', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'Can I pay now?')]
+  await run(s, a)
+  eq(a.embeds.length, 1)
+})

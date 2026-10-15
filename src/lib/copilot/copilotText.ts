@@ -22,6 +22,29 @@ export function contactsUsed(text: string): ContactPurpose[] {
 
 const TOKEN_RE = /\{(amount|orderNo|name|upi|contact:(rm|kyc|support))\}/g;
 
+/**
+ * Hides personal numbers and handles in text an approver adds to the Playbook — the same rules the server applies
+ * before any AI call (copilot-playbook.ts maskPII), written without lookbehind so older Safari can parse it.
+ */
+export function maskPersonal(input: string | null | undefined): string {
+  let t = String(input ?? '');
+  t = t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]');
+  t = t.replace(/\b[A-Z0-9][A-Z0-9._-]{1,255}@[A-Z][A-Z0-9]{1,63}\b/gi, '[upi]');
+  t = t.replace(/\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, '[pan]');
+  t = t.replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[ifsc]');
+  t = t.replace(/\b\d{4}[\s-]\d{4}[\s-]\d{4}\b/g, '[aadhaar]');
+  t = t.replace(/(\+?91[\s-]?)?([6-9]\d{4}[\s-]?\d{5})(?!\d)/g, (m: string, cc: string | undefined, _n: string, off: number, s: string) =>
+    (!cc && off > 0 && /\d/.test(s[off - 1]) ? m : '[phone]'));
+  t = t.replace(/\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]');
+  t = t.replace(/\d{9,}/g, (m: string, off: number, s: string) => {
+    const before = s.slice(Math.max(0, off - 2), off);
+    const after = s.slice(off + m.length, off + m.length + 2);
+    if (/\d$/.test(before) || /\d[.,]$/.test(before) || /^\d/.test(after) || /^[.,]\d/.test(after)) return m;
+    return '[number]';
+  });
+  return t;
+}
+
 export function hasUnfilledToken(text: string): boolean {
   return unfilledTokens(text).length > 0;
 }

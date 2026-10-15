@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   contactAvailableNow, contactsUsed, cycleIndex, fillCopilotText, hasUnfilledToken, latestUnanswered, learnToast, modelLabel, PHONE_RE,
-  maskPersonal, statusLabel, unfilledTokens, type PanelMessage,
+  maskPersonal, statusLabel, teamLabel, unfilledTokens, type PanelMessage,
 } from './copilotText';
 
 describe('fillCopilotText', () => {
@@ -14,6 +14,11 @@ describe('fillCopilotText', () => {
   });
   it('lists the contact purposes a reply uses', () => {
     expect(contactsUsed('{contact:kyc} or {contact:support} or {contact:kyc}')).toEqual(['kyc', 'support']);
+    expect(contactsUsed('Call {contact:payments}')).toEqual(['payments']);
+    expect(unfilledTokens('Call {contact:payments}')).toEqual(['{contact:payments}']);
+    expect(teamLabel('rm')).toBe('Relationship team');
+    expect(teamLabel('payments', [{ code: 'payments', label: 'Payments team' }])).toBe('Payments team');
+    expect(teamLabel('legal')).toBe('legal');
   });
   it('lists placeholders still to fill, once each', () => {
     expect(unfilledTokens('Call {contact:support} or {contact:support} about {orderNo}')).toEqual(['{contact:support}', '{orderNo}']);
@@ -51,9 +56,12 @@ describe('statusLabel', () => {
 
 describe('learnToast', () => {
   it('says what happened to the Playbook', () => {
-    expect(learnToast({ action: 'created', title: 'TDS timing' })).toEqual({ title: 'Saved to Playbook', description: 'New entry “TDS timing”', tone: 'success' });
+    expect(learnToast({ action: 'created', title: 'TDS timing' })).toEqual({ title: 'Saved to Playbook', description: 'New question “TDS timing”', tone: 'success' });
+    expect(learnToast({ action: 'variant', title: 'How long?', situation: 'Verification call' }).description).toBe('New reply for “How long?” (Verification call).');
+    expect(learnToast({ action: 'widened', title: 'How long?', situation: 'KYC pending', phrasing: 'added' }).description)
+      .toBe('“How long?” now also applies here (KYC pending). The client’s wording was added as another way of asking.');
     expect(learnToast({ action: 'conflict', title: 'TDS timing' }).tone).toBe('warning');
-    expect(learnToast({ action: 'promoted', title: 'Paying bank' }).description).toBe('“Paying bank” is now approved');
+    expect(learnToast({ action: 'promoted', title: 'Paying bank' }).description).toBe('“Paying bank” is now approved.');
   });
 });
 

@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-// Copilot v2 auto-save, reject and undo (approvers only). See handler.ts.
+// Copilot v2 Playbook upkeep (approvers only): auto-save, reject, undo, phrasing indexing and rewrites. See handler.ts.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { requireAuth } from '../_shared/require-auth.ts'
 import { rateLimit } from '../_shared/cbt.ts'

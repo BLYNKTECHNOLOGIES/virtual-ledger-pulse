@@ -1,12 +1,17 @@
 // Copilot v2 (Playbook): pure helpers for the Terminal chat panel. No React, no network.
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 
-export type ContactPurpose = 'rm' | 'kyc' | 'support';
+/** A team's code (copilot_teams): kyc, rm, support, or one added later. */
+export type ContactPurpose = string;
 export interface PickedContact { name: string; phone: string; availableNow: boolean }
 export type PickedContacts = Partial<Record<ContactPurpose, PickedContact>>;
 
-const CONTACT_RE = /\{contact:(rm|kyc|support)\}/g;
-export const CONTACT_LABEL: Record<ContactPurpose, string> = { rm: 'RM', kyc: 'KYC', support: 'Support' };
+const CONTACT_RE = /\{contact:([a-z][a-z0-9_]{0,23})\}/g;
+const TEAM_FALLBACK: Record<string, string> = { kyc: 'KYC team', rm: 'Relationship team', support: 'Support' };
+/** The team's name for a {contact:<code>} placeholder (from copilot_teams when given). */
+export function teamLabel(code: string, teams?: Array<{ code: string; label: string }>): string {
+  return teams?.find((t) => t.code === code)?.label ?? TEAM_FALLBACK[code] ?? code;
+}
 
 /** Fills order values ({amount} {orderNo} {name} {upi}) and company contact numbers. Unknown tokens stay visible. */
 export function fillCopilotText(text: string, values: TemplateOrderValues | undefined, contacts: PickedContacts | undefined): string {
@@ -20,7 +25,7 @@ export function contactsUsed(text: string): ContactPurpose[] {
   return [...out];
 }
 
-const TOKEN_RE = /\{(amount|orderNo|name|upi|contact:(rm|kyc|support))\}/g;
+const TOKEN_RE = /\{(amount|orderNo|name|upi|contact:[a-z][a-z0-9_]{0,23})\}/g;
 
 /**
  * Hides personal numbers and handles in text an approver adds to the Playbook — the same rules the server applies
@@ -68,22 +73,31 @@ export function statusLabel(status: string | null | undefined, side?: 'BUY' | 'S
 
 export interface LearnResult {
   eventId?: string;
-  action?: 'created' | 'merged' | 'promoted' | 'updated' | 'conflict' | 'replaced';
+  action?: 'created' | 'merged' | 'promoted' | 'updated' | 'conflict' | 'replaced' | 'widened' | 'variant';
   entryId?: string;
+  topicId?: string | null;
   title?: string;
   stored?: string;
   reason?: string;
   judged?: boolean;
+  /** What happened to the client's wording: added to the question, already there, nearly identical, or none. */
+  phrasing?: 'added' | 'known' | 'similar' | 'none' | null;
+  /** The chat's situation when it was saved (label). */
+  situation?: string | null;
 }
 
 /** Toast wording after a reply was saved to the Playbook. */
 export function learnToast(r: LearnResult): { title: string; description: string; tone: 'success' | 'warning' } {
   const t = r.title ? `“${r.title}”` : 'this reply';
+  const sit = r.situation ? ` (${r.situation})` : '';
+  const wording = r.phrasing === 'added' ? ' The client’s wording was added as another way of asking.' : '';
   switch (r.action) {
-    case 'created': return { title: 'Saved to Playbook', description: `New entry ${t}`, tone: 'success' };
-    case 'merged': return { title: 'Saved to Playbook', description: `Added as another way of asking ${t}`, tone: 'success' };
-    case 'updated': return { title: 'Playbook updated', description: `New wording saved for ${t}`, tone: 'success' };
-    case 'promoted': return { title: 'Playbook confirmed', description: `${t} is now approved`, tone: 'success' };
+    case 'created': return { title: 'Saved to Playbook', description: `New question ${t}${sit}`, tone: 'success' };
+    case 'merged': return { title: 'Saved to Playbook', description: `Reply for ${t} used again.${wording}`, tone: 'success' };
+    case 'updated': return { title: 'Playbook updated', description: `New wording saved for ${t}.${wording}`, tone: 'success' };
+    case 'promoted': return { title: 'Playbook confirmed', description: `${t} is now approved.${wording}`, tone: 'success' };
+    case 'widened': return { title: 'Playbook updated', description: `${t} now also applies${sit ? ` here${sit}` : ' in this situation'}.${wording}`, tone: 'success' };
+    case 'variant': return { title: 'Saved to Playbook', description: `New reply for ${t}${sit}.`, tone: 'success' };
     case 'replaced': return { title: 'Saved to Playbook', description: `Your answer replaced the tentative ${t}`, tone: 'success' };
     case 'conflict': return { title: 'Saved — conflict to resolve', description: `Differs from the approved ${t}. Pick one in the Playbook inbox.`, tone: 'warning' };
     default: return { title: 'Saved to Playbook', description: t, tone: 'success' };
@@ -110,6 +124,7 @@ export const FLAG_LABEL: Record<string, string> = {
   outside_binance: 'Outside Binance',
   typed_number: 'Typed number',
   empty: 'Empty',
+  pay_before_verification: 'Asks to pay before verification',
 };
 
 export const REJECT_REASONS = ['Wrong information', 'Wrong tone', 'Too long', 'Against our policy', 'Not what the client asked'];

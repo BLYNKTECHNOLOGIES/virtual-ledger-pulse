@@ -1,7 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
 // Run: deno test supabase/functions/copilot-draft/handler.test.ts
 import { handleDraft } from './handler.ts'
-import { BLYNK, entry, eq, FakeAi, FakeStore, msg, OPERATOR, ok, SHUBHAM } from '../_shared/copilot-fakes.test-helpers.ts'
+import { BLYNK, entry, eq, FakeAi, FakeStore, id, msg, OPERATOR, ok, SHUBHAM } from '../_shared/copilot-fakes.test-helpers.ts'
+import type { ChatRow } from '../_shared/copilot-playbook.ts'
 
 const NOW = new Date('2026-10-15T15:00:00Z') // 20:30 IST
 const ORDER = '22944071217231917056'
@@ -73,7 +74,7 @@ Deno.test('the same chat state is drafted once: cached for both approvers; a fre
   eq(second.body.cached, true); eq(second.body.requestId, first.body.requestId)
   eq(a.chats.length, 2, 'no new drafting calls for the cached state')
   s.rows.push(msg('client', 'aur kitna time?'))
-  const key = `${s.rows[s.rows.length - 1].binance_message_id}|TRADING`
+  const key = `${s.rows[s.rows.length - 1].binance_message_id}|TRADING|sell.pay.ready`
   await s.insertRequest({ user_id: SHUBHAM, order_number: ORDER, mode: 'suggest', request_key: key, status: 'pending' })
   const third = await run(s, a)
   eq(third.status, 202); eq(third.body.status, 'pending')
@@ -96,7 +97,7 @@ Deno.test('redraft with an instruction always drafts (even with an approved matc
   s.matchRows = [entry({ similarity: 0.95 })]
   const r = await run(s, a, { mode: 'redraft', instruction: 'hindi' })
   eq(a.chats.length, 2)
-  ok(a.chats[0].system.includes('Hindi written in English letters'))
+  ok(a.chats[0].system.includes('Hinglish in English letters'))
   ok(a.chats[0].system.includes("Manager's instruction for this draft: Write it in Hindi"))
   eq(s.calls.filter((c) => c.purpose === 'redraft').length, 2)
   eq(r.body.playbook.length, 1, 'approved reply still listed')
@@ -149,12 +150,13 @@ Deno.test('phrasings added by the seed or on the Playbook page are embedded alon
   const r = await run(s, a)
   eq(r.status, 200)
   eq(a.embeds.length, 2, 'the question and the phrasings in two parallel calls')
-  eq(a.embeds[0], ['Can I pay now?'], 'the lookup embeds only the question')
+  eq(a.embeds[0], ['Can I pay now?', 'situation: Client can pay'], 'the lookup embeds the question and the chat before it')
   eq(a.embeds[1].length, 2)
   ok(!a.embeds[1].join(' ').includes('9876543210'), 'phrasings are masked before embedding')
   eq(s.embedded.map((e) => e.id).join(','), 'q-1,q-2')
   eq(s.embedded[0].v.length, 1536); eq(s.embedded[0].model, 'openai/text-embedding-3-small')
-  eq(s.matchCalls[0].embeddings.length, 1, 'only the question is matched')
+  eq(s.matchCalls[0].embeddings.length, 1, 'only the question is matched against phrasings')
+  eq(s.matchCalls[0].contextEmbedding?.length, 1536, 'the chat before goes to the example comparison')
   eq(s.calls.filter((c) => c.purpose === 'embed').length, 2)
 })
 
@@ -175,4 +177,159 @@ Deno.test('no phrasings waiting: one embedding call, as before', async () => {
   s.rows = [msg('client', 'Can I pay now?')]
   await run(s, a)
   eq(a.embeds.length, 1)
+})
+
+// ─── Situations (CP-4) ──────────────────────────────────────────────────────────────────────────────
+
+const sysRow = (type: string): ChatRow => ({ ...msg('us', JSON.stringify({ type }), 'system'), sender_is_self: false, is_system_message: true })
+const kycAsked = () => [sysRow('order_created_with_additional_kyc_maker_sell'), msg('us', 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no')]
+
+Deno.test('the situation is worked out from the chat, used for matching and shown with its evidence', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'Can I pay now?')]
+  const r = await run(s, a)
+  eq(r.status, 200)
+  eq(s.matchCalls[0].stage, 'sell.kyc.pending')
+  eq(r.body.context.situation, 'sell.kyc.pending'); eq(r.body.context.situation_label, 'KYC pending')
+  ok(String(r.body.context.situation_evidence).startsWith('KYC asked'), 'evidence for the approver')
+  const u = JSON.parse(a.chats[0].user)
+  eq(u.order.situation, 'KYC pending'); ok(String(u.order.situation_means).includes('Do not share payment details'))
+  const req = [...s.requests.values()][0]
+  ok(String(req.request_key).endsWith('|TRADING|sell.kyc.pending'), 'the situation is part of the cached chat state')
+  ok(Array.isArray(req.context.chat_tail) && req.context.chat_tail.length > 0, 'chat lines kept for the inbox')
+})
+
+Deno.test('per question, only the most specific reply that fits this situation is offered', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'Can I pay now?')]
+  const topic = id()
+  const anyReply = entry({ topic_id: topic, title: 'Can I pay now?', reply_en: 'Sir, please wait.', specificity: 0 })
+  const kycReply = entry({ topic_id: topic, title: 'Can I pay now?', scope: { stages: ['sell.kyc.pending'] }, reply_en: 'Sir, please share the requested KYC details first.', specificity: 3 })
+  const payReply = entry({ topic_id: topic, title: 'Can I pay now?', scope: { stages: ['sell.pay.ready'] }, reply_en: 'Yes, sir. Please pay to the details shared.', fits: false, specificity: -1 })
+  s.matchRows = [anyReply, kycReply, payReply]
+  const r = await run(s, a)
+  eq(r.body.playbook.map((p: any) => p.entryId), [kycReply.entry_id])
+  eq(r.body.playbook[0].situations, ['KYC pending']); eq(r.body.playbook[0].specific, true)
+  eq(r.body.skippedReason, 'approved_reply_found'); eq(a.chats.length, 0)
+})
+
+Deno.test('before verification a reply asking the client to pay is held back, whatever it was saved for', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('client', 'Can I pay now?')]
+  s.matchRows = [entry({ title: 'Can I pay now?', reply_en: 'Yes sir, please pay to {upi}.', reply_hi: 'Ji sir, {upi} par payment kar dijiye.' })]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.review')
+  eq(r.body.playbook.length, 0); eq(r.body.heldBack.length, 1)
+  ok(r.body.heldBack[0].reason.includes('not verified'), 'the approver sees why')
+  eq(a.chats.length, 2, 'drafted instead')
+})
+
+Deno.test('an AI draft asking the client to pay before verification is held back', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'Can I pay now?')]
+  a.replies['openai/gpt-6-astra'] = { ok: true, data: { reply: 'Yes sir, please pay to {upi}.', new_policy: false, note: '' }, usage: { input: 10, output: 10, reasoning: 0, estimated: false }, latencyMs: 5 }
+  const r = await run(s, a)
+  eq(r.body.drafts[0].blocked, true); eq(r.body.drafts[0].flags, ['pay_before_verification'])
+  eq(r.body.drafts[1].blocked, false)
+})
+
+Deno.test('a known question without a reply for this situation is named, and its other answers guide the AI', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'How much time?')]
+  const t = id()
+  s.matchRows = [entry({ topic_id: t, title: 'How long will it take?', scope: { sides: ['SELL'], stages: ['sell.pay.checking'] }, fits: false, specificity: -1, similarity: 0.92, reply_en: 'Thank you, sir. We are checking the payment.' })]
+  const r = await run(s, a)
+  eq(r.body.playbook.length, 0)
+  eq(r.body.otherSituations, [{ topicId: t, title: 'How long will it take?', similarity: 0.92, situations: ['Checking payment'] }])
+  const u = JSON.parse(a.chats[0].user)
+  eq(u.other_situation_answers[0].for_situations, ['Checking payment'])
+  eq(u.approved_answers.length, 0, 'answers for other situations are never passed as policy for this one')
+})
+
+Deno.test('an out-of-date Hindi copy is not offered: the English reply is shown with a note', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [
+    msg('client', 'tds kyu kata'), msg('us', 'Sure, sir.'), msg('client', 'bataiye na tds kyu kata'), msg('us', 'Please allow me a moment, sir.'),
+    msg('client', 'jaldi bataiye tds kyu kata'),
+  ]
+  s.matchRows = [entry({ title: 'Why 1% TDS is deducted', reply_en: 'Sir, 1% TDS is deducted under Section 194S.', reply_hi: 'Sir, purana jawab.', reply_hi_stale: true })]
+  const r = await run(s, a)
+  eq(r.body.context.language, 'hi')
+  eq(r.body.playbook[0].text, 'Sir, 1% TDS is deducted under Section 194S.')
+  eq(r.body.playbook[0].language, 'en'); eq(r.body.playbook[0].languageNote, 'hindi_outdated')
+})
+
+Deno.test("an approver's correction of the situation is used, and starts a fresh suggestion", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('client', 'How much time?')]
+  const first = await run(s, a)
+  eq(first.body.context.situation, 'sell.kyc.review')
+  s.mark = { code: 'sell.kyc.call', at: Date.now() + 60_000, by: SHUBHAM }
+  const second = await run(s, a)
+  eq(second.body.cached, false, 'a different situation is a different chat state')
+  eq(second.body.context.situation, 'sell.kyc.call'); eq(second.body.context.situation_detected, 'sell.kyc.review')
+  ok(second.body.context.situation_marked?.by === SHUBHAM)
+  eq(s.matchCalls[1].stage, 'sell.kyc.call')
+})
+
+Deno.test('an approved reply is always offered; a tentative one only when it is more specific', async () => {
+  const { bestFitting } = await import('./handler.ts')
+  const t = id()
+  const approvedAny = entry({ topic_id: t, specificity: 0 })
+  const tentativeStep = entry({ topic_id: t, status: 'tentative', scope: { stages: ['sell.kyc.review'] }, specificity: 3 })
+  eq(bestFitting([approvedAny, tentativeStep]).map((m) => m.entry_id), [approvedAny.entry_id, tentativeStep.entry_id])
+  const approvedStep = entry({ topic_id: t, scope: { stages: ['sell.kyc.review'] }, specificity: 3 })
+  const tentativeAny = entry({ topic_id: t, status: 'tentative', specificity: 0 })
+  eq(bestFitting([approvedStep, tentativeAny]).map((m) => m.entry_id), [approvedStep.entry_id])
+  eq(bestFitting([entry({ topic_id: t, fits: false, specificity: -1 })]), [])
+})
+
+Deno.test('replies used in a chat like this one come first; the chat before is kept on the request for learning', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('us', 'Sir one time verification is needed, our team will connect you soon.'), msg('client', 'How much time?')]
+  const t = id()
+  const other = entry({ topic_id: t, title: 'How long will it take?', scope: { stages: ['sell.kyc.call'] }, specificity: 3, context_similarity: 0.41, reply_en: 'Sir, the call is scheduled.' })
+  const like = entry({ topic_id: t, title: 'How long will it take?', scope: { stages: ['sell.kyc.call'] }, specificity: 3, context_similarity: 0.88, reply_en: 'Sir, our KYC team will call you shortly.' })
+  s.matchRows = [other, like]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.call')
+  eq(r.body.playbook.map((p: any) => p.entryId), [like.entry_id, other.entry_id], 'most similar chat first')
+  eq(r.body.playbook[0].contextSimilarity, 0.88)
+  const req = [...s.requests.values()][0]
+  ok(String(req.context.context_text).startsWith('situation: Verification call'), 'context text stored')
+  ok(Array.isArray(req.context.chat_before) && req.context.chat_before.some((l: any) => l.text.includes('verification')), 'chat before stored')
+  ok(req.context_embedding, 'context embedding stored')
+})
+
+Deno.test('drafts are told the company teams and to give a number only when asked', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'Which number will call me for KYC?')]
+  await run(s, a)
+  ok(a.chats[0].system.includes('Give a contact number only when the client asks for one'))
+  const u = JSON.parse(a.chats[0].user)
+  eq(u.teams.map((t: any) => t.placeholder), ['{contact:kyc}', '{contact:rm}', '{contact:support}'])
+})
+
+Deno.test("a Playbook reply gives any team's number by its code; a switched-off team gives none", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'who handles refunds?')]
+  s.teamRows = [...s.teamRows, { code: 'payments_team', label: 'Payments team', description: 'Refunds and payment problems' }]
+  s.contactRows = [{ purpose: 'payments_team', person_name: 'Neha', phone: '+91 98111 22233', available_now: true } as any]
+  s.matchRows = [entry({ title: 'Refunds', reply_en: 'Sir, our payments team will help you at {contact:payments_team}.', reply_hi: null })]
+  const r = await run(s, a)
+  eq(r.body.contactPurposes, ['payments_team'])
+  eq(r.body.contacts.payments_team?.name, 'Neha'); eq(r.body.missingContacts, [])
+  // switched off: no number is given (the reply keeps its placeholder, which the composer will not send unfilled)
+  s.teamRows = s.teamRows.filter((t) => t.code !== 'payments_team')
+  const again = await run(s, a)
+  eq(again.body.contacts, {}); eq(again.body.missingContacts, ['payments_team'])
+})
+
+Deno.test('a reply whose every copy is out of date is never offered; the AI drafts instead', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'When will I get the TDS certificate?')]
+  s.matchRows = [entry({ reply_en: 'Sir, the TDS certificate is shared every quarter.', reply_en_stale: true, reply_hi: null })]
+  const r = await run(s, a)
+  eq(r.body.playbook.length, 0); eq(r.body.related.length, 0)
+  eq(a.chats.length, 2, 'drafted, since nothing usable fits')
 })

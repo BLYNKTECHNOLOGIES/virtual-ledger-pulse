@@ -7,16 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  AlertTriangle, BookCheck, Check, ChevronDown, ChevronUp, CornerDownLeft, Languages, Loader2, Phone, RefreshCw,
+  AlertTriangle, BookCheck, Check, ChevronDown, ChevronUp, CornerDownLeft, History, Languages, Loader2, MapPin, Phone, RefreshCw,
   ShieldAlert, Sparkles, Wand2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   copilotDraft, copilotReject, CopilotError, type AiDraft, type DraftResponse, type PlaybookSuggestion,
 } from '@/hooks/useCopilotPlaybook';
+import { copilotAdmin, useCopilotSituations, useCopilotTeams, useUserNames, userLabel } from '@/hooks/useCopilotAdmin';
 import {
-  CONTACT_LABEL, FLAG_LABEL, REJECT_REASONS, contactsUsed, fillCopilotText, modelLabel, statusLabel, type ContactPurpose,
+  FLAG_LABEL, REJECT_REASONS, contactsUsed, fillCopilotText, modelLabel, statusLabel, teamLabel, type ContactPurpose,
 } from '@/lib/copilot/copilotText';
+import { markableSituations, STATUS_SITUATIONS } from '@/lib/copilot/situations';
 import type { TemplateOrderValues } from '@/lib/fill-template';
 
 export interface CopilotPick {
@@ -100,6 +102,46 @@ function RejectButton({ onReject, disabled }: { onReject: (reason: string) => vo
   );
 }
 
+/** What the client is waiting for, as the Copilot worked it out; an approver can change it for this chat. */
+function SituationMenu({ side, current, detected, detectedLabel, marked, disabled, onPick }: {
+  side: 'BUY' | 'SELL' | null; current: string | null; detected: string | null; detectedLabel: string | null; marked: boolean;
+  disabled?: boolean; onPick: (code: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data: rows } = useCopilotSituations();
+  const options = markableSituations(rows, side);
+  const label = rows?.find((r) => r.code === current)?.label ?? current ?? 'Unknown';
+  // Binance's own status (paid, completed, cancelled, appeal) decides these; nothing to change by hand.
+  if (!side || !options.length || (current && STATUS_SITUATIONS.has(current))) return <span className="font-medium text-foreground">{label}</span>;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" disabled={disabled} title="Change the situation for this chat"
+          className="inline-flex items-center gap-0.5 rounded px-1 font-medium text-foreground underline decoration-dotted underline-offset-2 hover:bg-secondary disabled:opacity-60">
+          {label}<ChevronDown className="h-2.5 w-2.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" side="top" className="w-64 p-1.5">
+        <p className="px-1.5 pb-1 text-[11px] font-medium text-foreground">What is the client waiting for?</p>
+        <div className="flex flex-col gap-0.5">
+          {options.map((o) => (
+            <button key={o.code} type="button" onClick={() => { setOpen(false); if (o.code !== current) onPick(o.code); }}
+              className={`rounded px-2 py-1.5 text-left text-xs hover:bg-secondary ${o.code === current ? 'bg-primary/10 text-primary' : 'text-foreground'}`}>
+              <span className="block font-medium">{o.label}</span>
+              <span className="block text-[10px] leading-snug text-muted-foreground">{o.description}</span>
+            </button>
+          ))}
+          {marked && detected && (
+            <button type="button" onClick={() => { setOpen(false); onPick(null); }} className="mt-0.5 rounded border-t border-border px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-secondary">
+              Back to what the chat shows: {detectedLabel ?? detected}
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function CopilotPanel({
   orderNumber, exchangeAccountId, tradeType, orderStatus, totalPrice, asset, payMethod, trigger, templateValues, onInsert, onApprove, onState,
 }: Props) {
@@ -116,6 +158,8 @@ export function CopilotPanel({
   const triggerKey = trigger?.key ?? null;
   const triggerRef = useRef(trigger);
   triggerRef.current = trigger;
+  const { data: teams } = useCopilotTeams();
+  const { data: users = [] } = useUserNames();
 
   const load = useCallback(async (mode: 'suggest' | 'redraft' | 'force', instruction: string | null = null) => {
     const mine = ++seq.current;
@@ -168,6 +212,21 @@ export function CopilotPanel({
 
   const toggleCollapsed = () => setCollapsed((c) => { writeCollapsed(!c); return !c; });
 
+  const changeSituation = async (code: string | null) => {
+    const side = data?.context?.side;
+    if (!side) return;
+    setBusy('situation');
+    try {
+      await copilotAdmin.setSituation(orderNumber, side, code, data?.context?.situation_detected ?? null);
+      toast.success(code ? 'Situation changed for this chat' : 'Back to the situation the chat shows', { description: 'Suggestions updated for it.' });
+      setBusy(null);
+      await load('suggest');
+    } catch (e) {
+      setBusy(null);
+      toast.error((e as Error).message || 'Could not change the situation');
+    }
+  };
+
   const reject = async (d: AiDraft, reason: string) => {
     if (!d.callId) return;
     setHidden((h) => new Set(h).add(d.callId!));
@@ -181,6 +240,7 @@ export function CopilotPanel({
   };
 
   const ctx = data?.context;
+  const markedBy = ctx?.situation_marked ? userLabel(users.find((u) => u.id === ctx.situation_marked?.by), ctx.situation_marked.by) : null;
   const risks = ctx?.risks ?? [];
   const redRisks = risks.filter((r) => r.level === 'red');
   const lang = ctx?.language === 'hi' ? 'Hindi' : 'English';
@@ -216,7 +276,7 @@ export function CopilotPanel({
         {used.map((p) => {
           const c = data.contacts?.[p];
           return c ? (
-            <span key={p} className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{CONTACT_LABEL[p]}: {c.name}{c.availableNow ? '' : ' (outside hours)'}</span>
+            <span key={p} className="inline-flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{teamLabel(p, teams)}: {c.name}{c.availableNow ? '' : ' (outside hours)'}</span>
           ) : null;
         })}
       </div>
@@ -234,8 +294,13 @@ export function CopilotPanel({
           <Chip tone={tone}>{label}</Chip>
           <span className="min-w-0 max-w-full truncate text-[11px] font-medium text-foreground" title={p.title}>{p.title}</span>
           <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground" title="How closely the client's question matches">{Math.round(p.similarity * 100)}%</span>
-          {p.machineTranslated && <span className="shrink-0 text-[10px] text-muted-foreground" title="This language version was translated automatically">· auto-translated</span>}
-          {p.missingLanguage && <span className="shrink-0 text-[10px] text-warning">· {lang} version not saved yet</span>}
+          {p.specific && !!p.situations?.length && <Chip tone="primary" title="This reply is for this situation">For: {p.situations.join(', ')}</Chip>}
+          {p.contextSimilarity != null && p.contextSimilarity >= 0.75 && (
+            <Chip title={`Used before in a chat like this one (${Math.round(p.contextSimilarity * 100)}% alike)`}><History className="h-2.5 w-2.5" />Like an earlier chat</Chip>
+          )}
+          {p.machineTranslated && <span className="shrink-0 text-[10px] text-muted-foreground" title="This language version was written by the AI">· AI-written copy</span>}
+          {p.languageNote?.endsWith('_outdated') && <span className="shrink-0 text-[10px] text-warning">· {lang} copy out of date — {p.language === 'en' ? 'English' : 'Hindi'} shown</span>}
+          {p.missingLanguage && !p.languageNote?.endsWith('_outdated') && <span className="shrink-0 text-[10px] text-warning">· {lang} version not saved yet</span>}
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {p.status === 'tentative' && !p.conflict && (
               <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground hover:text-trade-buy" onClick={() => onApprove(pick)} title="Approve without sending">
@@ -329,6 +394,17 @@ export function CopilotPanel({
                 ctx.kyc_status ? `KYC ${ctx.kyc_status.toLowerCase()}` : null].filter(Boolean).join(' · ')}
             </div>
           )}
+          {ctx?.situation && (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] leading-snug" aria-label="Situation">
+              <MapPin className="h-2.5 w-2.5 shrink-0 text-primary" />
+              <span className="text-muted-foreground">Waiting for:</span>
+              <SituationMenu side={ctx.side} current={ctx.situation ?? null} detected={ctx.situation_detected ?? null}
+                detectedLabel={ctx.situation_detected_label ?? null} marked={!!ctx.situation_marked} disabled={working} onPick={(c) => void changeSituation(c)} />
+              {ctx.situation_marked
+                ? <span className="text-muted-foreground">· set by {markedBy}{ctx.situation_detected_label ? ` (chat shows ${ctx.situation_detected_label})` : ''}</span>
+                : ctx.situation_evidence ? <span className="min-w-0 truncate text-muted-foreground" title={ctx.situation_evidence}>· {ctx.situation_evidence}</span> : null}
+            </div>
+          )}
           {data?.question?.text && (
             <div className="break-words text-[11px] leading-snug text-foreground">
               <span className="text-muted-foreground">Client: </span>“{data.question.text}”
@@ -353,7 +429,17 @@ export function CopilotPanel({
             </div>
           )}
 
+          {!loading && (data?.heldBack ?? []).map((h) => (
+            <div key={h.entryId} className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/5 px-2 py-1.5 text-[10px] leading-snug text-warning">
+              <ShieldAlert className="mt-px h-3 w-3 shrink-0" /><span>Held back “{h.title}”: {h.reason}</span>
+            </div>
+          ))}
           {!loading && playbook.map((p) => playbookCard(p))}
+          {!loading && (data?.otherSituations ?? []).map((o) => (
+            <div key={o.topicId} className="text-[10px] leading-snug text-muted-foreground">
+              “{o.title}” has replies only for {o.situations.join(', ')}, not for this situation{drafts.length ? ' — the drafts below are for this one. Sending one saves it for this situation' : ''}.
+            </div>
+          ))}
           {!loading && drafts.map((d) => draftCard(d))}
           {busy && (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Drafting…</div>
@@ -361,7 +447,7 @@ export function CopilotPanel({
 
           {!loading && missing.length > 0 && (
             <div className="text-[10px] text-warning">
-              No {missing.map((p) => CONTACT_LABEL[p]).join(' or ')} contact number saved. Add one in <Link to="/terminal/playbook?tab=settings" className="underline underline-offset-2">Playbook settings</Link>, or type it before sending.
+              No {missing.map((p) => teamLabel(p, teams)).join(' or ')} contact number saved. Add one in <Link to="/terminal/playbook?tab=settings" className="underline underline-offset-2">Playbook settings</Link>, or type it before sending.
             </div>
           )}
 

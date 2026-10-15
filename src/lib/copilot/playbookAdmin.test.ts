@@ -1,8 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cleanScope, expiryText, filterEntries, inr, isExpired, optionChecked, pct, rankModels, sameScope, scopeSummary, toggleScope,
+  cleanScope, clientLabel, copyChangeNote, expiryText, staleFlagForEdit, filterEntries, filterTopics, inr, isExpired, optionChecked, pct, rankModels, replyLabel, sameScope, scopeSummary, toggleScope,
   type EntryLike,
 } from './playbookAdmin';
+
+describe('reply labels', () => {
+  const names = (codes: string[]) => (codes.length ? codes.join(', ') : 'Any situation');
+  it('names the client a reply is limited to', () => {
+    expect(clientLabel(undefined)).toBeNull();
+    expect(clientLabel(['approved'])).toBe('KYC done');
+    expect(clientLabel(['new', 'linked'])).toBe('new or known client');
+    expect(clientLabel(['new', 'approved'])).toBe('new client or KYC done');
+  });
+  it('tells apart replies of one question that differ only by client or side', () => {
+    expect(replyLabel({ client_states: ['approved'] }, names)).toBe('Any situation · KYC done');
+    expect(replyLabel({ client_states: ['new', 'linked'] }, names)).toBe('Any situation · new or known client');
+    expect(replyLabel({ stages: ['sell.kyc'], client_states: ['new', 'linked'] }, names)).toBe('sell.kyc · new or known client');
+    expect(replyLabel({ sides: ['BUY'] }, names)).toBe('We buy · Any situation');
+    expect(replyLabel({ sides: ['SELL'], stages: ['sell.pay.ready'] }, names)).toBe('sell.pay.ready');
+    expect(replyLabel({ categories: ['small'] }, names)).toBe('Any situation · small orders');
+    expect(replyLabel(null, names)).toBe('Any situation');
+  });
+});
 
 describe('scope helpers', () => {
   it('summarises a scope in plain words', () => {
@@ -10,7 +29,8 @@ describe('scope helpers', () => {
     expect(scopeSummary(null)).toBe('All orders');
     expect(scopeSummary({ sides: ['SELL'], statuses: ['TRADING'] })).toBe('We sell · not paid yet');
     expect(scopeSummary({ statuses: ['CANCELLED', 'CANCELLED_BY_SYSTEM'], categories: ['small'] })).toBe('Cancelled · small orders');
-    expect(scopeSummary({ client_states: ['approved'], account_ids: ['a1'] }, (id) => (id === 'a1' ? 'Blynk' : id))).toBe('Approved client · Blynk');
+    expect(scopeSummary({ client_states: ['approved'], account_ids: ['a1'] }, (id) => (id === 'a1' ? 'Blynk' : id))).toBe('KYC done · Blynk');
+    expect(scopeSummary({ sides: ['SELL'], stages: ['sell.kyc.pending'], client_states: ['new'] }, undefined, (c) => (c[0] === 'sell.kyc.pending' ? 'KYC pending' : c.join()))).toBe('We sell · KYC pending · new client');
   });
   it('toggles options (several codes at once) and keeps the stored scope minimal', () => {
     let s = toggleScope({}, 'statuses', ['CANCELLED', 'CANCELLED_BY_SYSTEM']);
@@ -83,3 +103,41 @@ describe('stats helpers', () => {
     expect(ranked[2].costPerTaken).toBeNull();
   });
 });
+
+describe('questions list', () => {
+  const now = new Date('2026-10-16T12:00:00Z');
+  const e = (over: Partial<EntryLike>): EntryLike => ({
+    id: 'x', title: 'x', status: 'approved', reply_en: 'r', reply_hi: null, conflict_open: false, use_count: 0,
+    updated_at: '2026-10-01T00:00:00Z', last_used_at: null, expires_at: null, ...over,
+  });
+  const topics = [
+    { id: 't1', title: 'Can I pay now?', phrasings: 12, replies: [e({ id: 'a', status: 'tentative', expires_at: '2026-12-01T00:00:00Z' }), e({ id: 'b', use_count: 4, reply_hi_stale: true })] },
+    { id: 't2', title: 'Why TDS', phrasings: 9, replies: [e({ id: 'c', status: 'retired', reply_en: 'Section 194S' })] },
+    { id: 't3', title: 'How long', phrasings: 12, replies: [e({ id: 'd', conflict_open: true, use_count: 1 })] },
+  ];
+  it('shows a question when any reply matches; searches replies; sorts by total use', () => {
+    expect(filterTopics(topics, 'active', '', 'used', now).map((t) => t.id)).toEqual(['t1', 't3']);
+    expect(filterTopics(topics, 'retired', '', 'used', now).map((t) => t.id)).toEqual(['t2']);
+    expect(filterTopics(topics, 'conflicts', '', 'used', now).map((t) => t.id)).toEqual(['t3']);
+    expect(filterTopics(topics, 'outdated', '', 'used', now).map((t) => t.id)).toEqual(['t1']);
+    expect(filterTopics(topics, 'all', '194s', 'used', now).map((t) => t.id)).toEqual(['t2']);
+    expect(filterTopics(topics, 'all', '', 'title', now).map((t) => t.id)).toEqual(['t1', 't3', 't2']);
+  });
+});
+
+describe('copyChangeNote and staleFlagForEdit', () => {
+  const e = { reply_en: 'Sir, it is shared every quarter.', reply_hi: 'Sir, har quarter share hota hai.', reply_en_auto: false, reply_hi_auto: true }
+  it('an edit of one copy leaves the other out of date, also when the edited copy was written by the AI', () => {
+    expect(copyChangeNote(e, 'Sir, it is emailed every quarter.', e.reply_hi)).toBe('Saving marks the Hindi copy out of date until it is rewritten or kept.')
+    expect(staleFlagForEdit(e, 'Sir, it is emailed every quarter.', e.reply_hi)).toEqual({}) // the database flags a person's copy itself
+    expect(copyChangeNote(e, e.reply_en, 'Sir, har quarter email hota hai.')).toBe('Saving marks the English copy out of date until it is rewritten or kept.')
+    expect(staleFlagForEdit(e, e.reply_en, 'Sir, har quarter email hota hai.')).toEqual({ reply_en_stale: true })
+  })
+  it('nothing when both or neither change, a copy is missing, or the other is already out of date', () => {
+    expect(copyChangeNote(e, e.reply_en, e.reply_hi)).toBeNull()
+    expect(copyChangeNote(e, 'a', 'b')).toBeNull()
+    expect(copyChangeNote({ ...e, reply_hi: null }, 'x', '')).toBeNull()
+    expect(copyChangeNote({ ...e, reply_hi_stale: true }, 'x', e.reply_hi)).toBeNull()
+    expect(staleFlagForEdit({ ...e, reply_en_stale: true }, e.reply_en, 'x')).toEqual({})
+  })
+})

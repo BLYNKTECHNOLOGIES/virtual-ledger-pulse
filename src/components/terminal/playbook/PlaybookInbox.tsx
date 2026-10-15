@@ -9,10 +9,13 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { CheckCircle2, ChevronDown, ChevronUp, GitCompareArrows, Inbox, Loader2, Pencil, SkipForward, Trash2, ThumbsUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { isReviewShortcut } from '@/lib/cbt/reviewQueue';
-import { expiryText, isExpired, istShort, scopeSummary, type EntryStatus, type Scope } from '@/lib/copilot/playbookAdmin';
-import { copilotAdmin, useCopilotInbox, useRefreshCopilot, useUserNames, userLabel, type EntryRow, type InboxRow, type QuestionRow } from '@/hooks/useCopilotAdmin';
+import { expiryText, isExpired, istShort, replyLabel, scopeSummary, type EntryStatus, type Scope } from '@/lib/copilot/playbookAdmin';
+import { stagesSummary } from '@/lib/copilot/situations';
+import {
+  copilotAdmin, useCopilotInbox, useCopilotSituations, useRefreshCopilot, useUserNames, userLabel, type EntryRow, type InboxRow, type QuestionRow,
+} from '@/hooks/useCopilotAdmin';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
-import { Kbd, Pill, ReplyText, StatusPill } from './PlaybookBits';
+import { Kbd, MiniChat, Pill, ReplyText, StatusPill } from './PlaybookBits';
 
 type Busy = { id: string; what: string } | null;
 
@@ -39,16 +42,15 @@ function Questions({ rows, max = 4 }: { rows: QuestionRow[]; max?: number }) {
   );
 }
 
-function EntryBlock({ e, label, nameFor }: { e: EntryRow | undefined; label: string; nameFor: (id: string) => string }) {
-  if (!e) return <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">{label}: this entry no longer exists.</div>;
+function EntryBlock({ e, label, scopeText }: { e: EntryRow | undefined; label: string; scopeText: (e: EntryRow) => string }) {
+  if (!e) return <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">{label}: this reply no longer exists.</div>;
   return (
     <div className="min-w-0 space-y-1.5 rounded-md border border-border bg-background/40 p-3">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
         <StatusPill status={e.status as EntryStatus} />
-        <Pill>{scopeSummary(e.scope as Scope, nameFor)}</Pill>
+        <Pill tone="primary">{scopeText(e)}</Pill>
       </div>
-      <p className="text-xs font-medium text-foreground">{e.title}</p>
       <ReplyText text={e.reply_en} />
       {e.reply_hi && <div className="border-t border-border/60 pt-1.5"><span className="mr-1 text-[10px] text-muted-foreground">Hindi</span><ReplyText text={e.reply_hi} className="text-muted-foreground" /></div>}
       <p className="text-[10px] text-muted-foreground">
@@ -60,9 +62,12 @@ function EntryBlock({ e, label, nameFor }: { e: EntryRow | undefined; label: str
 
 export function PlaybookInbox({ onEditEntry, paused }: { onEditEntry: (entryId: string) => void; paused: boolean }) {
   const { data, isLoading, error } = useCopilotInbox(true);
+  const { data: situations } = useCopilotSituations();
   const refresh = useRefreshCopilot();
   const { data: users = [] } = useUserNames();
   const { nameFor } = useExchangeAccount();
+  const names = useCallback((codes: string[]) => stagesSummary(codes, situations), [situations]);
+  const scopeText = useCallback((e: EntryRow) => scopeSummary(e.scope as Scope, nameFor, names), [nameFor, names]);
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
   const [pos, setPos] = useState(0);
   const [busy, setBusy] = useState<Busy>(null);
@@ -174,9 +179,9 @@ export function PlaybookInbox({ onEditEntry, paused }: { onEditEntry: (entryId: 
       </div>
       {counts.seed > 0 && (
         <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-[11px] leading-relaxed text-foreground">
-          Tentative replies come from the one-time seed. They are offered only to you and Abhishek, marked “Tentative”, and
-          sending one in a chat approves it. Approve or reject them here when you have a moment; unused ones stop being
-          offered when their trial ends.
+          Tentative replies come from the starter set, one per situation (“When”), each with a typical chat. They are offered
+          only to you and Abhishek, marked “Tentative”, and sending one in a chat approves it. Approve or reject them here
+          when you have a moment; unused ones stop being offered when their trial ends.
         </p>
       )}
 
@@ -186,7 +191,11 @@ export function PlaybookInbox({ onEditEntry, paused }: { onEditEntry: (entryId: 
           const e = entry(item.entry_id);
           const other = entry(item.other_entry_id);
           const working = busy?.id === item.id;
-          const title = item.kind === 'conflict' ? (other?.title ?? e?.title ?? 'Conflict') : (e?.title ?? 'Removed entry');
+          const topicTitle = (x: EntryRow | undefined) => (x ? data?.topics.get(x.topic_id)?.title ?? x.title : undefined);
+          const title = item.kind === 'conflict' ? (topicTitle(other) ?? topicTitle(e) ?? 'Conflict') : (topicTitle(e) ?? 'Removed reply');
+          const example = e ? data?.examples.get(e.id)?.[0] : undefined;
+          const siblings = e ? (data?.siblings.get(e.topic_id) ?? []).filter((x) => x.id !== e.id) : [];
+          const chat = Array.isArray((item.context as { chat?: unknown } | null)?.chat) ? ((item.context as { chat: Array<{ from: string; text: string; at?: string }> }).chat) : [];
           return (
             <li key={item.id}>
               <div className={`rounded-lg border bg-card transition-colors ${open ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border hover:border-primary/30'}`}>
@@ -196,29 +205,45 @@ export function PlaybookInbox({ onEditEntry, paused }: { onEditEntry: (entryId: 
                     : item.kind === 'seed' ? <StatusPill status={(e?.status ?? 'tentative') as EntryStatus} expired={e ? isExpired(e) : false} />
                     : <Pill tone="primary">Operator question</Pill>}
                   <span className="min-w-0 max-w-full flex-1 truncate text-sm font-medium text-foreground">{title}</span>
-                  {item.kind === 'seed' && e && <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">{scopeSummary(e.scope as Scope, nameFor)}</span>}
+                  {item.kind === 'seed' && e && <span className="max-w-full shrink-0 truncate text-[11px] text-muted-foreground">When: {replyLabel(e.scope as Scope, names)}</span>}
                   {open ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
                 </button>
 
                 {open && item.kind === 'seed' && (
                   <div className="space-y-3 border-t border-border px-3 pb-3 pt-2.5">
-                    {!e ? <p className="text-xs text-muted-foreground">This entry was removed. Reject to close the item.</p> : (
+                    {!e ? <p className="text-xs text-muted-foreground">This reply was removed. Reject to close the item.</p> : (
                       <>
                         <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <Pill>{scopeSummary(e.scope as Scope, nameFor)}</Pill>
+                          <span className="font-medium text-foreground">When:</span>
+                          <Pill tone="primary">{scopeText(e)}</Pill>
                           {e.status === 'tentative' && <span>{expiryText(e.expires_at)}</span>}
                           {e.risk === 'red' && <Pill tone="red">Risk topic</Pill>}
                           {e.status !== 'tentative' && <span>Already {e.status} — approving or rejecting only closes this item.</span>}
                         </div>
+                        {example && <MiniChat lines={example.chat} label={example.source === 'seed' ? 'A typical chat for this reply' : 'The chat it was used in'} />}
                         <div className="space-y-1">
-                          <p className="text-[11px] font-medium text-muted-foreground">Client asks</p>
-                          <Questions rows={data?.questions.get(e.id) ?? []} />
+                          <p className="text-[11px] font-medium text-muted-foreground">Ways clients ask this question</p>
+                          <Questions rows={data?.questions.get(e.topic_id) ?? []} />
                         </div>
                         <div className="grid gap-2 md:grid-cols-2">
                           <div className="rounded-md border border-border bg-background/40 p-2.5"><p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">English</p><ReplyText text={e.reply_en} /></div>
                           <div className="rounded-md border border-border bg-background/40 p-2.5"><p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Hindi (English letters)</p><ReplyText text={e.reply_hi} /></div>
                         </div>
                         {e.internal_note && <p className="text-[11px] text-muted-foreground">Note: {e.internal_note}</p>}
+                        {siblings.length > 0 && (
+                          <div className="space-y-1 rounded-md border border-dashed border-border p-2.5">
+                            <p className="text-[11px] font-medium text-muted-foreground">The same question in other situations</p>
+                            <ul className="space-y-1">
+                              {siblings.map((x) => (
+                                <li key={x.id} className="text-[11px] leading-snug">
+                                  <span className="font-medium text-foreground">{replyLabel(x.scope as Scope, names)}</span>
+                                  <span className="text-muted-foreground"> ({x.status}) — </span>
+                                  <span className="text-muted-foreground">{x.reply_en ?? x.reply_hi}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </>
                     )}
                     <div className="flex flex-wrap items-center gap-2">
@@ -244,11 +269,12 @@ export function PlaybookInbox({ onEditEntry, paused }: { onEditEntry: (entryId: 
                       {item.question_text ? <>Client asked: “{item.question_text}”</> : 'Two approved answers disagree.'}
                       <span className="text-muted-foreground"> · saved {istShort(item.created_at)} by {userLabel(userById.get(item.created_by ?? ''), item.created_by)}{item.order_number ? ` · order ${item.order_number}` : ''}</span>
                     </p>
+                    {chat.length > 0 && <MiniChat lines={chat} label="The chat" />}
                     <div className="grid gap-2 md:grid-cols-2">
-                      <EntryBlock e={other} label="Existing answer" nameFor={nameFor} />
-                      <EntryBlock e={e} label="New answer" nameFor={nameFor} />
+                      <EntryBlock e={other} label="Existing answer" scopeText={scopeText} />
+                      <EntryBlock e={e} label="New answer" scopeText={scopeText} />
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Keep one answer per question. Keep both only if they are for different situations — then narrow their scope on the Entries tab.</p>
+                    <p className="text-[11px] text-muted-foreground">Keep one answer per situation. Keep both only if the chats differ in a way that changes the answer — then set each one's situation on the Questions tab.</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button size="sm" className="h-8" loading={working && busy?.what === 'new'} disabled={!!busy} onClick={() => void resolve(item, 'new')}>
                         <ThumbsUp className="h-3.5 w-3.5" />Keep new<Kbd>N</Kbd>

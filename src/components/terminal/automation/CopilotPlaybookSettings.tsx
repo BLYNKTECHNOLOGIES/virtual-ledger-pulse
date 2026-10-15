@@ -6,7 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { usersDirectory } from '@/lib/usersDirectory';
 import { useCopilotAccess } from '@/hooks/useCopilotPlaybook';
-import { contactAvailableNow, PHONE_RE } from '@/lib/copilot/copilotText';
+import { copilotAdmin, teamCode, useCopilotTeams, type TeamRow } from '@/hooks/useCopilotAdmin';
+import { contactAvailableNow, PHONE_RE, teamLabel } from '@/lib/copilot/copilotText';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { BookOpen, Loader2, Phone, Plus, Pencil, Trash2, Users, Wallet, Languages, Cpu, ShieldCheck, ChevronDown, ArrowRight } from 'lucide-react';
+import { BookOpen, Loader2, Phone, Plus, Pencil, Trash2, Users, Wallet, Languages, Cpu, ShieldCheck, ChevronDown, ArrowRight, Building2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -40,7 +41,8 @@ interface Config {
 }
 interface Contact {
   id: string;
-  purpose: 'rm' | 'kyc' | 'support' | 'other';
+  /** The team this number belongs to (copilot_teams.code). */
+  purpose: string;
   person_name: string;
   phone: string;
   days: number[];
@@ -52,12 +54,6 @@ interface Contact {
 }
 interface DirUser { id: string; username: string | null; first_name: string | null; last_name: string | null }
 
-const PURPOSES: Array<{ value: Contact['purpose']; label: string }> = [
-  { value: 'kyc', label: 'KYC' },
-  { value: 'rm', label: 'Relationship manager' },
-  { value: 'support', label: 'Support' },
-  { value: 'other', label: 'Other' },
-];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MODEL_RE = /^[a-z0-9-]+\/[a-z0-9.-]+$/;
 const userLabel = (u: DirUser) => [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id.slice(0, 8);
@@ -111,22 +107,27 @@ function Section({ icon, title, description, children }: { icon: React.ReactNode
   );
 }
 
-const emptyContact = (): Omit<Contact, 'id'> => ({ purpose: 'kyc', person_name: '', phone: '', days: [1, 2, 3, 4, 5, 6, 7], available_from: null, available_to: null, priority: 100, is_active: true, notes: null });
+const emptyContact = (purpose: string): Omit<Contact, 'id'> => ({ purpose, person_name: '', phone: '', days: [1, 2, 3, 4, 5, 6, 7], available_from: null, available_to: null, priority: 100, is_active: true, notes: null });
 
-function ContactForm({ initial, onCancel, onSave, saving }: { initial: Omit<Contact, 'id'> & { id?: string }; onCancel: () => void; onSave: (c: Omit<Contact, 'id'> & { id?: string }) => void; saving: boolean }) {
+function ContactForm({ initial, teams, onCancel, onSave, saving }: { initial: Omit<Contact, 'id'> & { id?: string }; teams: TeamRow[]; onCancel: () => void; onSave: (c: Omit<Contact, 'id'> & { id?: string }) => void; saving: boolean }) {
   const [c, setC] = useState(initial);
   const [anyTime, setAnyTime] = useState(!initial.available_from);
   const phoneOk = PHONE_RE.test(c.phone.trim());
-  const valid = c.person_name.trim().length > 0 && phoneOk && c.days.length > 0 && (anyTime || (!!c.available_from && !!c.available_to));
+  // Active teams, plus the number's own team if it was switched off since (so the form still shows it).
+  const choices = teams.filter((t) => t.active || t.code === initial.purpose);
+  const valid = c.person_name.trim().length > 0 && phoneOk && c.days.length > 0 && (anyTime || (!!c.available_from && !!c.available_to))
+    && teams.some((t) => t.code === c.purpose);
   const toggleDay = (d: number) => setC((x) => ({ ...x, days: x.days.includes(d) ? x.days.filter((y) => y !== d) : [...x.days, d].sort() }));
   return (
     <div className="space-y-3 rounded-md border border-border bg-secondary/30 p-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1">
-          <Label className="text-xs">Purpose</Label>
-          <Select value={c.purpose} onValueChange={(v) => setC((x) => ({ ...x, purpose: v as Contact['purpose'] }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>{PURPOSES.map((p) => <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>)}</SelectContent>
+          <Label className="text-xs">Team</Label>
+          <Select value={c.purpose} onValueChange={(v) => setC((x) => ({ ...x, purpose: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose a team" /></SelectTrigger>
+            <SelectContent>
+              {choices.map((t) => <SelectItem key={t.code} value={t.code} className="text-xs">{t.label}{t.active ? '' : ' (switched off)'}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
@@ -188,6 +189,44 @@ function ContactForm({ initial, onCancel, onSave, saving }: { initial: Omit<Cont
   );
 }
 
+/** Add or rename a team. The code (used in {contact:<code>}) is set once, from the first name, and never changes. */
+function TeamForm({ initial, existing, saving, onCancel, onSave }: {
+  initial: TeamRow | null; existing: TeamRow[]; saving: boolean; onCancel: () => void;
+  onSave: (t: { code: string; label: string; description: string }) => void;
+}) {
+  const [label, setLabel] = useState(initial?.label ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const code = initial?.code ?? teamCode(label);
+  const clash = !initial && existing.some((t) => t.code === code);
+  const sameName = existing.some((t) => t.code !== initial?.code && t.label.trim().toLowerCase() === label.trim().toLowerCase());
+  const valid = label.trim().length > 0 && !clash && !sameName && (!initial || label.trim() !== initial.label || description.trim() !== initial.description);
+  return (
+    <div className="space-y-3 rounded-md border border-border bg-secondary/30 p-3">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+        <div className="space-y-1">
+          <Label htmlFor="ct-label" className="text-xs">Team name</Label>
+          <Input id="ct-label" value={label} onChange={(e) => setLabel(e.target.value.slice(0, 40))} className="h-8 text-xs" placeholder="e.g. Payments team" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="ct-desc" className="text-xs">What they handle <span className="text-muted-foreground">(the AI reads this)</span></Label>
+          <Input id="ct-desc" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 300))} className="h-8 text-xs" placeholder="e.g. Refunds and payment problems" />
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        In replies: <span className="font-mono text-foreground">{`{contact:${code}}`}</span>{initial ? '' : ' — set now and kept, so saved replies keep working when you rename the team.'}
+        {clash && <span className="text-destructive"> A team with this code already exists.</span>}
+        {sameName && <span className="text-destructive"> Another team has this name.</span>}
+      </p>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel}>Cancel</Button>
+        <Button size="sm" className="h-8 text-xs" disabled={!valid || saving} onClick={() => onSave({ code, label: label.trim(), description: description.trim() })}>
+          {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}{initial ? 'Save team' : 'Add team'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function CopilotPlaybookSettings() {
   const qc = useQueryClient();
   const { data: access, isLoading: accessLoading } = useCopilotAccess();
@@ -195,6 +234,7 @@ export function CopilotPlaybookSettings() {
   const { data: cfg, isLoading } = useConfig();
   const { data: contacts = [] } = useContacts();
   const { data: users = [] } = useDirectory();
+  const { data: teams = [] } = useCopilotTeams(isApprover);
 
   const [budget, setBudget] = useState('');
   const [style, setStyle] = useState('');
@@ -204,6 +244,7 @@ export function CopilotPlaybookSettings() {
   const [editing, setEditing] = useState<(Omit<Contact, 'id'> & { id?: string }) | null>(null);
   const [deleting, setDeleting] = useState<Contact | null>(null);
   const [approverOpen, setApproverOpen] = useState(false);
+  const [teamEditing, setTeamEditing] = useState<TeamRow | 'new' | null>(null);
 
   useEffect(() => {
     if (!cfg) return;
@@ -233,6 +274,19 @@ export function CopilotPlaybookSettings() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['copilot-contacts'] }); setEditing(null); toast.success('Contact saved'); },
     onError: (e: Error) => toast.error(e?.message || 'Could not save the contact'),
   });
+  const saveTeam = useMutation({
+    mutationFn: async ({ t, isNew }: { t: { code: string; label: string; description: string }; isNew: boolean }) => {
+      if (isNew) await copilotAdmin.addTeam(t);
+      else await copilotAdmin.updateTeam(t.code, { label: t.label, description: t.description });
+    },
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['copilot-teams'] }); setTeamEditing(null); toast.success(v.isNew ? 'Team added' : 'Team saved'); },
+    onError: (e: Error) => toast.error(e?.message || 'Could not save the team'),
+  });
+  const toggleTeam = useMutation({
+    mutationFn: async ({ code, active }: { code: string; active: boolean }) => copilotAdmin.updateTeam(code, { active }),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['copilot-teams'] }); toast.success(v.active ? 'Team switched on' : 'Team switched off', { description: v.active ? undefined : 'Replies stop giving its number; its contacts are kept.' }); },
+    onError: (e: Error) => toast.error(e?.message || 'Could not change the team'),
+  });
   const deleteContact = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('copilot_contacts').delete().eq('id', id);
@@ -243,6 +297,11 @@ export function CopilotPlaybookSettings() {
   });
 
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
+  // Numbers grouped the way the teams are listed, then by their order.
+  const sortedContacts = useMemo(() => {
+    const rank = new Map(teams.map((t, i) => [t.code, t.sort * 1000 + i]));
+    return [...contacts].sort((a, b) => (rank.get(a.purpose) ?? 1e9) - (rank.get(b.purpose) ?? 1e9) || a.priority - b.priority || a.person_name.localeCompare(b.person_name));
+  }, [contacts, teams]);
   const onPlaybookPage = useLocation().pathname.startsWith('/terminal/playbook');
   const now = new Date();
 
@@ -300,7 +359,7 @@ export function CopilotPlaybookSettings() {
         <p className="text-[11px] text-muted-foreground">Operators: off. Approved replies for operators (no AI) are a separate step after about 50 approved replies.</p>
         {!onPlaybookPage && (
           <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-            <Link to="/terminal/playbook">Open the Playbook — inbox, entries and stats<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Link>
+            <Link to="/terminal/playbook">Open the Playbook — inbox, questions and stats<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Link>
           </Button>
         )}
       </Section>
@@ -330,14 +389,45 @@ export function CopilotPlaybookSettings() {
         </div>
       </Section>
 
+      <Section icon={<Building2 className="h-4 w-4 text-primary" />} title="Teams"
+        description="Who a reply can send the client to. Replies name a team, never a person: {contact:kyc} becomes the number of the KYC team member available now. A new client still in verification gets the KYC team; once KYC is done, the Relationship team. A number is given only when the client asks for one.">
+        <div className="space-y-1.5">
+          {teams.map((t) => (
+            teamEditing !== 'new' && teamEditing?.code === t.code ? (
+              <TeamForm key={t.code} initial={t} existing={teams} saving={saveTeam.isPending} onCancel={() => setTeamEditing(null)} onSave={(x) => saveTeam.mutate({ t: x, isNew: false })} />
+            ) : (
+              <div key={t.code} className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border px-3 py-2 ${t.active ? 'bg-secondary/20' : 'bg-transparent opacity-70'}`}>
+                <span className="min-w-[7rem] text-xs font-medium text-foreground">{t.label}</span>
+                <span className="font-mono text-[11px] text-muted-foreground">{`{contact:${t.code}}`}</span>
+                <span className="min-w-0 flex-1 basis-48 text-[11px] text-muted-foreground">{t.description || 'No description'}</span>
+                {(() => {
+                  const n = contacts.filter((c) => c.purpose === t.code && c.is_active).length;
+                  return n ? <span className="text-[11px] tabular-nums text-muted-foreground">{n} {n === 1 ? 'number' : 'numbers'}</span>
+                    : <span className={`text-[11px] ${t.active ? 'text-warning' : 'text-muted-foreground'}`}>No number yet</span>;
+                })()}
+                <span className="ml-auto flex items-center gap-1">
+                  <Switch checked={t.active} disabled={toggleTeam.isPending} onCheckedChange={(v) => toggleTeam.mutate({ code: t.code, active: v })} aria-label={`${t.active ? 'Switch off' : 'Switch on'} ${t.label}`} />
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setTeamEditing(t)} aria-label={`Rename ${t.label}`}><Pencil className="h-3.5 w-3.5" /></Button>
+                </span>
+              </div>
+            )
+          ))}
+        </div>
+        {teamEditing === 'new' ? (
+          <TeamForm initial={null} existing={teams} saving={saveTeam.isPending} onCancel={() => setTeamEditing(null)} onSave={(x) => saveTeam.mutate({ t: x, isNew: true })} />
+        ) : (
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setTeamEditing('new')}><Plus className="mr-1 h-3.5 w-3.5" />Add team</Button>
+        )}
+      </Section>
+
       <Section icon={<Phone className="h-4 w-4 text-primary" />} title="Company contact numbers"
-        description="The Copilot never types a phone number. When a reply needs a KYC, RM or support contact, it uses one of these — the person available now (IST) first, then by order.">
+        description="The Copilot never types a phone number. When a reply gives a team's number, it uses one of these — the person available now (IST) first, then by order.">
         {contacts.length === 0 && !editing && <p className="text-xs text-muted-foreground">No contact numbers yet. Replies that need one will show a reminder.</p>}
         <div className="space-y-1.5">
-          {contacts.map((c) => (
+          {sortedContacts.map((c) => (
             editing?.id === c.id ? null : (
               <div key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-secondary/20 px-3 py-2">
-                <span className="w-24 shrink-0 text-[11px] font-medium text-muted-foreground">{PURPOSES.find((p) => p.value === c.purpose)?.label}</span>
+                <span className="w-28 shrink-0 truncate text-[11px] font-medium text-muted-foreground">{teamLabel(c.purpose, teams)}</span>
                 <span className="min-w-0 truncate text-xs font-medium text-foreground">{c.person_name}</span>
                 <span className="text-xs tabular-nums text-foreground">{c.phone}</span>
                 <span className="text-[11px] text-muted-foreground">
@@ -355,9 +445,10 @@ export function CopilotPlaybookSettings() {
           ))}
         </div>
         {editing ? (
-          <ContactForm initial={editing} saving={saveContact.isPending} onCancel={() => setEditing(null)} onSave={(c) => saveContact.mutate(c)} />
+          <ContactForm initial={editing} teams={teams} saving={saveContact.isPending} onCancel={() => setEditing(null)} onSave={(c) => saveContact.mutate(c)} />
         ) : (
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setEditing(emptyContact())}><Plus className="mr-1 h-3.5 w-3.5" />Add contact</Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" disabled={!teams.some((t) => t.active)}
+            onClick={() => setEditing(emptyContact(teams.find((t) => t.active)?.code ?? 'kyc'))}><Plus className="mr-1 h-3.5 w-3.5" />Add contact</Button>
         )}
       </Section>
 

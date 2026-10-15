@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 // Copilot v2 (Playbook): pure helpers shared by copilot-draft and copilot-learn.
 // No network, no database, no Deno.env here — everything is unit-tested in copilot-playbook.test.ts.
+import { beforeVerification, invitesPayment } from './copilot-situation.ts'
 
 // ─── Chat transcript ────────────────────────────────────────────────────────────────────────────────
 
@@ -16,7 +17,8 @@ export interface ChatRow {
   message_text?: string | null;
   binance_create_time?: number | string | null;
 }
-export interface Msg { id: string; at: number; who: Who; text: string; kind: string }
+/** event: Binance's event type for system messages (e.g. maker_verified_additional_kyc_maker_sell), 'kyc_card' for its KYC card. */
+export interface Msg { id: string; at: number; who: Who; text: string; kind: string; event?: string }
 
 const SYSTEM_EVENTS: Record<string, string> = {
   order_created_with_additional_kyc_maker_sell: 'Order created. Binance asked the client for additional KYC.',
@@ -72,7 +74,12 @@ export function buildTranscript(rows: ChatRow[], hint?: { id?: string | null; te
     const at = Number(r.binance_create_time ?? 0)
     const id = String(r.binance_message_id || r.dedupe_key || r.id || `${at}`)
     if (type === 'error') continue
-    if (type === 'system' || r.is_system_message) { out.push({ id, at, who: 'system', kind: 'system', text: describeSystem(raw) }); continue }
+    if (type === 'system' || r.is_system_message) {
+      const j = parseJson(raw.trim())
+      const event = typeof j?.type === 'string' ? j.type : undefined
+      out.push({ id, at, who: 'system', kind: 'system', text: describeSystem(raw), ...(event ? { event } : {}) })
+      continue
+    }
     if (type === 'auto_reply') {
       const key = raw.trim().toLowerCase()
       const prev = seenAuto.get(key)
@@ -84,7 +91,8 @@ export function buildTranscript(rows: ChatRow[], hint?: { id?: string | null; te
     const who: Who = r.sender_is_self ? (type === 'card' ? 'auto' : 'us') : 'client'
     const text = type === 'image' ? '[image]' : type === 'file' ? '[file]' : type === 'card' ? describeCard(raw) : raw.trim()
     if (!text) continue
-    out.push({ id, at, who, kind: type, text })
+    const kycCard = type === 'card' && text.startsWith('[Binance KYC request card')
+    out.push({ id, at, who, kind: type, text, ...(kycCard ? { event: 'kyc_card' } : {}) })
   }
   const h = hint && typeof hint.text === 'string' ? hint.text.trim() : ''
   if (h) {
@@ -93,6 +101,32 @@ export function buildTranscript(rows: ChatRow[], hint?: { id?: string | null; te
     if (!known) out.push({ id: hid || `hint-${out.length}`, at: (out[out.length - 1]?.at ?? 0) + 1, who: 'client', kind: 'text', text: h })
   }
   return out
+}
+
+/** Last few chat lines (masked) kept with a suggestion, so an inbox conflict can be judged with the chat in front of you. */
+export function chatTail(t: Msg[], n = 6): Array<{ from: string; at: string; text: string }> {
+  return t.filter((m) => m.who !== 'system').slice(-n).map((m) => ({
+    from: m.who === 'client' ? 'client' : 'us', at: istLabel(m.at), text: maskPII(m.text).slice(0, 220),
+  }))
+}
+
+/**
+ * The chat before the client's current turn (up to and including our last human message): the last few lines,
+ * masked, with Binance's events. Its embedding is how a reply's example chats are compared with this chat.
+ */
+export function chatBefore(t: Msg[], n = 6): Array<{ from: string; text: string }> {
+  let lastUs = -1
+  t.forEach((m, i) => { if (m.who === 'us') lastUs = i })
+  const before = lastUs >= 0 ? t.slice(0, lastUs + 1) : t.filter((m) => m.who === 'system')
+  return before.filter((m) => m.who !== 'auto' || m.kind === 'auto_reply').slice(-n).map((m) => ({
+    from: m.who === 'client' ? 'client' : m.who === 'system' ? 'system' : 'us', text: maskPII(m.text).slice(0, 160),
+  }))
+}
+
+/** The text embedded for a chat: its situation and the lines before the client's question. */
+export function contextText(lines: Array<{ from: string; text: string }>, situationLabel: string | null | undefined): string {
+  const head = situationLabel ? `situation: ${situationLabel}` : ''
+  return [head, ...lines.map((l) => `${l.from}: ${l.text}`)].filter(Boolean).join('\n').slice(0, 1500)
 }
 
 /** Client messages after our last human message (what still needs an answer). */
@@ -331,19 +365,28 @@ export function detectRisks(t: Msg[], opts: { hasComplaint?: boolean; status?: s
 
 // ─── Draft safety checks ────────────────────────────────────────────────────────────────────────────
 
-export const PLACEHOLDERS = ['{amount}', '{orderNo}', '{name}', '{upi}', '{contact:rm}', '{contact:kyc}', '{contact:support}']
-export type ContactPurpose = 'rm' | 'kyc' | 'support'
+export const PLACEHOLDERS = ['{amount}', '{orderNo}', '{name}', '{upi}']
+/** A team's code from copilot_teams (kyc, rm, support, or one added later). */
+export type ContactPurpose = string
+const CONTACT_TOKEN = /\{contact:([a-z][a-z0-9_]{0,23})\}/g
+/** Team codes used in a text, e.g. ['kyc'] for "...reach them at {contact:kyc}". */
+export const contactCodes = (text: string): string[] => [...new Set([...String(text ?? '').matchAll(CONTACT_TOKEN)].map((m) => m[1]))]
 
 export interface Guarded { text: string; flags: string[]; blocked: boolean; reasons: string[]; contacts: ContactPurpose[] }
 
-export function guardDraft(input: string): Guarded {
+// Hinglish release promises ("USDT abhi release kar denge") unless tied to the payment check ("confirm hote hi").
+const HI_RELEASE = /\breleas\w*\s+(kar|kr|ho)\s*(denge|dunga|dungi|diya|dijiye|jayega|jaega|jayegi|raha|rahe|rhe|de|do|rahi)\b/i
+const HI_CONDITION = /\b(confirm|verify|verif\w*|check|receive|credit|reflect)\w*\s*(hote hi|hone ke baad|hone par|hone pe|karke|kar ke|ke baad)\b|\b(milte hi|aate hi|aane ke baad|milne ke baad|milne par|aane par)\b/i
+
+/** Safety checks for an AI draft. With the order's side and situation it also holds back a request to pay before KYC is done. */
+export function guardDraft(input: string, opts: { side?: Side | null; situation?: string | null } = {}): Guarded {
   let text = String(input ?? '')
     .replace(/\p{Extended_Pictographic}|️|‍/gu, '')
     .replace(/[ \t]+/g, ' ')
     .replace(/ *\n */g, '\n')
     .trim()
   // Normalise placeholder spelling the models sometimes vary.
-  text = text.replace(/\{\s*contact\s*[:_-]\s*(rm|kyc|support)\s*\}/gi, (_w, p) => `{contact:${String(p).toLowerCase()}}`)
+  text = text.replace(/\{\s*contact\s*[:_-]\s*([a-z][a-z0-9_]{0,23})\s*\}/gi, (_w, p) => `{contact:${String(p).toLowerCase()}}`)
     .replace(/\{\s*(amount|upi|name)\s*\}/gi, (_w, p) => `{${String(p).toLowerCase()}}`)
     .replace(/\{\s*order\s*_?no\s*\}/gi, '{orderNo}')
   const flags: string[] = []
@@ -354,6 +397,11 @@ export function guardDraft(input: string): Guarded {
     || /\breleas(e|ing)\s+(it\s+|the\s+\w+\s+|your\s+\w+\s+)?(now|right away|shortly|soon|immediately|in\s+(a|\d+)\s+(min|minute|second))/i.test(text)
   const conditional = /\b(after|once|as soon as|when|only if)\b[^.?!]{0,80}\b(verif|confirm|receiv|credit|reflect|check)/i.test(text)
   if (promise && !conditional) block('release_promise', 'Promises a release before the payment is verified')
+  if (HI_RELEASE.test(text) && !HI_CONDITION.test(text) && !conditional) block('release_promise', 'Promises a release before the payment is verified')
+
+  if (beforeVerification(opts.side ?? null, opts.situation ?? null) && invitesPayment(text)) {
+    block('pay_before_verification', 'Asks the client to pay or shows payment details before KYC and verification are complete')
+  }
 
   if (/\b(outside|without|off)\s+(of\s+)?binance\b|\boff[\s-]?platform\b|\bdirect\s+(deal|trade|transfer|payment)\b|\b(trade|deal|buy|sell|pay|payment|transfer)\b[^.?!]{0,40}\b(on|via|through|over)\s+(whatsapp|telegram|signal)\b/i.test(text)) {
     block('outside_binance', 'Suggests trading or paying outside Binance')
@@ -364,12 +412,12 @@ export function guardDraft(input: string): Guarded {
 
   const soft: string[] = []
   if (/(₹|\brs\.?|\binr)\s?\d/i.test(text) || /\b\d{1,3}(,\d{2,3})+(\.\d+)?\b/.test(text) || /(?<![\d{])\d{4,7}(?!\d)/.test(text)) soft.push('number_check')
-  const unknown = (text.match(/\{[^{}]{1,40}\}/g) ?? []).filter((p) => !PLACEHOLDERS.includes(p))
+  const unknown = (text.match(/\{[^{}]{1,40}\}/g) ?? []).filter((p) => !PLACEHOLDERS.includes(p) && !/^\{contact:[a-z][a-z0-9_]{0,23}\}$/.test(p))
   if (unknown.length) soft.push('unknown_placeholder')
   if (text.length > 500) soft.push('long')
   if (!text) block('empty', 'The model returned no text')
 
-  const contacts = (['rm', 'kyc', 'support'] as ContactPurpose[]).filter((p) => text.includes(`{contact:${p}}`))
+  const contacts = contactCodes(text)
   return { text, flags: [...flags, ...soft], blocked: reasons.length > 0, reasons, contacts }
 }
 
@@ -423,18 +471,23 @@ export interface DraftContext {
   order: Record<string, unknown>
   client: Record<string, unknown>
   approved: Array<{ title: string; status: string; examples: string[]; answer: string; similarity: number }>
+  /** Approved answers to the same question for other situations: style and still-true facts only. */
+  otherSituations?: Array<{ title: string; situations: string[]; answer: string }>
   avoid: Array<{ draft: string; why: string }>
   chat: Array<{ from: string; at: string; text: string }>
   answerThis: string | null
   instruction: string | null
   risks: Risk[]
   now: string
+  /** Company teams whose numbers can be given ({contact:<code>}). */
+  teams?: Array<{ code: string; label: string; description: string }>
 }
 
+/** How Hindi replies are written (drafts, translations): natural Hinglish, not textbook Hindi. */
+export const HINGLISH_RULE = 'Hinglish in English letters, the way a polite Indian desk executive chats: short and direct, with the everyday English words people use mixed in (payment, verification, details, account, bank, KYC, order, release, check, confirm, share, wait, minute, process, update). Use the respectful "aap" form. No bookish Hindi: write "please" not "kripya", "thank you" not "dhanyavaad", "contact" not "sampark", "as per" not "anusaar", "under" not "ke tahat", "complete" not "poora", "wait" not "pratiksha", "safe" not "surakshit". Examples: "Sir, verification complete hote hi payment details share kar denge." "Sir, aapka payment process ho raha hai, bas kuch minute." "Sir, apna Aadhaar card (front aur back) aur mobile number share kar dijiye."'
+
 export function buildDraftMessages(c: DraftContext): { system: string; user: string } {
-  const langRule = c.lang === 'hi'
-    ? 'Hindi written in English letters (Roman script), polite and professional, for example "Kripya apna Aadhaar card (front aur back) share karein." Keep terms such as Aadhaar, PAN, UPI ID, UTR and payment in English.'
-    : 'English.'
+  const langRule = c.lang === 'hi' ? `${HINGLISH_RULE} Keep terms such as Aadhaar, PAN, UPI ID and UTR in English.` : 'English.'
   const system = [
     'You draft one reply that a desk operator of a crypto P2P merchant will send to a client in a Binance P2P order chat. A senior manager reviews every draft before anything is sent.',
     '',
@@ -445,9 +498,12 @@ export function buildDraftMessages(c: DraftContext): { system: string; user: str
     `- Address the client as "${c.address === 'maam' ? "ma'am" : 'sir'}".`,
     c.greet ? `- This is our first message in the chat: start with "${c.greet}, ${c.address === 'maam' ? "ma'am" : 'sir'}."` : '- Do not greet again.',
     '- Answer "answer_this" (the client\'s latest messages). If it is empty, write the most useful next message for this order.',
-    '- "approved_answers" are company policy. When one fits, keep its substance exactly; you may adapt the wording slightly. Answers marked "tentative" are unconfirmed suggestions.',
+    '- "order.situation" is what the client is waiting for right now (worked out from the chat and Binance); "order.situation_means" says what it means and what must not be said. The same question needs a different answer in a different situation (before and after KYC, before and after payment): answer for this one.',
+    '- "approved_answers" are company policy for this situation. When one fits, keep its substance exactly; you may adapt the wording slightly. Answers marked "tentative" are unconfirmed suggestions.',
+    '- "other_situation_answers" answer the same question for other situations. Use them only for tone and for facts that are still true now; never copy a step that does not fit the current situation.',
     '- Use only facts from the data given. Never state anything about this order, payment or client that is not in the data. If you need information, ask the client, or say we will check.',
-    '- Placeholders: {amount} is the order amount, {orderNo} the order number, {name} the client\'s name, {upi} our UPI ID, {contact:rm}, {contact:kyc} and {contact:support} company contact numbers. Use them instead of writing any such value.',
+    '- Placeholders: {amount} is the order amount, {orderNo} the order number, {name} the client\'s name, {upi} our UPI ID; a company team\'s number is {contact:<team>} with the teams listed in "teams". Use them instead of writing any such value.',
+    '- Give a contact number only when the client asks for one (for example which number will call them); never offer one otherwise. Pick the team from "teams" that fits this client and situation.',
     '- Never ask the client to skip or avoid KYC, and never say KYC is not needed. KYC rules come only from the approved answers.',
     '- "avoid" lists earlier drafts a manager rejected for similar questions, with the reason. Do not repeat those mistakes.',
     '- Set "new_policy" to true when your reply states a rule, limit, time frame or requirement that is not in the approved answers or the order data.',
@@ -460,7 +516,9 @@ export function buildDraftMessages(c: DraftContext): { system: string; user: str
     order: c.order,
     client: c.client,
     risk_signals: c.risks.map((r) => r.label),
+    teams: (c.teams ?? []).map((t) => ({ placeholder: `{contact:${t.code}}`, team: t.label, handles: t.description })),
     approved_answers: c.approved.map((a) => ({ title: a.title, status: a.status, question_examples: a.examples, answer: a.answer })),
+    other_situation_answers: (c.otherSituations ?? []).map((a) => ({ title: a.title, for_situations: a.situations, answer: a.answer })),
     avoid: c.avoid,
     chat: c.chat,
     answer_this: c.answerThis ?? '',
@@ -495,7 +553,7 @@ export function generalize(text: string, v: TemplateValues, contacts: Array<{ pu
     if (digits.length < 7) continue
     const core = digits.slice(-10)
     const pattern = core.split('').join('[\\s-]?')
-    const purpose = ['rm', 'kyc', 'support'].includes(c.purpose) ? c.purpose : 'support'
+    const purpose = /^[a-z][a-z0-9_]{0,23}$/.test(String(c.purpose)) ? c.purpose : 'support'
     t = t.replace(new RegExp(`(?:\\+?91[\\s-]?)?${pattern}`, 'g'), `{contact:${purpose}}`)
   }
   return applyAddress(t, 'sir').trim()
@@ -504,22 +562,32 @@ export function generalize(text: string, v: TemplateValues, contacts: Array<{ pu
 export const JUDGE_SCHEMA = {
   type: 'object',
   properties: {
-    relation: { type: 'string', enum: ['new', 'merge', 'update', 'conflict'] },
+    relation: { type: 'string', enum: ['new', 'merge', 'update', 'widen', 'variant', 'conflict'] },
     target_entry_id: { type: 'string' },
+    target_question_id: { type: 'string' },
     client_specific: { type: 'boolean' },
     generalized_reply: { type: 'string' },
     other_language_reply: { type: 'string' },
     title: { type: 'string' },
+    phrasing: { type: 'string' },
+    situation_specific: { type: 'boolean' },
     scope_sides: { type: 'array', items: { type: 'string', enum: ['BUY', 'SELL'] } },
-    scope_statuses: { type: 'array', items: { type: 'string', enum: ['TRADING', 'BUYER_PAYED', 'COMPLETED', 'CANCELLED', 'APPEAL'] } },
     scope_client_states: { type: 'array', items: { type: 'string', enum: ['new', 'linked', 'approved'] } },
     scope_categories: { type: 'array', items: { type: 'string', enum: ['small', 'regular'] } },
     account_specific: { type: 'boolean' },
     reason: { type: 'string' },
   },
-  required: ['relation', 'target_entry_id', 'client_specific', 'generalized_reply', 'other_language_reply', 'title',
-    'scope_sides', 'scope_statuses', 'scope_client_states', 'scope_categories', 'account_specific', 'reason'],
+  required: ['relation', 'target_entry_id', 'target_question_id', 'client_specific', 'generalized_reply', 'other_language_reply', 'title',
+    'phrasing', 'situation_specific', 'scope_sides', 'scope_client_states', 'scope_categories', 'account_specific', 'reason'],
   additionalProperties: false,
+}
+
+export interface JudgeCandidate {
+  questionId: string
+  title: string
+  similarity: number
+  questions: string[]
+  replies: Array<{ entryId: string; status: string; situations: string[]; fitsNow: boolean; answer: string; exampleChat?: Array<{ from: string; text: string }> }>
 }
 
 export function buildJudgeMessages(input: {
@@ -527,21 +595,26 @@ export function buildJudgeMessages(input: {
   reply: string
   replyLang: 'en' | 'hi'
   context: Record<string, unknown>
-  candidates: Array<{ id: string; title: string; status: string; similarity: number; questions: string[]; answer: string }>
+  candidates: JudgeCandidate[]
   houseStyle: string
 }): { system: string; user: string } {
-  const other = input.replyLang === 'en' ? 'Hindi written in English letters (Roman script)' : 'English'
+  const other = input.replyLang === 'en' ? HINGLISH_RULE : 'English'
   const system = [
     'You maintain the reply Playbook of a crypto P2P desk. A manager just used a reply in a client chat. Decide how it fits the Playbook.',
-    '- "merge": a candidate already answers this question with the same substance (same facts, rules and instructions). Wording differences or small adaptations to this client do not matter.',
-    '- "update": same question and same substance as a candidate, but the new wording is a clear general improvement that should replace it.',
-    '- "conflict": a candidate answers the same question with a different substance (different rule, time frame, amount, requirement or instruction).',
-    '- "new": no candidate answers this question.',
-    'Pick target_entry_id from the candidates for merge, update or conflict; use "" for new.',
-    'generalized_reply: the reply in its own language with anything that only fits this client or order replaced by placeholders ({amount}, {orderNo}, {name}, {upi}, {contact:rm}, {contact:kyc}, {contact:support}) or removed. Change nothing else. client_specific tells whether you had to change anything.',
-    `other_language_reply: the same reply in ${other}, in the same professional style, keeping placeholders and terms such as Aadhaar, PAN, UPI ID and UTR.`,
-    'title: a short topic name (at most 6 words), for example "TDS certificate timing".',
-    'Scope: list only the conditions under which this reply would be wrong otherwise (for example a reply asking the client to pay only fits SELL orders that are TRADING). Leave a list empty when the reply fits any value. account_specific is true only if it depends on which Binance account the order is on.',
+    'The Playbook is a list of questions. A question has one or more replies, each for the situations it applies to (what the client is waiting for: KYC pending, checking KYC, verification call, client can pay, checking payment, details pending, we are paying, beneficiary activation, waiting for release, completed, cancelled, in appeal; "any situation" when it fits whatever the order\'s progress). order_context.situation is the chat\'s situation now; fits_now tells whether a reply applies in it.',
+    '- "merge": a reply of a candidate question already says the same thing (same facts, rules and instructions) and fits now. Wording differences or small adaptations to this client do not matter. target_entry_id = that reply.',
+    '- "update": like merge, but the new wording is a clear general improvement that should replace that reply\'s wording. target_entry_id = that reply.',
+    '- "widen": a reply of a candidate question says the same thing but is limited to other situations; it is right in this situation too. target_entry_id = that reply.',
+    '- "variant": a candidate is the same question, but the circumstances differ (another step, or something earlier in the chat that changes the answer, as order_context.chat_before shows against a reply\'s example_chat) so this different answer is right here. target_question_id = that question.',
+    '- "conflict": a reply that fits now, in the same circumstances, answers the same question with a different substance (different rule, time frame, amount, requirement or instruction). target_entry_id = that reply.',
+    '- "new": no candidate is the same question.',
+    'Use "" for an id you do not need.',
+    'generalized_reply: the reply in its own language with anything that only fits this client or order replaced by placeholders ({amount}, {orderNo}, {name}, {upi}, {contact:<team>}) or removed. Change nothing else. client_specific tells whether you had to change anything.',
+    `other_language_reply: the same reply in ${other} Keep placeholders and terms such as Aadhaar, PAN, UPI ID and UTR.`,
+    'title: a short name for the question (at most 6 words), for example "TDS certificate timing".',
+    'phrasing: the client\'s message, or the part of it, that this reply answers, copied word for word from client_question, at most 120 characters.',
+    'situation_specific: true when this reply would be wrong in another situation of the same side (it asks the client to pay, to wait for verification, says the payment was sent, and so on); false when it fits whatever the order\'s progress (a TDS rule, a contact number, why we ask for KYC).',
+    'Scope: list only the conditions under which this reply would be wrong otherwise; leave a list empty when the reply fits any value. account_specific is true only if it depends on which Binance account the order is on.',
     'reason: at most 15 words.',
     '',
     'House style of the Playbook:',
@@ -553,9 +626,37 @@ export function buildJudgeMessages(input: {
     reply_used: input.reply,
     reply_language: input.replyLang === 'en' ? 'English' : 'Hindi (Roman script)',
     order_context: input.context,
-    candidates: input.candidates.map((c) => ({ id: c.id, title: c.title, status: c.status, similarity: Math.round(c.similarity * 100) / 100, question_examples: c.questions, answer: c.answer })),
+    candidates: input.candidates.map((c) => ({
+      question_id: c.questionId, title: c.title, similarity: Math.round(c.similarity * 100) / 100, question_examples: c.questions,
+      replies: c.replies.map((r) => ({
+        entry_id: r.entryId, status: r.status, situations: r.situations.length ? r.situations : ['any situation'], fits_now: r.fitsNow, answer: r.answer,
+        ...(r.exampleChat?.length ? { example_chat: r.exampleChat } : {}),
+      })),
+    })),
   })
   return { system, user }
+}
+
+/** Prompt for "Rewrite Hindi from English" (and back) on the Playbook page. */
+export function buildTranslateMessages(text: string, to: 'en' | 'hi', houseStyle: string): { system: string; user: string } {
+  const target = to === 'hi' ? HINGLISH_RULE : 'English, professional and crisp.'
+  const system = [
+    'You rewrite one reply that a crypto P2P desk sends to clients in Binance order chats into the other language. Keep exactly the same meaning, facts and instructions; add nothing.',
+    `Write it in ${target}`,
+    'Keep placeholders such as {amount}, {orderNo}, {name}, {upi} and {contact:kyc} unchanged, and terms such as Aadhaar, PAN, UPI ID and UTR in English. Keep "sir" or "ma\'am".',
+    '',
+    'House style:',
+    houseStyle.trim(),
+    'Return JSON only: {"text": "..."}',
+  ].join('\n')
+  return { system, user: JSON.stringify({ reply: text }) }
+}
+
+export const TRANSLATE_SCHEMA = {
+  type: 'object',
+  properties: { text: { type: 'string' } },
+  required: ['text'],
+  additionalProperties: false,
 }
 
 export function normText(s: string | null | undefined): string {

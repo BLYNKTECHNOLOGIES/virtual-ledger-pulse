@@ -1,7 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
 // In-memory Store and AI fakes for the Copilot handler tests (not deployed with any function).
 import type { ChatRow } from './copilot-playbook.ts'
-import type { ContactPick, CopilotConfig, MatchArgs, MatchRow, RequestRow, Store } from './copilot-store.ts'
+import type { ContactPick, CopilotConfig, Example, MatchArgs, MatchRow, RequestRow, Store, Team } from './copilot-store.ts'
+import type { Mark } from './copilot-situation.ts'
 import type { Ai, ChatResult, EmbedResult } from './copilot-ai.ts'
 
 export const SHUBHAM = 'd1a85fd5-f5a8-47af-ae42-e0b4683d82c9'
@@ -37,12 +38,21 @@ export class FakeStore implements Store {
   requests = new Map<string, RequestRow>()
   calls: any[] = []
   entryRows: any[] = []
-  questionRows: Array<{ entry_id: string; question_text: string }> = []
+  questionRows: Array<{ topic_id: string; question_text: string }> = []
+  mark: Mark | null = null
   learnCalls: any[] = []
   learnResult: any = { event_id: 'ev-1', action: 'created', entry_id: 'en-1', title: 'T' }
   undoCalls: any[] = []
   pending: Array<{ id: string; question_text: string }> = []
   embedded: Array<{ id: string; v: number[]; model: string }> = []
+  pendingEx: Array<{ id: string; context_text: string }> = []
+  embeddedEx: Array<{ id: string; v: number[]; model: string }> = []
+  exampleRows: Example[] = []
+  teamRows: Team[] = [
+    { code: 'kyc', label: 'KYC team', description: 'KYC and the one-time verification call for new clients' },
+    { code: 'rm', label: 'Relationship team', description: 'Clients whose KYC is done' },
+    { code: 'support', label: 'Support', description: 'Anything else' },
+  ]
 
   config() { return Promise.resolve(this.cfg) }
   isApprover(u: string) { return Promise.resolve(this.approvers.has(u)) }
@@ -51,6 +61,7 @@ export class FakeStore implements Store {
   smallRanges() { return Promise.resolve({ sales: { min: 200, max: 4000, enabled: true }, buys: { min: 200, max: 5000, enabled: true } }) }
   accountName(i: string | null) { return Promise.resolve(i === BLYNK ? 'Blynk Binance' : null) }
   clientPanel() { return Promise.resolve(this.panel) }
+  situationMark() { return Promise.resolve(this.mark) }
   monthSpend() { return Promise.resolve(this.spend + this.calls.reduce((n, c) => n + Number(c.cost_inr ?? 0), 0)) }
   match(a: MatchArgs) { this.matchCalls.push(a); return Promise.resolve(this.matchRows.filter((m) => m.similarity >= a.minSimilarity)) }
   rejections() { return Promise.resolve(this.rejectionRows) }
@@ -85,7 +96,14 @@ export class FakeStore implements Store {
     for (const i of items) this.embedded.push({ ...i, model })
     return Promise.resolve(items.length)
   }
-  questionsFor(ids: string[]) { return Promise.resolve(this.questionRows.filter((q) => ids.includes(q.entry_id))) }
+  questionsFor(ids: string[]) { return Promise.resolve(this.questionRows.filter((q) => ids.includes(q.topic_id))) }
+  pendingExamples(limit: number) { return Promise.resolve(this.pendingEx.filter((p) => !this.embeddedEx.some((e) => e.id === p.id)).slice(0, limit)) }
+  setExampleEmbeddings(items: Array<{ id: string; v: number[] }>, model: string) {
+    for (const i of items) this.embeddedEx.push({ ...i, model })
+    return Promise.resolve(items.length)
+  }
+  examplesFor(ids: string[]) { return Promise.resolve(this.exampleRows.filter((x) => ids.includes(x.entry_id))) }
+  teams() { return Promise.resolve(this.teamRows) }
   learnApply(p: Record<string, unknown>) { this.learnCalls.push(p); return Promise.resolve({ data: { ...this.learnResult, action: this.learnResult.action ?? p.p_relation } }) }
   undo(u: string, e: string) {
     this.undoCalls.push([u, e])
@@ -121,10 +139,10 @@ export const msg = (who: 'client' | 'us', text: string, type = 'text'): ChatRow 
 
 export function entry(over: Partial<MatchRow> = {}): MatchRow {
   return {
-    entry_id: id(), question_id: id(), question_text: 'When will I get the TDS certificate?', input_index: 0, similarity: 0.9, status: 'approved',
+    entry_id: id(), topic_id: id(), question_id: id(), question_text: 'When will I get the TDS certificate?', input_index: 0, similarity: 0.9, status: 'approved',
     kind: 'reply', step_key: null, title: 'TDS certificate timing', scope: {}, reply_en: 'Sir, the TDS certificate is shared every quarter.',
-    reply_hi: 'Sir, TDS certificate har quarter bheja jata hai.', reply_en_auto: false, reply_hi_auto: true, risk: 'none', internal_note: null,
-    conflict_open: false, version: 1, use_count: 3, ...over,
+    reply_hi: 'Sir, TDS certificate har quarter bheja jata hai.', reply_en_auto: false, reply_hi_auto: true, reply_en_stale: false, reply_hi_stale: false,
+    risk: 'none', internal_note: null, conflict_open: false, version: 1, use_count: 3, fits: true, specificity: 0, context_similarity: null, ...over,
   }
 }
 

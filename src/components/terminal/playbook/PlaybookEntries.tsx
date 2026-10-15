@@ -36,8 +36,8 @@ export function PlaybookEntries({ onOpen }: { onOpen: (entryId: string) => void 
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search topics and replies" className="h-9 pl-8 text-sm" aria-label="Search the Playbook" />
         </div>
-        <SegmentedControl<EntryFilter> size="sm" options={FILTERS.map((f) => ({ ...f, label: f.value === 'conflicts' && conflicts ? `In conflict (${conflicts})` : f.label }))}
-          value={filter} onValueChange={setFilter} aria-label="Which entries" className="max-w-full overflow-x-auto" />
+        <SegmentedControl size="sm" options={FILTERS.map((f) => ({ ...f, label: f.value === 'conflicts' && conflicts ? `In conflict (${conflicts})` : f.label }))}
+          value={filter} onValueChange={(v) => setFilter(v as EntryFilter)} aria-label="Which entries" className="max-w-full overflow-x-auto" />
         <div className="flex items-center gap-2 lg:ml-auto">
           <span className="text-xs text-muted-foreground">Sort</span>
           <Select value={sort} onValueChange={(v) => setSort(v as EntrySort)}>

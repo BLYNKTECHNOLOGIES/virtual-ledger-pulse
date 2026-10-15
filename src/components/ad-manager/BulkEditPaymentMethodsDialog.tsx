@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle, XCircle, Loader2, X, Plus } from 'lucide-react';
+import { Loader2, X, Plus, CreditCard, ArrowRight } from 'lucide-react';
 import { BinanceAd, useUpdateAd, useBinanceAdsList } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod } from '@/data/paymentMethods';
+import { AdDialogHeader, NoteBox, RunProgress, RunRow, RunSummary, SelectionSummary, StepRail, SEG_BTN, SEG_LIST } from './adUi';
+import { cn } from '@/lib/utils';
 
 interface Props {
   open: boolean;
@@ -213,26 +215,32 @@ export function BulkEditPaymentMethodsDialog({ open, onOpenChange, ads, onComple
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Bulk Edit Payment Methods</DialogTitle>
-        </DialogHeader>
+        <AdDialogHeader icon={CreditCard} title="Edit payment methods" description="The methods you pick (up to 5) replace the existing ones on the selected ads of one side." />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SelectionSummary ads={ads} />
+          <StepRail steps={['Pick', 'Review', 'Apply']} current={step === 'form' ? 0 : step === 'confirm' ? 1 : 2} />
+        </div>
 
         {step === 'form' && (
-          <div className="space-y-4 py-2">
+          <div className="space-y-3">
             {hasMix && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
+              <div className="space-y-1.5">
+                <div className="text-xs text-muted-foreground">
                   BUY and SELL ads use different payment method pools. Choose which set to edit:
-                </p>
-                <div className="inline-flex rounded-lg border border-border p-0.5">
+                </div>
+                <div className={cn(SEG_LIST, 'inline-flex items-center')} role="group" aria-label="Which ads to edit">
                   <button
-                    className={`px-3 py-1 text-sm rounded-md ${tradeType === 'SELL' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                    type="button"
+                    aria-pressed={tradeType === 'SELL'}
+                    className={SEG_BTN}
                     onClick={() => switchType('SELL')}
                   >
                     Sell ({sellAds.length})
                   </button>
                   <button
-                    className={`px-3 py-1 text-sm rounded-md ${tradeType === 'BUY' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                    type="button"
+                    aria-pressed={tradeType === 'BUY'}
+                    className={SEG_BTN}
                     onClick={() => switchType('BUY')}
                   >
                     Buy ({buyAds.length})
@@ -241,34 +249,42 @@ export function BulkEditPaymentMethodsDialog({ open, onOpenChange, ads, onComple
               </div>
             )}
 
-            <p className="text-sm text-muted-foreground">
-              Set payment methods for <strong>{targetAds.length}</strong> {tradeType.toLowerCase()} ad{targetAds.length !== 1 ? 's' : ''}.
-              This <strong>replaces</strong> the existing methods on each selected ad.
-            </p>
+            <div className="text-sm text-muted-foreground">
+              Set payment methods for <strong className="text-foreground">{targetAds.length}</strong> {tradeType.toLowerCase()} ad{targetAds.length !== 1 ? 's' : ''}.
+              This <strong className="text-foreground">replaces</strong> the existing methods on each selected ad.
+            </div>
 
             {/* Selected methods */}
-            {selected.length > 0 && (
-              <div className="space-y-2">
-                {selected.map(m => {
-                  const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
-                  const accent = config ? `hsl(${config.colorAccent})` : 'hsl(var(--muted-foreground))';
-                  const label = config?.label || m.tradeMethodName || m.payType || m.identifier;
-                  const icon = config?.iconLabel || label.slice(0, 3).toUpperCase();
-                  return (
-                    <div key={m.identifier} className="flex items-center justify-between rounded-lg border p-2.5"
-                      style={{ borderLeftWidth: 4, borderLeftColor: accent }}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold" style={{ color: accent }}>{icon}</span>
-                        <span className="text-sm font-medium text-foreground">{label}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Remove" onClick={() => toggleMethod(m)}>
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  );
-                })}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">Selected</span>
+                <span className="tabular-nums text-muted-foreground">{selected.length}/{MAX_METHODS}</span>
               </div>
-            )}
+              {selected.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">Pick at least one method below.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {selected.map(m => {
+                    const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
+                    const accent = config ? `hsl(${config.colorAccent})` : 'hsl(var(--muted-foreground))';
+                    const label = config?.label || m.tradeMethodName || m.payType || m.identifier;
+                    const icon = config?.iconLabel || label.slice(0, 3).toUpperCase();
+                    return (
+                      <div key={m.identifier} className="flex items-center justify-between rounded-lg border border-border bg-card px-2.5 py-2"
+                        style={{ borderLeftWidth: 4, borderLeftColor: accent }}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold" style={{ color: accent }}>{icon}</span>
+                          <span className="text-sm font-medium text-foreground">{label}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Remove" onClick={() => toggleMethod(m)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Picker */}
             {!isBuy && loadingSellPool ? (
@@ -276,27 +292,24 @@ export function BulkEditPaymentMethodsDialog({ open, onOpenChange, ads, onComple
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading bound payment accounts…
               </div>
             ) : pickerMethods.length === 0 ? (
-              <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
-                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-                <p className="text-xs text-warning">
-                  {selected.length >= MAX_METHODS
-                    ? `Maximum ${MAX_METHODS} methods selected.`
-                    : isBuy
-                      ? 'No more methods available.'
-                      : 'No bound payment accounts found for these ads\u2019 account(s). Add them on Binance first.'}
-                </p>
-              </div>
+              <NoteBox>
+                {selected.length >= MAX_METHODS
+                  ? `Maximum ${MAX_METHODS} methods selected.`
+                  : isBuy
+                    ? 'No more methods available.'
+                    : 'No bound payment accounts found for these ads\u2019 account(s). Add them on Binance first.'}
+              </NoteBox>
             ) : (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">
+              <div className="space-y-1.5">
+                <div className="text-xs font-medium text-foreground">
                   {isBuy ? 'Select from allowed methods' : 'From your bound SELL accounts'}
-                </p>
-                <div className="flex flex-wrap gap-2">
+                </div>
+                <div className="flex flex-wrap gap-1.5">
                   {pickerMethods.map(m => {
                     const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
                     const label = config?.label || m.tradeMethodName || m.payType || m.identifier;
                     return (
-                      <Button key={m.identifier} variant="outline" size="sm" className="gap-1 text-foreground" onClick={() => toggleMethod(m)}>
+                      <Button key={m.identifier} variant="outline" size="sm" className="h-8 gap-1 text-xs text-foreground" onClick={() => toggleMethod(m)}>
                         <Plus className="h-3.5 w-3.5" />
                         {label}
                       </Button>
@@ -309,57 +322,42 @@ export function BulkEditPaymentMethodsDialog({ open, onOpenChange, ads, onComple
         )}
 
         {step === 'confirm' && (
-          <div className="space-y-3 py-2">
-            <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
-              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-foreground">Confirm Bulk Update</p>
-                <p className="text-muted-foreground mt-1">
-                  This will <strong>replace</strong> payment methods on <strong>{targetAds.length}</strong> {tradeType.toLowerCase()} ad{targetAds.length !== 1 ? 's' : ''} with:
-                </p>
-                <ul className="mt-1 list-disc list-inside text-muted-foreground">
-                  {selected.map(m => {
-                    const config = resolvePaymentMethod(m.identifier);
-                    return <li key={m.identifier}>{config?.label || m.tradeMethodName || m.identifier}</li>;
-                  })}
-                </ul>
-              </div>
-            </div>
-          </div>
+          <NoteBox title={`Replace methods on ${targetAds.length} ${tradeType.toLowerCase()} ad${targetAds.length !== 1 ? 's' : ''}?`}>
+            <div>Each ad will have exactly:</div>
+            <ul className="mt-1 list-disc list-inside">
+              {selected.map(m => {
+                const config = resolvePaymentMethod(m.identifier);
+                return <li key={m.identifier} className="text-foreground">{config?.label || m.tradeMethodName || m.identifier}</li>;
+              })}
+            </ul>
+          </NoteBox>
         )}
 
         {(step === 'executing' || step === 'done') && (
-          <ScrollArea className="max-h-60">
-            <div className="space-y-2 py-2">
-              {step === 'done' && (
-                <p className="text-sm font-medium mb-2 text-foreground">
-                  {failCount === 0 ? '✅ All ads updated successfully' : `⚠️ ${successCount} succeeded, ${failCount} failed`}
-                </p>
-              )}
-              {results.map(r => (
-                <div key={r.advNo} className="flex items-center gap-2 text-sm">
-                  {r.status === 'pending' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  {r.status === 'success' && <CheckCircle className="h-4 w-4 text-success" />}
-                  {r.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
-                  <span className="font-mono text-xs text-foreground">…{r.advNo.slice(-8)}</span>
-                  {r.message && <span className="text-xs text-destructive">{r.message}</span>}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="space-y-2">
+            {step === 'executing' && <RunProgress done={results.filter(r => r.status !== 'pending').length} total={results.length} label="Updating payment methods…" />}
+            {step === 'done' && <RunSummary ok={successCount} failed={failCount} okText="All ads updated" />}
+            <ScrollArea className="max-h-60 rounded-md border border-border">
+              <div className="p-1">
+                {results.map(r => (
+                  <RunRow key={r.advNo} status={r.status} advNo={r.advNo} message={r.message} />
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           {step === 'form' && (
             <>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
-              <Button onClick={handleConfirm} disabled={selected.length === 0 || targetAds.length === 0}>Next</Button>
+              <Button onClick={handleConfirm} disabled={selected.length === 0 || targetAds.length === 0} className="gap-1.5">Review <ArrowRight className="h-3.5 w-3.5" /></Button>
             </>
           )}
           {step === 'confirm' && (
             <>
               <Button variant="outline" onClick={() => setStep('form')}>Back</Button>
-              <Button onClick={executeUpdates}>Confirm & Update</Button>
+              <Button onClick={executeUpdates}>Update {targetAds.length} ad{targetAds.length !== 1 ? 's' : ''}</Button>
             </>
           )}
           {step === 'done' && (

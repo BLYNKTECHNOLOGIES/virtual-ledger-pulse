@@ -4,9 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, SlidersHorizontal } from 'lucide-react';
 import { BinanceAd, useUpdateAd, useUpdateAdStatus, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
+import { SideChip, priceText } from './adUi';
 
 const changedNumber = (current: unknown, next: unknown) => Number(current ?? 0) !== Number(next ?? 0);
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -102,15 +103,27 @@ export function QuickEditPopover({ ad, children, align = 'end' }: QuickEditPopov
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align={align} className="w-72 space-y-3" onClick={(e) => e.stopPropagation()}>
-        <div className="text-xs font-semibold text-foreground">Quick Edit</div>
+      <PopoverContent align={align} className="w-80 space-y-3 p-0" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm font-semibold text-foreground">Quick edit</span>
+          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <SideChip side={ad.tradeType} />
+            <span className="font-medium text-foreground">{ad.asset}</span>
+            <span className="t-mono tabular-nums">…{(ad.advNo || '').slice(-6)}</span>
+          </span>
+        </div>
+        <div className="space-y-3 px-3">
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">{isFloating ? 'Floating Ratio (%)' : 'Price (₹)'}</Label>
           {isFloating ? (
-            <Input type="number" step="0.01" value={ratio} onChange={(e) => setRatio(e.target.value)} className="h-8 tabular-nums text-foreground" />
+            <Input type="number" step="0.01" value={ratio} onChange={(e) => setRatio(e.target.value)} className="h-9 text-base font-semibold tabular-nums text-foreground" />
           ) : (
-            <Input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className="h-8 tabular-nums text-foreground" />
+            <Input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className="h-9 text-base font-semibold tabular-nums text-foreground" />
           )}
+          <div className="text-[11px] text-muted-foreground">
+            Now {isFloating ? `${Number(ad.priceFloatingRatio || 0).toFixed(2)}% (${priceText(ad.price)})` : priceText(ad.price)}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
@@ -138,13 +151,14 @@ export function QuickEditPopover({ ad, children, align = 'end' }: QuickEditPopov
             </SelectContent>
           </Select>
           {ad.advStatus !== BINANCE_AD_STATUS.PRIVATE && (
-            <p className="text-[11px] text-muted-foreground">
+            <div className="text-[11px] leading-snug text-muted-foreground">
               Binance doesn't allow switching an ad to Private from outside its app.
-            </p>
+            </div>
           )}
 
         </div>
-        <div className="flex justify-end gap-2 pt-1">
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border bg-secondary/30 px-3 py-2.5">
           <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)} disabled={updateAd.isPending || updateAdStatus.isPending}>Cancel</Button>
           <Button size="sm" className="h-8" onClick={handleSave} disabled={updateAd.isPending || updateAdStatus.isPending}>
             {(updateAd.isPending || updateAdStatus.isPending) && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}

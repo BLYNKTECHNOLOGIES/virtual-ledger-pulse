@@ -8,13 +8,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
+import { X, Plus, Minus, Search, AlertTriangle, RefreshCw, Pencil, Copy, Megaphone } from 'lucide-react';
 import { BinanceAd, usePostAd, useUpdateAd, useUpdateAdStatus, useBinanceAdsList, useBinanceReferencePrice, useBinanceAdDetail, useBinanceDigitalCurrencies, useAvailableAdsCategory, useBinancePaymentMethods, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { useBinanceBalances } from '@/hooks/useBinanceAssets';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { AdZone, ZONE_LABEL, adZone, zoneClassify, parseAvailableZones } from '@/lib/adZone';
 import { cn } from '@/lib/utils';
+import { AdDialogHeader } from './adUi';
+
+const SECTION = 'space-y-3 rounded-lg border border-border bg-card/60 p-3.5 sm:p-4';
+function SectionTitle({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
+    </div>
+  );
+}
 
 /** Create-mode seed shape (subset of the internal form). Used by "Duplicate Ad". */
 export type CreateAdInitialValues = Partial<{
@@ -552,17 +563,28 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   const isSubmitting = postAd.isPending || updateAd.isPending || updateAdStatus.isPending;
   const noSellMethods = !isBuyAd && !isLoadingPayMethods && sellAdPayMethods.length === 0;
 
+  const dialogTitle = isEditing ? 'Edit ad' : initialValues ? 'Duplicate ad' : 'Create ad';
+  const dialogDescription = isEditing
+    ? <>{form.tradeType === 'BUY' ? 'Buy' : 'Sell'} {form.asset} · {ZONE_LABEL[zone]} · ad <span className="t-mono">…{String(editingAd?.advNo || '').slice(-8)}</span>. Only the fields you change are sent to Binance.</>
+    : initialValues
+      ? 'Starts from a copy of an existing ad. Check every field, then post.'
+      : 'Posts a new ad to Binance.';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Ad' : 'Create New Ad'}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl lg:max-w-4xl max-h-[92vh] flex flex-col overflow-hidden p-0 md:p-0 gap-0">
+        <div className="border-b border-border px-4 py-3 md:px-5">
+          <AdDialogHeader icon={isEditing ? Pencil : initialValues ? Copy : Megaphone} title={dialogTitle} description={dialogDescription} />
+        </div>
 
-        <div className="space-y-6 py-4 overflow-y-auto flex-1 pr-2">
+        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-5">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
           {/* Trade Type & Asset */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
+          <section className={SECTION}>
+            <SectionTitle title="Ad type" hint={isEditing ? 'Fixed after the ad is created' : undefined} />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1fr)]">
+            <div className="space-y-1.5">
               <Label>Trade Type</Label>
               <Select value={form.tradeType} onValueChange={(v) => setForm({ ...form, tradeType: v, selectedPayMethods: [] })} disabled={isEditing}>
                 <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
@@ -571,9 +593,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   <SelectItem value="SELL">Sell</SelectItem>
                 </SelectContent>
               </Select>
-              {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
             </div>
-            <div>
+            <div className="order-last col-span-2 space-y-1.5 sm:order-none sm:col-span-1">
               <Label>Asset</Label>
               <Select value={form.asset} onValueChange={(v) => setForm({ ...form, asset: v })} disabled={isEditing}>
                 <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
@@ -585,9 +606,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   ))}
                 </SelectContent>
               </Select>
-              {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Fiat Currency</Label>
               <Select value={form.fiatUnit} onValueChange={(v) => setForm({ ...form, fiatUnit: v })} disabled={isEditing}>
                 <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
@@ -596,19 +616,18 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   <SelectItem value="USD">USD</SelectItem>
                 </SelectContent>
               </Select>
-              {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
             </div>
           </div>
 
           {/* Market Zone (Binance `classify`) — creation only; zone is immutable after posting */}
           {!isEditing && (
-            <div className="rounded-lg border p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div>
+            <div className="space-y-2 border-t border-border pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <Label>Market Zone</Label>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
                     P2P zone and Block zone are separate order books with different merchants and price levels.
-                  </p>
+                  </div>
                 </div>
                 <Select value={zone} onValueChange={(v) => setZone(v as AdZone)}>
                   <SelectTrigger className="w-[170px] shrink-0"><SelectValue /></SelectTrigger>
@@ -619,36 +638,37 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 </Select>
               </div>
               {isLoadingZones ? (
-                <p className="text-[10px] text-muted-foreground">Checking available ad categories with Binance…</p>
+                <div className="text-[11px] text-muted-foreground">Checking available ad categories with Binance…</div>
               ) : zonesError ? (
-                <p className="text-[10px] text-warning">Binance did not return the available ad categories — Block zone stays locked.</p>
+                <div className="text-[11px] text-warning">Binance did not return the available ad categories — Block zone stays locked.</div>
               ) : !blockZoneAvailable ? (
-                <p className="text-[10px] text-muted-foreground">Binance does not report Block zone as available for this account.</p>
+                <div className="text-[11px] text-muted-foreground">Binance does not report Block zone as available for this account.</div>
               ) : null}
             </div>
           )}
+          </section>
 
 
           {/* Price Section */}
-          <div className="space-y-3 rounded-lg border p-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold">Price</Label>
+          <section className={SECTION}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <SectionTitle title="Price" />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {isLoadingRefPrice ? (
                   <span className="flex items-center gap-1"><RefreshCw className="h-3 w-3 animate-spin" /> Loading price…</span>
                 ) : priceRange ? (
                   <>
-                    <span>Ref: <span className="font-semibold text-foreground">₹{priceRange.referencePrice}</span></span>
+                    <span>Ref <span className="font-semibold tabular-nums text-foreground">₹{priceRange.referencePrice}</span></span>
                     <span className="text-muted-foreground/60">|</span>
-                    <span>Range: <span className="font-medium text-foreground">{priceRange.min} – {priceRange.max}</span></span>
-                    <Button variant="ghost" size="icon" aria-label="Refresh" className="h-5 w-5" onClick={() => refetchRefPrice()} title="Refresh price range">
+                    <span>Range <span className="font-medium tabular-nums text-foreground">{priceRange.min} – {priceRange.max}</span></span>
+                    <Button variant="ghost" size="icon" aria-label="Refresh" className="h-6 w-6" onClick={() => refetchRefPrice()} title="Refresh price range">
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </>
                 ) : (
                   <span className="flex items-center gap-1 text-destructive">
                     <AlertTriangle className="h-3 w-3" /> Unable to fetch price range
-                    <Button variant="ghost" size="icon" aria-label="Refresh" className="h-5 w-5" onClick={() => refetchRefPrice()}>
+                    <Button variant="ghost" size="icon" aria-label="Refresh" className="h-6 w-6" onClick={() => refetchRefPrice()}>
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </span>
@@ -656,23 +676,25 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
               </div>
             </div>
 
-            <Select value={String(form.priceType)} onValueChange={(v) => setForm({ ...form, priceType: Number(v) as 1 | 2 })} disabled={isEditing}>
-              <SelectTrigger className={`w-[160px] ${isEditing ? 'opacity-60' : ''}`}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Fixed</SelectItem>
-                <SelectItem value="2">Floating</SelectItem>
-              </SelectContent>
-            </Select>
-            {isEditing && <p className="text-[10px] text-muted-foreground">Price type cannot change after creation</p>}
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={String(form.priceType)} onValueChange={(v) => setForm({ ...form, priceType: Number(v) as 1 | 2 })} disabled={isEditing}>
+                <SelectTrigger className={`w-[160px] ${isEditing ? 'opacity-60' : ''}`} aria-label="Price type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Fixed</SelectItem>
+                  <SelectItem value="2">Floating</SelectItem>
+                </SelectContent>
+              </Select>
+              {isEditing && <span className="text-[11px] text-muted-foreground">Price type cannot change after creation</span>}
+            </div>
 
             {form.priceType === 1 ? (() => {
               const stableAssets = ['USDT', 'USDC', 'FDUSD'];
               const priceStep = stableAssets.includes(form.asset) ? 0.01 : 0.5;
               return (
-              <div>
+              <div className="space-y-1.5">
                 <Label>Price ({form.fiatUnit})</Label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" aria-label="Decrease" type="button"
+                  <Button variant="outline" size="icon" aria-label="Decrease" type="button" title={`Down ${priceStep} (hold to repeat)`}
                     onMouseDown={() => startHold(-priceStep)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
@@ -688,9 +710,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     max={priceRange?.max}
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    className={cn("text-center", isPriceOutOfRange && "border-destructive focus-visible:ring-destructive")}
+                    className={cn("text-center text-lg font-semibold tabular-nums", isPriceOutOfRange && "border-destructive focus-visible:ring-destructive")}
                   />
-                  <Button variant="outline" size="icon" aria-label="Increase" type="button"
+                  <Button variant="outline" size="icon" aria-label="Increase" type="button" title={`Up ${priceStep} (hold to repeat)`}
                     onMouseDown={() => startHold(priceStep)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
@@ -701,28 +723,28 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   </Button>
                 </div>
                 {priceRange && (
-                  <p className={cn(
-                    "text-[11px] mt-1",
+                  <div className={cn(
+                    "text-[11px]",
                     isPriceOutOfRange ? "text-destructive font-medium" : "text-muted-foreground"
                   )}>
                     {isPriceOutOfRange
                       ? `⚠ Price must be between ${priceRange.min} – ${priceRange.max} ${form.fiatUnit}`
                       : `Allowed range: ${priceRange.min} – ${priceRange.max} ${form.fiatUnit}`
                     }
-                  </p>
+                  </div>
                 )}
                 {!priceRange && !isLoadingRefPrice && (
-                  <p className="text-[11px] mt-1 text-destructive flex items-center gap-1">
+                  <div className="text-[11px] text-destructive flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" /> Unable to fetch Binance price range — submission blocked
-                  </p>
+                  </div>
                 )}
               </div>
               );
             })() : (
-              <div>
+              <div className="space-y-1.5">
                 <Label>Floating Ratio (%)</Label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" aria-label="Decrease" type="button"
+                  <Button variant="outline" size="icon" aria-label="Decrease" type="button" title="Down 0.01 (hold to repeat)"
                     onMouseDown={() => startFloatingRatioHold(-0.01)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
@@ -738,9 +760,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     value={form.priceFloatingRatio}
                     onChange={(e) => setForm({ ...form, priceFloatingRatio: e.target.value })}
                     placeholder="e.g., 1.5 for 1.5% above market"
-                    className="text-center"
+                    className="text-center text-lg font-semibold tabular-nums"
                   />
-                  <Button variant="outline" size="icon" aria-label="Increase" type="button"
+                  <Button variant="outline" size="icon" aria-label="Increase" type="button" title="Up 0.01 (hold to repeat)"
                     onMouseDown={() => startFloatingRatioHold(0.01)}
                     onMouseUp={stopHold}
                     onMouseLeave={stopHold}
@@ -763,57 +785,57 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   if (indexPrice && ratio > 0) {
                     const effectivePrice = indexPrice * ratio / 100;
                     return (
-                      <div className="text-[11px] mt-1 space-y-0.5">
-                        <p className="text-muted-foreground flex items-center gap-1 flex-wrap">
-                          Pricing formula: ₹{indexPrice.toFixed(2)} × {ratio}% = <span className="font-medium text-foreground">₹{effectivePrice.toFixed(2)}</span>
+                      <div className="text-[11px] space-y-0.5">
+                        <div className="text-muted-foreground flex items-center gap-1 flex-wrap">
+                          Pricing formula: ₹{indexPrice.toFixed(2)} × {ratio}% = <span className="font-semibold text-foreground">₹{effectivePrice.toFixed(2)}</span>
                           <Button
                             variant="ghost"
                             size="icon"
                             type="button"
                             aria-label="Refresh live index"
-                            className="h-4 w-4"
+                            className="h-5 w-5"
                             onClick={() => refetchAdDetail()}
                             title="Refresh live index price from Binance"
                           >
                             <RefreshCw className={cn('h-3 w-3', isFetchingAdDetail && 'animate-spin')} />
                           </Button>
-                        </p>
+                        </div>
                         {!isLive && (
-                          <p className="text-warning flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" />
+                          <div className="text-warning flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3 shrink-0" />
                             Index taken from the cached ad row — Binance may apply a slightly different rate. Refresh to load the live index.
-                          </p>
+                          </div>
                         )}
                       </div>
                     );
                   }
                   if (priceRange) {
                     return (
-                      <p className="text-[11px] mt-1 text-muted-foreground">
+                      <div className="text-[11px] text-muted-foreground">
                         Highest ad price: ₹{priceRange.referencePrice}
-                      </p>
+                      </div>
                     );
                   }
                   return null;
                 })()}
               </div>
             )}
-          </div>
+          </section>
 
           {/* Total Amount */}
-          <div className="space-y-3 rounded-lg border p-4">
-            <Label className="text-base font-semibold">Total Trading Amount</Label>
-            <div>
-              <div className="flex items-center justify-between mb-1">
+          <section className={SECTION}>
+            <SectionTitle title="Total Trading Amount" />
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <Label>Total Quantity ({form.asset})</Label>
                 {isEditing && availableBalance !== null && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Ad balance: <span className="font-medium text-foreground">{availableBalance} {form.asset}</span></span>
+                    <span>Ad balance: <span className="font-medium tabular-nums text-foreground">{availableBalance} {form.asset}</span></span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-5 px-2 text-xs font-semibold text-primary"
+                      className="h-6 px-2 text-xs font-semibold text-primary"
                       onClick={() => setForm({ ...form, initAmount: String(availableBalance) })}
                     >
                       ALL
@@ -824,7 +846,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>
                       Available:{' '}
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium tabular-nums text-foreground">
                         {maxQuantity.toLocaleString('en-US', { maximumFractionDigits: 8 })} {form.asset}
                       </span>
                     </span>
@@ -832,7 +854,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-5 px-2 text-xs font-semibold text-primary"
+                      className="h-6 px-2 text-xs font-semibold text-primary"
                       disabled={maxQuantity <= 0}
                       onClick={() => setForm({ ...form, initAmount: String(maxQuantity) })}
                     >
@@ -846,38 +868,45 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 value={form.initAmount}
                 onChange={(e) => setForm({ ...form, initAmount: e.target.value })}
                 placeholder="e.g., 5000"
+                className="tabular-nums"
               />
             </div>
 
-            <Label>Order Limit ({form.fiatUnit})</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Input
-                  type="number"
-                  value={form.minSingleTransAmount}
-                  onChange={(e) => setForm({ ...form, minSingleTransAmount: e.target.value })}
-                  placeholder="Min"
-                />
-                <span className="text-xs text-muted-foreground">Min Order</span>
-              </div>
-              <div>
-                <Input
-                  type="number"
-                  value={form.maxSingleTransAmount}
-                  onChange={(e) => setForm({ ...form, maxSingleTransAmount: e.target.value })}
-                  placeholder="Max"
-                />
-                <span className="text-xs text-muted-foreground">Max Order</span>
+            <div className="space-y-1.5">
+              <Label>Order Limit ({form.fiatUnit})</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Input
+                    type="number"
+                    value={form.minSingleTransAmount}
+                    onChange={(e) => setForm({ ...form, minSingleTransAmount: e.target.value })}
+                    placeholder="Min"
+                    className="tabular-nums"
+                  />
+                  <span className="text-xs text-muted-foreground">Min Order</span>
+                </div>
+                <div className="space-y-1">
+                  <Input
+                    type="number"
+                    value={form.maxSingleTransAmount}
+                    onChange={(e) => setForm({ ...form, maxSingleTransAmount: e.target.value })}
+                    placeholder="Max"
+                    className="tabular-nums"
+                  />
+                  <span className="text-xs text-muted-foreground">Max Order</span>
+                </div>
               </div>
             </div>
+          </section>
           </div>
 
+          <div className="space-y-4">
           {/* ─── Payment Methods ─────────────────────────────────────── */}
-          <div className="space-y-3 rounded-lg border p-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold">Payment Method</Label>
+          <section className={SECTION}>
+            <div className="flex items-center justify-between gap-2">
+              <SectionTitle title="Payment Method" />
               <span className="text-xs text-muted-foreground">
-                {isBuyAd ? 'Select from allowed methods' : 'From existing SELL ads'}
+                {isBuyAd ? 'Select from allowed methods' : 'From existing SELL ads'} · {form.selectedPayMethods.length}/5
               </span>
             </div>
 
@@ -892,7 +921,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   return (
                     <div
                       key={m.identifier || m.payId}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2"
                       style={{ borderLeftWidth: 4, borderLeftColor: accentColor }}
                     >
                       <div className="flex items-center gap-2">
@@ -911,9 +940,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
             {noSellMethods && (
               <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
                 <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-                <p className="text-xs text-warning">
+                <div className="text-xs text-warning">
                   No payment methods found in existing SELL ads. Please create a SELL ad on Binance first.
-                </p>
+                </div>
               </div>
             )}
 
@@ -929,16 +958,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
               </Button>
             )}
 
-            <p className="text-xs text-muted-foreground">Select up to 5 methods</p>
+            <div className="text-xs text-muted-foreground">Select up to 5 methods</div>
 
             {/* Payment Method Picker Dialog */}
             <Dialog open={showPayMethodPicker} onOpenChange={setShowPayMethodPicker}>
               <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Select payment method</DialogTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {isBuyAd ? 'Select Payment Method (Up to 5 methods)' : 'Select up to 5 methods'}
-                  </p>
+                <DialogHeader className="pr-8 text-left">
+                  <DialogTitle className="text-base">Select payment method</DialogTitle>
+                  <div className="text-xs text-muted-foreground">
+                    {isBuyAd ? 'Select Payment Method (Up to 5 methods)' : 'Select up to 5 methods'} · {form.selectedPayMethods.length} selected
+                  </div>
                 </DialogHeader>
 
                 <div className="relative">
@@ -963,7 +992,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                           <div
                             key={config.identifier}
                             className={cn(
-                              'flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors',
+                              'flex items-center justify-between rounded-lg border border-border p-3 cursor-pointer transition-colors hover:bg-accent/40',
                               selected && 'ring-1 ring-primary'
                             )}
                             style={{
@@ -996,9 +1025,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                       ) : sellAdPayMethods.length === 0 ? (
                         <div className="flex flex-col items-center gap-2 py-8">
                           <AlertTriangle className="h-8 w-8 text-warning" />
-                          <p className="text-sm text-muted-foreground text-center">
+                          <div className="text-sm text-muted-foreground text-center">
                             Binance returned no saved payment methods for this account. Add them in the Binance app (P2P → Payment Methods), then reopen this dialog.
-                          </p>
+                          </div>
                         </div>
                       ) : sellAdPayMethods.filter((m: any) => matchesPayMethodSearch(m, payMethodSearch.toLowerCase())).length === 0 ? (
                         <div className="py-8 text-center text-sm text-muted-foreground">
@@ -1018,7 +1047,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                               <div
                                 key={m.payId || m.identifier}
                                 className={cn(
-                                  'flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors',
+                                  'flex items-center justify-between rounded-lg border border-border p-3 cursor-pointer transition-colors hover:bg-accent/40',
                                   selected && 'ring-1 ring-primary'
                                 )}
                                 style={{
@@ -1073,7 +1102,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
               </DialogContent>
             </Dialog>
 
-            <div>
+            <div className="space-y-1.5 border-t border-border pt-3">
               <Label>Payment Time Limit</Label>
               <Select value={String(form.payTimeLimit)} onValueChange={(v) => setForm({ ...form, payTimeLimit: Number(v) })}>
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
@@ -1084,13 +1113,13 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </section>
 
 
           {/* Terms & Conditions */}
-          <div className="space-y-3 rounded-lg border p-4">
-            <Label className="text-base font-semibold">Terms and Conditions</Label>
-            <div>
+          <section className={SECTION}>
+            <SectionTitle title="Terms and Conditions" />
+            <div className="space-y-1.5">
               <Label>Remarks (Optional)</Label>
               <Textarea
                 value={form.remarks}
@@ -1099,9 +1128,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 rows={3}
                 maxLength={1000}
               />
-              <p className="text-[10px] text-muted-foreground text-right mt-0.5">{form.remarks.length}/1000</p>
+              <div className="text-[10px] text-muted-foreground text-right tabular-nums">{form.remarks.length}/1000</div>
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label>Auto Reply (Optional)</Label>
               <Textarea
                 value={form.autoReplyMsg}
@@ -1110,12 +1139,12 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 rows={2}
               />
             </div>
-          </div>
+          </section>
 
           {/* Counterparty Conditions */}
-          <div className="space-y-3 rounded-lg border p-4">
-            <Label className="text-base font-semibold">Counterparty Conditions</Label>
-            <p className="text-xs text-muted-foreground">Adding counterparty requirements will reduce the exposure of your Ad</p>
+          <section className={SECTION}>
+            <SectionTitle title="Counterparty Conditions" />
+            <div className="text-xs text-muted-foreground -mt-1">Adding counterparty requirements will reduce the exposure of your Ad</div>
             <div className="flex items-center gap-3">
               <Switch
                 checked={form.takerAdditionalKycRequired === 1}
@@ -1139,10 +1168,10 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   value={regDaysEnabled ? form.buyerRegDaysLimit : ''}
                   onChange={(e) => setForm({ ...form, buyerRegDaysLimit: Number(e.target.value) || 0 })}
                   disabled={!regDaysEnabled}
-                  className="w-20 text-center"
+                  className="w-20 text-center tabular-nums"
                   placeholder="0"
                 />
-                <span className="text-sm text-muted-foreground">day(s) ago</span>
+                <span className="w-16 text-sm text-muted-foreground">day(s) ago</span>
               </div>
               <div className="flex items-center gap-3">
                 <Checkbox
@@ -1160,21 +1189,21 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                   value={btcHoldingEnabled ? form.buyerBtcPositionLimit : ''}
                   onChange={(e) => setForm({ ...form, buyerBtcPositionLimit: Number(e.target.value) || 0 })}
                   disabled={!btcHoldingEnabled}
-                  className="w-24 text-center"
+                  className="w-20 text-center tabular-nums"
                   placeholder="0.01"
                 />
-                <span className="text-sm text-muted-foreground">BTC</span>
+                <span className="w-16 text-sm text-muted-foreground">BTC</span>
               </div>
             </div>
-          </div>
+          </section>
 
            {/* Status — Radio Group: Online / Offline */}
-          <div className="space-y-3 rounded-lg border p-4">
-            <Label className="text-base font-semibold">Status</Label>
+          <section className={SECTION}>
+            <SectionTitle title="Status" />
             <RadioGroup
               value={String(form.advStatus)}
               onValueChange={(v) => setForm({ ...form, advStatus: Number(v) })}
-              className="space-y-2"
+              className="flex flex-wrap gap-x-5 gap-y-2"
             >
               <div className="flex items-center gap-2">
                 <RadioGroupItem value={String(BINANCE_AD_STATUS.ONLINE)} id="status-online" />
@@ -1195,12 +1224,14 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 <Label htmlFor="status-offline" className="cursor-pointer">Offline</Label>
               </div>
             </RadioGroup>
+          </section>
+          </div>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 border-t border-border bg-secondary/30 px-4 py-3 sm:gap-0 md:px-5">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || noSellMethods}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || noSellMethods} className="min-w-[7rem]">
             {isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Post'}
           </Button>
         </DialogFooter>

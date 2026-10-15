@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Coffee, Play, Loader2 } from 'lucide-react';
+import { Coffee, Play, Loader2, OctagonPause } from 'lucide-react';
 import { useAdRestTimer } from '@/hooks/useAdRestTimer';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { format } from 'date-fns';
@@ -58,44 +57,46 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
   if (isResting) {
     return (
       <>
-        <div className="flex items-center justify-between gap-3 bg-warning/10 border border-warning/30 rounded-lg px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Coffee className="h-5 w-5 text-warning" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Rest Mode Active</p>
-              <p className="text-xs text-muted-foreground">
-                Started by {activeTimer?.started_by || 'Operations Associate'} · All ads are offline
-              </p>
+        <div role="status" className="order-first flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/35 bg-warning/10 px-3 py-2.5 sm:px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-warning/30 bg-warning/15">
+              <Coffee className="h-4 w-4 text-warning" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Rest mode is on — all ads are offline</div>
+              <div className="text-xs text-muted-foreground">
+                Started by {activeTimer?.started_by || 'Operations Associate'} · ads stay off when the timer ends — press Resume ads to switch them back on
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="font-mono text-lg border-warning/50 text-warning px-3 py-1">
+          <div className="flex items-center gap-2.5">
+            <span className="t-mono rounded-md border border-warning/40 bg-card px-2.5 py-1 text-lg font-semibold tabular-nums text-warning" aria-label="Time left">
               {formatCountdown(countdown)}
-            </Badge>
+            </span>
             <Button
               size="sm"
               variant="outline"
               onClick={() => setConfirmEnd(true)}
               disabled={endRest.isPending}
-              className="border-success/50 text-success hover:bg-success/10"
+              className="h-9 border-success/50 text-success hover:bg-success/10 hover:text-success"
             >
               {endRest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-              Resume Ads
+              Resume ads
             </Button>
           </div>
         </div>
 
         <AlertDialog open={confirmEnd} onOpenChange={setConfirmEnd}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md">
             <AlertDialogHeader>
-              <AlertDialogTitle>End Rest & Resume?</AlertDialogTitle>
+              <AlertDialogTitle>End the rest and resume ads?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will re-activate {activeTimer?.deactivated_ad_nos?.length || 0} ads that were paused when rest started.
+                This turns back on the <strong className="text-foreground">{activeTimer?.deactivated_ad_nos?.length || 0}</strong> ads that were switched off when the rest started.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleEndRest}>Resume Ads</AlertDialogAction>
+              <AlertDialogAction onClick={handleEndRest}>Resume ads</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -105,18 +106,20 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
 
   if (isBinanceBreakDetected) {
     return (
-      <div className="flex items-center justify-between gap-3 bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Coffee className="h-5 w-5 text-destructive" />
-          <div>
-            <p className="text-sm font-medium text-foreground">Binance Break Active</p>
-            <p className="text-xs text-muted-foreground">
+      <div role="alert" className="order-first flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2.5 sm:px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-destructive/30 bg-destructive/15">
+            <OctagonPause className="h-4 w-4 text-destructive" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-foreground">Binance break is on</div>
+            <div className="text-xs text-muted-foreground">
               Binance is blocking ad changes because the merchant account is taking a break.
               {detectedBreak?.detectedAt ? ` Detected ${format(new Date(detectedBreak.detectedAt), 'dd MMM HH:mm')}.` : ''}
-            </p>
+            </div>
           </div>
         </div>
-        <Button size="sm" variant="outline" onClick={clearDetectedBreak}>
+        <Button size="sm" variant="outline" className="h-8" onClick={clearDetectedBreak}>
           Dismiss
         </Button>
       </div>
@@ -128,25 +131,26 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
       <Button
         variant="outline"
         size="sm"
+        className="h-8 gap-1.5 text-xs"
         onClick={() => setConfirmStart(true)}
         disabled={startRest.isPending || activeAds.length === 0}
         title={activeAds.length === 0 ? 'No active ads to pause' : 'Pause all ads for 1 hour'}
       >
-        {startRest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Coffee className="h-4 w-4 mr-1.5" />}
-        Take Rest
+        {startRest.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Coffee className="h-3.5 w-3.5" />}
+        Take rest
       </Button>
 
       <AlertDialog open={confirmStart} onOpenChange={setConfirmStart}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Take Rest?</AlertDialogTitle>
+            <AlertDialogTitle>Take a rest?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will deactivate <strong>{activeAds.length}</strong> active ad{activeAds.length !== 1 ? 's' : ''} (including Private) and start a 1-hour rest timer visible to all operators.
+              This switches off <strong className="text-foreground">{activeAds.length}</strong> active ad{activeAds.length !== 1 ? 's' : ''} (including Private) and starts a 1-hour rest timer that every operator sees.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStartRest}>Start Rest</AlertDialogAction>
+            <AlertDialogAction onClick={handleStartRest}>Start rest</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, Maximize2, ArrowRight } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { adZone, ZONE_SHORT } from '@/lib/adZone';
 import { useAdCapacityMap, capacityKey } from '@/hooks/useAdCapacityLimits';
 import { useBinanceBalances } from '@/hooks/useBinanceAssets';
 import { useToast } from '@/hooks/use-toast';
+import { AdDialogHeader, CHIP_MUTED, NoteBox, RunIcon, RunSummary, SideChip, shortAdNo } from './adUi';
 
 interface Props {
   open: boolean;
@@ -141,38 +141,32 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Maximize2 className="h-4 w-4" /> Set Maximum Quantity
-          </DialogTitle>
-        </DialogHeader>
+        <AdDialogHeader icon={Maximize2} title="Set maximum quantity" description="Sets each ad to the saved maximum for its asset, zone and side, capped by the free balance on sell ads. Ads above that amount are lowered." />
 
         {isLoading ? (
           <div className="py-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
         ) : (
           <>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <Badge variant="secondary">{actionable.length} will change</Badge>
-              {unchanged.length > 0 && <Badge variant="outline">{unchanged.length} already at max</Badge>}
-              {skipped.length > 0 && <Badge variant="outline" className="text-warning border-warning/40">{skipped.length} skipped</Badge>}
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
+              <span className="inline-flex h-6 items-center rounded-md border border-primary/25 bg-primary/10 px-2 font-semibold text-foreground tabular-nums">{actionable.length} will change</span>
+              {unchanged.length > 0 && <span className="inline-flex h-6 items-center rounded-md border border-border bg-secondary/60 px-2 text-muted-foreground tabular-nums">{unchanged.length} already at max</span>}
+              {skipped.length > 0 && <span className="inline-flex h-6 items-center rounded-md border border-warning/40 bg-warning/10 px-2 text-warning tabular-nums">{skipped.length} skipped</span>}
             </div>
 
-            <ScrollArea className="max-h-[22rem] pr-2">
-              <div className="space-y-2 py-1">
+            <ScrollArea className="max-h-[22rem] rounded-md border border-border">
+              <div className="divide-y divide-border">
                 {plan.map((p) => {
                   const res = results[p.ad.advNo];
                   return (
-                    <div key={p.ad.advNo} className="rounded-lg border border-border p-2.5 text-sm">
+                    <div key={p.ad.advNo} className="px-3 py-2.5 text-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-medium">{p.ad.asset}</span>
-                          <Badge variant="outline" className="text-[10px]">{p.ad.tradeType}</Badge>
-                          <Badge variant="outline" className="text-[10px]">{ZONE_SHORT[adZone(p.ad)]}</Badge>
-                          <span className="text-xs text-muted-foreground truncate">…{p.ad.advNo.slice(-8)}</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-semibold text-foreground">{p.ad.asset}</span>
+                          <SideChip side={p.ad.tradeType} />
+                          <span className={CHIP_MUTED}>{ZONE_SHORT[adZone(p.ad)]}</span>
+                          <span className="t-mono text-xs text-muted-foreground truncate">{shortAdNo(p.ad.advNo)}</span>
                         </div>
-                        {res?.status === 'success' && <CheckCircle className="h-4 w-4 text-success shrink-0" />}
-                        {res?.status === 'error' && <XCircle className="h-4 w-4 text-destructive shrink-0" />}
-                        {res?.status === 'pending' && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+                        {res && <RunIcon status={res.status} />}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {p.target === null ? (
@@ -180,7 +174,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
                         ) : (
                           <>
                             {p.ad.tradeType === 'BUY' ? 'tradable quantity' : 'quantity'}{' '}
-                            {fmtQty(p.ad.tradeType === 'BUY' ? p.remaining : p.current)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
+                            <span className="tabular-nums">{fmtQty(p.ad.tradeType === 'BUY' ? p.remaining : p.current)}</span> <ArrowRight className="inline h-3 w-3 align-[-2px]" /> <span className="text-foreground font-semibold tabular-nums">{fmtQty(p.target)}</span> {p.ad.asset}
                             {' · '}
                             {p.bound === 'balance'
                               ? `clamped to available balance (cap ${fmtQty(p.cap as number)})`
@@ -198,21 +192,16 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
             </ScrollArea>
 
             {step === 'preview' && actionable.length > 0 && (
-              <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3 text-sm">
-                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                <span>This publishes new quantities to Binance for {actionable.length} ad{actionable.length !== 1 ? 's' : ''}.</span>
-              </div>
+              <NoteBox>This publishes new quantities to Binance for {actionable.length} ad{actionable.length !== 1 ? 's' : ''}.</NoteBox>
             )}
 
             {step === 'done' && (
-              <p className="text-sm font-medium">
-                {failCount === 0 ? `✅ ${successCount} ad(s) updated` : `⚠️ ${successCount} succeeded, ${failCount} failed`}
-              </p>
+              <RunSummary ok={successCount} failed={failCount} okText={`${successCount} ad${successCount !== 1 ? 's' : ''} updated`} />
             )}
           </>
         )}
 
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="gap-2 sm:gap-0">
           {step === 'preview' && (
             <>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>

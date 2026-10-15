@@ -3,6 +3,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Pencil, Check, X, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
+import { cn } from '@/lib/utils';
+import { priceText } from './adUi';
 
 const STEP = 0.01;
 
@@ -15,6 +17,8 @@ interface InlinePriceEditorProps {
   isEditing: boolean;
   onRequestEdit: () => void;
   onClose: () => void;
+  /** Show a floating ad's ratio on its own line (tables) instead of inline (cards). */
+  stacked?: boolean;
 }
 
 /**
@@ -24,7 +28,7 @@ interface InlinePriceEditorProps {
  *   floating → { advNo, exchange_account_id, priceFloatingRatio }
  * via the existing useUpdateAd mutation (no new API contract).
  */
-export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose }: InlinePriceEditorProps) {
+export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose, stacked = false }: InlinePriceEditorProps) {
   const updateAd = useUpdateAd();
   const isFloating = ad.priceType === 2;
   const original = isFloating ? Number(ad.priceFloatingRatio || 0) : Number(ad.price || 0);
@@ -88,19 +92,23 @@ export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose }: Inl
   };
 
   if (!isEditing) {
+    const ratio = isFloating && ad.priceFloatingRatio ? (
+      <span className={cn('text-[11px] font-normal tabular-nums text-muted-foreground', stacked ? 'block leading-tight' : 'ml-1.5 align-middle')} title="Floating ratio">
+        {Number(ad.priceFloatingRatio).toFixed(2)}%
+      </span>
+    ) : null;
     return (
-      <div className="group inline-flex items-center justify-end gap-1">
-        <span>
-          ₹{Number(ad.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          {isFloating && ad.priceFloatingRatio ? (
-            <span className="text-xs text-muted-foreground ml-1">({Number(ad.priceFloatingRatio).toFixed(2)}%)</span>
-          ) : null}
+      <div className="group inline-flex items-center justify-end gap-1.5">
+        <span className={cn('whitespace-nowrap tabular-nums', stacked && 'text-right')}>
+          {priceText(ad.price)}
+          {ratio}
         </span>
         <button
           type="button"
           aria-label="Edit price"
+          title={isFloating ? 'Edit floating ratio' : 'Edit price'}
           onClick={onRequestEdit}
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-50 transition-opacity hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 [@media(hover:none)]:opacity-100"
         >
           <Pencil className="h-3 w-3" />
         </button>
@@ -109,12 +117,12 @@ export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose }: Inl
   }
 
   return (
-    <div className="inline-flex items-center justify-end gap-1" onMouseDown={(e) => e.stopPropagation()}>
-      <div className="flex flex-col">
-        <button type="button" aria-label="Increase" onMouseDown={(e) => e.preventDefault()} onClick={() => bump(1)} className="text-muted-foreground hover:text-foreground leading-none">
+    <div className="inline-flex items-center justify-end gap-1 rounded-md bg-card" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="flex flex-col overflow-hidden rounded border border-border">
+        <button type="button" aria-label="Increase" title="Up 0.01 (↑)" onMouseDown={(e) => e.preventDefault()} onClick={() => bump(1)} className="flex h-3.5 w-5 items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground leading-none">
           <ChevronUp className="h-3 w-3" />
         </button>
-        <button type="button" aria-label="Decrease" onMouseDown={(e) => e.preventDefault()} onClick={() => bump(-1)} className="text-muted-foreground hover:text-foreground leading-none">
+        <button type="button" aria-label="Decrease" title="Down 0.01 (↓)" onMouseDown={(e) => e.preventDefault()} onClick={() => bump(-1)} className="flex h-3.5 w-5 items-center justify-center border-t border-border text-muted-foreground hover:bg-accent hover:text-foreground leading-none">
           <ChevronDown className="h-3 w-3" />
         </button>
       </div>
@@ -128,7 +136,8 @@ export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose }: Inl
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
-        className="h-7 w-24 text-right tabular-nums px-1.5"
+        aria-label={isFloating ? 'Floating ratio (%)' : 'Price (₹)'}
+        className="h-7 w-24 px-1.5 text-right text-sm font-semibold tabular-nums"
       />
       {isFloating && <span className="text-xs text-muted-foreground">%</span>}
       <Button
@@ -136,7 +145,8 @@ export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose }: Inl
         variant="ghost"
         size="icon"
         aria-label="Confirm price"
-        className="h-6 w-6"
+        title="Save (Enter)"
+        className="h-7 w-7"
         disabled={committing}
         onMouseDown={(e) => e.preventDefault()}
         onClick={commit}
@@ -148,7 +158,8 @@ export function InlinePriceEditor({ ad, isEditing, onRequestEdit, onClose }: Inl
         variant="ghost"
         size="icon"
         aria-label="Cancel"
-        className="h-6 w-6"
+        title="Cancel (Esc)"
+        className="h-7 w-7"
         disabled={committing}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => { committedRef.current = true; onClose(); }}

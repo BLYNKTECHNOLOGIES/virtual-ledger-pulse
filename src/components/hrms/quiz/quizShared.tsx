@@ -120,6 +120,8 @@ export function AddTimeDialog({ attemptId, open, onOpenChange }: { attemptId: st
   const invalidate = useInvalidateQuiz();
   const [minutes, setMinutes] = useState("2");
   const [reason, setReason] = useState("");
+  // a fresh form every time the dialog opens (Cancel must not keep the last reason)
+  useEffect(() => { if (open) { setMinutes("2"); setReason(""); } }, [open]);
   const add = useMutation({
     mutationFn: () => quizRpc<{ section_code: string; applies_on_start: boolean }>("cbt_add_section_time", {
       p_attempt_id: attemptId, p_seconds: Math.round(Number(minutes) * 60), p_reason: reason.trim(),

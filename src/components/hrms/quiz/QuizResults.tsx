@@ -116,7 +116,7 @@ export function QuizResults({ drives, tests, canManage }: { drives: { id: string
               <TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Person</TableHead><TableHead>Test · drive</TableHead><TableHead>Status</TableHead><TableHead numeric>Total</TableHead><TableHead>Decision</TableHead><TableHead numeric>Warnings</TableHead><TableHead>Registered</TableHead></TableRow></TableHeader>
               <TableBody>
                 {(data?.rows ?? []).map((r) => (
-                  <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpenId(r.id)}>
+                  <TableRow key={r.id} className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0} onClick={() => setOpenId(r.id)} onKeyDown={(e) => { if (e.key === "Enter") setOpenId(r.id); }}>
                     <TableCell className="font-mono text-xs">{r.public_ref}{r.is_sandbox && <Badge variant="muted" className="ml-1">Sandbox</Badge>}</TableCell>
                     <TableCell className="font-medium">{r.person ?? "Anonymized"}</TableCell>
                     <TableCell><p>{r.test ?? "—"}</p><p className="text-xs text-muted-foreground">{r.drive}</p></TableCell>

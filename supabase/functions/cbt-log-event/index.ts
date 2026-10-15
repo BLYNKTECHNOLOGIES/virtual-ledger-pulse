@@ -22,11 +22,19 @@ Deno.serve(async (req) => {
     if (!parsed.success) return fail("invalid", "That event could not be recorded.", 400);
     const { event_type, meta } = parsed.data;
 
-    await db.from("cbt_proctor_events").insert({ attempt_id: attempt.id, event_type, meta: meta ?? {} });
+    // QZ7b: leaving the test fires blur, tab-hidden and fullscreen-exit together; warning events within
+    // 3 seconds of each other count as one warning. Every event still goes into the timeline.
+    let grouped = false;
+    if (WARNING_EVENTS.has(event_type)) {
+      const { data: recent } = await db.from("cbt_proctor_events").select("id").eq("attempt_id", attempt.id)
+        .in("event_type", [...WARNING_EVENTS]).gte("created_at", new Date(Date.now() - 3000).toISOString()).limit(1);
+      grouped = Boolean(recent?.length);
+    }
+    await db.from("cbt_proctor_events").insert({ attempt_id: attempt.id, event_type, meta: { ...(meta ?? {}), ...(grouped ? { counted_with_previous: true } : {}) } });
 
     let warningCount = attempt.warning_count as number;
     let autoSubmitted = false;
-    if (WARNING_EVENTS.has(event_type) && attempt.status === "in_progress") {
+    if (WARNING_EVENTS.has(event_type) && !grouped && attempt.status === "in_progress") {
       warningCount = warningCount + 1;
       const { data: settings } = await db.from("cbt_settings").select("max_warnings, on_warning_limit").eq("id", true).single();
       await db.from("cbt_attempts").update({ warning_count: warningCount }).eq("id", attempt.id);

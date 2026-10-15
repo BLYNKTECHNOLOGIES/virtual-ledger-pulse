@@ -374,7 +374,9 @@ export async function pickQuestions(
     });
     const shortfall = mix.easy + mix.medium + mix.hard;
     if (shortfall > 0) {
-      const rest = shuffle(candidates.filter((q) => !picked.includes(q)));
+      let rest = shuffle(candidates.filter((q) => !picked.includes(q)));
+      // QZ7b: top up from the nearest difficulty first (the level's order), never a random mix
+      if (opts.prefer?.length) rest = rest.sort((a: any, b: any) => opts.prefer!.indexOf(a.difficulty) - opts.prefer!.indexOf(b.difficulty));
       for (let i = 0; i < shortfall && rest.length; i++) picked.push(rest.shift());
     }
     return picked.slice(0, n);

@@ -34471,6 +34471,7 @@ export type Database = {
         Args: { p_drive_id?: string; p_role_id?: string }
         Returns: Json
       }
+      cbt_masked_answer: { Args: { p_item: string }; Returns: string }
       cbt_new_access_code: { Args: never; Returns: string }
       cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }

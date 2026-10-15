@@ -69,18 +69,20 @@ Deno.serve(async (req) => {
 
     // reuse a never-started registration for the same mobile + role in this drive
     // try runs always get their own candidate record and never touch an existing one
-    const { data: candidateExisting } = drive.is_try_run
+    // QZ7b: never overwrite an existing person. Reuse a record only when mobile, name and email all match;
+    // otherwise create a new one (the "questions already seen" rule keys on mobile, so it keeps working).
+    const norm = (v: unknown) => String(v ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+    const { data: sameMobile } = drive.is_try_run
       ? { data: [] as any[] }
-      : await db.from("cbt_candidates").select("*").eq("mobile", b.mobile).order("created_at", { ascending: false }).limit(1);
-    let candidateId = (candidateExisting?.[0] as any)?.id as string | undefined;
+      : await db.from("cbt_candidates").select("id, full_name, email").eq("mobile", b.mobile).order("created_at", { ascending: false }).limit(50);
+    const match = (sameMobile ?? []).find((c: any) => norm(c.full_name) === norm(b.full_name) && norm(c.email) === norm(b.email));
+    let candidateId = (match as any)?.id as string | undefined;
     const candidatePayload = {
       full_name: b.full_name, mobile: b.mobile, email: b.email, city: b.city,
       qualification: b.qualification, experience_years: b.experience_years, source: b.source,
       shift_availability: b.shift_availability, consent_at: new Date().toISOString(), consent_version: "2026-09",
     };
-    if (candidateId) {
-      await db.from("cbt_candidates").update(candidatePayload).eq("id", candidateId);
-    } else {
+    if (!candidateId) {
       const { data: created, error } = await db.from("cbt_candidates").insert(candidatePayload).select("id").single();
       if (error) return fail("server_error", error.message, 500);
       candidateId = created!.id;

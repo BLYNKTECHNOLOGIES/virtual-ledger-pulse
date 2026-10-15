@@ -67,7 +67,7 @@ function fromQuestion(q: EditableQuestion): Form {
 
 /** The payload cbt_save_question expects. Kept pure so it can be unit tested. */
 export function buildPayload(f: Form) {
-  const content: Record<string, unknown> = { marks: Number(f.marks) };
+  const content: Record<string, unknown> = {}; // every MCQ/numeric item counts 1 in scoring
   const key: Record<string, unknown> = {};
   switch (f.type) {
     case "mcq":
@@ -238,9 +238,8 @@ export function QuestionEditor({ open, onOpenChange, question, subjects, roleCod
               {f.pool === "hiring" && <p className="-mt-2 text-xs text-muted-foreground">Hiring questions stay general — not specific to our business. Company scenarios belong in the Staff pool.</p>}
 
               {(f.type === "mcq" || f.type === "numeric" || f.type === "written") && (
-                <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+                <div>
                   <div><Label htmlFor="qe-prompt">Question</Label><Textarea id="qe-prompt" rows={3} className="text-foreground" value={f.prompt} onChange={(e) => set("prompt", e.target.value)} /></div>
-                  <div><Label htmlFor="qe-marks">Marks</Label><Input id="qe-marks" inputMode="decimal" className="text-foreground" value={f.marks} onChange={(e) => set("marks", e.target.value)} /></div>
                 </div>
               )}
 

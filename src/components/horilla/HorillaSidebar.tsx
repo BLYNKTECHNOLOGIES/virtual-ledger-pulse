@@ -340,14 +340,17 @@ export function HorillaSidebar({
         ...group,
         items: group.items
           .map<NavItem | null>((item) => {
-            const children = item.children?.filter((child) => canAccessPath(child.path));
+            // Quiz: grading-only people see Grading alone (the page shows them nothing else).
+            const children = item.children?.filter((child) => canAccessPath(child.path)
+              && (!child.path.startsWith("/hrms/quiz") || child.path === "/hrms/quiz?view=grading"
+                || hasAnyPermission(["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_admin"])));
             const itemVisible = canAccessPath(item.path) || Boolean(children?.length);
             return itemVisible ? { ...item, children } : null;
           })
           .filter((item): item is NavItem => item !== null),
       }))
       .filter((group) => group.items.length > 0),
-    [canAccessPath]
+    [canAccessPath, hasAnyPermission]
   );
 
   // Auto-expand any parent group whose child matches current route

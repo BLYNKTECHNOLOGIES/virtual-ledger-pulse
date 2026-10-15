@@ -18,6 +18,7 @@ import { fmtIst, pretty, quizRpc } from "@/components/hrms/quiz/quizShared";
 import {
   GENERATED_ONLY, GROUPS, HAS_NEGATIVE, HAS_SOURCE, HAS_SUBJECTS, LEVELS, PRESETS, TYPE_BLURB, TYPE_LABEL,
   fromRow, levelMeaning, newSection, summarise, toPayload, type Level, type SectionDraft, type SectionType,
+  minutesWithBreaks,
 } from "@/lib/cbt/testBuilder";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -47,7 +48,7 @@ function ReadinessCell({ role, sections }: { role: any; sections: any[] }) {
   );
 }
 
-export function QuizTests({ roles, roleSections, positions, canManage }: { roles: any[]; roleSections: any[]; positions: any[]; canManage: boolean }) {
+export function QuizTests({ roles, roleSections, positions, canManage, transitionSeconds = 60 }: { roles: any[]; roleSections: any[]; positions: any[]; canManage: boolean; transitionSeconds?: number }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState<any | "new" | null>(null);
   const [tryRole, setTryRole] = useState<any | null>(null);
@@ -73,7 +74,28 @@ export function QuizTests({ roles, roleSections, positions, canManage }: { roles
           <div><h2 className="text-lg font-semibold">Tests</h2><p className="text-sm text-muted-foreground">One hiring test per company position. Scores are a weighted average of section scores.</p></div>
           {canManage && <Button onClick={() => setEditing("new")}><Plus className="h-4 w-4" />New test</Button>}
         </div>
-        <Table>
+        <div className="space-y-2 sm:hidden">
+          {roles.map((r) => {
+            const secs = sectionsOf(r.id);
+            return (
+              <Card key={r.id}><CardContent className="space-y-2 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground">{r.positions?.departments?.name ?? r.department_code} · <span className="font-mono">{r.code}</span></p></div>
+                  <Badge variant={r.is_active ? "success" : "muted"}>{r.is_active ? "Active" : "Inactive"}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{secs.length} sections · {Math.round(secs.reduce((n, s) => n + s.duration_seconds, 0) / 6) / 10} min (about {minutesWithBreaks(secs, transitionSeconds)} with breaks) · Shortlist ≥ {r.shortlist_cutoff}% · Hold ≥ {r.hold_cutoff}%</p>
+                <ReadinessCell role={r} sections={secs} />
+                <div className="flex flex-wrap gap-1">
+                  {canManage && <Button variant="outline" size="sm" onClick={() => setEditing(r)}><Pencil className="h-4 w-4" />Edit</Button>}
+                  {canManage && <Button variant="outline" size="sm" disabled={tryIt.isPending} onClick={() => tryIt.mutate(r.id)}><FlaskConical className="h-4 w-4" />Try it</Button>}
+                  <Button variant="ghost" size="sm" onClick={() => setTryRole(r)}>Try runs</Button>
+                </div>
+              </CardContent></Card>
+            );
+          })}
+          {!roles.length && <p className="text-center text-sm text-muted-foreground">No tests yet.</p>}
+        </div>
+        <Table className="hidden sm:table">
           <TableHeader><TableRow>
             <TableHead>Position</TableHead><TableHead>Department</TableHead><TableHead numeric>Sections</TableHead><TableHead numeric>Minutes</TableHead>
             <TableHead>Cut-offs</TableHead><TableHead>Status</TableHead><TableHead>Readiness</TableHead><TableHead className="w-28"><span className="sr-only">Actions</span></TableHead>
@@ -82,12 +104,13 @@ export function QuizTests({ roles, roleSections, positions, canManage }: { roles
             {roles.map((r) => {
               const secs = sectionsOf(r.id);
               const minutes = Math.round(secs.reduce((n, s) => n + s.duration_seconds, 0) / 6) / 10;
+              const withBreaks = minutesWithBreaks(secs, transitionSeconds);
               return (
                 <TableRow key={r.id}>
                   <TableCell><p className="font-medium">{r.name}</p><p className="font-mono text-xs text-muted-foreground">{r.code}</p></TableCell>
                   <TableCell>{r.positions?.departments?.name ?? r.department_code}</TableCell>
                   <TableCell numeric>{secs.length}</TableCell>
-                  <TableCell numeric>{minutes}</TableCell>
+                  <TableCell numeric><p>{minutes}</p><p className="text-xs text-muted-foreground">about {withBreaks} with breaks</p></TableCell>
                   <TableCell className="text-xs">Shortlist ≥ {r.shortlist_cutoff}% · Hold ≥ {r.hold_cutoff}%</TableCell>
                   <TableCell><Badge variant={r.is_active ? "success" : "muted"}>{r.is_active ? "Active" : "Inactive"}</Badge></TableCell>
                   <TableCell><ReadinessCell role={r} sections={secs} /></TableCell>
@@ -122,7 +145,7 @@ export function QuizTests({ roles, roleSections, positions, canManage }: { roles
         </div>
       </div>
 
-      {editing && <TestEditor role={editing === "new" ? null : editing} sections={editing === "new" ? [] : sectionsOf(editing.id)} positions={positions} roles={roles} onClose={() => setEditing(null)} />}
+      {editing && <TestEditor transitionSeconds={transitionSeconds} role={editing === "new" ? null : editing} sections={editing === "new" ? [] : sectionsOf(editing.id)} positions={positions} roles={roles} onClose={() => setEditing(null)} />}
       <TryRuns role={tryRole} onClose={() => setTryRole(null)} />
     </div>
   );
@@ -174,7 +197,7 @@ function TryRuns({ role, onClose }: { role: any | null; onClose: () => void }) {
   );
 }
 
-function TestEditor({ role, sections: initial, positions, roles, onClose }: { role: any | null; sections: any[]; positions: any[]; roles: any[]; onClose: () => void }) {
+function TestEditor({ role, sections: initial, positions, roles, onClose, transitionSeconds = 60 }: { role: any | null; sections: any[]; positions: any[]; roles: any[]; onClose: () => void; transitionSeconds?: number }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [positionId, setPositionId] = useState<string>(role?.position_id ?? "");
@@ -327,6 +350,7 @@ function TestEditor({ role, sections: initial, positions, roles, onClose }: { ro
             <Card><CardContent className="space-y-3 p-4">
               <p className="font-semibold">Summary</p>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total time</span><span className={summary.overHour ? "font-semibold text-destructive" : "font-semibold"}>{summary.totalMinutes} min</span></div>
+              <p className="text-right text-xs text-muted-foreground">about {minutesWithBreaks(sections.map((s) => ({ duration_seconds: (Number(s.minutes) || 0) * 60, section_type: s.sectionType, practice_seconds: s.sectionType === "typing" ? (Number(s.practiceMinutes) || 0) * 60 : 0 })), transitionSeconds)} min with breaks, as candidates experience it</p>
               {summary.overHour && <p className="flex items-start gap-1 text-xs text-destructive"><AlertTriangle className="mt-0.5 h-3 w-3" />Over 60 minutes. A standard hiring test is about 45.</p>}
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total items</span><span className="font-semibold">{summary.totalItems}</span></div>
               <div className="space-y-1 border-t border-border pt-2">

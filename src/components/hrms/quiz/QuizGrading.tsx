@@ -26,7 +26,7 @@ const TABS: { key: Tab; label: string; icon: typeof Bot }[] = [
 ];
 const FLAG_LABEL: Record<string, string> = {
   off_topic: "Off-topic", copies_question: "Mostly copies the question", too_short: "Too short", not_english: "Not in English",
-  inappropriate: "Inappropriate", breaks_must_not: "Breaks a must-not rule",
+  inappropriate: "Inappropriate", breaks_must_not: "Breaks a must-not rule", instructs_grader: "Tries to instruct the grader",
 };
 const words = (s: string) => (s.trim().match(/\S+/g) ?? []).length;
 
@@ -79,11 +79,14 @@ export function QuizGrading({ counts }: { counts?: GradingCounts }) {
   });
 
   const canAccept = !!row && row.ai_suggested_total != null && row.total == null;
-  const pending = row?.state === "ai_pending";
+  // an answer with the AI for over 5 minutes may be graded by a person (a person's grade wins if the AI finishes later)
+  const pending = row?.state === "ai_pending" && Date.now() - new Date(row.updated_at).getTime() < 5 * 60_000;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (t && ["INPUT", "TEXTAREA"].includes(t.tagName)) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && row && !pending) grade.mutate(false); return; }
+      const editable = t && (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable || t.getAttribute?.("role") === "combobox");
+      if (editable) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && row && !pending) grade.mutate(false); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "ArrowRight" || e.key === "j" || e.key === "s") setIdx((i) => Math.min(i + 1, list.length - 1));
       else if (e.key === "ArrowLeft" || e.key === "k") setIdx((i) => Math.max(i - 1, 0));
       else if (e.key === "a" && canAccept && !pending) grade.mutate(true);

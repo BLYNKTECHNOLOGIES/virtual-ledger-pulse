@@ -11,13 +11,13 @@ import { useGradingCounts } from "./QuizGrading";
 import { AI_NUMBERS, NUMBERS, TEXTS, settingsProblems, type Settings } from "@/lib/cbt/quizBank";
 import { Switch } from "@/components/ui/switch";
 
-export function QuizSettings({ settings, canAdmin }: { settings: Settings | null; canAdmin: boolean }) {
+export function QuizSettings({ settings, canAdmin, canGrade = false }: { settings: Settings | null; canAdmin: boolean; canGrade?: boolean }) {
   const { toast } = useToast();
   const invalidate = useInvalidateQuiz();
   const [f, setF] = useState<Settings>({});
   useEffect(() => { if (settings) setF({ ...settings }); }, [settings?.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps
   const problems = settingsProblems(f);
-  const { data: aiUsage } = useGradingCounts(true);
+  const { data: aiUsage } = useGradingCounts(canGrade);
   const save = useMutation({
     mutationFn: () => quizRpc("cbt_update_settings", {
       p: Object.fromEntries([...TEXTS.map((t) => t.key), ...NUMBERS.map((n) => n.key), "on_warning_limit", "typing_practice_passage", ...AI_NUMBERS.map((n) => n.key)].map((k) => [k, f[k] ?? ""]).concat([["ai_grading_enabled", f.ai_grading_enabled !== false]])),

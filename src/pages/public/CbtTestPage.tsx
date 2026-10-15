@@ -735,8 +735,8 @@ function SectionBody({
             response={drafts[item.id] ?? item.response}
             onChange={(r) => setDraft(item.id, r)}
             onPasteBlocked={onPasteBlocked}
-            minWords={section.min_words}
-            maxWords={section.max_words}
+            minWords={wordLimit(section.min_words, item.content?.min_words)}
+            maxWords={wordLimit(section.max_words, item.content?.max_words)}
           />
         </CardContent>
       </Card>
@@ -874,4 +874,10 @@ function NextCandidate() {
       <p className="text-xs">This screen resets for the next person in {Math.max(0, left)}s.</p>
     </div>
   );
+}
+
+/** One rule everywhere: the section's word limit when set, else the question's own. */
+function wordLimit(section: unknown, question: unknown): number | null {
+  const n = (v: unknown) => (v == null || String(v).trim() === '' || !Number.isFinite(Number(v)) || Number(v) <= 0 ? null : Number(v));
+  return n(section) ?? n(question);
 }

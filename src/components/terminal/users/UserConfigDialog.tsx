@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler, Shield, Fingerprint, RotateCcw, CheckCircle2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
+import { useTerminalEditableUsers } from "@/hooks/useTerminalEditableUsers";
 
 import { usersDirectory } from "@/lib/usersDirectory";
 interface UserProfile {
@@ -54,6 +55,8 @@ interface Props {
 
 export function UserConfigDialog({ open, onOpenChange, userId, username, displayName, onSaved }: Props) {
   const { isTerminalAdmin } = useTerminalAuth();
+  const { editReason } = useTerminalEditableUsers();
+  const saveBlockedReason = editReason(userId);
   const [profile, setProfile] = useState<UserProfile>({
     user_id: userId,
     specialization: "both",
@@ -145,6 +148,8 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   }, [open, fetchData]);
 
   const handleSave = async () => {
+    // AM-SEC-7: check the rule before writing anything, so a save never lands half-way.
+    if (saveBlockedReason) { toast.error(saveBlockedReason); return; }
     setIsSaving(true);
     try {
       // Upsert profile
@@ -562,9 +567,12 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="items-center">
+          {saveBlockedReason && !isLoading && (
+            <p className="mr-auto text-xs text-muted-foreground">{saveBlockedReason}</p>
+          )}
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button size="sm" onClick={handleSave} disabled={isSaving || isLoading}>
+          <Button size="sm" onClick={handleSave} disabled={isSaving || isLoading || !!saveBlockedReason} title={saveBlockedReason ?? undefined}>
             {isSaving ? "Saving..." : "Save Configuration"}
           </Button>
         </DialogFooter>

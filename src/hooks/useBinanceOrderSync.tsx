@@ -27,39 +27,52 @@ type CachedOrderHistoryRange = {
   endTimestamp?: number;
 };
 
+/** Read cached orders for [start, end] (end null = no upper bound), newest first, mapped to orders. */
+export async function fetchCachedOrderRows(accounts: string[], start: number, end: number | null) {
+  const allRows: any[] = [];
+  const PAGE_SIZE = 1000;
+  let from = 0;
+
+  while (true) {
+    let query = supabase
+      .from('binance_order_history')
+      .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name,complaint_status,has_active_complaint,exchange_account_id')
+      .in('exchange_account_id', accounts)
+      .gte('create_time', start)
+      .order('create_time', { ascending: false });
+
+    if (end) {
+      query = query.lte('create_time', end);
+    }
+
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allRows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return allRows.map(dbRowToOrder);
+}
+
+/** Reads the order-history sync status row. */
+export async function fetchSyncMetadata() {
+  const { data, error } = await supabase
+    .from('binance_sync_metadata')
+    .select('*')
+    .eq('id', 'order_history')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // ---- DB Read: Get cached orders, optionally scoped to a selected analytics period ----
 export function useCachedOrderHistory(range: CachedOrderHistoryRange = {}) {
   const { accountsToQuery } = useExchangeAccount();
   return useQuery({
     queryKey: ['cached-order-history', accountsToQuery.join(','), range.startTimestamp || null, range.endTimestamp || null],
-    queryFn: async () => {
-      const cutoff = range.startTimestamp || Date.now() - DATA_RETENTION_MS;
-      const allRows: any[] = [];
-      const PAGE_SIZE = 1000;
-      let from = 0;
-
-      while (true) {
-        let query = supabase
-          .from('binance_order_history')
-          .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name,complaint_status,has_active_complaint,exchange_account_id')
-          .in('exchange_account_id', accountsToQuery)
-          .gte('create_time', cutoff)
-          .order('create_time', { ascending: false });
-
-        if (range.endTimestamp) {
-          query = query.lte('create_time', range.endTimestamp);
-        }
-
-        const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        allRows.push(...data);
-        if (data.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
-      }
-
-      return allRows.map(dbRowToOrder);
-    },
+    queryFn: () => fetchCachedOrderRows(accountsToQuery, range.startTimestamp || Date.now() - DATA_RETENTION_MS, range.endTimestamp || null),
     // Keep cached orders "fresh" for 2 min so navigating between Terminal pages
     // shows the data instantly instead of re-fetching the whole window every time.
     staleTime: 2 * 60 * 1000,
@@ -518,7 +531,7 @@ function orderToDbRow(o: any, accountId?: string) {
   return row;
 }
 
-function dbRowToOrder(row: any) {
+export function dbRowToOrder(row: any) {
   return {
     orderNumber: row.order_number,
     advNo: row.adv_no,

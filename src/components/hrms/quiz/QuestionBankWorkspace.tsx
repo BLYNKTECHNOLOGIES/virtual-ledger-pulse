@@ -99,6 +99,7 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
     },
   });
   const subjectName = (key: string) => subjectList.find((x) => x.key === key)?.display_name ?? pretty(key || "Untagged");
+  const [retireImpact, setRetireImpact] = useState<{ id: string; text: string } | null>(null);
   const setStatusAct = useMutation({
     mutationFn: (v: { id: string; action: "approve" | "retire" | "restore" | "submit"; confirm?: boolean }) =>
       quizRpc<string>("cbt_set_question_status", { p_question_id: v.id, p_action: v.action, p_confirm: Boolean(v.confirm) }),
@@ -110,7 +111,6 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
       toast({ title: "Status not changed", description: e.message, variant: "destructive" });
     },
   });
-  const [retireImpact, setRetireImpact] = useState<{ id: string; text: string } | null>(null);
   const onAddQuestion = canManage ? () => setEditor({ open: true, q: null }) : undefined;
   const [subject, setSubject] = useState("__all");
   const [difficulty, setDifficulty] = useState("__all");

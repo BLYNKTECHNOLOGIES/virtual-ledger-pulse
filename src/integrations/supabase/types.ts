@@ -4014,6 +4014,87 @@ export type Database = {
           },
         ]
       }
+      binance_open_order_checks: {
+        Row: {
+          checked_at: string
+          exchange_account_id: string | null
+          id: string
+          message: string | null
+          order_number: string
+          outcome: string
+          raw_code: string | null
+          run_id: string
+          source: string | null
+          status_after: string | null
+          status_before: string | null
+          trade_type: string | null
+        }
+        Insert: {
+          checked_at?: string
+          exchange_account_id?: string | null
+          id?: string
+          message?: string | null
+          order_number: string
+          outcome: string
+          raw_code?: string | null
+          run_id: string
+          source?: string | null
+          status_after?: string | null
+          status_before?: string | null
+          trade_type?: string | null
+        }
+        Update: {
+          checked_at?: string
+          exchange_account_id?: string | null
+          id?: string
+          message?: string | null
+          order_number?: string
+          outcome?: string
+          raw_code?: string | null
+          run_id?: string
+          source?: string | null
+          status_after?: string | null
+          status_before?: string | null
+          trade_type?: string | null
+        }
+        Relationships: []
+      }
+      binance_open_order_refresh_state: {
+        Row: {
+          changed_at: string | null
+          completed_by_refresher_at: string | null
+          exchange_account_id: string | null
+          last_checked_at: string
+          last_outcome: string
+          next_check_at: string
+          order_number: string
+          status_after: string | null
+          updated_at: string
+        }
+        Insert: {
+          changed_at?: string | null
+          completed_by_refresher_at?: string | null
+          exchange_account_id?: string | null
+          last_checked_at: string
+          last_outcome: string
+          next_check_at: string
+          order_number: string
+          status_after?: string | null
+          updated_at?: string
+        }
+        Update: {
+          changed_at?: string | null
+          completed_by_refresher_at?: string | null
+          exchange_account_id?: string | null
+          last_checked_at?: string
+          last_outcome?: string
+          next_check_at?: string
+          order_number?: string
+          status_after?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       binance_order_chat_messages: {
         Row: {
           binance_create_time: number | null
@@ -34627,6 +34708,23 @@ export type Database = {
       }
       apply_due_scheduled_salary_revisions: { Args: never; Returns: number }
       apply_due_statutory_revisions: { Args: never; Returns: number }
+      apply_open_order_check: {
+        Args: {
+          p_backoff_minutes: number
+          p_complaint_status: string
+          p_detail_raw: Json
+          p_has_active_complaint: boolean
+          p_message: string
+          p_order_number: string
+          p_outcome: string
+          p_raw_code: string
+          p_raw_data: Json
+          p_run_id: string
+          p_source: string
+          p_status: string
+        }
+        Returns: string
+      }
       apply_salary_revision: {
         Args: {
           p_approved_by: string
@@ -35038,6 +35136,10 @@ export type Database = {
       binance_accounts_for_user: {
         Args: { p_user_id?: string }
         Returns: string[]
+      }
+      binance_order_status_is_final: {
+        Args: { p_status: string }
+        Returns: boolean
       }
       calculate_user_risk_score: {
         Args: { user_uuid: string }
@@ -38826,6 +38928,45 @@ export type Database = {
         Returns: undefined
       }
       refresh_terminal_order_rollups_job: { Args: never; Returns: undefined }
+      refresher_completed_orders: {
+        Args: { p_since: string; p_trade_type: string }
+        Returns: {
+          adv_no: string | null
+          amount: string | null
+          asset: string | null
+          cancel_reason_additional: string | null
+          cancel_reason_captured_at: string | null
+          cancel_reason_code: number | null
+          cancel_reason_label: string | null
+          cancel_reason_source: string | null
+          commission: string | null
+          complaint_status: string | null
+          counter_part_nick_name: string | null
+          counterparty_risk_captured_at: string | null
+          counterparty_risk_snapshot: Json | null
+          create_time: number
+          exchange_account_id: string
+          fiat_unit: string | null
+          has_active_complaint: boolean | null
+          order_detail_raw: Json | null
+          order_number: string
+          order_status: string | null
+          pay_method_name: string | null
+          raw_data: Json | null
+          seller_payment_details: Json | null
+          synced_at: string
+          total_price: string | null
+          trade_type: string | null
+          unit_price: string | null
+          verified_name: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "binance_order_history"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       register_user_request: {
         Args: {
           p_email: string
@@ -38934,6 +39075,17 @@ export type Database = {
           p_role_id?: string
         }
         Returns: string
+      }
+      select_stale_open_orders: {
+        Args: { p_now_ms: number; p_per_account: number }
+        Returns: {
+          create_time: number
+          exchange_account_id: string
+          last_checked_at: string
+          order_number: string
+          order_status: string
+          trade_type: string
+        }[]
       }
       set_balance_baseline: {
         Args: { _notes?: string }

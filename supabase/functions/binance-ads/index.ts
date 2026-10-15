@@ -13,6 +13,8 @@ import {
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
 import { terminalRightRule, gateTerminalRight, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial, serverCaptureSource } from "../_shared/binance-access.ts";
+import { refreshStaleOpenOrders, type StaleCandidate, type BinanceReply } from "../_shared/staleOpenRefresh.ts";
+import type { ResolvedAccount } from "../_shared/binance-account.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -285,6 +287,76 @@ function orderToHistoryRow(order: any, accountId: string) {
     synced_at: new Date().toISOString(),
     exchange_account_id: accountId,
   };
+}
+
+async function readProxyJson(response: Response): Promise<BinanceReply> {
+  const text = await response.text();
+  let body: any;
+  try { body = JSON.parse(text); } catch { body = { raw: text.slice(0, 300) }; }
+  const code = body?.code ?? null;
+  const ok = response.ok && (code === null || code === "000000" || code === 200);
+  return { ok, code: code ?? response.status, message: body?.message ?? body?.msg ?? null, body };
+}
+
+/** TD-FIX-A: server-side re-check of open orders older than 24 h (scheduler/service context). */
+async function runStaleOpenRefresh(supabase: any) {
+  const runId = crypto.randomUUID();
+  const summary = await refreshStaleOpenOrders<ResolvedAccount>({
+    now: () => Date.now(),
+    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    selectCandidates: async (nowMs, perAccount) => {
+      const { data, error } = await supabase.rpc("select_stale_open_orders", { p_now_ms: nowMs, p_per_account: perAccount });
+      if (error) throw new Error(`select_stale_open_orders: ${error.message}`);
+      return (data || []) as StaleCandidate[];
+    },
+    resolveAccount: async (accountId) => {
+      if (!accountId) return { ok: false, reason: "row has no exchange account" };
+      try {
+        const { data: row } = await supabase.from("terminal_exchange_accounts").select("is_active").eq("id", accountId).maybeSingle();
+        if (!row?.is_active) return { ok: false, reason: "account inactive or unknown" };
+        return { ok: true, ctx: await resolveAccount(accountId, { strict: true }) };
+      } catch (e) {
+        return { ok: false, reason: String((e as Error)?.message ?? e).slice(0, 200) };
+      }
+    },
+    fetchHistory: async (acct, q) => {
+      const params = new URLSearchParams({ page: "1", rows: "100" });
+      params.set("startTimestamp", String(q.startTimestamp));
+      params.set("endTimestamp", String(q.endTimestamp));
+      if (q.tradeType === "BUY" || q.tradeType === "SELL") params.set("tradeType", q.tradeType);
+      const url = `${acct.proxyUrl}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory?${params.toString()}`;
+      return readProxyJson(await fetchWithRetry(url, { method: "GET", headers: proxyHeadersFor(acct) }, 1, 500, 15000));
+    },
+    fetchDetail: async (acct, orderNumber) => {
+      const url = `${acct.proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
+      return readProxyJson(await fetchWithRetry(url, {
+        method: "POST", headers: proxyHeadersFor(acct), body: JSON.stringify({ adOrderNo: orderNumber, orderNo: orderNumber }),
+      }, 1, 500, 15000));
+    },
+    apply: async (rec) => {
+      const { data, error } = await supabase.rpc("apply_open_order_check", {
+        p_run_id: runId, p_order_number: rec.orderNumber, p_outcome: rec.outcome, p_source: rec.source,
+        p_raw_code: rec.rawCode, p_message: rec.message, p_status: rec.status,
+        p_complaint_status: rec.complaintStatus === null || rec.complaintStatus === undefined ? null : String(rec.complaintStatus),
+        p_has_active_complaint: rec.hasActiveComplaint, p_raw_data: rec.rawData, p_detail_raw: rec.detailRaw,
+        p_backoff_minutes: rec.backoffMinutes,
+      });
+      if (error) throw new Error(`apply_open_order_check: ${error.message}`);
+      return String(data);
+    },
+    normalizeStatus: normalizeBinanceOrderStatus,
+    hasActiveComplaint: hasActiveComplaintFromPayload,
+    unwrapList: unwrapOrderList,
+    unwrapDetail: unwrapOrderDetail,
+  });
+  await supabase.from("binance_sync_metadata").upsert({
+    id: "stale_open_refresh",
+    last_sync_at: new Date().toISOString(),
+    last_sync_order_count: summary.checked,
+    last_sync_duration_ms: null,
+  }, { onConflict: "id" });
+  console.log("stale open-order refresh:", JSON.stringify(summary));
+  return { runId, ...summary };
 }
 
 function toNumeric(value: unknown): number | null {
@@ -1906,10 +1978,20 @@ serve(async (req) => {
           console.warn("syncTerminalOrdersForErp cancellation reconcile failed:", reconcileErr);
         }
 
+        // TD-FIX-A (F4): bounded re-check of open rows older than 24 h, by order,
+        // on each row's own account. Never fails the routine sync.
+        let staleOpenRefresh: any = null;
+        try {
+          staleOpenRefresh = await runStaleOpenRefresh(supabase);
+        } catch (staleErr) {
+          console.warn("stale open-order refresh failed:", staleErr);
+          staleOpenRefresh = { error: String((staleErr as Error)?.message ?? staleErr) };
+        }
+
         result = {
           code: "000000",
           message: "Terminal order history refreshed from Binance",
-          data: { fetched, upserted, accounts: accountResults },
+          data: { fetched, upserted, accounts: accountResults, staleOpenRefresh },
         };
         break;
       }

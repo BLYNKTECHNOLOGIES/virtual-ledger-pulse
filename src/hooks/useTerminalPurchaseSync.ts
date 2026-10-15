@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchRefresherCompletedOrders, mergeRefresherCompletions } from "@/lib/refresherCompletions";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { getSmallBuysConfig } from "@/hooks/useSmallBuysSync";
 import { sanitizeNickname, extractCounterpartyUserNo, resolveOrderUserNo } from "@/lib/clientIdentityResolver";
@@ -145,7 +146,11 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   const cutoffTime = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
 
   // 2a. Fetch COMPLETED BUY orders (paginated)
-  const completedBuys = await fetchOrdersByStatus('BUY', ['COMPLETED', '4'], cutoffTime);
+  // TD-FIX-A (D2): plus orders the server refresher completed in the last 3 days (any age).
+  const completedBuys = mergeRefresherCompletions(
+    await fetchOrdersByStatus('BUY', ['COMPLETED', '4'], cutoffTime),
+    await fetchRefresherCompletedOrders('BUY'),
+  );
 
   // 2b. Fetch IN_APPEAL BUY orders — these may have been resolved since last sync (paginated)
   const appealBuys = await fetchOrdersByStatus('BUY', ['IN_APPEAL', '7'], cutoffTime);

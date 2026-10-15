@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchRefresherCompletedOrders, mergeRefresherCompletions } from "@/lib/refresherCompletions";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
 import { extractCounterpartyUserNo, resolveOrderUserNo } from "@/lib/clientIdentityResolver";
@@ -109,7 +110,11 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
     // 2. Get completed SELL orders from binance_order_history — last 7 days to catch cross-day orders
     const cutoffTime = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const completedSells = await fetchSalesOrdersByStatus(['COMPLETED', '4'], cutoffTime);
+    // TD-FIX-A (D2): plus orders the server refresher completed in the last 3 days (any age).
+    const completedSells = mergeRefresherCompletions(
+      await fetchSalesOrdersByStatus(['COMPLETED', '4'], cutoffTime),
+      await fetchRefresherCompletedOrders('SELL'),
+    );
 
     if (!completedSells || completedSells.length === 0) {
       return { synced: 0, duplicates: 0 };

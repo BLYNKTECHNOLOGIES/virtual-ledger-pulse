@@ -3,7 +3,7 @@ import { isReviewShortcut, pairDifference } from "@/lib/cbt/reviewQueue";
 
 describe("QZ7b review queue", () => {
   it("highlights exactly the differing part of a match pair", () => {
-    expect(pairDifference("Rs 4,52,075.00", "Rs 45,207.50")).toEqual({ start: 4, endL: 12, endR: 10 });
+    expect(pairDifference("Rs 4,52,075.00", "Rs 45,207.50")).toEqual({ start: 4, endL: 13, endR: 11 });
     expect(pairDifference("SBIN0001234", "SBIN0001234")).toBeNull();
   });
   it("shortcuts are ignored while typing or with modifier keys", () => {

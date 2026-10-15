@@ -287,10 +287,6 @@ export function hrmsNavLabel(pathname: string, search = ""): string | null {
 const HRMS_ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/hrms/quiz": ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_evaluate", "hrms_quiz_admin"],
   "/hrms/lms": ["hrms_lms_view", "hrms_lms_manage"],
-  // Quiz sub-items: grading-only people see Grading alone (the page shows them nothing else).
-  "/hrms/quiz?view=grading": ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_evaluate", "hrms_quiz_admin"],
-  ...Object.fromEntries(["", "?view=drives", "?view=results", "?view=tests", "?view=questions", "?view=settings"]
-    .map((q) => [`/hrms/quiz${q}#child`, ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_admin"]])),
 };
 
 
@@ -334,7 +330,7 @@ export function HorillaSidebar({
   };
 
   const canAccessPath = useCallback((path: string) => {
-    const own = HRMS_ROUTE_PERMISSIONS[path] ?? HRMS_ROUTE_PERMISSIONS[path.split("?")[0]];
+    const own = HRMS_ROUTE_PERMISSIONS[path.split("?")[0]];
     return own ? hasAnyPermission(expandPermissions(own)) : hasAnyPermission(["hrms_view", "hrms_manage"]);
   }, [hasAnyPermission]);
 
@@ -344,14 +340,17 @@ export function HorillaSidebar({
         ...group,
         items: group.items
           .map<NavItem | null>((item) => {
-            const children = item.children?.filter((child) => canAccessPath(child.path));
+            // Quiz: grading-only people see Grading alone (the page shows them nothing else).
+            const children = item.children?.filter((child) => canAccessPath(child.path)
+              && (!child.path.startsWith("/hrms/quiz") || child.path === "/hrms/quiz?view=grading"
+                || hasAnyPermission(["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_admin"])));
             const itemVisible = canAccessPath(item.path) || Boolean(children?.length);
             return itemVisible ? { ...item, children } : null;
           })
           .filter((item): item is NavItem => item !== null),
       }))
       .filter((group) => group.items.length > 0),
-    [canAccessPath]
+    [canAccessPath, hasAnyPermission]
   );
 
   // Auto-expand any parent group whose child matches current route

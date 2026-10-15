@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { syncAssetMovementsAllAccounts } from "@/hooks/useBinanceAssets";
 import { useEffect, useRef } from "react";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 
@@ -49,9 +50,8 @@ export function useCheckNewMovements() {
   const checkMutation = useMutation({
     mutationFn: async (opts?: { force?: boolean }) => {
       // Trigger asset movement sync — force=true when manually triggered by user
-      const { data: syncResult } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "syncAssetMovements", force: opts?.force ?? false },
-      });
+      // Every active Binance account syncs with its own cursor (F5c).
+      const syncResult = await syncAssetMovementsAllAccounts(opts?.force ?? false);
 
       // Then check for new movements to queue
       const { data, error } = await supabase.functions.invoke("binance-assets", {

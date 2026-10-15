@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useToast } from "@/hooks/use-toast";
 import { AttemptPanel } from "./AttemptPanel";
-import { fmtIst, pretty, quizRpc, statusLabel, statusVariant } from "./quizShared";
+import { decisionLabel, fmtIst, pretty, quizRpc, statusLabel, statusVariant } from "./quizShared";
 
 export type ResultRow = {
   id: string; public_ref: string; person: string | null; mobile: string | null; test: string | null; drive: string | null;

@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   AddTimeDialog, PROCTOR_LABEL, ReasonDialog, ResumeCodeDialog, fmtIst, fmtTime, pretty, quizRpc,
-  statusLabel, statusVariant, useInvalidateQuiz, clock,
-} from "./quizShared";
+  statusLabel, statusVariant, useInvalidateQuiz, clock,, decisionLabel } from "./quizShared";
 
 type Section = {
   id: string; order_index: number; section_code: string; section_type: string; title: string; status: string;

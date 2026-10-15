@@ -100,10 +100,17 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
   });
   const subjectName = (key: string) => subjectList.find((x) => x.key === key)?.display_name ?? pretty(key || "Untagged");
   const setStatusAct = useMutation({
-    mutationFn: (v: { id: string; action: "approve" | "retire" | "restore" | "submit" }) => quizRpc<string>("cbt_set_question_status", { p_question_id: v.id, p_action: v.action }),
-    onSuccess: (to) => { toast({ title: `Now ${pretty(to)}` }); setDetail(null); void invalidate(); },
-    onError: (e: Error) => toast({ title: "Status not changed", description: e.message, variant: "destructive" }),
+    mutationFn: (v: { id: string; action: "approve" | "retire" | "restore" | "submit"; confirm?: boolean }) =>
+      quizRpc<string>("cbt_set_question_status", { p_question_id: v.id, p_action: v.action, p_confirm: Boolean(v.confirm) }),
+    onSuccess: (to) => { toast({ title: `Now ${pretty(to)}` }); setRetireImpact(null); setDetail(null); void invalidate(); },
+    onError: (e: Error, v) => {
+      // Retiring would leave a live drive short: name the drives and sections, and ask before going ahead.
+      const m = /CONFIRM_RETIRE:\s*(.*)$/s.exec(e.message);
+      if (m && v.action === "retire") { setRetireImpact({ id: v.id, text: m[1] }); return; }
+      toast({ title: "Status not changed", description: e.message, variant: "destructive" });
+    },
   });
+  const [retireImpact, setRetireImpact] = useState<{ id: string; text: string } | null>(null);
   const onAddQuestion = canManage ? () => setEditor({ open: true, q: null }) : undefined;
   const [subject, setSubject] = useState("__all");
   const [difficulty, setDifficulty] = useState("__all");

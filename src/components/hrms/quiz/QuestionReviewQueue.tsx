@@ -9,8 +9,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TYPE_LABEL, POOL_LABEL, type ItemType, type Subject } from "./QuestionEditor";
-import { pretty, useInvalidateQuiz } from "./quizShared";
-import { quizRpc } from "./quizRpc";
+import { pretty, quizRpc, useInvalidateQuiz } from "./quizShared";
 import type { QuestionAnalyticsRow } from "./QuestionBankWorkspace";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

@@ -14,7 +14,7 @@ function simulate(filter: TimeFilter) {
   const held = sealedCutoffAt(T0);
   const recent = new Set<string>(), older = new Set<string>(), summary = new Set<string>();
   for (let now = T0; now <= T0 + 24 * 3600000; now += 60000) {
-    const p = planDashboardPeriod(filter, now, held);
+    const p = planDashboardPeriod(filter, now, held, T0);
     recent.add(readKey(p.recent));
     if (p.older) older.add(readKey(p.older));
     const k = summaryKey(p);

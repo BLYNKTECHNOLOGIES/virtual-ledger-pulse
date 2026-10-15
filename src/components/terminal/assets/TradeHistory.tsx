@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useSpotTradeHistory } from "@/hooks/useBinanceAssets";
 import { useSpotTradeSync } from "@/hooks/useSpotTradeSync";
+import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
 import { Monitor, Smartphone, LayoutList, RefreshCw, History } from "lucide-react";
 import { format } from "date-fns";
 import { PanelState, FILTER_COUNT, SEG_WRAP, ShimmerRows, SideChip, StatusChip, TH, segBtn } from "./assetUi";
@@ -8,12 +9,15 @@ import { fmt2, fmtPrice, fmtQty, humanStatus, splitPair } from "./assetFormat";
 
 type SourceFilter = "all" | "terminal" | "binance_app";
 
-function SourceChip({ source }: { source: string }) {
+function SourceChip({ source, account }: { source: string; account?: string | null }) {
   const terminal = source === "terminal";
   return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+    {account && <span className="text-[10px] text-muted-foreground">{account}</span>}
     <span className={`inline-flex h-5 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10px] font-medium ${terminal ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>
       {terminal ? <Monitor className="h-3 w-3" /> : <Smartphone className="h-3 w-3" />}
       {terminal ? "Terminal" : "Binance"}
+    </span>
     </span>
   );
 }
@@ -21,6 +25,10 @@ function SourceChip({ source }: { source: string }) {
 export function TradeHistory() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const { data: trades, isLoading } = useSpotTradeHistory();
+  // F5b — in All accounts, label each row with its account.
+  const { isAllAccounts, visibleAccounts } = useExchangeAccount();
+  const acctLabel = (t: any) => !isAllAccounts ? null
+    : t.exchange_account_id ? (visibleAccounts.find((a) => a.id === t.exchange_account_id)?.account_name || "Other account") : "Account unknown";
 
   // Trigger background sync of Binance spot trades
   const { manualSync, isManuallySyncing } = useSpotTradeSync();
@@ -31,7 +39,7 @@ export function TradeHistory() {
     if (!trades) return [];
     const orderMap = new Map<string, any>();
     for (const trade of trades) {
-      const key = trade.binance_order_id || trade.id;
+      const key = trade.binance_order_id ? `${trade.exchange_account_id || ""}|${trade.binance_order_id}` : trade.id;
       const existing = orderMap.get(key);
       if (!existing) {
         orderMap.set(key, { ...trade });
@@ -158,7 +166,7 @@ export function TradeHistory() {
                   <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
                     <span className="t-mono tabular-nums">{v.time}</span>
                     {v.price !== "—" ? <span className="t-mono tabular-nums">@ {v.price}</span> : <span />}
-                    <SourceChip source={trade.source} />
+                    <SourceChip source={trade.source} account={acctLabel(trade)} />
                   </div>
                   {v.fee !== "—" && <p className="t-mono text-[11px] tabular-nums text-muted-foreground">Fee {v.fee}</p>}
                   {v.error && <p className="break-words text-[11px] text-trade-sell">{v.error}</p>}
@@ -203,10 +211,10 @@ export function TradeHistory() {
                         {v.fee !== "—" && <div className="text-[10px] text-muted-foreground @[60rem]:hidden">Fee {v.fee}</div>}
                       </td>
                       <td className="hidden whitespace-nowrap px-3 py-2 text-right t-mono tabular-nums text-muted-foreground @[60rem]:table-cell">{v.fee}</td>
-                      <td className="hidden px-3 py-2 text-center @[52rem]:table-cell"><SourceChip source={trade.source} /></td>
+                      <td className="hidden px-3 py-2 text-center @[52rem]:table-cell"><SourceChip source={trade.source} account={acctLabel(trade)} /></td>
                       <td className="py-2 pl-3 pr-4 text-center">
                         <StatusChip label={v.status} title={v.error ?? undefined} />
-                        <div className="mt-1 @[52rem]:hidden"><SourceChip source={trade.source} /></div>
+                        <div className="mt-1 @[52rem]:hidden"><SourceChip source={trade.source} account={acctLabel(trade)} /></div>
                       </td>
                     </tr>
                   );

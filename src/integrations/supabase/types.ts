@@ -35751,6 +35751,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_terminal_order_client: {
+        Args: { p_order_number: string }
+        Returns: Json
+      }
       get_terminal_order_summary: {
         Args: {
           p_accounts: string[]

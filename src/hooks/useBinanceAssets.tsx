@@ -4,6 +4,7 @@ import { withActiveAccount } from "@/lib/activeExchangeAccount";
 import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
 import { toast } from "sonner";
 import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
+import type { SymbolRules } from "@/components/terminal/assets/tradeRules";
 
 export interface AssetBalance {
   asset: string;
@@ -161,20 +162,91 @@ export function useBinanceBalancesByWallet() {
 }
 
 
-export function useBinanceTickerPrices() {
+/**
+ * Prices for the Assets page. Pass the symbols the page needs (F11): the edge
+ * function returns only those, filtered server-side so an unknown symbol can't
+ * break the call. Without symbols it keeps the old full-list behaviour.
+ */
+export function useBinanceTickerPrices(symbols?: string[]) {
+  const list = symbols ? [...new Set(symbols)].sort() : null;
   return useQuery({
-    queryKey: ["binance_ticker_prices"],
+    queryKey: ["binance_ticker_prices", list ? list.join(",") : "all"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: withActiveAccount({ action: "getTickerPrice" }),
+        body: list ? { action: "getTickerPrice", symbols: list } : withActiveAccount({ action: "getTickerPrice" }),
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to fetch prices");
       return data.data as TickerPrice[];
     },
+    enabled: !list || list.length > 0,
     refetchInterval: 20000,
     staleTime: 8000,
   });
+}
+
+/** Symbols the Assets page prices: the 10 trading pairs plus <coin>USDT for held coins. */
+export function assetPageSymbols(heldAssets: string[]): string[] {
+  const set = new Set<string>(TRADING_PAIRS.map((p) => p.symbol));
+  for (const a of heldAssets) if (a && a !== "USDT") set.add(`${a}USDT`);
+  return [...set];
+}
+
+/** F3 — Binance's live LOT_SIZE / MARKET_LOT_SIZE / NOTIONAL rules for the trading pairs (cached ~1 h). */
+export function useSymbolRules() {
+  return useQuery({
+    queryKey: ["binance_symbol_rules"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("binance-assets", {
+        body: { action: "getSymbolRules", symbols: TRADING_PAIRS.map((p) => p.symbol) },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to load Binance trading rules");
+      return data.data as Record<string, SymbolRules>;
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** Balances of ONE account (used for trading so Available/Max match the order's account). */
+export function useAccountBalances(accountId: string | null | undefined) {
+  return useQuery({
+    // Same key shape as useBinanceBalances in single-account view, so the cache is shared.
+    queryKey: ["binance_asset_balances", accountId || ""],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("binance-assets", {
+        body: { action: "getBalances", exchange_account_id: accountId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to fetch balances");
+      return (data.data.balances as AssetBalance[]).filter((b) => b.asset !== "HOME");
+    },
+    enabled: !!accountId,
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
+}
+
+/**
+ * F5c — sync deposits/withdrawals/transfers/Pay for EVERY active Binance account
+ * (each with its own cursor), then the caller may run checkNewMovements once.
+ */
+export async function syncAssetMovementsAllAccounts(force = false) {
+  const { data: accts, error } = await supabase
+    .from("terminal_exchange_accounts")
+    .select("id, account_name")
+    .eq("is_active", true);
+  if (error) throw error;
+  const results: { accountId: string; accountName: string; ok: boolean; data?: any; error?: string }[] = [];
+  for (const a of accts || []) {
+    const { data, error: e } = await supabase.functions.invoke("binance-assets", {
+      body: { action: "syncAssetMovements", force, exchange_account_id: a.id },
+    });
+    results.push({ accountId: a.id, accountName: a.account_name, ok: !e && data?.success !== false, data: data?.data, error: e?.message || data?.error });
+  }
+  return results;
 }
 
 export function useExecuteTrade() {
@@ -187,7 +259,10 @@ export function useExecuteTrade() {
       quantity?: string;
       quoteOrderQty?: string;
       transferAsset: string;
+      /** F5 — the account the operator chose; sent explicitly and stamped on the log row. */
+      exchangeAccountId: string;
     }) => {
+      if (!params.exchangeAccountId) throw new Error("Choose the Binance account for this order.");
       // 1. Log trade attempt
       const { data: logData } = await supabase
         .from("spot_trade_history")
@@ -198,6 +273,7 @@ export function useExecuteTrade() {
           status: "PENDING",
           execution_method: "SPOT",
           source: "terminal",
+          exchange_account_id: params.exchangeAccountId,
           binance_trade_id: `pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         })
         .select("id")
@@ -207,10 +283,15 @@ export function useExecuteTrade() {
 
       // 2. Execute via edge function (auto-transfers from funding if needed)
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: withActiveAccount({
+        body: {
           action: "executeTradeWithTransfer",
-          ...params,
-        }),
+          symbol: params.symbol,
+          side: params.side,
+          quantity: params.quantity,
+          quoteOrderQty: params.quoteOrderQty,
+          transferAsset: params.transferAsset,
+          exchange_account_id: params.exchangeAccountId,
+        },
       });
 
       if (error) {
@@ -296,11 +377,16 @@ export function useExecuteTrade() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["binance_asset_balances"] });
       queryClient.invalidateQueries({ queryKey: ["spot_trade_history"] });
-      toast.success("Trade executed successfully");
+      const moved = Number(data?.fundingMovedAmount || 0);
+      toast.success(
+        moved > 0
+          ? `Trade executed — ${data.fundingMovedAmount} ${data.fundingMovedAsset} moved from Funding to Spot first`
+          : "Trade executed successfully",
+      );
       logAdAction({
         actionType: AdActionTypes.SPOT_TRADE_EXECUTED,
         adDetails: { symbol: variables.symbol, side: variables.side, quantity: variables.quantity || variables.quoteOrderQty, transferAsset: variables.transferAsset },
-        metadata: { orderId: data?.order?.orderId, executedQty: data?.order?.executedQty, price: data?.order?.price },
+        metadata: { orderId: data?.order?.orderId, executedQty: data?.order?.executedQty, price: data?.order?.price, exchangeAccountId: variables.exchangeAccountId, fundingMovedAmount: data?.fundingMovedAmount },
       });
     },
     onError: (error: Error, variables) => {
@@ -314,15 +400,22 @@ export function useExecuteTrade() {
   });
 }
 
+/**
+ * F5b — follows the account switcher. One account → only its rows. All accounts →
+ * every row (including the few old failed rows that carry no account).
+ */
 export function useSpotTradeHistory() {
+  const { accountsToQuery, isAllAccounts } = useExchangeAccount();
   return useQuery({
-    queryKey: ["spot_trade_history"],
+    queryKey: ["spot_trade_history", isAllAccounts ? "ALL" : accountsToQuery.join(",")],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("spot_trade_history")
         .select("*")
         .order("trade_time", { ascending: false })
         .limit(200);
+      if (!isAllAccounts) q = q.in("exchange_account_id", accountsToQuery);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },

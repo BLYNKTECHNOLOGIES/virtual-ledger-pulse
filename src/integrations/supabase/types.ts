@@ -6412,6 +6412,98 @@ export type Database = {
         }
         Relationships: []
       }
+      copilot_ai_calls: {
+        Row: {
+          cost_inr: number
+          created_at: string
+          error: string | null
+          exchange_account_id: string | null
+          feedback: string | null
+          feedback_at: string | null
+          feedback_by: string | null
+          feedback_edited: boolean | null
+          feedback_reason: string | null
+          guardrail_flags: string[] | null
+          id: string
+          input_tokens: number | null
+          latency_ms: number | null
+          model: string
+          new_policy: boolean | null
+          order_number: string | null
+          output_text: string | null
+          output_tokens: number | null
+          purpose: string
+          reasoning_tokens: number | null
+          request_id: string | null
+          status: string
+          tokens_estimated: boolean
+          user_id: string | null
+          variant: string | null
+        }
+        Insert: {
+          cost_inr?: number
+          created_at?: string
+          error?: string | null
+          exchange_account_id?: string | null
+          feedback?: string | null
+          feedback_at?: string | null
+          feedback_by?: string | null
+          feedback_edited?: boolean | null
+          feedback_reason?: string | null
+          guardrail_flags?: string[] | null
+          id?: string
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model: string
+          new_policy?: boolean | null
+          order_number?: string | null
+          output_text?: string | null
+          output_tokens?: number | null
+          purpose: string
+          reasoning_tokens?: number | null
+          request_id?: string | null
+          status: string
+          tokens_estimated?: boolean
+          user_id?: string | null
+          variant?: string | null
+        }
+        Update: {
+          cost_inr?: number
+          created_at?: string
+          error?: string | null
+          exchange_account_id?: string | null
+          feedback?: string | null
+          feedback_at?: string | null
+          feedback_by?: string | null
+          feedback_edited?: boolean | null
+          feedback_reason?: string | null
+          guardrail_flags?: string[] | null
+          id?: string
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model?: string
+          new_policy?: boolean | null
+          order_number?: string | null
+          output_text?: string | null
+          output_tokens?: number | null
+          purpose?: string
+          reasoning_tokens?: number | null
+          request_id?: string | null
+          status?: string
+          tokens_estimated?: boolean
+          user_id?: string | null
+          variant?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_ai_calls_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       copilot_blacklist: {
         Row: {
           created_at: string
@@ -6433,6 +6525,120 @@ export type Database = {
           exchange_account_id?: string | null
           id?: string
           pattern_text?: string
+        }
+        Relationships: []
+      }
+      copilot_config: {
+        Row: {
+          approver_ids: string[]
+          budget_alert_pcts: number[]
+          draft_models: string[]
+          embedding_model: string
+          hindi_switch_after: number
+          house_style: string
+          id: boolean
+          learn_threshold: number
+          match_threshold: number
+          model_prices: Json
+          monthly_budget_inr: number
+          operators_enabled: boolean
+          related_threshold: number
+          tentative_days: number
+          updated_at: string
+          updated_by: string | null
+          usd_inr: number
+          utility_model: string
+        }
+        Insert: {
+          approver_ids: string[]
+          budget_alert_pcts?: number[]
+          draft_models?: string[]
+          embedding_model?: string
+          hindi_switch_after?: number
+          house_style?: string
+          id?: boolean
+          learn_threshold?: number
+          match_threshold?: number
+          model_prices?: Json
+          monthly_budget_inr?: number
+          operators_enabled?: boolean
+          related_threshold?: number
+          tentative_days?: number
+          updated_at?: string
+          updated_by?: string | null
+          usd_inr?: number
+          utility_model?: string
+        }
+        Update: {
+          approver_ids?: string[]
+          budget_alert_pcts?: number[]
+          draft_models?: string[]
+          embedding_model?: string
+          hindi_switch_after?: number
+          house_style?: string
+          id?: boolean
+          learn_threshold?: number
+          match_threshold?: number
+          model_prices?: Json
+          monthly_budget_inr?: number
+          operators_enabled?: boolean
+          related_threshold?: number
+          tentative_days?: number
+          updated_at?: string
+          updated_by?: string | null
+          usd_inr?: number
+          utility_model?: string
+        }
+        Relationships: []
+      }
+      copilot_contacts: {
+        Row: {
+          available_from: string | null
+          available_to: string | null
+          created_at: string
+          created_by: string | null
+          days: number[]
+          id: string
+          is_active: boolean
+          notes: string | null
+          person_name: string
+          phone: string
+          priority: number
+          purpose: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          available_from?: string | null
+          available_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number[]
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          person_name: string
+          phone: string
+          priority?: number
+          purpose: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          available_from?: string | null
+          available_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number[]
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          person_name?: string
+          phone?: string
+          priority?: number
+          purpose?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -6487,6 +6693,396 @@ export type Database = {
           situation_class?: string
           source_operator?: string | null
           source_order_number?: string | null
+        }
+        Relationships: []
+      }
+      copilot_inbox_items: {
+        Row: {
+          context: Json
+          created_at: string
+          created_by: string | null
+          entry_id: string | null
+          exchange_account_id: string | null
+          id: string
+          kind: string
+          order_number: string | null
+          other_entry_id: string | null
+          question_text: string | null
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          created_by?: string | null
+          entry_id?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          kind: string
+          order_number?: string | null
+          other_entry_id?: string | null
+          question_text?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          created_by?: string | null
+          entry_id?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          kind?: string
+          order_number?: string | null
+          other_entry_id?: string | null
+          question_text?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_inbox_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copilot_inbox_items_other_entry_id_fkey"
+            columns: ["other_entry_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copilot_learning_events: {
+        Row: {
+          action: string
+          after_state: Json | null
+          before_state: Json | null
+          cause: string
+          created_at: string
+          draft_call_id: string | null
+          entry_id: string | null
+          exchange_account_id: string | null
+          id: string
+          inbox_item_id: string | null
+          order_number: string | null
+          other_entry_id: string | null
+          question_id: string | null
+          request_id: string | null
+          seq: number
+          undone_at: string | null
+          undone_by: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          after_state?: Json | null
+          before_state?: Json | null
+          cause: string
+          created_at?: string
+          draft_call_id?: string | null
+          entry_id?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          inbox_item_id?: string | null
+          order_number?: string | null
+          other_entry_id?: string | null
+          question_id?: string | null
+          request_id?: string | null
+          seq?: never
+          undone_at?: string | null
+          undone_by?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          cause?: string
+          created_at?: string
+          draft_call_id?: string | null
+          entry_id?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          inbox_item_id?: string | null
+          order_number?: string | null
+          other_entry_id?: string | null
+          question_id?: string | null
+          request_id?: string | null
+          seq?: never
+          undone_at?: string | null
+          undone_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_learning_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copilot_learning_events_inbox_item_id_fkey"
+            columns: ["inbox_item_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_inbox_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copilot_learning_events_other_entry_id_fkey"
+            columns: ["other_entry_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copilot_learning_events_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copilot_playbook_entries: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          conflict_open: boolean
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          internal_note: string | null
+          kind: string
+          last_used_at: string | null
+          reply_en: string | null
+          reply_en_auto: boolean
+          reply_hi: string | null
+          reply_hi_auto: boolean
+          risk: string
+          scope: Json
+          seed_batch: string | null
+          source: string
+          source_order_number: string | null
+          status: string
+          step_key: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+          use_count: number
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          conflict_open?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          internal_note?: string | null
+          kind?: string
+          last_used_at?: string | null
+          reply_en?: string | null
+          reply_en_auto?: boolean
+          reply_hi?: string | null
+          reply_hi_auto?: boolean
+          risk?: string
+          scope?: Json
+          seed_batch?: string | null
+          source: string
+          source_order_number?: string | null
+          status?: string
+          step_key?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          use_count?: number
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          conflict_open?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          internal_note?: string | null
+          kind?: string
+          last_used_at?: string | null
+          reply_en?: string | null
+          reply_en_auto?: boolean
+          reply_hi?: string | null
+          reply_hi_auto?: boolean
+          risk?: string
+          scope?: Json
+          seed_batch?: string | null
+          source?: string
+          source_order_number?: string | null
+          status?: string
+          step_key?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          use_count?: number
+          version?: number
+        }
+        Relationships: []
+      }
+      copilot_playbook_questions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          embedding: string | null
+          embedding_model: string | null
+          entry_id: string
+          id: string
+          language: string
+          normalized: string
+          question_text: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          embedding?: string | null
+          embedding_model?: string | null
+          entry_id: string
+          id?: string
+          language?: string
+          normalized: string
+          question_text: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          embedding?: string | null
+          embedding_model?: string | null
+          entry_id?: string
+          id?: string
+          language?: string
+          normalized?: string
+          question_text?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_playbook_questions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copilot_playbook_versions: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          entry_id: string
+          id: number
+          snapshot: Json
+          version: number
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          entry_id: string
+          id?: never
+          snapshot: Json
+          version: number
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          entry_id?: string
+          id?: never
+          snapshot?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_playbook_versions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "copilot_playbook_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copilot_requests: {
+        Row: {
+          context: Json
+          created_at: string
+          error: string | null
+          exchange_account_id: string | null
+          id: string
+          latency_ms: number | null
+          matches: Json
+          mode: string
+          order_number: string
+          question_embedding: string | null
+          question_language: string | null
+          question_text: string | null
+          request_key: string | null
+          result: Json | null
+          status: string
+          top_entry_id: string | null
+          top_similarity: number | null
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          error?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          latency_ms?: number | null
+          matches?: Json
+          mode: string
+          order_number: string
+          question_embedding?: string | null
+          question_language?: string | null
+          question_text?: string | null
+          request_key?: string | null
+          result?: Json | null
+          status?: string
+          top_entry_id?: string | null
+          top_similarity?: number | null
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          error?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          latency_ms?: number | null
+          matches?: Json
+          mode?: string
+          order_number?: string
+          question_embedding?: string | null
+          question_language?: string | null
+          question_text?: string | null
+          request_key?: string | null
+          result?: Json | null
+          status?: string
+          top_entry_id?: string | null
+          top_similarity?: number | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -34840,6 +35436,101 @@ export type Database = {
       consume_terminal_biometric_invite: {
         Args: { p_credential_id: string; p_token: string; p_user_id: string }
         Returns: string
+      }
+      copilot_is_approver: { Args: { p_user_id: string }; Returns: boolean }
+      copilot_learn_apply: {
+        Args: {
+          p_account_id?: string
+          p_cause: string
+          p_context?: Json
+          p_draft_call_id?: string
+          p_draft_edited?: boolean
+          p_kind?: string
+          p_order_number?: string
+          p_question_embedding: Json
+          p_question_language: string
+          p_question_text: string
+          p_relation: string
+          p_reply_language: string
+          p_reply_other: string
+          p_reply_text: string
+          p_request_id?: string
+          p_scope: Json
+          p_step_key?: string
+          p_target_entry_id: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      copilot_match_playbook: {
+        Args: {
+          p_account_id: string
+          p_category: string
+          p_client_state: string
+          p_embeddings: Json
+          p_include_conflicts: boolean
+          p_include_tentative: boolean
+          p_limit?: number
+          p_min_similarity?: number
+          p_side: string
+          p_status: string
+        }
+        Returns: {
+          conflict_open: boolean
+          entry_id: string
+          input_index: number
+          internal_note: string
+          kind: string
+          question_id: string
+          question_text: string
+          reply_en: string
+          reply_en_auto: boolean
+          reply_hi: string
+          reply_hi_auto: boolean
+          risk: string
+          scope: Json
+          similarity: number
+          status: string
+          step_key: string
+          title: string
+          use_count: number
+          version: number
+        }[]
+      }
+      copilot_month_spend_inr: { Args: { p_at?: string }; Returns: number }
+      copilot_my_access: { Args: never; Returns: Json }
+      copilot_normalize: { Args: { p_text: string }; Returns: string }
+      copilot_pick_contacts: {
+        Args: { p_at?: string; p_purpose: string }
+        Returns: {
+          available_now: boolean
+          id: string
+          person_name: string
+          phone: string
+          priority: number
+        }[]
+      }
+      copilot_resolve_conflict: {
+        Args: { p_item_id: string; p_keep: string }
+        Returns: Json
+      }
+      copilot_scope_valid: { Args: { p_scope: Json }; Returns: boolean }
+      copilot_similar_rejections: {
+        Args: { p_embedding: Json; p_limit?: number; p_min_similarity?: number }
+        Returns: {
+          call_id: string
+          draft_text: string
+          model: string
+          reason: string
+          rejected_at: string
+          similarity: number
+        }[]
+      }
+      copilot_to_vector: { Args: { p: Json }; Returns: string }
+      copilot_undo_learning: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: Json
       }
       cp_identity_row: { Args: { p_order_number: string }; Returns: undefined }
       create_bank_transfer:

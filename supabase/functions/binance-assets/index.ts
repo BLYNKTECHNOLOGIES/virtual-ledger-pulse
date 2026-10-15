@@ -9,6 +9,7 @@ const corsHeaders = {
 };
 
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
+import { checkOrder, computeFundingShortfall, rulesFromExchangeInfo, type SymbolRules } from "./tradeRules.ts";
 
 const BINANCE_BASE = "https://api.binance.com";
 
@@ -16,6 +17,51 @@ const BINANCE_BASE = "https://api.binance.com";
 const MUTATING_ASSET_ACTIONS = new Set<string>([
   "transfer", "spotOrder", "spotOrderDirect", "executeTradeWithTransfer",
 ]);
+
+// ===== Live Binance trading rules (public exchangeInfo), cached ~1 hour per instance =====
+const RULES_TTL_MS = 60 * 60 * 1000;
+const rulesCache = new Map<string, { at: number; rules: SymbolRules }>();
+
+async function getSymbolRules(symbols: string[], force = false): Promise<Record<string, SymbolRules>> {
+  const want = [...new Set(symbols.map((s) => String(s).toUpperCase()).filter((s) => /^[A-Z0-9]{2,20}$/.test(s)))];
+  const out: Record<string, SymbolRules> = {};
+  const missing: string[] = [];
+  for (const sym of want) {
+    const c = rulesCache.get(sym);
+    if (!force && c && Date.now() - c.at < RULES_TTL_MS) out[sym] = c.rules;
+    else missing.push(sym);
+  }
+  if (missing.length) {
+    const url = `${BINANCE_BASE}/api/v3/exchangeInfo?symbols=${encodeURIComponent(JSON.stringify(missing))}`;
+    let res = await fetchWithRetry(url, { method: "GET" });
+    let body: any = await res.json().catch(() => null);
+    if (!res.ok || !Array.isArray(body?.symbols)) {
+      // One unknown symbol makes Binance reject the whole list — fetch one by one.
+      body = { symbols: [] };
+      for (const sym of missing) {
+        res = await fetchWithRetry(`${BINANCE_BASE}/api/v3/exchangeInfo?symbol=${sym}`, { method: "GET" });
+        const one: any = await res.json().catch(() => null);
+        if (res.ok && Array.isArray(one?.symbols)) body.symbols.push(...one.symbols);
+      }
+    }
+    for (const raw of body.symbols) {
+      const r = rulesFromExchangeInfo(raw);
+      rulesCache.set(r.symbol, { at: Date.now(), rules: r });
+      out[r.symbol] = r;
+    }
+  }
+  return out;
+}
+
+// Full public price list, cached briefly so many screens share one Binance call.
+let tickerCache: { at: number; list: { symbol: string; price: string }[] } | null = null;
+async function getAllTickerPrices(): Promise<{ symbol: string; price: string }[]> {
+  if (tickerCache && Date.now() - tickerCache.at < 5000) return tickerCache.list;
+  const res = await fetchWithRetry(`${BINANCE_BASE}/api/v3/ticker/price`, { method: "GET", headers: { "Content-Type": "application/json" } });
+  const list = await res.json();
+  if (Array.isArray(list)) tickerCache = { at: Date.now(), list };
+  return Array.isArray(list) ? list : [];
+}
 
 async function fetchWithRetry(
   url: string,
@@ -249,50 +295,67 @@ serve(async (req) => {
 
       // ===== AUTO-TRANSFER + SPOT ORDER =====
       case "executeTradeWithTransfer": {
-        const { symbol, side, quantity, quoteOrderQty, transferAsset } = payload;
+        const { symbol, side, quantity, quoteOrderQty, dryRun } = payload;
+        if (!symbol || (side !== "BUY" && side !== "SELL")) throw new Error("Missing: symbol, side");
+        // F5 — the order runs only on the account the operator explicitly chose.
+        if (!payload.exchange_account_id) {
+          throw new Error("Choose the Binance account for this order — nothing was sent.");
+        }
+
+        // F3 — live rules, price and balances BEFORE any transfer or order.
+        const rulesMap = await getSymbolRules([symbol]);
+        const rules = rulesMap[String(symbol).toUpperCase()];
+        if (!rules) throw new Error(`Couldn't read Binance's trading rules for ${symbol} — nothing was sent.`);
+        const coin = side === "BUY" ? rules.quoteAsset : rules.baseAsset;
+
+        const fundCheckData = await proxyCall("/sapi/v1/asset/get-funding-asset", { asset: coin });
+        if (!Array.isArray(fundCheckData)) throw new Error(`Couldn't read the Funding balance for ${coin} — nothing was sent.`);
+        const fundingFree = String(fundCheckData.find((f: any) => f.asset === coin)?.free ?? "0");
+        const spotRes = await fetchWithRetry(`${BINANCE_PROXY_URL}/api/api/v3/account`, { method: "GET", headers: proxyHeaders });
+        const spotData: any = await spotRes.json().catch(() => null);
+        if (!Array.isArray(spotData?.balances)) throw new Error(`Couldn't read the Spot balance for ${coin} — nothing was sent.`);
+        const spotFree = String(spotData.balances.find((b: any) => b.asset === coin)?.free ?? "0");
+
+        let price = "0";
+        if (side === "SELL") {
+          const t = (await getAllTickerPrices()).find((x) => x.symbol === rules.symbol);
+          price = t?.price ?? "0";
+        }
+        const available = String(Number(fundingFree) + Number(spotFree));
+        const check = checkOrder({
+          side, amount: side === "BUY" ? String(quoteOrderQty ?? "") : String(quantity ?? ""),
+          available, price, rules, accountName: acct.accountName,
+        });
+        if (!check.ok) throw new Error(check.message);
+        const need = side === "BUY" ? check.quoteOrderQty! : check.quantity!;
+
+        // F1 — move only what Spot is missing.
+        const plan = computeFundingShortfall(need, spotFree, fundingFree, coin);
+        if (!plan.ok) throw new Error(plan.reason);
+
+        const orderParams: Record<string, string> = { symbol: rules.symbol, side, type: "MARKET" };
+        if (side === "BUY") orderParams.quoteOrderQty = check.quoteOrderQty!;
+        else orderParams.quantity = check.quantity!;
+
+        if (dryRun === true) {
+          result = {
+            dryRun: true, exchange_account_id: EXCHANGE_ACCOUNT_ID, account: acct.accountName,
+            transfer: Number(plan.move) > 0 ? { type: "FUNDING_MAIN", asset: coin, amount: plan.move } : null,
+            order: orderParams, balances: { fundingFree, spotFree }, rules,
+          };
+          break;
+        }
 
         let transferResult = null;
         let fundingTransferred = false;
-        const assetToCheck = transferAsset;
-
-        if (assetToCheck) {
-          try {
-            const fundCheckData = await proxyCall("/sapi/v1/asset/get-funding-asset", { asset: assetToCheck });
-            const fundingBalance = Array.isArray(fundCheckData)
-              ? fundCheckData.find((f: any) => f.asset === assetToCheck)
-              : null;
-            const fundingFree = parseFloat(fundingBalance?.free || "0");
-
-            if (fundingFree > 0) {
-              transferResult = await proxyCall("/sapi/v1/asset/transfer", {
-                type: "FUNDING_MAIN",
-                asset: assetToCheck,
-                amount: String(fundingFree),
-              });
-              console.info(`Auto-transfer: ${assetToCheck} ${fundingFree} Funding→Spot`);
-              fundingTransferred = true;
-              await new Promise((r) => setTimeout(r, 500));
-            }
-          } catch (e) {
-            console.error("Transfer failed:", (e as Error).message);
+        if (Number(plan.move) > 0) {
+          transferResult = await proxyCall("/sapi/v1/asset/transfer", { type: "FUNDING_MAIN", asset: coin, amount: plan.move });
+          if (!transferResult?.tranId) {
+            throw new Error(`Moving ${plan.move} ${coin} from Funding to Spot failed (${transferResult?.msg || transferResult?.error || "no transfer id"}) — no order was placed.`);
           }
-        }
-
-        if (!symbol || !side) throw new Error("Missing: symbol, side");
-        const orderParams: Record<string, string> = { symbol, side, type: "MARKET" };
-        if (quoteOrderQty) {
-          orderParams.quoteOrderQty = String(quoteOrderQty);
-        } else if (quantity) {
-          const stepSizes: Record<string, number> = {
-            BTCUSDT: 5, ETHUSDT: 4, BNBUSDT: 3, XRPUSDT: 1, SOLUSDT: 3,
-            TRXUSDT: 0, SHIBUSDT: 0, TONUSDT: 2, USDCUSDT: 0, FDUSDUSDT: 0,
-          };
-          const decimals = stepSizes[symbol] ?? 5;
-          const factor = Math.pow(10, decimals);
-          const rounded = Math.floor(parseFloat(String(quantity)) * factor) / factor;
-          orderParams.quantity = rounded.toFixed(decimals);
-        } else {
-          throw new Error("Either quantity or quoteOrderQty required");
+          console.info(`Auto-transfer: ${coin} ${plan.move} Funding→Spot (Spot had ${spotFree})`);
+          fundingTransferred = true;
+          await new Promise((r) => setTimeout(r, 500));
         }
 
         const orderQs = new URLSearchParams(orderParams).toString();
@@ -310,8 +373,18 @@ serve(async (req) => {
           transfer: transferResult,
           order: orderResult,
           fundingTransferred,
+          fundingMovedAmount: fundingTransferred ? plan.move : "0",
+          fundingMovedAsset: coin,
+          exchange_account_id: EXCHANGE_ACCOUNT_ID,
           method: "SPOT",
         };
+        break;
+      }
+
+      // ===== LIVE TRADING RULES (public) =====
+      case "getSymbolRules": {
+        const list = Array.isArray(payload.symbols) ? payload.symbols : [];
+        result = await getSymbolRules(list.slice(0, 50), payload.force === true);
         break;
       }
 
@@ -333,7 +406,14 @@ serve(async (req) => {
 
       // ===== TICKER PRICE (public) =====
       case "getTickerPrice": {
-        const { symbol } = payload;
+        const { symbol, symbols } = payload;
+        // F11 — a symbols list returns only those prices, filtered server-side
+        // (unknown/delisted symbols are simply absent instead of failing the call).
+        if (Array.isArray(symbols)) {
+          const want = new Set(symbols.map((x: any) => String(x).toUpperCase()));
+          result = (await getAllTickerPrices()).filter((t) => want.has(t.symbol));
+          break;
+        }
         const tickerUrl = symbol
           ? `${BINANCE_BASE}/api/v3/ticker/price?symbol=${symbol}`
           : `${BINANCE_BASE}/api/v3/ticker/price`;

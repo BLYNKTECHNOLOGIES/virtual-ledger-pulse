@@ -110,7 +110,7 @@ export function getTimestampsForFilter(filter: TimeFilter, now: number = Date.no
  */
 export function buildNaturalWindows(filter: TimeFilter, now: number): TimeWindow[] {
   const shift = getFilterShift(filter);
-  const { from, to } = getDaySpan(filter, now);
+  const { from, to } = getIstDaySpan(filter, now);
   if (shift === 'all') {
     if (filter.mode === '7d' || filter.mode === '30d' || filter.mode === '1y') {
       return [{ start: now - PRESET_DAYS[filter.mode] * 86400000, end: Infinity }];
@@ -126,6 +126,20 @@ export function buildNaturalWindows(filter: TimeFilter, now: number): TimeWindow
     cursor.setDate(cursor.getDate() + 1);
   }
   return windows;
+}
+
+/**
+ * TD-FIX-B-R1 — like getDaySpan, but rolling presets take their days from the IST calendar
+ * date of `now` (not the browser's), so shift day lists roll over at 00:00 IST in every time zone.
+ * Dashboard only; getDaySpan (shared with Analytics) is unchanged.
+ */
+function getIstDaySpan(filter: TimeFilter, now: number): { from: Date; to: Date } {
+  if (filter.mode === '1d' || filter.mode === 'range') return getDaySpan(filter, now);
+  const ist = new Date(now + IST_OFFSET_MS);
+  const to = new Date(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
+  const from = new Date(to);
+  from.setDate(from.getDate() - (PRESET_DAYS[filter.mode] - 1));
+  return { from, to };
 }
 
 /** Natural end of a period: null for rolling presets (7D/30D/1Y), else the last window end. */

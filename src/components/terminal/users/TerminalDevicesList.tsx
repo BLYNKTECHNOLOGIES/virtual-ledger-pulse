@@ -11,6 +11,7 @@ import {
 import { Laptop, Building2, Eye, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useTerminalEditableUsers } from '@/hooks/useTerminalEditableUsers';
 
 interface DeviceRow {
   id: string;
@@ -27,6 +28,7 @@ interface DeviceRow {
 
 export function TerminalDevicesList() {
   const { isSuperAdmin } = useTerminalAuth();
+  const { inviteReason } = useTerminalEditableUsers();
   const qc = useQueryClient();
   const [pendingRevoke, setPendingRevoke] = useState<DeviceRow | null>(null);
 
@@ -116,10 +118,12 @@ export function TerminalDevicesList() {
                       {new Date(i.expires_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
-                    disabled={cancelInvite.isPending} onClick={() => cancelInvite.mutate(i.id)}>
-                    Cancel
-                  </Button>
+                  {inviteReason(i.user_id) === null && (
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
+                      disabled={cancelInvite.isPending} onClick={() => cancelInvite.mutate(i.id)}>
+                      Cancel
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { usersDirectory } from '@/lib/usersDirectory';
 import { filterOutDeletedUsers, isDeletedErpUser } from '@/lib/deletedUser';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import {
   useAllPayerAssignments,
   useCreatePayerAssignment,
@@ -33,6 +34,10 @@ import {
 type GroupBy = 'user' | 'size_range';
 
 export function PayerAssignmentManager() {
+  // AM-SEC-7: same rule as the server — Users 'Manage' or Payer 'Manage' (or admin).
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canEdit = isTerminalAdmin || hasPermission('terminal_users_manage') || hasPermission('terminal_payer_manage');
+  const noEditReason = "You need the Users 'Manage' or Payer 'Manage' right to change payer assignments.";
   const { data: assignments = [], isLoading } = useAllPayerAssignments();
   const createAssignment = useCreatePayerAssignment();
   const toggleAssignment = useTogglePayerAssignment();
@@ -146,10 +151,11 @@ export function PayerAssignmentManager() {
         <div>
           <h3 className="text-sm font-medium text-foreground">Payer Assignments</h3>
           <p className="text-[11px] text-muted-foreground">Configure which orders each payer handles</p>
+          {!canEdit && <p className="text-[11px] text-muted-foreground mt-0.5">View only — {noEditReason}</p>}
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150">
+            <Button size="sm" disabled={!canEdit} title={canEdit ? undefined : noEditReason} className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150">
               <Plus className="h-3.5 w-3.5" /> Add Assignment
             </Button>
           </DialogTrigger>
@@ -248,6 +254,8 @@ export function PayerAssignmentManager() {
                       <div className="flex items-center gap-1.5 ml-2" onClick={(e) => e.stopPropagation()}>
                         <span className="text-[9px] text-muted-foreground">{allActive ? 'All On' : 'All Off'}</span>
                         <Switch
+                          disabled={!canEdit}
+                          title={canEdit ? undefined : noEditReason}
                           checked={allActive}
                           onCheckedChange={(checked) => {
                             group.assignments.forEach((a: any) => {
@@ -291,10 +299,10 @@ export function PayerAssignmentManager() {
                                 </TableCell>
                               )}
                               <TableCell className="py-2">
-                                <Switch checked={a.is_active} onCheckedChange={(checked) => toggleAssignment.mutate({ id: a.id, is_active: checked })} />
+                                <Switch disabled={!canEdit} title={canEdit ? undefined : noEditReason} checked={a.is_active} onCheckedChange={(checked) => toggleAssignment.mutate({ id: a.id, is_active: checked })} />
                               </TableCell>
                               <TableCell className="py-2 text-right">
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteAssignment.mutate(a.id)}>
+                                <Button variant="ghost" size="sm" disabled={!canEdit} title={canEdit ? undefined : noEditReason} className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteAssignment.mutate(a.id)}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </TableCell>

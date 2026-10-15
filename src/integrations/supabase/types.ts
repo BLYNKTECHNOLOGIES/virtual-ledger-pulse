@@ -39042,6 +39042,7 @@ export type Database = {
           zone: string
         }[]
       }
+      terminal_can_edit_user: { Args: { p_target: string }; Returns: boolean }
       terminal_can_manage_devices: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -39067,9 +39068,16 @@ export type Database = {
           last_tick_at: string
         }[]
       }
+      terminal_editable_user_ids: { Args: never; Returns: string[] }
       terminal_guard_attach_all: { Args: never; Returns: number }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
       terminal_is_admin: { Args: { p_user_id: string }; Returns: boolean }
+      terminal_mapping_subordinates: {
+        Args: { p_manager: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       terminal_may_manage_target: {
         Args: { p_manager: string; p_target: string }
         Returns: boolean

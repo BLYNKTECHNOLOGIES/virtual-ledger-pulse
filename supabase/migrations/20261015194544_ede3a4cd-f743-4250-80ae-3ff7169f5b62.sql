@@ -1,0 +1,1 @@
+ALTER FUNCTION public.terminal_can_edit_user(uuid) SECURITY INVOKER;

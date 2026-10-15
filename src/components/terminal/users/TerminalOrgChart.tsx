@@ -1,4 +1,8 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } from "react";
+import { useTerminalEditableUsers } from "@/hooks/useTerminalEditableUsers";
+
+// AM-SEC-7: why the signed-in user may not relink a given person (null = may edit).
+const OrgEditContext = createContext<(userId: string) => string | null>(() => null);
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +58,7 @@ function OrgCardNode({
   const level = node.hierarchyLevel ?? 5;
   const colors = LEVEL_COLORS[level] || DEFAULT_COLOR;
   const hasChildren = node.children.length > 0;
+  const linkBlocked = useContext(OrgEditContext)(node.userId);
 
   const isMatch = searchQuery
     ? node.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,12 +117,14 @@ function OrgCardNode({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onLink(node);
+            if (!linkBlocked) onLink(node);
           }}
-          title="Link to reporting manager"
+          disabled={!!linkBlocked}
+          aria-disabled={!!linkBlocked}
+          title={linkBlocked ?? "Link to reporting manager"}
           className={`absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full border ${
             node.isOrphan ? "border-destructive/60 bg-destructive/20 text-destructive" : `${colors.border} ${colors.bg} text-muted-foreground`
-          } flex items-center justify-center hover:scale-110 transition-transform z-10`}
+          } flex items-center justify-center transition-transform z-10 ${linkBlocked ? "opacity-40 cursor-not-allowed" : "hover:scale-110"}`}
         >
           <Link2 className="h-3 w-3" />
         </button>
@@ -187,6 +194,7 @@ export function TerminalOrgChart() {
   const [linkSearch, setLinkSearch] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { editReason } = useTerminalEditableUsers();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -360,6 +368,8 @@ export function TerminalOrgChart() {
 
   const saveLink = async () => {
     if (!linkTarget) return;
+    const blocked = editReason(linkTarget.userId);
+    if (blocked) { toast({ title: "Not allowed", description: blocked, variant: "destructive" }); return; }
     setIsSaving(true);
     try {
       const userId = linkTarget.userId;
@@ -532,7 +542,7 @@ export function TerminalOrgChart() {
   );
 
   return (
-    <>
+    <OrgEditContext.Provider value={editReason}>
       {/* Fullscreen overlay */}
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -720,7 +730,6 @@ export function TerminalOrgChart() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
-
+    </OrgEditContext.Provider>
   );
 }

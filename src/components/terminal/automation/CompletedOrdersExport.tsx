@@ -1,29 +1,26 @@
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   FileDown,
   CalendarIcon,
   FileSpreadsheet,
   FileText,
   Download,
-  AlertTriangle,
-  CheckCircle2,
   Loader2,
+  Search,
+  SearchX,
+  Table2,
 } from 'lucide-react';
 import { format, subDays, subHours, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { toast } from 'sonner';
+import { Field, HINT, InlineNotice, NUM, Panel, PanelHead, PanelState, SCROLL_BOX, SectionHead, ShimmerRows, SideChip, Stat, TD, TH, TH_STICKY, UNIT } from './automationUi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -313,24 +310,25 @@ export function CompletedOrdersExport() {
   const sellCount = orders.filter(o => o.trade_type === 'SELL').length;
   const totalVol = orders.reduce((s, o) => s + parseFloat(o.total_price || '0'), 0);
 
+  const volumeText = totalVol >= 100000 ? (totalVol / 100000).toFixed(1) + 'L' : totalVol.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
   return (
     <div className="space-y-4">
       {/* Configuration */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <FileDown className="h-4 w-4 text-primary" />
-            Export Completed Orders
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Date Range */}
-          <div className="flex flex-wrap items-end gap-3">
+      <Panel labelledBy="ex-title">
+        <SectionHead
+          icon={<FileDown />}
+          title="Export completed orders"
+          titleId="ex-title"
+          description="Fetch the completed P2P orders of a period, check them below, then download a CSV or PDF. Order type and amount filters narrow the fetched rows without fetching again."
+        />
+        <div className="px-4 py-3">
+          {/* Range, format and filters — every label sits above its control */}
+          <div className="grid grid-cols-2 items-end gap-3 @[36rem]:grid-cols-4 @[64rem]:grid-cols-[repeat(7,minmax(0,10rem))_auto]">
             {/* Preset */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Period</label>
+            <Field label={<span id="ex-period-label">Period</span>} htmlFor="ex-period" className="col-span-2 @[36rem]:col-span-1">
               <Select value={preset} onValueChange={(v) => handlePresetChange(v as PresetRange)}>
-                <SelectTrigger className="w-[140px] h-9 text-xs">
+                <SelectTrigger id="ex-period" aria-labelledby="ex-period-label" className="h-8 w-full text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -340,15 +338,20 @@ export function CompletedOrdersExport() {
                   <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
             {/* From Date */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</label>
+            <Field label="From" htmlFor="ex-from">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("w-[140px] h-9 text-xs justify-start", !fromDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-1.5 h-3 w-3" />
+                  <Button
+                    id="ex-from"
+                    variant="outline"
+                    size="sm"
+                    aria-label={`From ${format(fromDate, 'dd MMM yyyy')}`}
+                    className={cn("h-8 w-full justify-start gap-1.5 bg-[hsl(var(--input))] px-2.5 text-xs font-normal [&_svg]:size-3.5", !fromDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="text-muted-foreground" />
                     {format(fromDate, 'dd MMM yyyy')}
                   </Button>
                 </PopoverTrigger>
@@ -362,15 +365,20 @@ export function CompletedOrdersExport() {
                   />
                 </PopoverContent>
               </Popover>
-            </div>
+            </Field>
 
             {/* To Date */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</label>
+            <Field label="To" htmlFor="ex-to">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("w-[140px] h-9 text-xs justify-start", !toDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-1.5 h-3 w-3" />
+                  <Button
+                    id="ex-to"
+                    variant="outline"
+                    size="sm"
+                    aria-label={`To ${format(toDate, 'dd MMM yyyy')}`}
+                    className={cn("h-8 w-full justify-start gap-1.5 bg-[hsl(var(--input))] px-2.5 text-xs font-normal [&_svg]:size-3.5", !toDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="text-muted-foreground" />
                     {format(toDate, 'dd MMM yyyy')}
                   </Button>
                 </PopoverTrigger>
@@ -384,13 +392,12 @@ export function CompletedOrdersExport() {
                   />
                 </PopoverContent>
               </Popover>
-            </div>
+            </Field>
 
             {/* Format */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Format</label>
+            <Field label={<span id="ex-format-label">Format</span>} htmlFor="ex-format">
               <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ExportFormat)}>
-                <SelectTrigger className="w-[120px] h-9 text-xs">
+                <SelectTrigger id="ex-format" aria-labelledby="ex-format-label" className="h-8 w-full text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -402,13 +409,12 @@ export function CompletedOrdersExport() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
             {/* Trade Type Filter */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Order Type</label>
+            <Field label={<span id="ex-type-label">Order Type</span>} htmlFor="ex-type">
               <Select value={tradeTypeFilter} onValueChange={(v) => setTradeTypeFilter(v as 'ALL' | 'BUY' | 'SELL')}>
-                <SelectTrigger className="w-[100px] h-9 text-xs">
+                <SelectTrigger id="ex-type" aria-labelledby="ex-type-label" className="h-8 w-full text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,133 +423,175 @@ export function CompletedOrdersExport() {
                   <SelectItem value="SELL">Sell</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            {/* Min Total */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Min Total (₹)</label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={minTotal}
-                onChange={(e) => setMinTotal(e.target.value)}
-                className="w-[110px] h-9 text-xs"
-              />
-            </div>
+            {/* Min Total — the ₹ sits next to the box, not inside it (shared rule for number inputs) */}
+            <Field label="Min Total (₹)" htmlFor="ex-min">
+              <div className="flex items-center gap-1.5">
+                <span aria-hidden="true" className={UNIT}>₹</span>
+                <Input
+                  id="ex-min"
+                  type="number"
+                  placeholder="0"
+                  value={minTotal}
+                  onChange={(e) => setMinTotal(e.target.value)}
+                  className="h-8 min-w-0 text-sm t-mono tabular-nums placeholder:font-sans"
+                />
+              </div>
+            </Field>
 
             {/* Max Total */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Max Total (₹)</label>
-              <Input
-                type="number"
-                placeholder="No limit"
-                value={maxTotal}
-                onChange={(e) => setMaxTotal(e.target.value)}
-                className="w-[110px] h-9 text-xs"
-              />
-            </div>
+            <Field label="Max Total (₹)" htmlFor="ex-max">
+              <div className="flex items-center gap-1.5">
+                <span aria-hidden="true" className={UNIT}>₹</span>
+                <Input
+                  id="ex-max"
+                  type="number"
+                  placeholder="No limit"
+                  value={maxTotal}
+                  onChange={(e) => setMaxTotal(e.target.value)}
+                  className="h-8 min-w-0 text-sm t-mono tabular-nums placeholder:font-sans"
+                />
+              </div>
+            </Field>
 
-            {/* Fetch Button */}
-            <Button size="sm" className="h-9" onClick={fetchCompletedOrders} disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
+            {/* Fetch Button — the panel's main action until results are shown; then Export takes over (one filled button) */}
+            <Button
+              size="sm"
+              variant={isFetched ? 'outline' : 'default'}
+              className="col-span-2 h-8 gap-1.5 px-3 text-xs [&_svg]:size-3.5 @[36rem]:col-span-1"
+              onClick={fetchCompletedOrders}
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="animate-spin" /> : <Search />}
               {isLoading ? 'Fetching...' : 'Fetch Orders'}
             </Button>
           </div>
 
+          {/* While fetching */}
+          {isLoading && (
+            <div className="-mx-4 mt-3 border-t border-border">
+              <ShimmerRows rows={2} label="Fetching orders…" />
+            </div>
+          )}
+
+          {/* An earlier result is hidden after the period or a date changes */}
+          {!isFetched && !isLoading && allOrders.length > 0 && (
+            <p className={`${HINT} mt-3`}>Fetch Orders to load the orders for the selected range.</p>
+          )}
+
           {/* Results summary */}
           {isFetched && (
-            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
-              <Badge variant="secondary" className="text-xs">
-                {orders.length.toLocaleString('en-IN')} completed orders
-              </Badge>
-              <Badge variant="outline" className="text-xs text-trade-buy">
-                {buyCount} Buy
-              </Badge>
-              <Badge variant="outline" className="text-xs text-trade-sell">
-                {sellCount} Sell
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                ₹{totalVol >= 100000 ? (totalVol / 100000).toFixed(1) + 'L' : totalVol.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </Badge>
+            <div className="mt-3 space-y-3 border-t border-border pt-3">
+              <div className="grid grid-cols-2 gap-2 @[40rem]:grid-cols-4">
+                {/* lower-case in the DOM, sentence case on screen (the journeys read DOM text) */}
+                <Stat label={<span className="inline-block first-letter:uppercase">completed orders</span>} value={orders.length.toLocaleString('en-IN')} />
+                {/* side colour only when there is something to colour; a 0 stays neutral */}
+                <Stat label="Buy" value={buyCount} tone={buyCount > 0 ? 'success' : undefined} />
+                <Stat label="Sell" value={sellCount} tone={sellCount > 0 ? 'danger' : undefined} />
+                <Stat
+                  label="Volume"
+                  value={<span title={`₹${totalVol.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}>₹{volumeText}</span>}
+                />
+                {missingVerifiedNames > 0 && (
+                  <InlineNotice tone="warning" title={`${missingVerifiedNames} missing verified names`} className="col-span-full">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                      <span className="min-w-0 flex-1 basis-64">
+                        Exports use the Binance nickname for these rows. Enrich looks up the filtered orders on Binance and saves their real names.
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs text-foreground"
+                        onClick={enrichVerifiedNames}
+                        disabled={isExporting}
+                      >
+                        Enrich from API
+                      </Button>
+                    </div>
+                  </InlineNotice>
+                )}
+              </div>
 
-              {missingVerifiedNames > 0 && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs text-warning flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {missingVerifiedNames} missing verified names
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[10px]"
-                    onClick={enrichVerifiedNames}
-                    disabled={isExporting}
-                  >
-                    Enrich from API
-                  </Button>
-                </div>
-              )}
-
-              <div className="ml-auto">
-                <Button size="sm" className="h-9" onClick={handleExport} disabled={isExporting || orders.length === 0}>
-                  {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
+              {/* Narrow panels: helper left-aligned, Export full width (like Fetch Orders above); wide: one right-aligned row */}
+              <div className="flex flex-col gap-2 @[36rem]:flex-row @[36rem]:items-center @[36rem]:justify-end @[36rem]:gap-3">
+                <p className={HINT}>The file includes every row that matches the filters.</p>
+                <Button size="sm" className="h-8 w-full gap-1.5 px-3 text-xs [&_svg]:size-3.5 @[36rem]:w-auto" onClick={handleExport} disabled={isExporting || orders.length === 0}>
+                  {isExporting ? <Loader2 className="animate-spin" /> : <Download />}
                   Export {exportFormat.toUpperCase()}
                 </Button>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </Panel>
 
       {/* Preview Table */}
       {isFetched && orders.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Preview ({Math.min(orders.length, 200)} of {orders.length} rows)</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="max-h-[500px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-[10px]">Order Number</TableHead>
-                    <TableHead className="text-[10px]">Verified Name</TableHead>
-                    <TableHead className="text-[10px]">Type</TableHead>
-                    <TableHead className="text-[10px]">Asset</TableHead>
-                    <TableHead className="text-[10px] text-right">Quantity</TableHead>
-                    <TableHead className="text-[10px] text-right">Price</TableHead>
-                    <TableHead className="text-[10px] text-right">Total</TableHead>
-                    <TableHead className="text-[10px]">Completed At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.slice(0, 200).map((o) => (
-                    <TableRow key={o.order_number}>
-                      <TableCell className="t-mono text-xs">…{o.order_number.slice(-10)}</TableCell>
-                      <TableCell className="text-xs">
-                        {o.verified_name ? (
-                          <span className="text-foreground">{o.verified_name}</span>
-                        ) : (
-                          <span className="text-muted-foreground italic">{o.counter_part_nick_name || '—'}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px]", o.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell')}>
-                          {o.trade_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">{o.asset}</TableCell>
-                      <TableCell className="text-xs text-right t-mono">{parseFloat(o.amount).toFixed(2)}</TableCell>
-                      <TableCell className="text-xs text-right t-mono">₹{parseFloat(o.unit_price).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-xs text-right t-mono">₹{parseFloat(o.total_price).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{format(new Date(o.create_time), 'dd MMM HH:mm')}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+        <Panel labelledBy="ex-preview-title">
+          <PanelHead
+            icon={<Table2 />}
+            title={`Preview (${Math.min(orders.length, 200)} of ${orders.length} rows)`}
+            titleId="ex-preview-title"
+            meta={orders.length > 200 ? 'newest first · the file has every row' : 'newest first'}
+          />
+          {/* Capped (scrolls inside) only on wide panels; on narrow ones the rows flow with the page and scroll sideways */}
+          <div
+            className={`${SCROLL_BOX} max-h-none @[52rem]:max-h-[32rem]`}
+            tabIndex={0}
+            role="region"
+            aria-label="Order preview rows"
+          >
+            <table className="w-full text-xs">
+              <thead>
+                <tr>
+                  <th className={`${TH} ${TH_STICKY} pl-4`}>Order Number</th>
+                  <th className={`${TH} ${TH_STICKY}`}>Verified Name</th>
+                  <th className={`${TH} ${TH_STICKY}`}>Type</th>
+                  <th className={`${TH} ${TH_STICKY}`}>Asset</th>
+                  <th className={`${TH} ${TH_STICKY} text-right`}>Quantity</th>
+                  <th className={`${TH} ${TH_STICKY} text-right`}>Price</th>
+                  <th className={`${TH} ${TH_STICKY} text-right`}>Total</th>
+                  <th className={`${TH} ${TH_STICKY} pr-4`}>Completed At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.slice(0, 200).map((o) => (
+                  <tr key={o.order_number}>
+                    <td className={`${TD} ${NUM} pl-4 text-foreground`} title={o.order_number}>…{o.order_number.slice(-10)}</td>
+                    <td className={`${TD} whitespace-nowrap`}>
+                      {o.verified_name ? (
+                        <span className="text-foreground">{o.verified_name}</span>
+                      ) : (
+                        <span className="italic text-muted-foreground" title="Binance nickname — no verified name yet">{o.counter_part_nick_name || '—'}</span>
+                      )}
+                    </td>
+                    <td className={TD}>
+                      <SideChip side={o.trade_type}>{o.trade_type}</SideChip>
+                    </td>
+                    <td className={`${TD} whitespace-nowrap text-foreground`}>{o.asset}</td>
+                    <td className={`${TD} ${NUM} text-right text-foreground`}>{parseFloat(o.amount).toFixed(2)}</td>
+                    <td className={`${TD} ${NUM} text-right text-foreground`}>₹{parseFloat(o.unit_price).toLocaleString('en-IN')}</td>
+                    <td className={`${TD} ${NUM} text-right text-foreground`}>₹{parseFloat(o.total_price).toLocaleString('en-IN')}</td>
+                    <td className={`${TD} ${NUM} pr-4 text-muted-foreground`}>{format(new Date(o.create_time), 'dd MMM HH:mm')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+
+      {/* Nothing to preview after a fetch */}
+      {isFetched && orders.length === 0 && (
+        <Panel labelledBy="ex-preview-title">
+          <PanelHead icon={<Table2 />} title="Preview" titleId="ex-preview-title" />
+          <PanelState
+            icon={<SearchX />}
+            title={allOrders.length === 0 ? 'No completed orders in this period' : 'No orders match the filters'}
+            hint={allOrders.length === 0 ? 'Pick a longer period or other dates, then fetch again.' : 'Change the order type or amount filters to see the fetched orders.'}
+          />
+        </Panel>
       )}
     </div>
   );

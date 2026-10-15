@@ -1,12 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Repeat, LayoutList, RefreshCw } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Repeat, LayoutList, RefreshCw, Copy, ScrollText } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { CoinAvatar, PanelState, FILTER_COUNT, SEG_WRAP, ShimmerRows, StatusChip, TH, segBtn } from "./assetUi";
+import { fmtQty, humanStatus, shortHash } from "./assetFormat";
 
 type MovementType = "all" | "deposit" | "withdrawal" | "transfer" | "p2p";
 
@@ -31,6 +30,7 @@ const DEPOSIT_STATUS: Record<string, string> = {
   "0": "Pending",
   "6": "Credited",
   "1": "Success",
+  "2": "Rejected",
   "7": "Wrong Deposit",
   "8": "Waiting User Confirm",
 };
@@ -127,6 +127,54 @@ function useAutoSync() {
   return sync;
 }
 
+const TYPE_META: Record<Exclude<MovementType, "all">, { label: string; chip: string; icon: ReactNode }> = {
+  deposit: { label: "Deposit", chip: "bg-[hsl(var(--trade-buy,var(--success))/0.1)] text-trade-buy", icon: <ArrowDownLeft className="h-3 w-3" /> },
+  withdrawal: { label: "Withdrawal", chip: "bg-[hsl(var(--trade-sell,var(--destructive))/0.1)] text-trade-sell", icon: <ArrowUpRight className="h-3 w-3" /> },
+  transfer: { label: "Transfer", chip: "bg-primary/10 text-primary", icon: <ArrowLeftRight className="h-3 w-3" /> },
+  p2p: { label: "P2P", chip: "bg-warning/10 text-warning", icon: <Repeat className="h-3 w-3" /> },
+};
+
+function TypeChip({ type }: { type: MovementType }) {
+  const m = TYPE_META[type as Exclude<MovementType, "all">];
+  if (!m) return <span className="text-[10px] text-muted-foreground">{type}</span>;
+  return (
+    <span className={`inline-flex h-5 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10px] font-medium ${m.chip}`}>
+      {m.icon}
+      {m.label}
+    </span>
+  );
+}
+
+function copyText(value: string, what: string) {
+  if (!navigator.clipboard?.writeText) {
+    toast.error("Couldn't copy: clipboard not available in this browser");
+    return;
+  }
+  navigator.clipboard.writeText(value).then(
+    () => toast.success(`${what} copied`),
+    () => toast.error("Couldn't copy"),
+  );
+}
+
+function HashLine({ hash }: { hash: { label: string; value: string } }) {
+  return (
+    <div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+      <span className="truncate t-mono" title={hash.value}>
+        {hash.label}: {hash.label === "Pay ID" ? hash.value : shortHash(hash.value)}
+      </span>
+      <button
+        type="button"
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={() => copyText(hash.value, hash.label === "Pay ID" ? "Pay ID" : "Transaction ID")}
+        aria-label={hash.label === "Pay ID" ? "Copy Pay ID" : "Copy transaction ID"}
+        title="Copy"
+      >
+        <Copy className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
 export function AssetMovementHistory() {
   const [filter, setFilter] = useState<MovementType>("all");
   const { data: dbMovements, isLoading: loadingDB } = useMovementsFromDB();
@@ -199,185 +247,161 @@ export function AssetMovementHistory() {
 
   const filtered = filter === "all" ? unified : unified.filter((m) => m.type === filter);
 
-  const typeIcon = (type: MovementType) => {
-    switch (type) {
-      case "deposit": return <ArrowDownLeft className="h-3.5 w-3.5 text-trade-buy" />;
-      case "withdrawal": return <ArrowUpRight className="h-3.5 w-3.5 text-trade-sell" />;
-      case "transfer": return <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />;
-      case "p2p": return <Repeat className="h-3.5 w-3.5 text-warning" />;
-      default: return null;
-    }
-  };
-
-  const typeBadge = (type: MovementType) => {
-    const styles: Record<string, string> = {
-      deposit: "bg-trade-buy/10 text-trade-buy",
-      withdrawal: "bg-trade-sell/10 text-trade-sell",
-      transfer: "bg-primary/10 text-primary",
-      p2p: "bg-warning/10 text-warning",
-    };
-    const labels: Record<string, string> = {
-      deposit: "Deposit",
-      withdrawal: "Withdrawal",
-      transfer: "Transfer",
-      p2p: "P2P",
-    };
-    return (
-      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${styles[type] || ""}`}>
-        {labels[type] || type}
-      </span>
-    );
-  };
-
-  const statusBadge = (status: string) => {
-    const s = status.toLowerCase();
-    let cls = "bg-muted/50 text-muted-foreground";
-    if (s === "success" || s === "completed" || s === "confirmed" || s === "credited") {
-      cls = "bg-trade-buy/10 text-trade-buy";
-    } else if (s === "failed" || s === "failure" || s === "rejected" || s === "cancelled") {
-      cls = "bg-trade-sell/10 text-trade-sell";
-    } else if (s === "pending" || s === "processing" || s === "awaiting approval") {
-      cls = "bg-warning/10 text-warning";
-    }
-    return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${cls}`}>{status}</span>;
-  };
-
-  const filters: { key: MovementType; label: string; icon: React.ReactNode }[] = [
-    { key: "all", label: "All", icon: <LayoutList className="h-3 w-3 mr-1" /> },
-    { key: "deposit", label: "Deposits", icon: <ArrowDownLeft className="h-3 w-3 mr-1" /> },
-    { key: "withdrawal", label: "Withdrawals", icon: <ArrowUpRight className="h-3 w-3 mr-1" /> },
-    { key: "transfer", label: "Transfers", icon: <ArrowLeftRight className="h-3 w-3 mr-1" /> },
-    { key: "p2p", label: "P2P", icon: <Repeat className="h-3 w-3 mr-1" /> },
+  const filters: { key: MovementType; label: string; icon: ReactNode }[] = [
+    { key: "all", label: "All", icon: <LayoutList className="h-3 w-3" /> },
+    { key: "deposit", label: "Deposits", icon: <ArrowDownLeft className="h-3 w-3" /> },
+    { key: "withdrawal", label: "Withdrawals", icon: <ArrowUpRight className="h-3 w-3" /> },
+    { key: "transfer", label: "Transfers", icon: <ArrowLeftRight className="h-3 w-3" /> },
+    { key: "p2p", label: "P2P", icon: <Repeat className="h-3 w-3" /> },
   ];
+  const countOf = (k: MovementType) => (k === "all" ? unified.length : unified.filter((m) => m.type === k).length);
+
+  /** Display pieces for one movement (presentation only). */
+  const view = (m: UnifiedMovement) => {
+    const inflow = m.type === "deposit" || (m.type === "p2p" && m.details.includes("BUY"));
+    const outflow = m.type === "withdrawal" || (m.type === "p2p" && m.details.includes("SELL"));
+    const isPay = m.network === "Binance Pay";
+    return {
+      time: m.timestamp > 0 ? format(new Date(m.timestamp), "dd MMM yy HH:mm") : "—",
+      amount: `${inflow ? "+" : outflow ? "−" : ""}${m.amount.toLocaleString("en-US", { maximumFractionDigits: 8 })}`,
+      amountClass: inflow ? "text-trade-buy" : outflow ? "text-trade-sell" : "text-foreground",
+      fiat: m.fiat && m.fiatAmount ? `≈ ${m.fiat} ${m.fiatAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}` : null,
+      fee: m.fee ? `${fmtQty(m.fee, 8)} ${m.asset}`.trim() : "—",
+      status: humanStatus(m.status),
+      sub: [
+        isPay && m.address ? `To/From: ${m.address}` : null,
+        m.network && !isPay && m.type !== "transfer" ? `Network: ${m.network}` : null,
+        m.counterparty || null,
+      ].filter(Boolean) as string[],
+      hash: m.txId ? { label: isPay ? "Pay ID" : "TX", value: m.txId } : null,
+    };
+  };
 
   if (isLoading && !dbMovements?.length) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="t-panel overflow-hidden">
+        <ShimmerRows label="Loading asset movements…" />
       </div>
     );
   }
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="py-3 px-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Asset Movement History
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-[10px] gap-1"
-              onClick={() => sync.mutate(true)}
-              disabled={sync.isPending}
-            >
-              <RefreshCw className={`h-3 w-3 ${sync.isPending ? "animate-spin" : ""}`} />
-              {sync.isPending ? "Syncing..." : "Sync"}
-            </Button>
-            <div className="flex items-center bg-muted/50 rounded-md p-0.5">
-              {filters.map((f) => (
-                <Button
-                  key={f.key}
-                  variant="ghost"
-                  size="sm"
-                  className={`h-6 px-2 text-[10px] rounded-sm ${
-                    filter === f.key
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setFilter(f.key)}
-                >
-                  {f.icon}
-                  {f.label}
-                </Button>
-              ))}
-            </div>
-            <span className="text-[10px] text-muted-foreground">{filtered.length} records</span>
+    <section className="t-panel overflow-hidden @container" aria-label="Asset movement history">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+        <span className="t-panel-head-title">Asset Movement History</span>
+        <span className="t-mono text-[10px] text-muted-foreground">{filtered.length} records</span>
+        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
+          <div className={`${SEG_WRAP} max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`} role="group" aria-label="Movement type">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                className={segBtn(filter === f.key)}
+                aria-pressed={filter === f.key}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.icon}
+                {f.label}
+                <span className={FILTER_COUNT}>{countOf(f.key)}</span>
+              </button>
+            ))}
           </div>
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => sync.mutate(true)}
+            disabled={sync.isPending}
+            title="Fetch new deposits, withdrawals and transfers from Binance"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${sync.isPending ? "animate-spin" : ""}`} />
+            {sync.isPending ? "Syncing..." : "Sync"}
+          </button>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border bg-accent/5">
-                <th className="text-left py-2.5 px-3 text-muted-foreground font-medium">Time</th>
-                <th className="text-center py-2.5 px-3 text-muted-foreground font-medium">Type</th>
-                <th className="text-left py-2.5 px-3 text-muted-foreground font-medium">Asset</th>
-                <th className="text-right py-2.5 px-3 text-muted-foreground font-medium">Amount</th>
-                <th className="text-left py-2.5 px-3 text-muted-foreground font-medium">Details</th>
-                <th className="text-right py-2.5 px-3 text-muted-foreground font-medium">Fee</th>
-                <th className="text-center py-2.5 px-3 text-muted-foreground font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((m) => (
-                <tr key={m.id} className="border-b border-border/50 hover:bg-accent/5">
-                  <td className="py-2 px-3 text-muted-foreground t-mono whitespace-nowrap">
-                    {m.timestamp > 0 ? format(new Date(m.timestamp), "dd MMM yy HH:mm") : "—"}
-                  </td>
-                  <td className="py-2 px-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {typeIcon(m.type)}
-                      {typeBadge(m.type)}
-                    </div>
-                  </td>
-                  <td className="py-2 px-3 font-medium text-foreground">{m.asset}</td>
-                  <td className="py-2 px-3 text-right t-mono">
-                    <span className={m.type === "deposit" || (m.type === "p2p" && m.details.includes("BUY")) ? "text-trade-buy" : m.type === "withdrawal" ? "text-trade-sell" : "text-foreground"}>
-                      {m.type === "deposit" ? "+" : m.type === "withdrawal" ? "−" : ""}
-                      {m.amount.toLocaleString("en-US", { maximumFractionDigits: 8 })}
+      </div>
+
+      {filtered.length === 0 ? (
+        <PanelState icon={<ScrollText className="h-5 w-5" />} title="No movements found" hint={filter === "all" ? "Deposits, withdrawals, transfers and P2P trades appear here after a sync." : "Nothing of this type in the loaded history."} />
+      ) : (
+        <>
+          {/* Cards — narrow work areas */}
+          <ul className="divide-y divide-border @[48rem]:hidden">
+            {filtered.map((m) => {
+              const v = view(m);
+              return (
+                <li key={m.id} className="space-y-1.5 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <TypeChip type={m.type} />
+                    <span className="t-mono text-[11px] tabular-nums text-muted-foreground">{v.time}</span>
+                    <span className="ml-auto"><StatusChip label={v.status} /></span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <CoinAvatar asset={m.asset} size="xs" />
+                      <span className="truncate text-xs text-foreground">{m.details}</span>
                     </span>
-                    {m.fiat && m.fiatAmount ? (
-                      <div className="text-[10px] text-muted-foreground">
-                        ≈ {m.fiat} {m.fiatAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="py-2 px-3 text-muted-foreground max-w-[200px]">
-                    <div className="truncate">{m.details}</div>
-                    {/* For Binance Pay: show counterparty (address field) instead of network label */}
-                    {m.network === "Binance Pay" && m.address && (
-                      <div className="text-[10px] text-muted-foreground/70 truncate">To/From: {m.address}</div>
-                    )}
-                    {m.network && m.network !== "Binance Pay" && m.type !== "transfer" && (
-                      <div className="text-[10px] text-muted-foreground/70">Net: {m.network}</div>
-                    )}
-                    {m.counterparty && (
-                      <div className="text-[10px] text-muted-foreground/70">{m.counterparty}</div>
-                    )}
-                    {m.txId && m.network !== "Binance Pay" && (
-                      <div className="text-[10px] text-muted-foreground/50 truncate max-w-[180px]" title={m.txId}>
-                        TX: {m.txId.substring(0, 16)}…
-                      </div>
-                    )}
-                    {m.txId && m.network === "Binance Pay" && (
-                      <div className="text-[10px] text-muted-foreground/50 truncate max-w-[180px]" title={m.txId}>
-                        Pay ID: {m.txId}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-2 px-3 text-right text-muted-foreground t-mono">
-                    {m.fee ? `${m.fee}` : "—"}
-                  </td>
-                  <td className="py-2 px-3 text-center">
-                    {statusBadge(m.status)}
-                  </td>
+                    <span className="text-right">
+                      <span className={`t-mono text-sm tabular-nums ${v.amountClass}`}>{v.amount} <span className="text-[11px] text-muted-foreground">{m.asset}</span></span>
+                      {v.fiat && <span className="block t-mono text-[10px] tabular-nums text-muted-foreground">{v.fiat}</span>}
+                    </span>
+                  </div>
+                  {(v.sub.length > 0 || v.fee !== "—") && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                      {v.sub.map((s) => <span key={s} className="truncate">{s}</span>)}
+                      {v.fee !== "—" && <span className="t-mono">Fee {v.fee}</span>}
+                    </div>
+                  )}
+                  {v.hash && <HashLine hash={v.hash} />}
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Table — wider work areas */}
+          <div className="hidden overflow-x-auto @[48rem]:block">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className={`${TH} pl-4`}>Time</th>
+                  <th className={TH}>Type</th>
+                  <th className={TH}>Asset</th>
+                  <th className={`${TH} text-right`}>Amount</th>
+                  <th className={TH}>Details</th>
+                  <th className={`${TH} text-right`}>Fee</th>
+                  <th className={`${TH} pr-4 text-center`}>Status</th>
                 </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
-                    No movements found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+              </thead>
+              <tbody>
+                {filtered.map((m) => {
+                  const v = view(m);
+                  return (
+                    <tr key={m.id} className="border-b border-border/50 align-top transition-colors last:border-0 hover:bg-accent/5">
+                      <td className="whitespace-nowrap py-2.5 pl-4 pr-3 t-mono tabular-nums text-muted-foreground">{v.time}</td>
+                      <td className="px-3 py-2.5"><TypeChip type={m.type} /></td>
+                      <td className="px-3 py-2.5">
+                        <span className="flex items-center gap-2">
+                          <CoinAvatar asset={m.asset} size="xs" />
+                          <span className="font-medium text-foreground">{m.asset}</span>
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right t-mono tabular-nums">
+                        <span className={v.amountClass}>{v.amount}</span>
+                        {v.fiat && <div className="text-[10px] text-muted-foreground">{v.fiat}</div>}
+                      </td>
+                      <td className="max-w-[18rem] px-3 py-2.5 text-muted-foreground">
+                        <div className="truncate text-foreground">{m.details}</div>
+                        {v.sub.map((s) => <div key={s} className="truncate text-[10px]">{s}</div>)}
+                        {v.hash && <HashLine hash={v.hash} />}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right t-mono tabular-nums text-muted-foreground">{v.fee}</td>
+                      <td className="py-2.5 pl-3 pr-4 text-center"><StatusChip label={v.status} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

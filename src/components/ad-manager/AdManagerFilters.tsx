@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { AdFilters } from '@/hooks/useBinanceAds';
 
 interface AdManagerFiltersProps {
@@ -18,6 +19,7 @@ const TRIGGER = 'h-8 w-full gap-1.5 text-xs sm:w-auto sm:min-w-[7.5rem]';
 const PREFIX = 'shrink-0 text-muted-foreground';
 
 export function AdManagerFilters({ filters, onFiltersChange, assetOptions }: AdManagerFiltersProps) {
+  const [open, setOpen] = useState(false);
   const assets = Array.from(new Set([...DEFAULT_ASSETS, ...(assetOptions || [])])).sort();
   const activeCount = [
     !!filters.asset,
@@ -28,12 +30,21 @@ export function AdManagerFilters({ filters, onFiltersChange, assetOptions }: AdM
   ].filter(Boolean).length;
 
   return (
-    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-      <span className="col-span-2 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground sm:col-span-1">
+    <div className="w-full sm:w-auto">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:w-auto"
+      >
         <SlidersHorizontal className="h-3.5 w-3.5" />
         Filters
         {activeCount > 0 && <span className="t-mono rounded bg-primary/15 px-1 text-[10px] tabular-nums text-primary">{activeCount}</span>}
-      </span>
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+      <div className="mt-2 grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
 
       <Select
         value={filters.asset || 'all'}
@@ -133,6 +144,8 @@ export function AdManagerFilters({ filters, onFiltersChange, assetOptions }: AdM
         <RotateCcw className="h-3.5 w-3.5" />
         Reset
       </Button>
+      </div>
+      )}
     </div>
   );
 }

@@ -307,7 +307,7 @@ export function QuizDrives({ tests, canManage, driveId, onOpenDrive }: {
               <TableHeader><TableRow><TableHead>Drive</TableHead><TableHead>Code</TableHead><TableHead>Tests</TableHead><TableHead>Window (IST)</TableHead><TableHead>Status</TableHead><TableHead numeric>Registered</TableHead><TableHead numeric>Testing</TableHead><TableHead numeric>Submitted</TableHead></TableRow></TableHeader>
               <TableBody>
                 {drives.map((d) => (
-                  <TableRow key={d.id} className="cursor-pointer" onClick={() => onOpenDrive(d.id)}>
+                  <TableRow key={d.id} className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0} onClick={() => onOpenDrive(d.id)} onKeyDown={(e) => { if (e.key === "Enter") onOpenDrive(d.id); }}>
                     <TableCell className="font-medium">{d.name}{d.is_sandbox && <Badge variant="muted" className="ml-2">Sandbox</Badge>}</TableCell>
                     <TableCell className="font-mono">{d.access_code}</TableCell>
                     <TableCell className="text-sm">{d.tests.map((t) => t.name).join(", ") || "—"}</TableCell>

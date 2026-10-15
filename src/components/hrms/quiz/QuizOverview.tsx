@@ -12,13 +12,13 @@ type Overview = {
   latest: { id: string; public_ref: string; person: string | null; test: string | null; total_score: number | null; decision: string; decision_source: string; submitted_at: string; is_sandbox: boolean }[];
 };
 
-export function QuizOverview({ onOpenDrive, onOpenView }: { onOpenDrive: (id: string) => void; onOpenView: (view: string) => void }) {
+export function QuizOverview({ onOpenDrive, onOpenView, canGrade = false }: { onOpenDrive: (id: string) => void; onOpenView: (view: string) => void; canGrade?: boolean }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["cbt", "overview"],
     queryFn: () => quizRpc<Overview>("cbt_overview"),
     refetchInterval: 15_000,
   });
-  const { data: grading } = useGradingCounts(true);
+  const { data: grading } = useGradingCounts(canGrade);
   const v = (n?: number) => (isLoading ? "—" : n ?? 0);
   const tiles = [
     { label: "Testing now", value: v(data?.testing_now), icon: Activity, tone: "text-info bg-info/10", go: "drives" },

@@ -37,7 +37,7 @@ export const TYPE_BLURB: Record<SectionType, string> = {
   grammar: "Error spotting and sentence correction.",
   vocabulary: "Synonyms, antonyms and word usage.",
   objective: "MCQ / numeric questions from the subjects you choose.",
-  written: "A short written answer, graded by HR with its marking guide.",
+  written: "A short written answer, graded by AI with its marking guide; HR checks flagged answers.",
 };
 export const GENERATED_ONLY: SectionType[] = ["mental_maths", "memory_recall"];
 export const HAS_SOURCE: SectionType[] = ["data_entry", "match_pairs"];
@@ -90,6 +90,13 @@ export function newSection(t: SectionType, existingCodes: string[], level: Level
     fullMarksWpm: p.wpm ? String(p.wpm[0]) : "", gateMinNetWpm: p.wpm ? String(p.wpm[1]) : "", gateMinAccuracy: p.wpm ? String(p.wpm[2]) : "",
     practiceMinutes: t === "typing" ? "1" : "", minWords: t === "written" ? "60" : "", maxWords: t === "written" ? "200" : "",
   };
+}
+
+/** Time as candidates experience it: section minutes + each transition screen + the typing warm-up wait. */
+export function minutesWithBreaks(sections: { duration_seconds: number; section_type: string; practice_seconds?: number | null }[], transitionSeconds = 60): number {
+  const secs = sections.reduce((n, s, i) => n + s.duration_seconds
+    + (s.section_type === "typing" ? Number(s.practice_seconds ?? 0) + 60 : i > 0 ? transitionSeconds : 0), 0);
+  return Math.round(secs / 60);
 }
 
 export function summarise(sections: SectionDraft[]) {

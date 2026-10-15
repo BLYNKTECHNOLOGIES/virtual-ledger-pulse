@@ -57,6 +57,14 @@ const statusVariant = (status: string) => {
 const pretty = (value: string) => value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const fmtDate = (value?: string | null) => value ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(value)) : "—";
 
+// Needs a check (warning) plus a small count of answers still with the AI, matching the Grading list.
+function GradingBadges({ counts }: { counts?: { needs_check: number; ai_pending: number } }) {
+  return <>
+    {counts?.needs_check ? <Badge variant="warning" className="ml-1.5 px-1.5">{counts.needs_check}</Badge> : null}
+    {counts?.ai_pending ? <span className="ml-1 text-[10px] text-muted-foreground" title="Answers with the AI">+{counts.ai_pending} AI</span> : null}
+  </>;
+}
+
 export default function QuizDashboardPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -117,16 +125,16 @@ export default function QuizDashboardPage() {
         {canView ? (
           <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
             <TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
-            <TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="grading">Grading{gradingCounts?.needs_check ? <Badge variant="warning" className="ml-1.5 px-1.5">{gradingCounts.needs_check}</Badge> : null}</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="grading">Grading<GradingBadges counts={gradingCounts} /></TabsTrigger>
             <TabsTrigger value="tests">Tests</TabsTrigger><TabsTrigger value="questions">Question bank</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         ) : (
-          <TabsList className="w-full justify-start"><TabsTrigger value="grading">Grading{gradingCounts?.needs_check ? <Badge variant="warning" className="ml-1.5 px-1.5">{gradingCounts.needs_check}</Badge> : null}</TabsTrigger></TabsList>
+          <TabsList className="w-full justify-start"><TabsTrigger value="grading">Grading<GradingBadges counts={gradingCounts} /></TabsTrigger></TabsList>
         )}
 
         {canView && <><TabsContent value="overview" className="space-y-5">
-          <QuizOverview onOpenDrive={(id) => openDrive(id)} onOpenView={changeView} />
+          <QuizOverview canGrade={canEvaluate} onOpenDrive={(id) => openDrive(id)} onOpenView={changeView} />
         </TabsContent>
 
         <TabsContent value="drives" className="space-y-4">
@@ -134,7 +142,7 @@ export default function QuizDashboardPage() {
         </TabsContent>
 
         <TabsContent value="results" className="space-y-4">
-          <QuizResults drives={(data?.drives ?? []).map((d: any) => ({ id: d.id, name: d.name }))} tests={(data?.roles ?? []).map((r: any) => ({ id: r.id, name: r.name }))} canManage={canManage} />
+          <QuizResults drives={(data?.drives ?? []).filter((d: any) => !d.is_try_run).map((d: any) => ({ id: d.id, name: d.name }))} tests={(data?.roles ?? []).map((r: any) => ({ id: r.id, name: r.name }))} canManage={canManage} />
         </TabsContent></>}
 
         <TabsContent value="grading" className="space-y-4">{!canEvaluate ? noData(ShieldCheck, "Grading permission required", "Ask a Quiz administrator for grader access.") : <QuizGrading counts={gradingCounts} />}</TabsContent>
@@ -143,7 +151,7 @@ export default function QuizDashboardPage() {
         </TabsContent>
 
         <TabsContent value="tests" className="space-y-8">
-          <QuizTests roles={(data?.roles ?? []) as any[]} roleSections={(data?.roleSections ?? []) as any[]} positions={(data?.positions ?? []) as any[]} canManage={canManage} />
+          <QuizTests roles={(data?.roles ?? []) as any[]} roleSections={(data?.roleSections ?? []) as any[]} positions={(data?.positions ?? []) as any[]} canManage={canManage} transitionSeconds={Number(data?.settings?.transition_seconds ?? 60)} />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4"><div><h2 className="text-lg font-semibold">Quiz settings</h2><p className="text-sm text-muted-foreground">Company details, candidate-session timing, warnings and retention. Every change is recorded.</p></div><QuizSettings settings={data?.settings ?? null} canAdmin={canAdmin} canGrade={canEvaluate} /></TabsContent></>}

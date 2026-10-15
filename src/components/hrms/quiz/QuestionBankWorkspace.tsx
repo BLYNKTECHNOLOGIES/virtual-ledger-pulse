@@ -199,15 +199,17 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
   const weakest = useMemo(
     () =>
       filtered
-        .filter((row) => row.answered_items > 0)
+        // written items have no right/wrong, so they stay out of accuracy rankings
+        .filter((row) => row.answered_items > 0 && row.accuracy !== null && row.type !== "written")
         .sort((a, b) => (a.accuracy ?? 0) - (b.accuracy ?? 0) || b.wrong_items - a.wrong_items)
         .slice(0, 8),
     [filtered],
   );
 
   const totals = useMemo(() => {
-    const answered = filtered.reduce((sum, row) => sum + row.answered_items, 0);
-    const correct = filtered.reduce((sum, row) => sum + row.correct_items, 0);
+    const scored = filtered.filter((row) => row.type !== "written");
+    const answered = scored.reduce((sum, row) => sum + row.answered_items, 0);
+    const correct = scored.reduce((sum, row) => sum + row.correct_items, 0);
     return {
       questions: filtered.length,
       subjects: new Set(filtered.map((row) => row.category_tag || "Untagged")).size,
@@ -412,7 +414,7 @@ export function QuestionBankWorkspace({ canManage, roleCodes }: { canManage: boo
                       </TableHeader>
                       <TableBody>
                         {group.questions.map((row) => (
-                          <TableRow key={row.question_id} className="cursor-pointer" onClick={() => setDetail(row)}>
+                          <TableRow key={row.question_id} className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0} onClick={() => setDetail(row)} onKeyDown={(e) => { if (e.key === "Enter") setDetail(row); }}>
                             <TableCell className="max-w-[420px]">
                               <p className="line-clamp-2 font-medium">{row.prompt ?? "(no text)"}</p>
                             </TableCell>

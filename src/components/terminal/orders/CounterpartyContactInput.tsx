@@ -7,16 +7,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle2, Loader2, Phone, MapPin, Save } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { toast } from "sonner";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface Props {
   counterpartyNickname: string;
+  /** Binance order number of the order being viewed; propagation keys off its counterparty identity. */
+  orderNumber: string;
 }
 
-export function CounterpartyContactInput({ counterpartyNickname }: Props) {
+export function CounterpartyContactInput({ counterpartyNickname, orderNumber }: Props) {
   const queryClient = useQueryClient();
   const [contactNumber, setContactNumber] = useState("");
   const [state, setState] = useState("");
@@ -73,40 +74,16 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
       // Do NOT sync to client master by name matching — this causes cross-contamination.
       // Client updates should only happen during approval flow with explicit client ID linking.
 
-      // Propagate to terminal_sales_sync records that match this counterparty
-      // This ensures post-approval updates are reflected
-      const syncUpdates: any = {};
-      if (trimmedPhone) syncUpdates.contact_number = trimmedPhone;
-      if (trimmedState) syncUpdates.state = trimmedState;
-      if (Object.keys(syncUpdates).length > 0) {
-        // Match by counterparty_nickname (masked) using prefix
-        const prefix = counterpartyNickname.slice(0, 3);
-        await supabase
-          .from('terminal_sales_sync')
-          .update(syncUpdates)
-          .ilike('order_data->>counterparty_nickname', `${prefix}%`);
-
-        // Also update linked sales_orders
-        const syncRecords = await fetchAllPaginated<any>(() =>
-          supabase
-            .from('terminal_sales_sync')
-            .select('sales_order_id')
-            .ilike('order_data->>counterparty_nickname', `${prefix}%`)
-            .not('sales_order_id', 'is', null));
-
-
-        if (syncRecords && syncRecords.length > 0) {
-          const soUpdates: any = {};
-          if (trimmedPhone) soUpdates.client_phone = trimmedPhone;
-          if (trimmedState) soUpdates.client_state = trimmedState;
-          const orderIds = syncRecords.map(r => r.sales_order_id).filter(Boolean);
-          if (orderIds.length > 0) {
-            await supabase
-              .from('sales_orders')
-              .update(soUpdates)
-              .in('id', orderIds);
-          }
-        }
+      // Propagate only to this counterparty's own orders (exact Binance userNo,
+      // else exact unmasked nickname — never a prefix or masked nickname).
+      // Approved sales orders are only filled when empty. See propagate_counterparty_contact.
+      if (orderNumber) {
+        const { error: propErr } = await supabase.rpc('propagate_counterparty_contact' as any, {
+          p_order_number: orderNumber,
+          p_phone: trimmedPhone || null,
+          p_state: trimmedState || null,
+        });
+        if (propErr) throw propErr;
       }
     },
     onSuccess: () => {

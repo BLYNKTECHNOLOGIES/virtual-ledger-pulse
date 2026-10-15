@@ -21,7 +21,8 @@ async function endExpiredRests(supabase: any) {
     const { data: timers } = await supabase
       .from("ad_rest_timer").select("id, started_at, duration_minutes").eq("is_active", true).limit(5);
     // AM-FIX-4: ends that stopped part-way (claimed, never finished, lease expired) are finished here.
-    const leaseStale = new Date(Date.now() - 3 * 60_000).toISOString();
+    // AM-FIX-5: must match END_LEASE_MS in _shared/adRest.ts (7 min, > the 400 s function limit).
+    const leaseStale = new Date(Date.now() - 7 * 60_000).toISOString();
     const { data: unfinished } = await supabase
       .from("ad_rest_timer").select("id, started_at, duration_minutes")
       .eq("is_active", false).is("end_completed_at", null).not("ended_at", "is", null)

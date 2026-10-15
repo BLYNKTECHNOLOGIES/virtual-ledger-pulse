@@ -1,4 +1,8 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useIsFetching, type Query } from '@tanstack/react-query';
+
+/** AM-FIX-5: the Ads page's full ad list (fetchAll) that the Take-rest count comes from. */
+const isRestCountQuery = (q: Query) =>
+  q.queryKey[0] === 'binance-ads' && (q.queryKey[2] as { fetchAll?: boolean } | undefined)?.fetchAll === true;
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Coffee, Play, Loader2, OctagonPause, CheckCircle2, AlertTriangle, X } from 'lucide-react';
@@ -35,6 +39,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
   const { isResting, isRestoring, isRestoreOverdue, endNotice, dismissEndNotice, isBinanceBreakDetected, detectedBreak, remainingMs, endTime, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer({ full: true });
   const [countdown, setCountdown] = useState(remainingMs);
   const queryClient = useQueryClient();
+  const countFetching = useIsFetching({ predicate: isRestCountQuery }) > 0;
   const [confirmStart, setConfirmStart] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
@@ -231,7 +236,8 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
         className="h-8 gap-1.5 text-xs"
         onClick={() => {
           // Refresh the ad list so the count in the confirmation matches what will be switched off.
-          queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+          // AM-FIX-5: refresh only the list behind the confirmation count (not every ad list on the page).
+          queryClient.invalidateQueries({ predicate: isRestCountQuery });
           setConfirmStart(true);
         }}
         disabled={startRest.isPending || activeAds.length === 0}
@@ -246,13 +252,15 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Take a rest?</AlertDialogTitle>
             <AlertDialogDescription>
-              This switches off <strong className="text-foreground">{activeAds.length}</strong> active ad{activeAds.length !== 1 ? 's' : ''} (including Private) and starts a 1-hour rest timer that every operator sees.
+              This switches off {countFetching
+                ? <Loader2 className="inline h-3.5 w-3.5 animate-spin align-[-2px]" aria-label="Counting ads" />
+                : <strong className="text-foreground">{activeAds.length}</strong>} active ad{activeAds.length !== 1 ? 's' : ''} (including Private) and starts a 1-hour rest timer that every operator sees.
               {' '}When the hour ends the ads come back on by themselves. Private ads come back as Private — if Binance refuses that, the ad stays off and you are told. Resume ads ends the rest early.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStartRest}>Start rest</AlertDialogAction>
+            <AlertDialogAction onClick={handleStartRest} disabled={countFetching}>Start rest</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

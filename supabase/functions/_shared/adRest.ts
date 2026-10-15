@@ -6,15 +6,28 @@ export const AD_STATUS = { ONLINE: 1, PRIVATE: 2, OFFLINE: 3 } as const;
 
 /** A rest whose start has not finished after this long is treated as crashed. */
 export const START_STALE_MS = 5 * 60_000;
-/** An end that has not finished after this long (function time limit) is picked up again. */
-export const END_LEASE_MS = 3 * 60_000;
+/**
+ * AM-FIX-5: an end that has not renewed its lease for this long is picked up again.
+ * Longer than the edge function's maximum run time (400 s), and renewed after every
+ * ad, so a recovery never overlaps a run that can still be alive.
+ */
+export const END_LEASE_MS = 7 * 60_000;
+/** AM-FIX-5: wait before re-reading an ad whose switch-off had no clear answer. */
+export const UNCLEAR_RECHECK_MS = 3_000;
+/** AM-FIX-5: pause before the single retry of a rate-limited call. */
+export const RATE_LIMIT_RETRY_MS = 1_500;
+/** AM-FIX-5: an unfinished end older than this no longer blocks new rests. */
+export const UNFINISHED_BLOCK_MS = 24 * 60 * 60_000;
 /** Ads handled at the same time per account (start and end). */
 export const PER_ACCOUNT_PARALLEL = 4;
 
 export const MSG_STILL_STARTING = "The rest is still starting — try again in a few seconds.";
 export const MSG_LAST_STILL_ENDING = "The last rest is still being ended — try again in a minute.";
 export const MSG_ALREADY_RUNNING = "A rest is already running.";
-export const MSG_UNCLEAR_OFF = "no clear answer from Binance — will be checked when the rest ends";
+export const MSG_UNCLEAR_OFF = "no clear answer from Binance at first — confirmed off when re-checked";
+export const MSG_UNCLEAR_STILL_ON = "no clear answer — still on, check it";
+export const MSG_UNCLEAR_UNKNOWN = "no clear answer and its current state could not be read — kept in the rest; check it in the Binance app";
+export const MSG_NOTHING_OFF = "No rest started: Binance did not confirm any ad as switched off.";
 export const MSG_PRIVATE_SWITCHED_OFF = "Private refused — switched back off; switch it on as Private in the Binance app";
 
 export interface RestAdSnapshot {
@@ -35,7 +48,12 @@ export interface RestTimerRow {
   ended_at?: string | null;
   end_lease_at?: string | null;
   end_completed_at?: string | null;
+  ended_by_mode?: string | null;
+  ended_by_user_id?: string | null;
+  ended_by_name?: string | null;
 }
+
+export interface EndedBy { mode: "manual" | "automatic"; userId: string | null; userName: string }
 
 export interface AdOutcome {
   advNo: string;
@@ -61,7 +79,11 @@ export interface RestStore {
    */
   completeStart(id: string, snapshots: RestAdSnapshot[], keepActive: boolean): Promise<boolean>;
   /** Atomic claim: UPDATE … SET is_active=false, ended_at=now, end_lease_at=now WHERE id=? AND is_active AND start finished (or stale) RETURNING *. */
-  claimTimer(id: string, staleBeforeIso: string): Promise<RestTimerRow | null>;
+  claimTimer(id: string, staleBeforeIso: string, by: EndedBy): Promise<RestTimerRow | null>;
+  /** AM-FIX-5: true while an earlier end (claimed after `sinceIso`) has not finished. */
+  hasUnfinishedEnd(sinceIso: string): Promise<boolean>;
+  /** AM-FIX-5: SET end_lease_at=now WHERE id=? AND end_completed_at IS NULL. */
+  renewEndLease(id: string): Promise<void>;
   getTimer(id: string): Promise<RestTimerRow | null>;
   /** Atomic re-claim of an end that stopped part-way: UPDATE … SET end_lease_at=now WHERE id=? AND NOT is_active AND end_completed_at IS NULL AND end_lease_at < leaseStale RETURNING *. */
   claimUnfinishedEnd(id: string, leaseStaleBeforeIso: string): Promise<RestTimerRow | null>;
@@ -88,6 +110,26 @@ export interface RestDeps {
   binance: RestBinance;
   primaryAccountId: string | null;
   now?: () => Date;
+  /** Injected wait (tests use a short one). */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+const sleepOf = (deps: RestDeps) => deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+const isRateLimited = (reason?: string) => /rate.?limit|too many requests|\b429\b|-1003/i.test(reason || "");
+
+/** AM-FIX-5: one setStatus call, retried once after a short pause when Binance rate-limits. */
+async function callStatus(deps: RestDeps, acct: string | null, advNo: string, status: number, fromStatus?: number) {
+  let r: { ok: boolean; reason?: string; unclear?: boolean };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      r = fromStatus !== undefined
+        ? await deps.binance.setStatus(acct, advNo, status, fromStatus)
+        : await deps.binance.setStatus(acct, advNo, status);
+    } catch (e) { r = { ok: false, unclear: true, reason: (e as Error).message }; }
+    if (r.ok || !isRateLimited(r.reason) || attempt === 1) return r;
+    await sleepOf(deps)(RATE_LIMIT_RETRY_MS);
+  }
+  return r!;
 }
 
 const timerEnd = (t: RestTimerRow) => new Date(t.started_at).getTime() + t.duration_minutes * 60_000;
@@ -106,26 +148,20 @@ async function safeGet(deps: RestDeps, acct: string | null, advNo: string): Prom
 
 /** Switch off; on a failed/unclear reply, decide from the live status. */
 async function switchOff(deps: RestDeps, acct: string | null, advNo: string): Promise<{ ok: boolean; reason?: string; readBack?: boolean; unclear?: boolean }> {
-  let r: { ok: boolean; reason?: string; unclear?: boolean };
-  try { r = await deps.binance.setStatus(acct, advNo, AD_STATUS.OFFLINE); }
-  catch (e) { r = { ok: false, unclear: true, reason: (e as Error).message }; }
+  const r = await callStatus(deps, acct, advNo, AD_STATUS.OFFLINE);
   if (r.ok) return r;
   const live = await safeGet(deps, acct, advNo);
   if (live === AD_STATUS.OFFLINE) return { ok: true, readBack: true };
-  // AM-FIX-4: no clear answer — the switch-off may still land. Keep it in the timer
-  // row; the end reads it live (an ad that is on at the end is left alone).
-  if (r.unclear) return { ok: true, unclear: true, reason: MSG_UNCLEAR_OFF };
+  // No clear answer — the switch-off may still land; the caller re-reads it later.
+  if (r.unclear) return { ok: false, unclear: true, reason: r.reason };
   return { ok: false, reason: (r.reason || "refused by Binance") + (live === null ? " (current state could not be read)" : "") };
 }
 
 /** Restore; on a failed/unclear reply, decide from the live status. */
 async function restoreOne(deps: RestDeps, acct: string | null, advNo: string, wasPrivate: boolean): Promise<{ ok: boolean; reason?: string; readBack?: boolean }> {
-  let r: { ok: boolean; reason?: string; unclear?: boolean };
-  try {
-    r = wasPrivate
-      ? await deps.binance.setStatus(acct, advNo, AD_STATUS.PRIVATE, AD_STATUS.OFFLINE)
-      : await deps.binance.setStatus(acct, advNo, AD_STATUS.ONLINE);
-  } catch (e) { r = { ok: false, unclear: true, reason: (e as Error).message }; }
+  const r = wasPrivate
+    ? await callStatus(deps, acct, advNo, AD_STATUS.PRIVATE, AD_STATUS.OFFLINE)
+    : await callStatus(deps, acct, advNo, AD_STATUS.ONLINE);
   if (r.ok) return r;
   const live = await safeGet(deps, acct, advNo);
   if (wasPrivate && live === AD_STATUS.PRIVATE) return { ok: true, readBack: true };
@@ -134,7 +170,7 @@ async function restoreOne(deps: RestDeps, acct: string | null, advNo: string, wa
     // AM-FIX-4: a Private ad must never be left public (e.g. the revert after a
     // refused Private failed, or the call was cut off mid-way). Switch it off.
     const off = await switchOff(deps, acct, advNo);
-    if (off.ok && !off.unclear) return { ok: false, reason: MSG_PRIVATE_SWITCHED_OFF };
+    if (off.ok) return { ok: false, reason: MSG_PRIVATE_SWITCHED_OFF };
     return { ok: false, reason: `Private refused and it could not be switched back off (${off.reason || "no clear answer"}) — it may be ONLINE AND PUBLIC now; switch it off or make it Private in the Binance app` };
   }
   if (wasPrivate && live === null) {
@@ -158,6 +194,10 @@ export async function startAdRest(
   const now = (deps.now ?? (() => new Date()))();
   const existing = await deps.store.getActiveTimer();
   if (existing) throw new Error(timerEnd(existing) > now.getTime() ? MSG_ALREADY_RUNNING : MSG_LAST_STILL_ENDING);
+  // AM-FIX-5: an earlier end that has not finished would otherwise recover onto this rest's ads.
+  if (await deps.store.hasUnfinishedEnd(new Date(now.getTime() - UNFINISHED_BLOCK_MS).toISOString())) {
+    throw new Error(MSG_LAST_STILL_ENDING);
+  }
 
   const accounts = [...new Set((args.accountIds.length ? args.accountIds : [deps.primaryAccountId]).map((a) => a || deps.primaryAccountId))];
 
@@ -200,21 +240,42 @@ export async function startAdRest(
     throw e;
   }
 
-  const off: RestAdSnapshot[] = [];
+  const confirmed: RestAdSnapshot[] = [];   // Binance confirmed off
+  const maybeOff: RestAdSnapshot[] = [];    // no clear answer, state unreadable
   const failed: AdOutcome[] = [];
   const unclear: AdOutcome[] = [];
+  const pending: RestAdSnapshot[] = [];
   const byAccount = new Map<string | null, RestAdSnapshot[]>();
   for (const s of intended) byAccount.set(s.accountId, [...(byAccount.get(s.accountId) ?? []), s]);
   await Promise.all([...byAccount.entries()].map(([acct, list]) => inBatches(list, PER_ACCOUNT_PARALLEL, async (s) => {
     const r = await switchOff(deps, acct, s.advNo);
-    if (r.ok) {
-      off.push(s);
-      if (r.unclear) unclear.push({ advNo: s.advNo, accountId: acct, wasPrivate: s.advStatus === AD_STATUS.PRIVATE, reason: r.reason });
-    } else failed.push({ advNo: s.advNo, accountId: acct, wasPrivate: s.advStatus === AD_STATUS.PRIVATE, reason: r.reason });
+    if (r.ok) confirmed.push(s);
+    else if (r.unclear) pending.push(s);
+    else failed.push({ advNo: s.advNo, accountId: acct, wasPrivate: s.advStatus === AD_STATUS.PRIVATE, reason: r.reason });
   })));
+  // AM-FIX-5: "no clear answer" ads are re-read after a short wait before deciding.
+  if (pending.length) {
+    await sleepOf(deps)(UNCLEAR_RECHECK_MS);
+    await Promise.all(pending.map(async (s) => {
+      const live = await safeGet(deps, s.accountId, s.advNo);
+      const o = { advNo: s.advNo, accountId: s.accountId, wasPrivate: s.advStatus === AD_STATUS.PRIVATE };
+      if (live === AD_STATUS.OFFLINE) { confirmed.push(s); unclear.push({ ...o, reason: MSG_UNCLEAR_OFF }); }
+      else if (live === null) { maybeOff.push(s); unclear.push({ ...o, reason: MSG_UNCLEAR_UNKNOWN }); }
+      else failed.push({ ...o, reason: MSG_UNCLEAR_STILL_ON });
+    }));
+  }
 
   const order = new Map(intended.map((s, i) => [s.advNo, i]));
+  // A rest starts only when at least one ad is confirmed off on Binance.
+  const off: RestAdSnapshot[] = confirmed.length ? [...confirmed, ...maybeOff] : [];
   off.sort((a, b) => order.get(a.advNo)! - order.get(b.advNo)!);
+  if (!confirmed.length) {
+    for (const s of maybeOff) {
+      const i = unclear.findIndex((u) => u.advNo === s.advNo);
+      if (i >= 0) unclear[i] = { ...unclear[i], reason: "no clear answer and its current state could not be read — check it in the Binance app" };
+    }
+  }
+  for (const l of [failed, unclear]) l.sort((a, b) => order.get(a.advNo)! - order.get(b.advNo)!);
   const stillActive = await deps.store.completeStart(timer.id, off, off.length > 0);
 
   // The timer was ended while we were switching ads off: bring those back now.
@@ -242,18 +303,20 @@ export async function startAdRest(
       unclear,
       unreadable,
       started,
+      ...(confirmed.length ? {} : { message: MSG_NOTHING_OFF }),
       ...(stillActive ? {} : { ended_during_start: true, restoredAfterEnd, lostAfterEnd }),
     },
   });
 
   return {
     timerId: timer.id, started, switchedOff: started ? off : [], failed, unclear, unreadable,
+    ...(confirmed.length ? {} : { message: MSG_NOTHING_OFF }),
     ...(stillActive ? {} : { endedDuringStart: true, restoredAfterEnd, lostAfterEnd }),
   };
 }
 
 type Snap = RestAdSnapshot & { accountSource: string };
-type EndArgs = { timerId?: string | null; mode: "manual" | "automatic"; userId: string | null; userName: string };
+type EndArgs = { timerId?: string | null } & EndedBy;
 
 async function buildSnaps(deps: RestDeps, timer: RestTimerRow): Promise<Snap[]> {
   // New rows carry {advNo, advStatus, accountId}; very old rows only advNos.
@@ -292,6 +355,15 @@ async function restoreAndFinish(deps: RestDeps, timer: RestTimerRow, snaps: Snap
   const restored: AdOutcome[] = [];
   const skipped: AdOutcome[] = [];
   const failed: AdOutcome[] = [];
+  // AM-FIX-5: never switch on an ad that belongs to a rest running now.
+  let running: Set<string>;
+  try {
+    const other = await deps.store.getActiveTimer();
+    running = new Set(other && other.id !== timer.id ? (other.deactivated_ad_nos || []).map(String) : []);
+  } catch (e) {
+    return { claimed: false as const, retryLater: true, reason: `Could not check for a running rest (${(e as Error).message}); the next run will try again.` };
+  }
+  const renew = () => deps.store.renewEndLease(timer.id).catch(() => {});
   const byAccount = new Map<string | null, Snap[]>();
   for (const s of snaps) byAccount.set(s.accountId, [...(byAccount.get(s.accountId) ?? []), s]);
   await Promise.all([...byAccount.entries()].map(([acct, list]) => inBatches(list, PER_ACCOUNT_PARALLEL, async (s) => {
@@ -300,25 +372,35 @@ async function restoreAndFinish(deps: RestDeps, timer: RestTimerRow, snaps: Snap
       skipped.push({ advNo: s.advNo, accountId: acct, wasPrivate, reason: "changed by hand during the rest" });
       return;
     }
+    if (running.has(s.advNo)) {
+      skipped.push({ advNo: s.advNo, accountId: acct, wasPrivate, reason: "part of the rest running now" });
+      return;
+    }
+    await renew();
     const current = await safeGet(deps, acct, s.advNo);
     if (current !== null && current !== AD_STATUS.OFFLINE) {
       skipped.push({ advNo: s.advNo, accountId: acct, wasPrivate, reason: recovered ? "already back on" : "already back on (not offline any more)" });
       return;
     }
     const r = await restoreOne(deps, acct, s.advNo, wasPrivate);
+    await renew();
     if (r.ok) restored.push({ advNo: s.advNo, accountId: acct, wasPrivate });
     else failed.push({ advNo: s.advNo, accountId: acct, wasPrivate, reason: r.reason || "refused by Binance" });
   })));
   const order = new Map(snaps.map((s, i) => [s.advNo, i]));
   for (const l of [restored, skipped, failed]) l.sort((x, y) => order.get(x.advNo)! - order.get(y.advNo)!);
 
+  // AM-FIX-5: who ended the rest is the one recorded at the claim, kept on recovery.
+  const by: EndedBy = timer.ended_by_mode === "manual" || timer.ended_by_mode === "automatic"
+    ? { mode: timer.ended_by_mode, userId: timer.ended_by_user_id ?? null, userName: timer.ended_by_name || (timer.ended_by_mode === "automatic" ? "automatic" : "Operations Associate") }
+    : { mode: args.mode, userId: args.userId, userName: args.userName };
   const metadata = {
     timer_id: timer.id,
-    mode: args.mode,
-    ended_by: args.mode === "automatic" ? "automatic" : args.userName,
+    mode: by.mode,
+    ended_by: by.mode === "automatic" ? "automatic" : by.userName,
     started_by: timer.started_by,
     started_at: timer.started_at,
-    ...(recovered ? { recovered: true } : {}),
+    ...(recovered ? { recovered: true, finished_by: "the automatic recovery" } : {}),
     restored,
     skipped,
     failed,
@@ -328,8 +410,8 @@ async function restoreAndFinish(deps: RestDeps, timer: RestTimerRow, snaps: Snap
   if (await deps.store.finishEnd(timer.id)) {
     await deps.store.insertLog({
       action_type: "ad.rest_ended",
-      user_id: args.mode === "automatic" ? null : args.userId,
-      user_name: args.mode === "automatic" ? "automatic" : args.userName,
+      user_id: by.mode === "automatic" ? null : by.userId,
+      user_name: by.mode === "automatic" ? "automatic" : by.userName,
       metadata,
     });
   }
@@ -366,7 +448,8 @@ export async function endAdRest(deps: RestDeps, args: EndArgs) {
   const pre = await handCheck(deps, preSnaps, active.started_at, 2);
   if (!pre.set) return retryLater(pre.err);
 
-  const timer = await deps.store.claimTimer(active.id, new Date(now.getTime() - START_STALE_MS).toISOString());
+  const timer = await deps.store.claimTimer(active.id, new Date(now.getTime() - START_STALE_MS).toISOString(),
+    { mode: args.mode, userId: args.mode === "automatic" ? null : args.userId, userName: args.mode === "automatic" ? "automatic" : args.userName });
   if (!timer) {
     const again = await deps.store.getActiveTimer();
     if (again && again.id === active.id && isStarting(again, now.getTime())) {
@@ -410,16 +493,30 @@ export function supabaseRestStore(admin: any): RestStore {
       await admin.from("ad_rest_timer").update({ start_completed_at: nowIso }).eq("id", id);
       return false;
     },
-    async claimTimer(id, staleBeforeIso) {
+    async claimTimer(id, staleBeforeIso, by) {
       // Single UPDATE … WHERE is_active AND (start finished OR stale) RETURNING:
       // the row lock makes a concurrent caller (or a running start) serialize.
+      const nowIso = new Date().toISOString();
       const { data, error } = await admin.from("ad_rest_timer")
-        .update({ is_active: false, ended_at: new Date().toISOString(), end_lease_at: new Date().toISOString() })
+        .update({ is_active: false, ended_at: nowIso, end_lease_at: nowIso,
+          ended_by_mode: by.mode, ended_by_user_id: by.userId, ended_by_name: by.userName })
         .eq("id", id).eq("is_active", true)
         .or(`start_completed_at.not.is.null,started_at.lt.${staleBeforeIso}`)
         .select("*");
       if (error) throw new Error(error.message);
       return (data ?? [])[0] ?? null;
+    },
+    async hasUnfinishedEnd(sinceIso) {
+      const { data, error } = await admin.from("ad_rest_timer").select("id")
+        .eq("is_active", false).is("end_completed_at", null).not("ended_at", "is", null)
+        .gt("ended_at", sinceIso).limit(1);
+      if (error) throw new Error(error.message);
+      return (data ?? []).length > 0;
+    },
+    async renewEndLease(id) {
+      const { error } = await admin.from("ad_rest_timer").update({ end_lease_at: new Date().toISOString() })
+        .eq("id", id).is("end_completed_at", null);
+      if (error) throw new Error(error.message);
     },
     async getTimer(id) {
       const { data, error } = await admin.from("ad_rest_timer").select("*").eq("id", id).maybeSingle();

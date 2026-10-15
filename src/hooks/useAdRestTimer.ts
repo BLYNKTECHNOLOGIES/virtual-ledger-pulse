@@ -243,7 +243,7 @@ export function useAdRestTimer({ full = false }: { full?: boolean } = {}) {
         return;
       }
       if (!res?.started) {
-        toast({ title: 'Rest not started', description: `No ad could be switched off. ${describeOutcomes(failed)}`, variant: 'destructive' });
+        toast({ title: 'Rest not started', description: `Binance did not confirm any ad as switched off. ${describeOutcomes(failed)}`, variant: 'destructive' });
       } else if (failed.length) {
         toast({
           title: 'Rest started — some ads stayed on',

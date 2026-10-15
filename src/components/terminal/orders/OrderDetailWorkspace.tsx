@@ -618,7 +618,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
         )}
 
         {/* Contact & State Collection */}
-        <CounterpartyContactInput counterpartyNickname={order.counterparty_nickname} />
+        <CounterpartyContactInput counterpartyNickname={order.counterparty_nickname} orderNumber={order.binance_order_number} />
       </section>
     </div>
   );

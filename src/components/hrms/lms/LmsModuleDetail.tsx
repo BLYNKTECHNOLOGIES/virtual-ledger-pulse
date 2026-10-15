@@ -290,7 +290,7 @@ function ContentTab({ m, canManage, onSaved }: { m: LmsModule; canManage: boolea
         <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
           <CardTitle className="t-card-title">Master text</CardTitle>
           {canManage ? (
-            <SegmentedControl<"edit" | "preview"> size="sm" value={mode} onValueChange={setMode} options={[{ value: "edit", label: "Write" }, { value: "preview", label: "Preview" }]} />
+            <SegmentedControl size="sm" value={mode} onValueChange={(v) => setMode(v as "edit" | "preview")} options={[{ value: "edit", label: "Write" }, { value: "preview", label: "Preview" }]} />
           ) : null}
         </CardHeader>
         <CardContent className="space-y-2">
@@ -473,7 +473,7 @@ function AssetDialog({ open, onOpenChange, module, asset, nextSort, onSaved }: {
     >
       <div className="space-y-3">
         {!editing ? (
-          <SegmentedControl<"upload" | "link"> value={source} onValueChange={setSource} options={[{ value: "upload", label: "Upload a file" }, { value: "link", label: "Paste a link" }]} />
+          <SegmentedControl value={source} onValueChange={(v) => setSource(v as "upload" | "link")} options={[{ value: "upload", label: "Upload a file" }, { value: "link", label: "Paste a link" }]} />
         ) : null}
         {!editing && source === "upload" ? (
           <FileDropzone

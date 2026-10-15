@@ -32,8 +32,9 @@ const ORDER_TYPE_CONFIG: Record<string, { label: string; icon: typeof ArrowDownC
 };
 
 export function TerminalSizeRanges() {
-  const { hasPermission } = useTerminalAuth();
-  const canManage = hasPermission("terminal_users_manage");
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  // AM-SEC-7: same rule as the server — Users 'Manage' (or admin).
+  const canManage = isTerminalAdmin || hasPermission("terminal_users_manage");
 
   const [ranges, setRanges] = useState<SizeRange[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -12,7 +12,7 @@ import {
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
-import { terminalRightRule, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial } from "../_shared/binance-access.ts";
+import { terminalRightRule, gateTerminalRight, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial } from "../_shared/binance-access.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -902,28 +902,17 @@ serve(async (req) => {
     // Terminal Ads right for user callers. Service role and scheduler callers are
     // trusted / separately restricted. Fail closed on lookup errors.
     // AM-SEC-4: the same gate covers order chat, buyer verification and read markers.
-    const adRule = terminalRightRule(action);
-    if (adRule && !callerIsServiceRole && !callerIsScheduler) {
-      const deny = (msg: string, status = 403) =>
-        new Response(JSON.stringify({ success: false, error: msg, code: "PERMISSION_DENIED" }), {
-          status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (terminalRightRule(action) && !callerIsServiceRole && !callerIsScheduler) {
+      const permAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
+      const gate = await gateTerminalRight(action, callerUserId, async () => {
+        if (!permAdmin) return { data: null, error: { message: "Missing Supabase service configuration" } };
+        return await permAdmin.rpc("get_terminal_permissions", { p_user_id: callerUserId });
+      }, false);
+      if (gate) {
+        console.warn(`terminal permission refused: user=${callerUserId} action=${action} status=${gate.status}`);
+        return new Response(JSON.stringify(gate.body), {
+          status: gate.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-      if (!callerUserId || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return deny("Permission denied: authentication required.", 401);
-      const permAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { data: permData, error: permErr } = await permAdmin.rpc("get_terminal_permissions", { p_user_id: callerUserId });
-      if (permErr) {
-        console.error("ads permission lookup failed:", permErr.message);
-        return deny("Permission check failed — please try again. No change was sent to Binance.", 503);
-      }
-      const perms = new Set(
-        (Array.isArray(permData) ? permData : []).map((p: any) =>
-          typeof p === "string" ? p : p?.get_terminal_permissions ?? p?.permission
-        )
-      );
-      const denial = adWriteDenial(action, perms, false);
-      if (denial) {
-        console.warn(`ads permission denied: user=${callerUserId} action=${action}`);
-        return deny(denial);
       }
     }
 

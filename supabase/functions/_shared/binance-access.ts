@@ -180,3 +180,29 @@ export function serviceOnlyDenial(action: string, callerIsServiceRole: boolean):
     body: { success: false, error: "This action is server-only.", code: "SERVICE_ONLY" },
   };
 }
+
+/**
+ * AM-SEC-1 / AM-SEC-4 gate used by binance-ads before any Binance call.
+ * null = allowed. Fails closed: missing user → 401, lookup error → 503,
+ * missing right → 403 PERMISSION_DENIED with the rule's message.
+ */
+export async function gateTerminalRight(
+  action: string,
+  callerUserId: string | null,
+  // deno-lint-ignore no-explicit-any
+  lookupPerms: () => Promise<{ data: any; error: { message: string } | null }>,
+  trustedCaller: boolean,
+): Promise<{ status: number; body: { success: false; error: string; code: string } } | null> {
+  const rule = terminalRightRule(action);
+  if (!rule || trustedCaller) return null;
+  const deny = (error: string, status: number) => ({ status, body: { success: false as const, error, code: "PERMISSION_DENIED" } });
+  if (!callerUserId) return deny("Permission denied: authentication required.", 401);
+  let res;
+  try { res = await lookupPerms(); } catch (e) { res = { data: null, error: { message: String(e) } }; }
+  if (res.error) {
+    console.error("terminal permission lookup failed:", res.error.message);
+    return deny("Permission check failed — please try again. No change was sent to Binance.", 503);
+  }
+  const denial = adWriteDenial(action, permissionSet(res.data), false);
+  return denial ? deny(denial, 403) : null;
+}

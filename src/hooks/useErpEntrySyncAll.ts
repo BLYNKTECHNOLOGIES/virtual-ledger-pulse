@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { syncAssetMovementsAllAccounts } from "@/hooks/useBinanceAssets";
 import { syncTerminalOrdersForErp } from "@/hooks/useBinanceOrderSync";
 import { syncCompletedBuyOrders } from "@/hooks/useTerminalPurchaseSync";
 import { syncCompletedSellOrders } from "@/hooks/useTerminalSalesSync";
@@ -18,12 +19,12 @@ export function useSyncAll() {
   return useMutation({
     mutationFn: async () => {
       const results = await Promise.allSettled([
-        supabase.functions.invoke("binance-assets", {
-          body: { action: "syncAssetMovements", force: true },
-        }),
-        supabase.functions.invoke("binance-assets", {
-          body: { action: "checkNewMovements" },
-        }),
+        // Every active Binance account, then one queue check across all of them (F5c).
+        (async () => {
+          const perAccount = await syncAssetMovementsAllAccounts(true);
+          const check = await supabase.functions.invoke("binance-assets", { body: { action: "checkNewMovements" } });
+          return { perAccount, check };
+        })(),
         (async () => {
           const terminalRefresh = await syncTerminalOrdersForErp({ forceGapFill: true });
           const buyResult = await syncCompletedBuyOrders();

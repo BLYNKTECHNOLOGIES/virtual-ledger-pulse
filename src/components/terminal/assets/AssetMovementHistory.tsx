@@ -6,6 +6,8 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { CoinAvatar, PanelState, FILTER_COUNT, SEG_WRAP, ShimmerRows, StatusChip, TH, segBtn } from "./assetUi";
 import { fmtQty, humanStatus, shortHash } from "./assetFormat";
+import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
+import { syncAssetMovementsAllAccounts } from "@/hooks/useBinanceAssets";
 
 type MovementType = "all" | "deposit" | "withdrawal" | "transfer" | "p2p";
 
@@ -24,6 +26,7 @@ interface UnifiedMovement {
   counterparty?: string;
   fiat?: string;
   fiatAmount?: number;
+  accountId?: string | null;
 }
 
 const DEPOSIT_STATUS: Record<string, string> = {
@@ -46,15 +49,18 @@ const WITHDRAW_STATUS: Record<string, string> = {
 };
 
 // Read cached movements from DB
-function useMovementsFromDB() {
+// F5b — follows the account switcher (one account → its rows; All → every row).
+function useMovementsFromDB(accountIds: string[] | null) {
   return useQuery({
-    queryKey: ["asset_movement_history_db"],
+    queryKey: ["asset_movement_history_db", accountIds ? accountIds.join(",") : "ALL"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("asset_movement_history")
         .select("*")
         .order("movement_time", { ascending: false })
         .limit(500);
+      if (accountIds) q = q.in("exchange_account_id", accountIds);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
@@ -63,16 +69,18 @@ function useMovementsFromDB() {
 }
 
 // Read P2P from existing DB table
-function useP2PHistory() {
+function useP2PHistory(accountIds: string[] | null) {
   return useQuery({
-    queryKey: ["binance_p2p_movement_history"],
+    queryKey: ["binance_p2p_movement_history", accountIds ? accountIds.join(",") : "ALL"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("binance_order_history")
         .select("*")
         .in("order_status", ["COMPLETED"])
         .order("create_time", { ascending: false })
         .limit(200);
+      if (accountIds) q = q.in("exchange_account_id", accountIds);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
@@ -84,18 +92,16 @@ function useP2PHistory() {
 function useSyncMovements() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (force: boolean = false) => {
-      const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "syncAssetMovements", force },
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
+    // F5c — every active Binance account syncs with its own cursor.
+    mutationFn: async (force: boolean = false) => syncAssetMovementsAllAccounts(force),
+    onSuccess: (results) => {
       queryClient.invalidateQueries({ queryKey: ["asset_movement_history_db"] });
-      if (data?.data?.synced) {
-        toast.success(`Synced ${data.data.totalUpserted} movements`);
+      const synced = results.filter((r) => r.data?.synced);
+      const failed = results.filter((r) => !r.ok);
+      if (synced.length) {
+        toast.success(`Synced ${synced.map((r) => `${r.accountName}: ${r.data.totalUpserted}`).join(" · ")} movements`);
       }
+      if (failed.length) toast.error(`Sync failed for ${failed.map((r) => `${r.accountName} (${r.error || "error"})`).join(", ")}`);
     },
     onError: (err: Error) => toast.error(`Sync failed: ${err.message}`),
   });
@@ -109,19 +115,16 @@ function useAutoSync() {
   useEffect(() => {
     if (hasTriggered) return;
     setHasTriggered(true);
-    // Check sync metadata
-    supabase
-      .from("asset_movement_sync_metadata")
-      .select("last_sync_at")
-      .eq("id", "default")
-      .maybeSingle()
-      .then(({ data }) => {
-        const lastSync = data?.last_sync_at ? new Date(data.last_sync_at).getTime() : 0;
-        const fiveMin = 5 * 60 * 1000;
-        if (Date.now() - lastSync > fiveMin) {
-          sync.mutate(false);
-        }
-      });
+    // Each account has its own cursor ('default' for the primary, the account id otherwise).
+    Promise.all([
+      supabase.from("terminal_exchange_accounts").select("id").eq("is_active", true),
+      supabase.from("asset_movement_sync_metadata").select("exchange_account_id, last_sync_at"),
+    ]).then(([{ data: accts }, { data: metas }]) => {
+      const fiveMin = 5 * 60 * 1000;
+      const lastBy = new Map((metas || []).map((m: any) => [m.exchange_account_id, m.last_sync_at ? new Date(m.last_sync_at).getTime() : 0]));
+      const stale = (accts || []).some((a: any) => Date.now() - (lastBy.get(a.id) || 0) > fiveMin);
+      if (stale) sync.mutate(false);
+    });
   }, [hasTriggered]);
 
   return sync;
@@ -177,8 +180,12 @@ function HashLine({ hash }: { hash: { label: string; value: string } }) {
 
 export function AssetMovementHistory() {
   const [filter, setFilter] = useState<MovementType>("all");
-  const { data: dbMovements, isLoading: loadingDB } = useMovementsFromDB();
-  const { data: p2pOrders, isLoading: loadingP2P } = useP2PHistory();
+  const { accountsToQuery, isAllAccounts, visibleAccounts } = useExchangeAccount();
+  const scope = isAllAccounts ? null : accountsToQuery;
+  const accountName = (id?: string | null) =>
+    id ? visibleAccounts.find((a) => a.id === id)?.account_name || "Other account" : "Account unknown";
+  const { data: dbMovements, isLoading: loadingDB } = useMovementsFromDB(scope);
+  const { data: p2pOrders, isLoading: loadingP2P } = useP2PHistory(scope);
   const sync = useAutoSync();
 
   const isLoading = loadingDB || loadingP2P;
@@ -218,6 +225,7 @@ export function AssetMovementHistory() {
           txId: m.tx_id || undefined,
           address: m.address || undefined,
           fee: Number(m.fee) || undefined,
+          accountId: m.exchange_account_id ?? null,
         });
       }
     }
@@ -237,6 +245,7 @@ export function AssetMovementHistory() {
           fiat: o.fiat_unit || "",
           fiatAmount: parseFloat(o.total_price || "0"),
           fee: parseFloat(o.commission || "0"),
+          accountId: o.exchange_account_id ?? null,
         });
       }
     }
@@ -272,6 +281,7 @@ export function AssetMovementHistory() {
         isPay && m.address ? `To/From: ${m.address}` : null,
         m.network && !isPay && m.type !== "transfer" ? `Network: ${m.network}` : null,
         m.counterparty || null,
+        isAllAccounts ? accountName(m.accountId) : null,
       ].filter(Boolean) as string[],
       hash: m.txId ? { label: isPay ? "Pay ID" : "TX", value: m.txId } : null,
     };

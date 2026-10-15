@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useBinanceBalances, useBinanceTickerPrices } from "@/hooks/useBinanceAssets";
-import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { assetPageSymbols, useBinanceBalances, useBinanceTickerPrices } from "@/hooks/useBinanceAssets";
+import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
 import { AlertTriangle, Check, Eye, EyeOff, Lock, Package, Wallet } from "lucide-react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,18 +14,53 @@ const MASK = "••••";
 // Holdings grid: asset | balance | value | ERP check (single column + stacked details on narrow work areas)
 const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 @[44rem]:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)]";
 
+/**
+ * F4 — ERP side of the check: only the ERP wallets linked to the account(s) in view
+ * (terminal_wallet_links, active, platform_source 'terminal'), from wallet_asset_balances.
+ */
+function useLinkedErpBalances(accountIds: string[]) {
+  return useQuery({
+    queryKey: ["terminal_linked_erp_balances", accountIds.join(",")],
+    queryFn: async () => {
+      const { data: links, error } = await supabase
+        .from("terminal_wallet_links")
+        .select("wallet_id, exchange_account_id")
+        .eq("status", "active")
+        .eq("platform_source", "terminal")
+        .in("exchange_account_id", accountIds);
+      if (error) throw error;
+      const walletIds = [...new Set((links || []).map((l) => l.wallet_id).filter(Boolean))] as string[];
+      const linkedAccounts = new Set((links || []).map((l) => l.exchange_account_id));
+      const [{ data: wallets }, { data: bals, error: bErr }] = await Promise.all([
+        walletIds.length ? supabase.from("wallets").select("id, wallet_name").in("id", walletIds) : Promise.resolve({ data: [] as any[] }),
+        walletIds.length ? supabase.from("wallet_asset_balances").select("wallet_id, asset_code, balance").in("wallet_id", walletIds) : Promise.resolve({ data: [] as any[], error: null }),
+      ]);
+      if (bErr) throw bErr;
+      const nameOf = new Map((wallets || []).map((w: any) => [w.id, w.wallet_name as string]));
+      const byAsset = new Map<string, { total: number; wallets: { name: string; balance: number }[] }>();
+      for (const b of bals || []) {
+        const code = String(b.asset_code || "").toUpperCase();
+        const cur = byAsset.get(code) || { total: 0, wallets: [] };
+        cur.total += Number(b.balance) || 0;
+        cur.wallets.push({ name: nameOf.get(b.wallet_id) || "ERP wallet", balance: Number(b.balance) || 0 });
+        byAsset.set(code, cur);
+      }
+      return { byAsset, unlinked: accountIds.filter((id) => !linkedAccounts.has(id)) };
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function AssetOverview() {
   const { data: balances, isLoading, error } = useBinanceBalances();
-  const { data: prices } = useBinanceTickerPrices();
-  const { data: erpProducts } = useProductStockWithCost();
+  const { accountsToQuery, visibleAccounts } = useExchangeAccount();
+  const heldAssets = (Array.isArray(balances) ? balances : []).map((b) => b.asset);
+  const { data: prices } = useBinanceTickerPrices(assetPageSymbols(heldAssets));
+  const { data: erpLinked } = useLinkedErpBalances(accountsToQuery);
+  const unlinkedNames = (erpLinked?.unlinked || []).map((id) => visibleAccounts.find((a) => a.id === id)?.account_name || "this account");
   const [showValues, setShowValues] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
-  // Build ERP stock map by product code
-  const erpStockMap = new Map<string, number>();
-  erpProducts?.forEach(p => erpStockMap.set(p.product_code, p.total_stock));
-  const erpWallets = (code: string) =>
-    (erpProducts?.find((p) => p.product_code === code)?.wallet_stocks || []).map((w) => ({ name: w.wallet_name, balance: w.balance }));
 
   // Calculate USDT equivalent for each asset
   const priceList = Array.isArray(prices) ? prices : [];
@@ -50,11 +87,14 @@ export function AssetOverview() {
     .map((b, i) => ({ b, i, usdt: getUsdtValue(b.asset, b.total_balance) }))
     .sort((x, y) => (y.usdt ?? -1) - (x.usdt ?? -1) || x.i - y.i);
 
+  // An account in view without a linked ERP wallet makes any difference meaningless.
+  const noLink = !!erpLinked && erpLinked.unlinked.length > 0;
   const erpFor = (asset: string, binance: number): ErpComparison | null => {
-    const erpStock = erpStockMap.get(asset);
-    if (erpStock === undefined) return null;
-    const diff = erpStock - binance;
-    return { erp: erpStock, binance, diff, mismatch: Math.abs(diff) > 0.001, wallets: erpWallets(asset) };
+    if (!erpLinked || noLink) return null;
+    const e = erpLinked.byAsset.get(asset);
+    if (!e) return null; // coin not held in the linked ERP wallet(s)
+    const diff = e.total - binance;
+    return { erp: e.total, binance, diff, mismatch: Math.abs(diff) > 0.001, wallets: e.wallets };
   };
 
   if (isLoading) {
@@ -146,7 +186,11 @@ export function AssetOverview() {
           {rows.map(({ b: asset, usdt: usdtVal }) => {
             const erp = erpFor(asset.asset, asset.total_balance);
             const valueText = showValues ? (usdtVal !== null ? `≈ ${fmtUsdt(usdtVal)}` : "≈ --") : MASK;
-            const erpChip = showValues && erp ? (
+            const erpChip = showValues && noLink ? (
+              <span className="text-[10px] text-muted-foreground" title={`No ERP wallet linked to ${unlinkedNames.join(", ")}`}>
+                no ERP wallet linked
+              </span>
+            ) : showValues && erp ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
@@ -164,12 +208,12 @@ export function AssetOverview() {
                 {/* Portalled: the @container panel would otherwise offset the fixed-position tooltip. */}
                 <TooltipPrimitive.Portal>
                 <TooltipContent className="max-w-xs">
-                  <p className="text-xs">ERP Inventory: {fmtQty(erp.erp, 4)}</p>
+                  <p className="text-xs">ERP (linked wallets): {fmtQty(erp.erp, 4)}</p>
                   <p className="text-xs">Binance API: {fmtQty(erp.binance, 4)}</p>
                   {erp.mismatch && <p className="text-xs text-warning">Difference: {erp.diff > 0 ? "+" : "−"}{fmtQty(Math.abs(erp.diff), 4)} ({erp.diff > 0 ? "ERP higher" : "ERP lower"})</p>}
                   {erp.wallets.length > 0 && (
                     <p className="mt-1 text-[10px] text-muted-foreground">
-                      ERP wallets: {erp.wallets.map((w) => `${w.name} ${fmtQty(w.balance, 4)}`).join(" · ")}
+                      ERP wallets counted: {erp.wallets.map((w) => `${w.name} ${fmtQty(w.balance, 4)}`).join(" · ")}
                     </p>
                   )}
                 </TooltipContent>

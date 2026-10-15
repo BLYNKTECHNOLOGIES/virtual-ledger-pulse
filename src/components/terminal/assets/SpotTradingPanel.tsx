@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TRADING_PAIRS, useBinanceBalances, useBinanceTickerPrices, useExecuteTrade } from "@/hooks/useBinanceAssets";
+import { TRADING_PAIRS, assetPageSymbols, useAccountBalances, useBinanceTickerPrices, useExecuteTrade, useSymbolRules } from "@/hooks/useBinanceAssets";
 import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
 import { Loader2, ArrowDownUp, AlertTriangle, Layers } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CoinAvatar } from "./assetUi";
 import { fmt2, fmtPrice, fmtQty } from "./assetFormat";
+import { checkOrder, computeFundingShortfall, fromUnits, percentOfAvailable, toUnits } from "./tradeRules";
 
 export function SpotTradingPanel() {
   const [selectedPair, setSelectedPair] = useState(TRADING_PAIRS[0].symbol);
@@ -25,27 +26,37 @@ export function SpotTradingPanel() {
   const [amount, setAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [buyConfirmPending, setBuyConfirmPending] = useState(false);
+  const [sellConfirmPending, setSellConfirmPending] = useState(false);
 
-  const { data: balances } = useBinanceBalances();
-  const { data: prices } = useBinanceTickerPrices();
   const executeTrade = useExecuteTrade();
-  const { activeAccount, isAllAccounts, accounts } = useExchangeAccount();
-  // Orders without an explicit account run on the default account (combined "All accounts" view).
-  const tradeAccount = activeAccount ?? accounts.find((a) => a.is_default) ?? null;
+  const { activeAccount, isAllAccounts, visibleAccounts } = useExchangeAccount();
+  // F5 — orders run on an explicitly chosen account. Single-account view: that account.
+  // All accounts view: a picker, defaulting to the default account.
+  const defaultAccount = visibleAccounts.find((a) => a.is_default) ?? visibleAccounts[0] ?? null;
+  const [pickedAccountId, setPickedAccountId] = useState<string | null>(null);
+  const tradeAccount = activeAccount
+    ?? visibleAccounts.find((a) => a.id === pickedAccountId)
+    ?? defaultAccount;
+  const tradeAccountId = tradeAccount?.id ?? null;
 
-  const priceList = Array.isArray(prices) ? prices : [];
+  const { data: balances } = useAccountBalances(tradeAccountId);
+  const { data: rulesMap, error: rulesError } = useSymbolRules();
   const balanceList = Array.isArray(balances) ? balances : [];
+  const { data: prices } = useBinanceTickerPrices(assetPageSymbols([]));
+  const priceList = Array.isArray(prices) ? prices : [];
 
   const pair = TRADING_PAIRS.find((p) => p.symbol === selectedPair) || TRADING_PAIRS[0];
+  const rules = rulesMap?.[pair.symbol] ?? null;
   const currentPrice = priceList.find((p) => p.symbol === selectedPair);
   const priceValue = currentPrice ? parseFloat(currentPrice.price) : 0;
 
-  // Available balance for the relevant side
+  // Available balance for the relevant side — the trading account's own Funding + Spot.
   const relevantAsset = side === "BUY" ? pair.quote : pair.base;
-  const availableBalance = useMemo(() => {
-    const b = balanceList.find((a) => a.asset === relevantAsset);
-    return b ? b.total_free : 0;
-  }, [balanceList, relevantAsset]);
+  const relevantBal = balanceList.find((a) => a.asset === relevantAsset);
+  const availableStr = relevantBal
+    ? fromUnits(toUnits(relevantBal.funding_free) + toUnits(relevantBal.spot_free))
+    : "0";
+  const availableBalance = Number(availableStr);
 
   const estimatedResult = useMemo(() => {
     const amt = parseFloat(amount);
@@ -54,6 +65,20 @@ export function SpotTradingPanel() {
     return amt * priceValue; // selling base, getting USDT
   }, [amount, priceValue, side]);
 
+  // F3 — same checks as the edge function, with Binance's live rules.
+  const check = useMemo(() => {
+    if (!amount) return null;
+    if (!rules) return { ok: false, message: rulesError ? "Couldn't load Binance's trading rules — try again shortly." : "Loading Binance's trading rules…" };
+    return checkOrder({ side, amount, available: availableStr, price: currentPrice?.price ?? "0", rules, accountName: tradeAccount?.account_name });
+  }, [amount, rules, rulesError, side, availableStr, currentPrice?.price, tradeAccount?.account_name]);
+
+  // F1 — what will move from Funding (shown in the confirm dialog).
+  const fundingMove = useMemo(() => {
+    if (!check?.ok || !relevantBal) return null;
+    const need = side === "BUY" ? check.quoteOrderQty! : check.quantity!;
+    return computeFundingShortfall(need, relevantBal.spot_free, relevantBal.funding_free, relevantAsset);
+  }, [check, relevantBal, side, relevantAsset]);
+
   const handleExecute = async () => {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) {
@@ -61,14 +86,19 @@ export function SpotTradingPanel() {
       return;
     }
 
+    if (!check?.ok || !tradeAccountId) {
+      toast.error(check?.message || "Choose the account for this order");
+      return;
+    }
     try {
       await executeTrade.mutateAsync({
         symbol: pair.symbol,
         side,
         ...(side === "BUY"
-          ? { quoteOrderQty: amount } // Spend X USDT
-          : { quantity: amount }), // Sell X base
+          ? { quoteOrderQty: check.quoteOrderQty } // Spend X USDT
+          : { quantity: check.quantity }), // Sell X base, floored to Binance's step
         transferAsset: relevantAsset,
+        exchangeAccountId: tradeAccountId,
       });
       setAmount("");
       setConfirmOpen(false);
@@ -78,12 +108,8 @@ export function SpotTradingPanel() {
   };
 
   const handlePercentage = (pct: number) => {
-    const maxAmt = availableBalance * (pct / 100);
-    if (side === "BUY") {
-      setAmount(maxAmt.toFixed(2));
-    } else {
-      setAmount(maxAmt.toFixed(8));
-    }
+    // Always rounds DOWN: SELL to Binance's step, BUY to the quote precision.
+    setAmount(percentOfAvailable(availableStr, pct, side, rules));
   };
 
   const isBuy = side === "BUY";
@@ -104,7 +130,18 @@ export function SpotTradingPanel() {
       <section className="t-panel overflow-hidden lg:col-span-2" aria-label="Spot market order">
         <div className="flex min-h-[2.75rem] flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1.5">
           <p role="heading" aria-level={2} className="text-sm font-medium text-foreground">Spot Market Order</p>
-          {tradeAccount && (
+          {isAllAccounts && visibleAccounts.length > 1 ? (
+            <Select value={tradeAccountId ?? undefined} onValueChange={setPickedAccountId}>
+              <SelectTrigger className="h-8 w-44 text-xs bg-background border-border" aria-label="Account for this order">
+                <SelectValue placeholder="Choose account" />
+              </SelectTrigger>
+              <SelectContent>
+                {visibleAccounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id} className="text-xs">{a.account_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : tradeAccount && (
             <span className="min-w-0 truncate text-[11px] text-muted-foreground">
               on <span className="text-foreground">{tradeAccount.account_name}</span>
             </span>
@@ -160,7 +197,7 @@ export function SpotTradingPanel() {
               <span className="text-[11px] text-muted-foreground">
                 Available{" "}
                 <span className="t-mono tabular-nums text-foreground">
-                  {availableBalance.toLocaleString("en-US", { maximumFractionDigits: isBuy ? 4 : 8 })}
+                  {availableBalance.toLocaleString("en-US", { maximumFractionDigits: 8 })}
                 </span>{" "}
                 {relevantAsset}
               </span>
@@ -202,6 +239,13 @@ export function SpotTradingPanel() {
             </div>
           </div>
 
+          {check && !check.ok && (
+            <p role="alert" className="flex items-start gap-1.5 text-[11px] leading-relaxed text-destructive">
+              <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+              {check.message}
+            </p>
+          )}
+
           {/* Estimated */}
           {parseFloat(amount) > 0 && priceValue > 0 && (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2.5">
@@ -216,16 +260,15 @@ export function SpotTradingPanel() {
           <div className="flex items-start gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-2">
             <ArrowDownUp className="mt-px h-3.5 w-3.5 shrink-0 text-primary" />
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Before the order runs, all free {relevantAsset} in the Funding wallet is moved to Spot.
+              Before the order runs, only the {relevantAsset} that Spot is missing is moved from Funding to Spot. Proceeds stay in Spot.
             </p>
           </div>
 
-          {isAllAccounts && (
+          {isAllAccounts && tradeAccount && (
             <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
               <Layers className="mt-px h-3.5 w-3.5 shrink-0 text-warning" />
               <p className="text-[11px] leading-relaxed text-warning">
-                All accounts view: the available amount is combined across accounts, but the order is placed on{" "}
-                {tradeAccount ? tradeAccount.account_name : "the default account"} only.
+                All accounts view: this order is placed on {tradeAccount.account_name}; Available, Max and % use that account's balance only.
               </p>
             </div>
           )}
@@ -237,13 +280,11 @@ export function SpotTradingPanel() {
                 ? "bg-trade-buy hover:bg-trade-buy/90 text-primary-foreground"
                 : "bg-trade-sell hover:bg-trade-sell/90 text-primary-foreground"
             }`}
-            disabled={!amount || parseFloat(amount) <= 0 || executeTrade.isPending}
+            disabled={!check?.ok || !tradeAccountId || executeTrade.isPending}
             onClick={() => {
-              if (side === "BUY") {
-                setBuyConfirmPending(true);
-              } else {
-                handleExecute();
-              }
+              if (!check?.ok) return;
+              if (side === "BUY") setBuyConfirmPending(true);
+              else setSellConfirmPending(true);
             }}
           >
             {executeTrade.isPending ? (
@@ -272,7 +313,7 @@ export function SpotTradingPanel() {
                       </div>
                       <div className="flex justify-between gap-3">
                         <dt>Spend</dt>
-                        <dd className="t-mono font-medium tabular-nums text-foreground">{fmtQty(amount || "0", 8)} {pair.quote}</dd>
+                        <dd className="t-mono font-medium tabular-nums text-foreground">{fmtQty(check?.quoteOrderQty || amount || "0", 8)} {pair.quote}</dd>
                       </div>
                       <div className="flex justify-between gap-3">
                         <dt>Est. Receive</dt>
@@ -286,6 +327,12 @@ export function SpotTradingPanel() {
                         <div className="flex justify-between gap-3">
                           <dt>Account</dt>
                           <dd className="font-medium text-foreground">{tradeAccount.account_name}</dd>
+                        </div>
+                      )}
+                      {fundingMove?.ok && (
+                        <div className="flex justify-between gap-3">
+                          <dt>From Funding</dt>
+                          <dd className="t-mono font-medium tabular-nums text-foreground">{Number(fundingMove.move) > 0 ? `${fmtQty(fundingMove.move, 8)} ${relevantAsset}` : "Nothing (Spot has enough)"}</dd>
                         </div>
                       )}
                     </dl>
@@ -303,6 +350,67 @@ export function SpotTradingPanel() {
                   }}
                 >
                   Confirm Buy
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          {/* Sell Confirmation Dialog */}
+          <AlertDialog open={sellConfirmPending} onOpenChange={setSellConfirmPending}>
+            <AlertDialogContent className="bg-card border-border max-w-sm t-scale-in">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-foreground">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  Confirm Sell Order
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      You are about to place a <strong className="text-trade-sell">SELL</strong> market order:
+                    </p>
+                    <dl className="space-y-1.5 rounded-lg border border-border bg-secondary/20 p-3 text-xs">
+                      <div className="flex justify-between gap-3">
+                        <dt>Pair</dt>
+                        <dd className="font-medium text-foreground">{pair.base}/{pair.quote}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Quantity to sell</dt>
+                        <dd className="t-mono font-medium tabular-nums text-foreground">{fmtQty(check?.quantity || "0", 8)} {pair.base}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Est. Receive</dt>
+                        <dd className="t-mono font-medium tabular-nums text-foreground">≈ {fmt2(Number(check?.quantity || 0) * priceValue)} {pair.quote}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Price</dt>
+                        <dd className="t-mono font-medium tabular-nums text-foreground">{fmtPrice(priceValue)}</dd>
+                      </div>
+                      {tradeAccount && (
+                        <div className="flex justify-between gap-3">
+                          <dt>Account</dt>
+                          <dd className="font-medium text-foreground">{tradeAccount.account_name}</dd>
+                        </div>
+                      )}
+                      {fundingMove?.ok && (
+                        <div className="flex justify-between gap-3">
+                          <dt>From Funding</dt>
+                          <dd className="t-mono font-medium tabular-nums text-foreground">{Number(fundingMove.move) > 0 ? `${fmtQty(fundingMove.move, 8)} ${relevantAsset}` : "Nothing (Spot has enough)"}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    <p className="text-[11px]">Are you sure you want to proceed?</p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="text-xs">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-trade-sell hover:bg-trade-sell/90 text-primary-foreground text-xs"
+                  onClick={() => {
+                    setSellConfirmPending(false);
+                    handleExecute();
+                  }}
+                >
+                  Confirm Sell
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

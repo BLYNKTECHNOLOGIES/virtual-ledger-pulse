@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isReviewShortcut, pairDifference } from "@/components/hrms/quiz/QuestionReviewQueue";
+import { isReviewShortcut, pairDifference } from "@/lib/cbt/reviewQueue";
 
 describe("QZ7b review queue", () => {
   it("highlights exactly the differing part of a match pair", () => {

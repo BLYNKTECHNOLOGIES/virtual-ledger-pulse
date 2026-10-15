@@ -260,7 +260,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStartRest}>Start rest</AlertDialogAction>
+            <AlertDialogAction onClick={handleStartRest} disabled={countFetching}>Start rest</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

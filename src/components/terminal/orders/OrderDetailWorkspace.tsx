@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Activity, IdCard } from 'lucide-react';
+import { MessageSquare, Users, User, UserCheck, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Activity, IdCard } from 'lucide-react';
 import { InternalChatPanel } from './InternalChatPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CounterpartyPanInput } from './CounterpartyPanInput';
@@ -13,14 +13,17 @@ import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
 import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useCounterpartyRecentCompletedOrders, useBinanceChatMessages, useBinanceOrderRiskSnapshot, useOrderCommissionSnapshots } from '@/hooks/useBinanceActions';
-import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
+import { useTerminalOrderClient, isLinkedClient, isClientAccessDenied } from '@/hooks/useTerminalOrderClient';
+import { OrderClientCard, OrderClientDetails, OrderClientDetailsSkeleton, OrderClientLookupError, type OrderClientContext } from './OrderClientPanel';
 import { ShieldAlert } from 'lucide-react';
-import { hasActiveBinanceComplaint, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { hasActiveBinanceComplaint, normaliseBinanceStatus, mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { initialsOf } from './initials';
 
 // Underline tab bar shared by the side panel and the phone layout (min-h-0 cancels the TabsList default).
 const PANEL_TABS = 'flex h-10 min-h-0 w-full flex-nowrap items-stretch justify-start gap-0 rounded-none border-0 bg-transparent p-0';
 const PANEL_TAB = 'h-10 flex-1 gap-1.5 rounded-none border-0 border-b-2 border-transparent px-2 py-0 text-xs font-medium text-muted-foreground hover:text-foreground data-[state=active]:border-0 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none';
+// Phones: up to five tabs must fit a 360px screen, so the global mobile tab padding (index.css) is tightened here.
+const PHONE_TAB = `${PANEL_TAB.replace('gap-1.5 ', 'gap-1 ')} [&[role=tab]]:!px-1.5`;
 
 interface Props {
   order: P2POrderRecord;
@@ -31,8 +34,8 @@ interface Props {
 }
 
 export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = false, onStepOrder }: Props) {
-  const [rightPanel, setRightPanel] = useState<'profile' | 'internal'>('internal');
-  const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('chat');
+  const [rightPanel, setRightPanel] = useState<'profile' | 'internal' | 'client'>('internal');
+  const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile' | 'client'>('chat');
   const isMobile = useIsMobile();
   // Swipe-to-navigate on the order number (mobile) — mirrors J/→ and K/←.
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
@@ -160,6 +163,43 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
     verifiedName: counterpartyVerifiedName,
   });
 
+  // ERP client behind this order — matched on the server by Binance userNo only.
+  const clientQuery = useTerminalOrderClient(order.binance_order_number);
+  const linkedClient = isLinkedClient(clientQuery.data) ? clientQuery.data : null;
+  const clientStatus = clientQuery.data?.status;
+  const detailLoaded = !!liveDetail?.data;
+  const refetchClient = clientQuery.refetch;
+  const recheckedClientFor = useRef<string | null>(null);
+  useEffect(() => {
+    // A brand-new order may not have the counterparty's Binance id stored yet. Loading
+    // the order detail stores it, so check once more (per order) after the detail has arrived.
+    if (!detailLoaded || clientStatus !== 'identity_pending') return;
+    if (recheckedClientFor.current === order.binance_order_number) return;
+    recheckedClientFor.current = order.binance_order_number;
+    void refetchClient();
+  }, [detailLoaded, clientStatus, refetchClient, order.binance_order_number]);
+  const clientCtx: OrderClientContext = {
+    tradeType: order.trade_type,
+    orderTotal: !order.fiat_unit || order.fiat_unit === 'INR' ? Number(order.total_price) || 0 : 0,
+    orderCounts: !['Cancelled', 'Expired'].includes(mapToOperationalStatus(liveOrder.order_status, order.trade_type)),
+  };
+  // People without ERP client access simply get no client panel; other failures offer a retry.
+  const clientLookupError = !linkedClient && clientQuery.isError && !isClientAccessDenied(clientQuery.error)
+    ? <OrderClientLookupError onRetry={() => void refetchClient()} retrying={clientQuery.isFetching} />
+    : null;
+  // "Client" stays selected while the next order's client is looked up (placeholder, no jump),
+  // and falls back once the order turns out to have no ERP client.
+  const clientLoading = clientQuery.isLoading;
+  const activeRightPanel = rightPanel === 'client' && !linkedClient && !clientLoading ? 'internal' : rightPanel;
+  const activeMobileTab = mobileTab === 'client' && !linkedClient && !clientLoading ? 'chat' : mobileTab;
+  const clientTab = (selected: boolean, className: string) => (linkedClient || (clientLoading && selected)) ? (
+    <TabsTrigger value="client" className={className}>
+      <UserCheck className="h-3.5 w-3.5" />
+      Client
+    </TabsTrigger>
+  ) : null;
+  const clientTabBody = linkedClient ? <OrderClientDetails data={linkedClient} ctx={clientCtx} /> : <OrderClientDetailsSkeleton />;
+
   const topBar = (
     <div
       className="flex items-center gap-2 px-2 md:px-3 h-11 shrink-0 border-b border-border bg-card select-none touch-pan-y"
@@ -243,8 +283,10 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
 
   const rightPanelContent = (
     <>
+      {linkedClient && activeRightPanel !== 'client' && <OrderClientCard data={linkedClient} ctx={clientCtx} />}
+      {clientLookupError}
       <div className="shrink-0 border-b border-border">
-        <Tabs value={rightPanel} onValueChange={(v) => setRightPanel(v as any)}>
+        <Tabs value={activeRightPanel} onValueChange={(v) => setRightPanel(v as any)}>
           <TabsList className={PANEL_TABS}>
             <TabsTrigger value="internal" className={PANEL_TAB}>
               <Users className="h-3.5 w-3.5" />
@@ -254,10 +296,13 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
               <User className="h-3.5 w-3.5" />
               Profile
             </TabsTrigger>
+            {clientTab(rightPanel === 'client', PANEL_TAB)}
           </TabsList>
         </Tabs>
       </div>
-      {rightPanel === 'internal' ? (
+      {activeRightPanel === 'client' ? (
+        clientTabBody
+      ) : activeRightPanel === 'internal' ? (
         <div className="flex-1 overflow-hidden flex flex-col">
           <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
         </div>
@@ -273,44 +318,54 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
       <div className="relative flex flex-col h-full">
         {topBar}
         <div className="border-b border-border bg-card shrink-0">
-          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)}>
+          <Tabs value={activeMobileTab} onValueChange={(v) => setMobileTab(v as any)}>
             <TabsList className={PANEL_TABS}>
-              <TabsTrigger value="details" className={PANEL_TAB}>
+              <TabsTrigger value="details" className={PHONE_TAB}>
                 <FileText className="h-3.5 w-3.5" />
                 Details
               </TabsTrigger>
-              <TabsTrigger value="chat" className={PANEL_TAB}>
+              <TabsTrigger value="chat" className={PHONE_TAB}>
                 <MessageSquare className="h-3.5 w-3.5" />
                 Chat
               </TabsTrigger>
-              <TabsTrigger value="internal" className={PANEL_TAB}>
+              <TabsTrigger value="internal" className={PHONE_TAB}>
                 <Users className="h-3.5 w-3.5" />
                 Internal
               </TabsTrigger>
-              <TabsTrigger value="profile" className={PANEL_TAB}>
+              <TabsTrigger value="profile" className={PHONE_TAB}>
                 <User className="h-3.5 w-3.5" />
                 Profile
               </TabsTrigger>
+              {clientTab(mobileTab === 'client', PHONE_TAB)}
             </TabsList>
           </Tabs>
         </div>
         <div className="flex-1 overflow-hidden flex flex-col">
-          {mobileTab === 'details' && (
-            <div className="h-full overflow-y-auto bg-card">
-              <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} preserveOrderStatus={preserveOrderStatus} />
+          {activeMobileTab === 'details' && (
+            <div className="flex h-full flex-col bg-card">
+              {linkedClient && <OrderClientCard data={linkedClient} ctx={clientCtx} />}
+              {clientLookupError}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} preserveOrderStatus={preserveOrderStatus} />
+              </div>
             </div>
           )}
-          {mobileTab === 'chat' && (
+          {activeMobileTab === 'client' && (
+            <div className="h-full overflow-hidden flex flex-col bg-card">
+              {clientTabBody}
+            </div>
+          )}
+          {activeMobileTab === 'chat' && (
             <div className="h-full flex flex-col min-w-0 bg-background">
               {chatContent}
             </div>
           )}
-          {mobileTab === 'internal' && (
+          {activeMobileTab === 'internal' && (
             <div className="h-full flex flex-col min-w-0 bg-background">
               <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
             </div>
           )}
-          {mobileTab === 'profile' && (
+          {activeMobileTab === 'profile' && (
             <div className="h-full overflow-hidden flex flex-col bg-card">
               <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} commissionSnapshots={commissionSnapshots} />
             </div>
@@ -351,15 +406,6 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
   const { data: completedHistory } = useCounterpartyCompletedOrderCount(order.binance_order_number, order.exchange_account_id);
   const completedWithUs = completedHistory?.resolved ? completedHistory.count : undefined;
   const { data: recentCompleted } = useCounterpartyRecentCompletedOrders(order.binance_order_number, order.exchange_account_id, 5);
-  const { data: linkedClient } = useCounterpartyLinkedClient(
-    counterpartyNickname,
-    counterpartyVerifiedName,
-    order.trade_type as 'BUY' | 'SELL'
-  );
-  const riskKey = linkedClient?.risk_appetite && RISK_BADGE_STYLES[linkedClient.risk_appetite]
-    ? linkedClient.risk_appetite
-    : null;
-  const riskStyle = riskKey ? RISK_BADGE_STYLES[riskKey] : null;
   // Parse Binance stats — API returns fields like completedOrderNum, finishRateLatest30Day, etc.
   const stats = binanceStats?.data || binanceStats;
   const hasApiStats = stats && (
@@ -412,25 +458,6 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
           </div>
         )}
 
-        {/* Approved client risk level — SELL orders only (counterparty is the buyer/client) */}
-        {riskStyle && order.trade_type === 'SELL' && (
-          <div className={`rounded-md border px-3 py-2 flex items-center justify-between gap-2 ${riskStyle.className}`}>
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-              <div className="flex flex-col leading-tight min-w-0">
-                <span className="text-[11px] font-medium truncate">Client Risk Level</span>
-                {linkedClient?.name && (
-                  <span className="text-[10px] opacity-80 truncate">
-                    {linkedClient.name}
-                  </span>
-                )}
-              </div>
-            </div>
-            <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 whitespace-nowrap">
-              {riskStyle.label}
-            </span>
-          </div>
-        )}
       </section>
 
       {/* Recent completed orders with us — amount, rate, when */}

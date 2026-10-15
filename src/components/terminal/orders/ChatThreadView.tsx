@@ -36,6 +36,8 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
       counterpartyVerifiedName={c.verifiedName}
       tradeType={c.tradeType}
       exchangeAccountId={c.exchangeAccountId}
+      orderTotal={!c.fiatUnit || c.fiatUnit === 'INR' ? Number(c.totalPrice) || 0 : 0}
+      orderCounts={!['Cancelled', 'Expired'].includes(opStatus)}
     />
   );
 

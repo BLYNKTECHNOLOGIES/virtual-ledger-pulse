@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { User, ShieldCheck, Clock, CreditCard, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
+import { User, Clock, CreditCard, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useCounterpartyPanel } from '@/hooks/useCounterpartyProfile';
-import { useCounterpartyLinkedClient } from '@/hooks/useCounterpartyLinkedClient';
+import { useTerminalOrderClient, isLinkedClient, isClientAccessDenied } from '@/hooks/useTerminalOrderClient';
+import { OrderClientCard, OrderClientLookupError } from './OrderClientPanel';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
-import { useNavigate } from 'react-router-dom';
 
 interface Props {
   orderNumber: string;
@@ -14,6 +14,9 @@ interface Props {
   counterpartyVerifiedName?: string | null;
   tradeType: string;
   exchangeAccountId?: string | null;
+  /** Order total in INR (0 for other currencies) and whether it can still count (not cancelled or expired) — for the client's monthly-limit check. */
+  orderTotal?: number;
+  orderCounts?: boolean;
 }
 
 const NA = <span className="text-muted-foreground">Not available</span>;
@@ -44,20 +47,18 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function CounterpartyDetailsPanel({
-  orderNumber, counterpartyNickname, counterpartyVerifiedName, tradeType, exchangeAccountId,
+  orderNumber, counterpartyNickname, counterpartyVerifiedName, tradeType, exchangeAccountId, orderTotal = 0, orderCounts = false,
 }: Props) {
-  const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
   const isSynthetic = orderNumber.startsWith('INQ-');
 
   const { data, isLoading, isError, isFetching, refetch } = useCounterpartyPanel(orderNumber, exchangeAccountId);
   const profile = data?.profile ?? null;
   const pastOrders = data?.pastOrders ?? [];
-  const { data: linkedClient } = useCounterpartyLinkedClient(
-    counterpartyNickname,
-    counterpartyVerifiedName || profile?.verified_name,
-    (tradeType?.toUpperCase() === 'BUY' ? 'BUY' : 'SELL')
-  );
+  // ERP client behind this order — matched on the server by Binance userNo only.
+  const clientQuery = useTerminalOrderClient(isSynthetic ? null : orderNumber);
+  const linkedClient = isLinkedClient(clientQuery.data) ? clientQuery.data : null;
+  const clientLookupFailed = !linkedClient && clientQuery.isError && !isClientAccessDenied(clientQuery.error);
 
   const cancelRate = useMemo(() => {
     if (!profile || profile.total_orders === 0) return null;
@@ -92,25 +93,17 @@ export function CounterpartyDetailsPanel({
         </div>
       </div>
 
-      {/* Client link */}
-      {linkedClient ? (
-        <button
-          type="button"
-          onClick={() => navigate(`/clients/${linkedClient.client_id}`)}
-          className="w-full text-left rounded-md border border-[hsl(var(--trade-buy,var(--success))/0.25)] bg-[hsl(var(--trade-buy,var(--success))/0.05)] px-3 py-2 hover:bg-[hsl(var(--trade-buy,var(--success))/0.1)] transition-colors"
-        >
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-trade-buy" />
-            <span className="text-xs font-medium text-foreground truncate">{linkedClient.name}</span>
-          </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            Approved client · matched by {linkedClient.matchedBy === 'nickname' ? 'nickname' : 'verified name'}
-            {linkedClient.risk_appetite ? ` · ${linkedClient.risk_appetite}` : ''}
-          </div>
-        </button>
-      ) : (
-        <div className="rounded-md border border-dashed border-border px-3 py-2 text-[11px] text-muted-foreground">
-          No approved client linked to this counterparty.
+      {/* ERP client (only when this counterparty is one) */}
+      {linkedClient && (
+        <OrderClientCard
+          data={linkedClient}
+          ctx={{ tradeType, orderTotal, orderCounts }}
+          className="rounded-md border"
+        />
+      )}
+      {clientLookupFailed && (
+        <div className="overflow-hidden rounded-md border border-border">
+          <OrderClientLookupError onRetry={() => void clientQuery.refetch()} retrying={clientQuery.isFetching} />
         </div>
       )}
 

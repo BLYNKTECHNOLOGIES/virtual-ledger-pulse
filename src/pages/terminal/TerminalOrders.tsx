@@ -1286,7 +1286,7 @@ function TerminalOrdersContent() {
   // showing only a nickname.
   const missingVerifiedOrders = useMemo(() => {
     const seen = new Set<string>();
-    const out: { orderNumber: string; accountId?: string }[] = [];
+    const out: { orderNumber: string; accountId?: string; tradeType?: string }[] = [];
     for (const order of visibleOrders) {
       const num = order.binance_order_number;
       if (!num || seen.has(num) || storedVerifiedNames[num]) continue;

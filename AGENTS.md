@@ -28,3 +28,4 @@
 - User Management rights live in public.um_* SQL functions (um_my_access feeds the screen); every UI gate reads them, because screen and server must agree.
 - Auth owns sign-in times/logs; ERP-shell heartbeat is self-only for consistent presence. Legacy role_functions are immutable with retained role UUIDs after deletion, preserving history without blocking role removal.
 - Binance account access comes only from public.binance_accounts_for_user (screen + edge functions), so they cannot drift.
+- Background Binance jobs with verify_jwt=false accept only the service role or the internal_cron scheduler secret (_shared/require-scheduler.ts); cron/trigger callers build headers with public.internal_cron_headers() so the secret is never pasted into job SQL.

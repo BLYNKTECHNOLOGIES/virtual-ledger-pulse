@@ -122,7 +122,10 @@ export function TerminalSizeRanges() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Define order size categories for assignment routing and jurisdiction control.</p>
+        <div>
+          <p className="text-sm text-muted-foreground">Define order size categories for assignment routing and jurisdiction control.</p>
+          {!canManage && <p className="text-xs text-muted-foreground mt-0.5">View only — you need the Users 'Manage' right to change size ranges.</p>}
+        </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchData}>
             <RefreshCw className="h-3.5 w-3.5" />

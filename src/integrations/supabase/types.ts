@@ -4475,6 +4475,7 @@ export type Database = {
           last_heartbeat_at: string | null
           public_ref: string
           session_nonce: string | null
+          start_claimed_at: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["cbt_attempt_status"]
           submitted_at: string | null
@@ -4503,6 +4504,7 @@ export type Database = {
           last_heartbeat_at?: string | null
           public_ref: string
           session_nonce?: string | null
+          start_claimed_at?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["cbt_attempt_status"]
           submitted_at?: string | null
@@ -4531,6 +4533,7 @@ export type Database = {
           last_heartbeat_at?: string | null
           public_ref?: string
           session_nonce?: string | null
+          start_claimed_at?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["cbt_attempt_status"]
           submitted_at?: string | null

@@ -41,24 +41,20 @@ export function scrubAnswer(text: string): string {
 export const wordCount = (s: string) => (String(s ?? "").trim().match(/\S+/g) ?? []).length;
 
 /** Simple server-side check for answers that try to instruct the grader; such answers are never auto-applied. */
+const GRADER = String.raw`(grader|examiner|marker|evaluator|reviewer|ai|assistant|model|chatgpt|gpt)`;
+// QZ7b: narrowed to unmistakable grading manipulation; the model's own instructs_grader flag covers subtler cases.
 const INJECTION = [
-  /\bignore (all |any |the )?(previous |above |prior )?(instructions?|marking guide|guide|rubric|rules?)\b/i,
-  /\b(give|award|grant|mark|score)\b[^.\n]{0,40}\b(full marks|20\s*\/\s*20|20 out of 20|maximum marks|max(imum)? (score|marks)|top marks|100\s*%)/i,
-  /\b(dear|attention|note to|hey|hello) (grader|examiner|marker|evaluator|ai|assistant|model)\b/i,
-  /\b(as an ai|you are an? (ai|grader|language model)|system prompt|disregard (the )?(guide|instructions|rubric))\b/i,
-  /\b(grader|examiner|marker|evaluator)s?\b[^.\n]{0,30}\b(should|must|please)\b/i,
-  // QZ7a: any answer that talks about its own grading goes to a person
-  /\b(grader|reviewer|examiner|marker|evaluator|assessor)s?\b/i,
-  /\b(rubric|marking (guide|scheme)|answer key)\b/i,
-  /\b\d+(\.\d+)?\s*(\/|out of)\s*(10|20|100)\b(?![\/\d])/i,
-  /\b(marks?|score|scored|total|points?)\b[^.\n]{0,25}\bout of\b/i,
-  /\b(deserves?|award|give|grant)\b[^.\n]{0,30}\b(marks?|points?|full marks|top marks|maximum|max score)\b/i,
-  /\brate (it|this|me|the answer)\b/i,
-  /\b(full|maximum|max|top|highest|perfect)\s+(marks?|score|points?|rating)\b/i,
-  /\bconfidence\s*(=|:|(is|to|of|at|should be)\s*(1(\.0)?|0?\.\d+|100\s*%|one|high|maximum|max)\b)/i,
-  /\bflags?\s*(=|:|(to|as) (an )?empty|(should be|is|are) (empty|none))/i,
-  /\b(set|change|put)\b[^.\n]{0,15}\b(total|score|marks?|grade)\b\s*(to|=|at)\b/i,
+  /\b(ignore|disregard|forget)\b[^.\n]{0,25}\b(instructions?|marking guide|guide|rubric|rules|prompt)\b/i,
+  /\b(give|award|grant|deserves?|score|mark|rate)\b[^.\n]{0,40}(\b\d+(\.\d+)?\s*(\/|out of)\s*\d+\b|\b(full|maximum|max|top|perfect) (marks?|score|points)\b|\bmaximum\b|\b100\s*%)/i,
+  /\b(full|maximum|top|perfect) marks\b/i,
+  new RegExp(String.raw`\b(dear|attention|note (to|for)|message (to|for)|hey|hello|hi)\s+(the\s+)?${GRADER}\b`, "i"),
+  new RegExp(String.raw`(^|[\n.!?]\s*)${GRADER}\s*[,:]`, "i"),
   /(^|[\n.!?]\s*)(system|assistant|developer)\s*:/i,
+  /\b(as an ai|you are an? (ai|grader|language model)|system prompt)\b/i,
+  /\b(set|make|change|put|mark)\b[^.\n]{0,15}\b(confidence|flags?)\b/i,
+  /\b(set|make|change|put)\b[^.\n]{0,15}\b(total|score|marks?)\b\s*(to|=|at|as)\s*(20|100|full|max(imum)?)\b(?!\s*[,\d])/i,
+  /\bconfidence\s*(is|=|:)\s*(1(\.0+)?|100\s*%)(?![\d.])/i,
+  /\b(guide|rubric|marking)\s+points?\b[^.\n]{0,30}\b(covered|met|satisfied|awarded)\b/i,
 ];
 export const instructsGrader = (text: string) => INJECTION.some((r) => r.test(String(text ?? "")));
 

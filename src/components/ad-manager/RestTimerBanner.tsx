@@ -6,6 +6,7 @@ const isRestCountQuery = (q: Query) =>
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Coffee, Play, Loader2, OctagonPause, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { useAdsRights, NO_RIGHT } from './adsRights';
 import { useAdRestTimer, describeOutcomes } from '@/hooks/useAdRestTimer';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { format } from 'date-fns';
@@ -41,6 +42,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
   const queryClient = useQueryClient();
   const countFetching = useIsFetching({ predicate: isRestCountQuery }) > 0;
   const [confirmStart, setConfirmStart] = useState(false);
+  const { canRest } = useAdsRights();
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   // Live countdown tick
@@ -87,7 +89,8 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
               size="sm"
               variant="outline"
               onClick={() => setConfirmEnd(true)}
-              disabled={endRest.isPending}
+              disabled={endRest.isPending || !canRest}
+              title={canRest ? undefined : NO_RIGHT.rest}
               className="h-9 border-success/50 text-success hover:bg-success/10 hover:text-success"
             >
               {endRest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
@@ -138,7 +141,8 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
               size="sm"
               variant="outline"
               onClick={() => setConfirmEnd(true)}
-              disabled={endRest.isPending}
+              disabled={endRest.isPending || !canRest}
+              title={canRest ? undefined : NO_RIGHT.rest}
               className="h-9 border-success/50 text-success hover:bg-success/10 hover:text-success"
             >
               {endRest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
@@ -240,8 +244,8 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
           queryClient.invalidateQueries({ predicate: isRestCountQuery });
           setConfirmStart(true);
         }}
-        disabled={startRest.isPending || activeAds.length === 0}
-        title={activeAds.length === 0 ? 'No active ads to pause' : 'Pause all ads for 1 hour'}
+        disabled={startRest.isPending || activeAds.length === 0 || !canRest}
+        title={!canRest ? NO_RIGHT.rest : activeAds.length === 0 ? 'No active ads to pause' : 'Pause all ads for 1 hour'}
       >
         {startRest.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Coffee className="h-3.5 w-3.5" />}
         Take rest

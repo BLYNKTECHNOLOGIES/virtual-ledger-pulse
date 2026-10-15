@@ -129,7 +129,7 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {},
   const { data, error } = await supabase.functions.invoke('binance-ads', {
     body: withActiveAccount(body),
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(await readEdgeErrorMessage(error));
   if (!data?.success) throw new Error(data?.error || 'API call failed');
   return data.data;
 }

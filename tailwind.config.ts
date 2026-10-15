@@ -86,9 +86,10 @@ export default {
 				'info': 'hsl(var(--info))',
 				'leave': 'hsl(var(--leave))',
 				'holiday': 'hsl(var(--holiday))',
-				'trade-buy': 'hsl(var(--trade-buy, var(--success)))',
-				'trade-sell': 'hsl(var(--trade-sell, var(--destructive)))',
-				'trade-pending': 'hsl(var(--trade-pending, var(--warning)))',
+				// No space inside var(): with one, Tailwind cannot add opacity and bg-trade-buy/10 etc. are never generated.
+				'trade-buy': 'hsl(var(--trade-buy,var(--success)))',
+				'trade-sell': 'hsl(var(--trade-sell,var(--destructive)))',
+				'trade-pending': 'hsl(var(--trade-pending,var(--warning)))',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

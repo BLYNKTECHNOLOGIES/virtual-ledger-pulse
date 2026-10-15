@@ -5,6 +5,7 @@ import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useToast } from '@/hooks/use-toast';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { clearAdBreakDetected, markAdBreakDetected } from '@/hooks/useAdRestTimer';
+import { readEdgeErrorMessage } from '@/hooks/useBinanceActions';
 
 // Binance C2C ad status codes
 // Binance API returns advStatus: 1 for both Online and Private ads.

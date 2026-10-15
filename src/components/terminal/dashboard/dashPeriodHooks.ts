@@ -130,6 +130,12 @@ export function combineDashboardParts(recent: PartState, older: PartState | null
   };
 }
 
+/** R8 — Retry re-runs only the part(s) that failed. */
+export function retryFailedParts(recent: { isError: boolean; refetch: () => unknown }, older: { isError: boolean; refetch: () => unknown } | null) {
+  if (recent.isError) recent.refetch();
+  if (older && older.isError) older.refetch();
+}
+
 export function useDashboardOrders(plan: DashboardPeriodPlan) {
   const recent = useRead(plan.recent, plan.scheduled, RECENT_REREAD_MS);
   const older = useRead(plan.older, plan.scheduled, OLDER_REREAD_MS);
@@ -145,7 +151,7 @@ export function useDashboardOrders(plan: DashboardPeriodPlan) {
     /** Universal sync: refresh every part. */
     refetch: () => { recent.refetch(); if (hasOlder) older.refetch(); },
     /** Retry (R8): only the part(s) that failed. */
-    refetchFailed: () => { if (recent.isError) recent.refetch(); if (hasOlder && older.isError) older.refetch(); },
+    refetchFailed: () => retryFailedParts(recent, hasOlder ? older : null),
   };
 }
 

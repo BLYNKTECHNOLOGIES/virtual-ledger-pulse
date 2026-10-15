@@ -42,7 +42,7 @@ function OrderStatusBreakdownPanel({ orders, isLoading, precomputedCounts, unava
 
 
   const total = data.reduce((s, d) => s + d.count, 0);
-  // Shares rounded together so the list adds up to 100%; a few orders in a big period read "<1%", not "0%".
+  // Shares rounded together so the list sums to 100%; a few orders in a big period read "<1%", not "0%".
   const shares = roundShares(data.map((d) => d.count));
   const shareText = (i: number) => (shares[i] === 0 && data[i].count > 0 ? '<1%' : `${shares[i]}%`);
 

@@ -4,6 +4,9 @@
 // Terminal screen (ExchangeAccountContext) reads too, so screen and server
 // cannot drift. This module only applies it to a request, before any Binance call.
 
+import { restAccountsFromPayload } from "./adRest.ts";
+import { accountIdFromPayload } from "./binance-account.ts";
+
 export interface AccessAccountRow {
   id: string;
   account_name: string;
@@ -97,3 +100,15 @@ export function permissionSet(data: any): Set<string> {
 
 /** Spot trading on Terminal Assets: same rule as the screen (terminal admins get it implicitly). */
 export const ASSET_TRADE_PERMISSIONS = ["terminal_assets_manage"];
+
+/**
+ * binance-ads: accounts a mutating action targets. startAdRest covers its
+ * accountIds (or legacy ads[].accountId); everything else one account.
+ * endAdRest is not account-limited (blocking it would leave ads off) → null.
+ */
+// deno-lint-ignore no-explicit-any
+export function adsRequestedAccounts(action: string, payload: Record<string, any>): (string | null)[] | null {
+  if (action === "endAdRest") return null;
+  if (action === "startAdRest") return restAccountsFromPayload(payload);
+  return [accountIdFromPayload(payload)];
+}

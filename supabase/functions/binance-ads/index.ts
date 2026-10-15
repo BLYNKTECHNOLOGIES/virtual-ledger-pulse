@@ -12,7 +12,7 @@ import {
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
-import { checkAccountAccess, supabaseAccessDeps } from "../_shared/binance-access.ts";
+import { adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps } from "../_shared/binance-access.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -947,10 +947,8 @@ serve(async (req) => {
       // === AM-SEC-5: only on Binance accounts this user may use ===
       // endAdRest restores the ads a rest switched off on whichever accounts that
       // rest covered; blocking it would leave ads off, so it is not account-limited.
-      if (action !== "endAdRest") {
-        const requested = action === "startAdRest"
-          ? restAccountsFromPayload(payload)
-          : [accountIdFromPayload(payload)];
+      const requested = adsRequestedAccounts(action, payload);
+      if (requested) {
         const access = await checkAccountAccess(supabaseAccessDeps(guardAdmin), callerUserId, requested);
         if (!access.ok) {
           console.warn(`account access denied: user=${callerUserId} action=${action} code=${access.body.code}`);

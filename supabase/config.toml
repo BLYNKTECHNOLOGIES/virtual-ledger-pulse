@@ -181,3 +181,8 @@ project_id = "vagiqbespusdxsbqpvbo"
 
   [functions.ats-reply-draft]
     verify_jwt = false
+
+  [functions.copilot-draft]
+    verify_jwt = false
+  [functions.copilot-learn]
+    verify_jwt = false

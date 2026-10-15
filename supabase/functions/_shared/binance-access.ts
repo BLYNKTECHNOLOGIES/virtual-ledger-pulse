@@ -62,7 +62,8 @@ export async function checkAccountAccess(
       return deny(403, "That Binance account does not exist or is switched off.", "ACCOUNT_DENIED");
     }
     if (!allowedSet.has(row.id)) {
-      return deny(403, `You don't have access to the ${row.account_name} Binance account.`, "ACCOUNT_DENIED");
+      const label = /binance\s*$/i.test(row.account_name) ? row.account_name : `${row.account_name} Binance`;
+      return deny(403, `You don't have access to the ${label} account.`, "ACCOUNT_DENIED");
     }
     if (!ids.includes(row.id)) ids.push(row.id);
   }

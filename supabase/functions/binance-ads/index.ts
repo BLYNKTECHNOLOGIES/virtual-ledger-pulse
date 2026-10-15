@@ -12,7 +12,7 @@ import {
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
-import { AD_WRITE_RULES, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps } from "../_shared/binance-access.ts";
+import { AD_WRITE_RULES, adWriteDenial, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial } from "../_shared/binance-access.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */

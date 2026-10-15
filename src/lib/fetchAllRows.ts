@@ -35,3 +35,42 @@ export async function fetchAllPaginated<T>(
 
   return allData;
 }
+
+/**
+ * Same result as fetchAllPaginated, but asks for the row count first and then
+ * fetches every page at once instead of one after another. Callers must order
+ * by a unique tiebreaker (e.g. `.order('id')`) so pages never overlap.
+ */
+export async function fetchAllPaginatedParallel<T>(
+  buildQuery: () => any,
+  buildCountQuery: () => any,
+  pageSize = 1000
+): Promise<T[]> {
+  const { count, error } = await buildCountQuery();
+  if (error) throw error;
+  const total = count ?? 0;
+  if (total === 0) return [];
+  const pages = Math.ceil(total / pageSize);
+  const results = await Promise.all(
+    Array.from({ length: pages }, (_, i) =>
+      buildQuery().range(i * pageSize, i * pageSize + pageSize - 1)
+    )
+  );
+  const all: T[] = [];
+  for (const r of results as any[]) {
+    if (r.error) throw r.error;
+    all.push(...((r.data as T[]) || []));
+  }
+  // Rows added between the count and the fetch: pick up the tail sequentially.
+  if (all.length >= pages * pageSize) {
+    let from = all.length;
+    for (;;) {
+      const { data, error: e } = await buildQuery().range(from, from + pageSize - 1);
+      if (e) throw e;
+      if (!data?.length) break;
+      all.push(...data);
+      from += data.length;
+    }
+  }
+  return all;
+}

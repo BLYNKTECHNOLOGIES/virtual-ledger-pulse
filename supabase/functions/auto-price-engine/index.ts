@@ -20,9 +20,15 @@ async function endExpiredRests(supabase: any) {
   try {
     const { data: timers } = await supabase
       .from("ad_rest_timer").select("id, started_at, duration_minutes").eq("is_active", true).limit(5);
-    for (const t of timers || []) {
+    // AM-FIX-4: ends that stopped part-way (claimed, never finished, lease expired) are finished here.
+    const leaseStale = new Date(Date.now() - 3 * 60_000).toISOString();
+    const { data: unfinished } = await supabase
+      .from("ad_rest_timer").select("id, started_at, duration_minutes")
+      .eq("is_active", false).is("end_completed_at", null).not("ended_at", "is", null)
+      .or(`end_lease_at.is.null,end_lease_at.lt.${leaseStale}`).limit(5);
+    for (const t of [...(timers || []), ...(unfinished || [])]) {
       const end = new Date(t.started_at).getTime() + Number(t.duration_minutes || 0) * 60_000;
-      if (Date.now() < end) continue;
+      if (Date.now() < end && (timers || []).some((x: any) => x.id === t.id)) continue;
       const call = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getInternalAuthKey()}`, apikey: getInternalAuthKey() },

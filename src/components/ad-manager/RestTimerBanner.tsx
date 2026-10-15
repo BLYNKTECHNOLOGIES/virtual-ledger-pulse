@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Coffee, Play, Loader2, OctagonPause, CheckCircle2, AlertTriangle, X } from 'lucide-react';
@@ -33,6 +34,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
   const { accountsToQuery } = useExchangeAccount();
   const { isResting, isRestoring, isRestoreOverdue, endNotice, dismissEndNotice, isBinanceBreakDetected, detectedBreak, remainingMs, endTime, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer({ full: true });
   const [countdown, setCountdown] = useState(remainingMs);
+  const queryClient = useQueryClient();
   const [confirmStart, setConfirmStart] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
@@ -227,7 +229,11 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
         variant="outline"
         size="sm"
         className="h-8 gap-1.5 text-xs"
-        onClick={() => setConfirmStart(true)}
+        onClick={() => {
+          // Refresh the ad list so the count in the confirmation matches what will be switched off.
+          queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+          setConfirmStart(true);
+        }}
         disabled={startRest.isPending || activeAds.length === 0}
         title={activeAds.length === 0 ? 'No active ads to pause' : 'Pause all ads for 1 hour'}
       >

@@ -551,6 +551,8 @@ export type Database = {
           deactivated_ad_nos: string[] | null
           deactivated_ad_statuses: Json | null
           duration_minutes: number
+          end_completed_at: string | null
+          end_lease_at: string | null
           ended_at: string | null
           id: string
           is_active: boolean
@@ -563,6 +565,8 @@ export type Database = {
           deactivated_ad_nos?: string[] | null
           deactivated_ad_statuses?: Json | null
           duration_minutes?: number
+          end_completed_at?: string | null
+          end_lease_at?: string | null
           ended_at?: string | null
           id?: string
           is_active?: boolean
@@ -575,6 +579,8 @@ export type Database = {
           deactivated_ad_nos?: string[] | null
           deactivated_ad_statuses?: Json | null
           duration_minutes?: number
+          end_completed_at?: string | null
+          end_lease_at?: string | null
           ended_at?: string | null
           id?: string
           is_active?: boolean

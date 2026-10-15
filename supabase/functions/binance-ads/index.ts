@@ -11,7 +11,7 @@ import {
   isFundPwdEligible,
 } from "../_shared/binance-fund-pwd.ts";
 import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
-import { startAdRest, endAdRest, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
+import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, type RestDeps, type LiveAd } from "../_shared/adRest.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -979,10 +979,13 @@ serve(async (req) => {
                 }),
               });
             } catch (e) {
-              return { ok: false, reason: `no reply from Binance (${(e as Error).name === "TimeoutError" ? "timed out" : (e as Error).message})` };
+              return { ok: false, unclear: true, reason: `no reply from Binance (${(e as Error).name === "TimeoutError" ? "timed out" : (e as Error).message})` };
             }
             const j = await resp.json().catch(() => null);
-            return j?.success ? { ok: true } : { ok: false, reason: String(j?.error || `HTTP ${resp.status}`) };
+            if (j?.success) return { ok: true };
+            // AM-FIX-4: an unreadable reply or gateway error is "no clear answer", not a refusal.
+            if (!j || resp.status >= 500) return { ok: false, unclear: true, reason: String(j?.error || `no clear answer (HTTP ${resp.status})`) };
+            return { ok: false, reason: String(j?.error || `HTTP ${resp.status}`) };
           },
           async getStatus(accountId, advNo) {
             const a = await resolveAccount(accountId);
@@ -1007,7 +1010,8 @@ serve(async (req) => {
               if (!j || !Array.isArray(j.data)) throw new Error(`ad list unreadable (HTTP ${resp.status})`);
               all.push(...j.data);
               const total = Number(j.total ?? 0);
-              if (j.data.length === 0 || j.data.length < 20 || (total && all.length >= total)) break;
+              // AM-FIX-4: a short page is not the end — read until total (stop on an empty page).
+              if (j.data.length === 0 || (total && all.length >= total)) break;
             }
             // Private = online + advVisibleRet.userSetVisible=1, only in the ad detail.
             const out: LiveAd[] = [];
@@ -1040,8 +1044,8 @@ serve(async (req) => {
       try {
         const out = action === "startAdRest"
           ? await startAdRest(deps, {
-              accountIds: (Array.isArray(payload.accountIds) ? payload.accountIds : [])
-                .map((x: any) => (x ? String(x) : null)).slice(0, 10),
+              // AM-FIX-4: tabs on the AM-FIX-2 screen send { ads: [{ advNo, advStatus, accountId }] }.
+              accountIds: restAccountsFromPayload(payload),
               userId: callerUserId, userName: userName || "Operations Associate",
             })
           : await endAdRest(deps, {
@@ -1532,13 +1536,26 @@ serve(async (req) => {
           const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, advNosList.map(String), 1);
           const visOk = visResult?.code === "000000" || visResult?.success === true;
           if (!visOk) {
-            if (onlinedHere && Number.isFinite(priorStatus)) {
-              console.log("Private failed — reverting ad status to", priorStatus);
-              await setBinanceStatus(priorStatus);
+            const base = "Binance did not accept the Private (visible only via direct link) setting for this account";
+            const tail = " Private visibility is not exposed by the official Binance ad API; set it from the Binance app.";
+            if (onlinedHere) {
+              // AM-FIX-4: the revert is checked — never claim "unchanged" when it failed.
+              let reverted = false;
+              let revertReason = "";
+              if (Number.isFinite(priorStatus)) {
+                console.log("Private failed — reverting ad status to", priorStatus);
+                try {
+                  const rv = await setBinanceStatus(priorStatus);
+                  reverted = isSuccessfulBinancePayload(rv, 200);
+                  if (!reverted) revertReason = String(rv?.message || rv?.msg || rv?.code || "refused");
+                } catch (e) { revertReason = (e as Error).message; }
+              }
+              if (!reverted) {
+                throw new Error(`${base}, and switching it back failed (${revertReason || "no earlier status"}) — the ad is now ONLINE AND PUBLIC. Switch it off or make it Private in the Binance app.`);
+              }
+              throw new Error(`${base} — the ad was switched back to its earlier status.${tail}`);
             }
-            throw new Error(
-              "Binance did not accept the Private (visible only via direct link) setting for this account — ad status left unchanged. Private visibility is not exposed by the official Binance ad API; set it from the Binance app.",
-            );
+            throw new Error(`${base} — ad status left unchanged.${tail}`);
           }
           result = visResult;
         } else {

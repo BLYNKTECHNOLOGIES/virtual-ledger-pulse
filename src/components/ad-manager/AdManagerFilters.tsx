@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { AdFilters } from '@/hooks/useBinanceAds';
 
 interface AdManagerFiltersProps {

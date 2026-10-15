@@ -37909,6 +37909,15 @@ export type Database = {
         Args: { p_row_id: string }
         Returns: Json
       }
+      propagate_counterparty_contact: {
+        Args: {
+          p_dry_run?: boolean
+          p_order_number: string
+          p_phone: string
+          p_state: string
+        }
+        Returns: Json
+      }
       prune_terminal_ad_uptime_raw: {
         Args: { p_retain_days?: number }
         Returns: Json

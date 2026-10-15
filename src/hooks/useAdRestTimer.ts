@@ -20,6 +20,8 @@ interface RestTimer {
   is_active: boolean;
   deactivated_ad_nos: string[];
   deactivated_ad_statuses: AdStatusSnapshot[] | null;
+  start_completed_at?: string | null;
+  ended_at?: string | null;
 }
 
 export interface RestAdOutcome {
@@ -60,7 +62,14 @@ export function clearAdBreakDetected() {
   window.dispatchEvent(new CustomEvent(BINANCE_BREAK_EVENT));
 }
 
-export function useAdRestTimer() {
+/** How long after the planned end before the banner offers "Resume ads now". */
+const OVERDUE_MS = 3 * 60_000;
+
+/**
+ * `full` (Ads page only) also loads the last end result and ticks every 5 s.
+ * The Terminal header uses the light form: active timer only, one re-render at the end time.
+ */
+export function useAdRestTimer({ full = false }: { full?: boolean } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [detectedBreak, setDetectedBreak] = useState<{ detectedAt: string; message: string } | null>(() => {
@@ -113,7 +122,7 @@ export function useAdRestTimer() {
     queryFn: async () => {
       const { data: latest } = await supabase
         .from('ad_rest_timer')
-        .select('id, started_at, duration_minutes, is_active, deactivated_ad_nos')
+        .select('id, started_at, duration_minutes, is_active, deactivated_ad_nos, ended_at')
         .order('started_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -131,13 +140,23 @@ export function useAdRestTimer() {
       return { latest: latest as any, result };
     },
     refetchInterval: 15_000,
+    enabled: full,
   });
 
   const [now, setNow] = useState(() => Date.now());
+  const plannedEnd = activeTimer ? new Date(activeTimer.started_at).getTime() + activeTimer.duration_minutes * 60_000 : null;
   useEffect(() => {
-    const i = setInterval(() => setNow(Date.now()), 5_000);
-    return () => clearInterval(i);
-  }, []);
+    if (full) {
+      const i = setInterval(() => setNow(Date.now()), 5_000);
+      return () => clearInterval(i);
+    }
+    // Light form: re-render once when the rest's hour is over.
+    if (!plannedEnd) return;
+    const wait = plannedEnd - Date.now();
+    if (wait <= 0) return;
+    const t = setTimeout(() => setNow(Date.now()), Math.min(wait + 500, 2_147_000_000));
+    return () => clearTimeout(t);
+  }, [full, plannedEnd]);
 
   // Check if timer has expired
   const timerState = useMemo(() => {
@@ -152,12 +171,15 @@ export function useAdRestTimer() {
   const isRestoring = useMemo(() => {
     if (activeTimer && !timerState.isResting) return true;
     const latest = lastEnd?.latest;
-    if (!latest || latest.is_active || !(latest.deactivated_ad_nos?.length > 0)) return false;
+    if (!latest || latest.is_active || !(latest.deactivated_ad_nos?.length > 0) || !latest.ended_at) return false;
     const ended = lastEnd?.result?.timer_id === latest.id;
-    const endAt = new Date(latest.started_at).getTime() + latest.duration_minutes * 60_000;
-    // Ended (claimed) but no result logged yet; give up showing it after 10 min.
-    return !ended && now - Math.min(endAt, now) < 10 * 60_000;
+    // Ended (claimed) but no result logged yet; never shown long after it actually ended.
+    return !ended && now - new Date(latest.ended_at).getTime() < OVERDUE_MS;
   }, [activeTimer, timerState.isResting, lastEnd, now]);
+
+  // The hour is over, the timer is still active and the server has not ended it.
+  const isRestoreOverdue = !!activeTimer && !!timerState.endTime && now - timerState.endTime > OVERDUE_MS;
+  const isStarting = !!activeTimer && !activeTimer.start_completed_at;
 
   useEffect(() => {
     if (!isRestoring) return;
@@ -193,25 +215,43 @@ export function useAdRestTimer() {
   // Start rest — the server switches each active ad (Online + Private) off on its own
   // account, records what actually went off, and starts the timer.
   const startRest = useMutation({
-    mutationFn: async ({ activeAds, userName }: { activeAds: BinanceAd[]; userName?: string }) => {
-      return await callBinanceAds('startAdRest', {
-        userName,
-        ads: activeAds.map((a) => ({ advNo: a.advNo, advStatus: a.advStatus, accountId: a._exchangeAccountId ?? null })),
-      }) as { started: boolean; switchedOff: AdStatusSnapshot[]; failed: RestAdOutcome[] };
+    // The server reads each ad's live state on Binance for these accounts.
+    mutationFn: async ({ accountIds, userName }: { accountIds: string[]; userName?: string }) => {
+      return await callBinanceAds('startAdRest', { userName, accountIds }) as {
+        started: boolean; switchedOff: AdStatusSnapshot[]; failed: RestAdOutcome[]; unreadable?: RestAdOutcome[];
+        endedDuringStart?: boolean; restoredAfterEnd?: RestAdOutcome[]; lostAfterEnd?: RestAdOutcome[];
+      };
     },
     onSuccess: (res) => {
       refreshAll();
       const failed = res?.failed || [];
+      const unreadable = res?.unreadable || [];
+      const unreadText = unreadable.length
+        ? ` Left as they are (${unreadable.length}): ${unreadable.map((u) => u.advNo === '*' ? (u.reason || 'account unreadable') : `${shortNo(u.advNo)}: ${u.reason || 'could not read its current state'}`).join('; ')}.`
+        : '';
+      if (res?.endedDuringStart) {
+        const lost = res.lostAfterEnd || [];
+        toast({
+          title: 'Rest was ended while it was starting',
+          description: `${(res.restoredAfterEnd || []).length} ads switched back on.${lost.length ? ` Still off ${lost.length}: ${describeOutcomes(lost)}.` : ''}`,
+          variant: lost.length ? 'destructive' : undefined,
+        });
+        return;
+      }
       if (!res?.started) {
         toast({ title: 'Rest not started', description: `No ad could be switched off. ${describeOutcomes(failed)}`, variant: 'destructive' });
       } else if (failed.length) {
         toast({
           title: 'Rest started — some ads stayed on',
-          description: `${res.switchedOff.length} ads switched off. Binance refused ${failed.length}: ${describeOutcomes(failed)}`,
+          description: `${res.switchedOff.length} ads switched off. Binance refused ${failed.length}: ${describeOutcomes(failed)}.${unreadText}`,
           variant: 'destructive',
         });
       } else {
-        toast({ title: 'Rest Mode Activated', description: `${res.switchedOff.length} ads switched off. They come back on by themselves in 1 hour.` });
+        toast({
+          title: 'Rest Mode Activated',
+          description: `${res.switchedOff.length} ads switched off. They come back on by themselves in 1 hour.${unreadText}`,
+          variant: unreadable.length ? 'destructive' : undefined,
+        });
       }
     },
     onError: (e: Error) => {
@@ -228,8 +268,12 @@ export function useAdRestTimer() {
         (RestEndResult & { claimed: true }) | { claimed: false; reason: string };
     },
     onSuccess: (res: any) => {
-      clearAdBreakDetected();
+      if (res?.claimed) clearAdBreakDetected();
       refreshAll();
+      if (!res?.claimed && res?.starting) {
+        toast({ title: 'Rest is still starting', description: res.reason });
+        return;
+      }
       if (!res?.claimed) {
         toast({ title: 'Rest already ended', description: res?.reason || 'Someone else ended this rest.' });
         return;
@@ -251,6 +295,8 @@ export function useAdRestTimer() {
     activeTimer,
     isResting: timerState.isResting && !!activeTimer,
     isRestoring,
+    isRestoreOverdue,
+    isStarting,
     endNotice,
     dismissEndNotice,
     isBinanceBreakDetected: !!detectedBreak,

@@ -56,9 +56,6 @@ function isFinalStatus(s: string): boolean {
     s.includes('CANCEL') || s.includes('EXPIRED') || s.includes('TIMEOUT');
 }
 
-function isAppealStatus(s: string): boolean {
-  return s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT');
-}
 
 /**
  * Compute dashboard stats from order history.

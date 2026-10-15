@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { BinanceAd, useApplyAdRiskGuard } from '@/hooks/useBinanceAds';
+import { AdDialogHeader, NoteBox, SelectionSummary } from './adUi';
 
 interface Props {
   open: boolean;
@@ -71,52 +71,48 @@ export function BulkRiskGuardDialog({ open, onOpenChange, ads, onComplete }: Pro
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-warning" />
-            Apply Risk Guard
-          </DialogTitle>
-        </DialogHeader>
+        <AdDialogHeader icon={ShieldAlert} tone="warning" title="Apply risk guard" description="Sets counterparty rules on every selected ad. The KYC switch is always applied, on or off; empty fields are left unchanged." />
 
-        <div className="space-y-4 py-2">
-          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-warning mt-0.5" />
-            <p className="text-muted-foreground">
-              This sends only Binance-supported ad update fields. Unsupported fields are skipped and logged.
-            </p>
-          </div>
+        <SelectionSummary ads={ads} />
 
-          <Badge variant="secondary">{ads.length} selected ad{ads.length !== 1 ? 's' : ''}</Badge>
-
-          <div className="flex items-center justify-between rounded border p-3">
-            <Label>Require additional taker KYC</Label>
+        <div className="space-y-3">
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border p-3">
+            <span className="space-y-0.5">
+              <span className="block text-sm font-medium text-foreground">Require additional taker KYC</span>
+              <span className="block text-xs text-muted-foreground">Counterparties must complete Binance's extra verification.</span>
+            </span>
             <Switch checked={extraKyc} onCheckedChange={setExtraKyc} />
+          </label>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Minimum account age days</Label>
+              <Input type="number" min="0" value={regDays} onChange={(e) => setRegDays(e.target.value)} className="tabular-nums" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Minimum BTC holding</Label>
+              <Input type="number" min="0" step="0.001" value={btcHolding} onChange={(e) => setBtcHolding(e.target.value)} placeholder="Not changed" className="tabular-nums" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Max single order</Label>
+              <Input type="number" min="0" value={maxOrder} onChange={(e) => setMaxOrder(e.target.value)} placeholder="Not changed" className="tabular-nums" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Payment time limit</Label>
+              <Input type="number" min="1" value={payTimeLimit} onChange={(e) => setPayTimeLimit(e.target.value)} className="tabular-nums" />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Minimum account age days</Label>
-              <Input type="number" min="0" value={regDays} onChange={(e) => setRegDays(e.target.value)} />
-            </div>
-            <div>
-              <Label>Minimum BTC holding</Label>
-              <Input type="number" min="0" step="0.001" value={btcHolding} onChange={(e) => setBtcHolding(e.target.value)} placeholder="Not changed" />
-            </div>
-            <div>
-              <Label>Max single order</Label>
-              <Input type="number" min="0" value={maxOrder} onChange={(e) => setMaxOrder(e.target.value)} placeholder="Not changed" />
-            </div>
-            <div>
-              <Label>Payment time limit</Label>
-              <Input type="number" min="1" value={payTimeLimit} onChange={(e) => setPayTimeLimit(e.target.value)} />
-            </div>
-          </div>
+          <NoteBox tone="info">
+            This sends only Binance-supported ad update fields. Unsupported fields are skipped and logged.
+          </NoteBox>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={applyRiskGuard.isPending}>
-            {applyRiskGuard.isPending ? 'Applying...' : 'Apply Risk Guard'}
+          <Button onClick={submit} disabled={applyRiskGuard.isPending} className="gap-1.5">
+            {applyRiskGuard.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {applyRiskGuard.isPending ? 'Applying...' : `Apply to ${ads.length} ad${ads.length !== 1 ? 's' : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>

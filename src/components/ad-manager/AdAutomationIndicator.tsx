@@ -42,21 +42,27 @@ function ago(iso: string | null) {
   return `${Math.floor(mins / 60)}h ago`;
 }
 
-export function AdAutomationIndicator({ info }: { info?: AdAutomationInfo }) {
+export function AdAutomationIndicator({ info, labelClassName }: { info?: AdAutomationInfo; labelClassName?: string }) {
   if (!info || info.rules.length === 0) return null;
   const active = info.rules.filter((r) => r.is_active);
-  const color = info.running
-    ? 'text-trade-buy'
+  const tone = info.running
+    ? 'border-trade-buy/30 bg-trade-buy/10 text-trade-buy'
     : active.length > 0
-      ? 'text-warning'
-      : 'text-muted-foreground';
+      ? 'border-warning/30 bg-warning/10 text-warning'
+      : 'border-border bg-secondary/70 text-muted-foreground';
+  const word = info.running ? 'Auto' : active.length > 0 ? 'Auto stale' : 'Auto paused';
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex items-center" aria-label="Automation attached">
-            <Bot className={`h-3.5 w-3.5 ${color} ${info.running ? 'animate-pulse' : ''}`} />
+          <span
+            tabIndex={0}
+            className={`inline-flex h-5 shrink-0 cursor-default items-center gap-1 whitespace-nowrap rounded border px-1.5 text-[10px] font-semibold leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tone}`}
+            aria-label={`Automation attached: ${word}`}
+          >
+            <Bot className={`h-3 w-3 ${info.running ? 'animate-pulse' : ''}`} />
+            <span className={labelClassName}>{word}</span>
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-[280px]">

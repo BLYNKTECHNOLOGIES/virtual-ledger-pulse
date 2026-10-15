@@ -2,24 +2,23 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck, Megaphone, History, Copy, SlidersHorizontal } from 'lucide-react';
-import { AdAutomationIndicator, useAdAutomationMap } from './AdAutomationIndicator';
+import { ChevronDown, ChevronRight, Megaphone } from 'lucide-react';
+import { useAdAutomationMap } from './AdAutomationIndicator';
 import { isSuperAdminRoleName } from '@/lib/auth/roles';
-import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
-import { PaymentMethodBadge } from './PaymentMethodBadge';
-import { InlinePriceEditor } from './InlinePriceEditor';
-import { QuickEditPopover } from './QuickEditPopover';
-import { AccountBadge } from '@/components/exchange/AccountBadge';
-import { toValidDate, safeFormat } from '@/lib/safe-date';
+import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useState } from 'react';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
-import { useValueFlash } from '@/hooks/useValueFlash';
-import { isBlockAd, adZone } from '@/lib/adZone';
+import { isBlockAd } from '@/lib/adZone';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { cn } from '@/lib/utils';
+import {
+  AD_LIST_BREAKPOINT, CHIP_LABEL_WIDE, AdIdentity, AdLimits, AdMethods, AdPriceValue, AdRemaining, AdRowActions, AdStatusControl, AdUpdated, useWidthBelow,
+} from './AdRowParts';
+import { limitsText, qty } from './adUi';
+
+export { stalePriceLabel } from './adUi';
 
 export type AdSortMode = 'current' | 'price-asc' | 'price-desc' | 'avail-asc' | 'avail-desc' | 'updated-desc';
 
@@ -34,35 +33,6 @@ export function applyAdSort(list: BinanceAd[], mode: AdSortMode): BinanceAd[] {
     case 'updated-desc': return arr.sort((a, b) => new Date(b.updateTime || 0).getTime() - new Date(a.updateTime || 0).getTime());
     default: return arr;
   }
-}
-
-function AdPriceCell({ ad, isEditing, onRequestEdit, onClose }: { ad: BinanceAd; isEditing: boolean; onRequestEdit: () => void; onClose: () => void }) {
-  const flash = useValueFlash(Number(ad.price || 0), 'value-flash');
-  return (
-    <TableCell className={`text-right font-semibold tabular-nums ${flash}`}>
-      <InlinePriceEditor ad={ad} isEditing={isEditing} onRequestEdit={onRequestEdit} onClose={onClose} />
-    </TableCell>
-  );
-}
-
-/** Amber "Xh ago" label when an ad's price is older than 30 min, else null. */
-export function stalePriceLabel(updateTime?: string): string | null {
-  const d = toValidDate(updateTime);
-  if (!d) return null;
-  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (mins <= 30) return null;
-  return mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
-}
-
-
-
-
-function formatCommissionRate(ad: BinanceAd, identifier?: string) {
-  const list = ad.tradeMethodCommissionRateVoList || [];
-  const matched = list.find((item) => String(item.tradeMethodIdentifier || item.tradeMethodName || '') === String(identifier || ''));
-  const rate = matched?.commissionRate ?? ad.commissionRate ?? ad.takerCommissionRate;
-  if (rate === undefined || rate === null || rate === '') return null;
-  return `${(Number(rate) * 100).toFixed(4)}%`;
 }
 
 
@@ -261,6 +231,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
   const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);
   const lastClickedRef = useRef<{ groupKey: string; advNo: string } | null>(null);
   const collapseStorageKey = user?.id ? `${COLLAPSE_PREF_KEY_PREFIX}${user.id}` : null;
+  const [wrapRef, narrow] = useWidthBelow(AD_LIST_BREAKPOINT);
 
   const categories = useMemo(() => categorizeAds(ads, buyConfig, sellConfig), [ads, buyConfig, sellConfig]);
 
@@ -291,12 +262,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
   };
 
   if (!ads || ads.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-        <Megaphone className="h-8 w-8 opacity-40" />
-        <p className="text-sm">No ads found</p>
-      </div>
-    );
+    return <EmptyState icon={Megaphone} title="No ads found" description="Nothing matches this tab, status and filters." className="rounded-lg border border-dashed border-border py-12" />;
   }
 
   const toggleCategory = (key: string) => {
@@ -365,260 +331,224 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
 
   const nonEmptyCategories = categories.filter(c => c.groups.some(g => g.ads.length > 0));
 
+  const rowProps = (ad: BinanceAd) => ({
+    excluded: !!excludedAds?.has(ad.advNo),
+    onToggleExclusion: () => toggleExclusion.mutate({ advNo: ad.advNo, exclude: !excludedAds?.has(ad.advNo) }),
+    exclusionPending: toggleExclusion.isPending,
+  });
+  const priceProps = (ad: BinanceAd) => ({
+    isEditing: editingPriceAdvNo === ad.advNo,
+    onRequestEdit: () => setEditingPriceAdvNo(ad.advNo),
+    onClose: () => setEditingPriceAdvNo(prev => (prev === ad.advNo ? null : prev)),
+  });
+
+  const catState = (category: AdCategory) => {
+    const catAdvNos = category.groups.flatMap(g => g.ads.map(a => a.advNo));
+    const catAllSelected = catAdvNos.length > 0 && catAdvNos.every(no => selectedAdvNos.has(no));
+    const catSomeSelected = catAdvNos.some(no => selectedAdvNos.has(no)) && !catAllSelected;
+    const active = category.groups.reduce((n, g) => n + g.ads.filter(a => a.advStatus !== BINANCE_AD_STATUS.OFFLINE).length, 0);
+    return { catAdvNos, catAllSelected, catSomeSelected, isCatCollapsed: collapsedCategories.has(category.key), totalAds: catAdvNos.length, active };
+  };
+  const groupState = (group: AdGroup) => {
+    const groupAdvNos = group.ads.map(a => a.advNo);
+    const groupAllSelected = groupAdvNos.length > 0 && groupAdvNos.every(no => selectedAdvNos.has(no));
+    const groupSomeSelected = groupAdvNos.some(no => selectedAdvNos.has(no)) && !groupAllSelected;
+    return { groupAllSelected, groupSomeSelected, isGroupCollapsed: collapsedGroups.has(group.key) };
+  };
+
+  // Plain render helpers (not components), so the toggle buttons keep their identity and focus across renders.
+  const categoryLabel = ({ category, totalAds, active, collapsed }: { category: AdCategory; totalAds: number; active: number; collapsed: boolean }) => (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={() => toggleCategory(category.key)}
+      aria-expanded={!collapsed}
+    >
+      {collapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      <span className={cn('inline-flex h-6 items-center rounded-md border px-2 text-xs font-semibold', category.colorClass)}>{category.label}</span>
+      <span className="text-xs text-muted-foreground tabular-nums">{totalAds} ad{totalAds !== 1 ? 's' : ''}</span>
+      <span className="ml-auto pr-1 text-[11px] text-muted-foreground tabular-nums">{active} on</span>
+    </button>
+  );
+  const groupLabel = ({ group, collapsed }: { group: AdGroup; collapsed: boolean }) => (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={() => toggleGroup(group.key)}
+      aria-expanded={!collapsed}
+    >
+      {collapsed ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+      <span className="text-xs font-medium text-foreground">{group.subLabel}</span>
+      <span className="text-[11px] text-muted-foreground tabular-nums">{group.ads.length}</span>
+    </button>
+  );
+
   return (
-    <Table>
+    <div ref={wrapRef} className="@container min-w-0">
+    {narrow ? (
+      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
+        {nonEmptyCategories.map(category => {
+          const c = catState(category);
+          return (
+            <section key={`cat-${category.key}`} className="border-b border-border last:border-b-0">
+              <div className="flex items-center gap-2.5 bg-secondary/40 px-3 py-2">
+                <Checkbox
+                  checked={c.catAllSelected}
+                  ref={(el) => { if (el) (el as unknown as { indeterminate: boolean }).indeterminate = c.catSomeSelected; }}
+                  onCheckedChange={() => selectCategoryAds(category)}
+                  aria-label={`Select all ${category.label}`}
+                />
+                {categoryLabel({ category, totalAds: c.totalAds, active: c.active, collapsed: c.isCatCollapsed })}
+              </div>
+              {!c.isCatCollapsed && category.groups.filter(g => g.ads.length > 0).map(group => {
+                const g = groupState(group);
+                return (
+                  <div key={`grp-${group.key}`}>
+                    <div className="flex items-center gap-2.5 border-t border-border/60 bg-secondary/20 py-1.5 pl-6 pr-3">
+                      <Checkbox
+                        checked={g.groupAllSelected}
+                        ref={(el) => { if (el) (el as unknown as { indeterminate: boolean }).indeterminate = g.groupSomeSelected; }}
+                        onCheckedChange={() => selectGroupAds(group)}
+                        aria-label={`Select all ${group.subLabel}`}
+                      />
+                      {groupLabel({ group, collapsed: g.isGroupCollapsed })}
+                    </div>
+                    {!g.isGroupCollapsed && (
+                      <ul className="divide-y divide-border/70" aria-label={`${category.label} · ${group.subLabel}`}>
+                        {applyAdSort(group.ads, sortMode).map((ad, adIdx, orderedAds) => {
+                          const selected = selectedAdvNos.has(ad.advNo);
+                          const off = ad.advStatus === BINANCE_AD_STATUS.OFFLINE;
+                          return (
+                            <li key={ad.advNo} className={cn('flex gap-2.5 border-t border-border/70 py-3 pl-6 pr-3 transition-colors', selected && 'bg-primary/[0.06]')}>
+                              <Checkbox className="mt-0.5" checked={selected} onClick={(e) => handleRowSelect(e, ad.advNo, group.key, orderedAds)} aria-label={`Select ad ${ad.advNo}`} />
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <div className={cn('flex items-start justify-between gap-2', off && 'opacity-70')}>
+                                  <AdIdentity ad={ad} automation={automationMap.get(ad.advNo)} excluded={!!excludedAds?.has(ad.advNo)} />
+                                  <div className="shrink-0 text-right text-sm"><AdPriceValue ad={ad} {...priceProps(ad)} /></div>
+                                </div>
+                                <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground tabular-nums', off && 'opacity-70')}>
+                                  <span className={Number(ad.surplusAmount || 0) <= 0 ? 'text-destructive' : undefined}>{qty(ad.surplusAmount)} / {qty(ad.initAmount)} {ad.asset}</span>
+                                  <span>{limitsText(ad)}</span>
+                                </div>
+                                <div className={cn('flex flex-wrap items-center justify-between gap-2', off && 'opacity-70')}>
+                                  <AdMethods ad={ad} />
+                                  <AdUpdated ad={ad} />
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <AdStatusControl ad={ad} onToggleStatus={onToggleStatus} isTogglingStatus={isTogglingStatus} />
+                                  <AdRowActions ad={ad} onEdit={onEdit} onDuplicate={onDuplicate} onHistory={onHistory} canHistory={isSuperAdmin} {...rowProps(ad)} />
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
+          );
+        })}
+      </div>
+    ) : (
+    <Table density={compact ? 'compact' : 'comfortable'} className="[overflow-wrap:normal]" containerClassName="bg-card">
       <TableHeader>
-        <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:text-[11px] [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:font-medium">
-          <TableHead className="w-10"></TableHead>
-          <TableHead>Ad ID</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Asset</TableHead>
-          <TableHead>Price Type</TableHead>
+        <TableRow className="hover:bg-transparent">
+          <TableHead className="w-10"><span className="sr-only">Select</span></TableHead>
+          <TableHead>Ad</TableHead>
           <TableHead className="text-right">Price</TableHead>
-          <TableHead className="text-right">Available Qty</TableHead>
-          <TableHead className="text-right">Order Limit</TableHead>
-          <TableHead>Payment Methods</TableHead>
+          <TableHead className="text-right">Remaining</TableHead>
+          <TableHead className="text-right">Order limit</TableHead>
+          <TableHead className="hidden @[64rem]:table-cell">Methods</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Updated</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          <TableHead className="hidden @[80rem]:table-cell">Updated</TableHead>
+          <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {nonEmptyCategories.map(category => {
-          const catAdvNos = category.groups.flatMap(g => g.ads.map(a => a.advNo));
-          const catAllSelected = catAdvNos.length > 0 && catAdvNos.every(no => selectedAdvNos.has(no));
-          const catSomeSelected = catAdvNos.some(no => selectedAdvNos.has(no)) && !catAllSelected;
-          const isCatCollapsed = collapsedCategories.has(category.key);
-          const totalAds = catAdvNos.length;
+          const c = catState(category);
 
           return [
             // Category header row
-            <TableRow key={`cat-${category.key}`} className="bg-muted/50 hover:bg-muted/70 border-t border-border">
-              <TableCell className="py-2">
+            <TableRow key={`cat-${category.key}`} className="bg-secondary/40 hover:bg-secondary/60">
+              <TableCell className="w-10 py-2">
                 <Checkbox
-                  checked={catAllSelected}
-                  ref={(el) => { if (el) (el as any).indeterminate = catSomeSelected; }}
+                  checked={c.catAllSelected}
+                  ref={(el) => { if (el) (el as unknown as { indeterminate: boolean }).indeterminate = c.catSomeSelected; }}
                   onCheckedChange={() => selectCategoryAds(category)}
                   aria-label={`Select all ${category.label}`}
                 />
               </TableCell>
-              <TableCell colSpan={11} className="py-2">
-                <button
-                  className="flex items-center gap-2 w-full text-left"
-                  onClick={() => toggleCategory(category.key)}
-                >
-                  {isCatCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  <Badge variant="outline" className={`${category.colorClass} font-semibold text-xs`}>
-                    {category.label}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">({totalAds} ad{totalAds !== 1 ? 's' : ''})</span>
-                </button>
+              <TableCell colSpan={8} className="py-2">
+                {categoryLabel({ category, totalAds: c.totalAds, active: c.active, collapsed: c.isCatCollapsed })}
               </TableCell>
             </TableRow>,
 
             // Sub-groups (only when category is expanded)
-            ...(!isCatCollapsed ? category.groups.filter(g => g.ads.length > 0).flatMap(group => {
-              const groupAdvNos = group.ads.map(a => a.advNo);
-              const groupAllSelected = groupAdvNos.length > 0 && groupAdvNos.every(no => selectedAdvNos.has(no));
-              const groupSomeSelected = groupAdvNos.some(no => selectedAdvNos.has(no)) && !groupAllSelected;
-              const isGroupCollapsed = collapsedGroups.has(group.key);
+            ...(!c.isCatCollapsed ? category.groups.filter(g => g.ads.length > 0).flatMap(group => {
+              const g = groupState(group);
 
               return [
                 // Sub-group header
-                <TableRow key={`grp-${group.key}`} className="bg-muted/30 hover:bg-muted/40">
-                  <TableCell className="py-1.5 pl-8">
+                <TableRow key={`grp-${group.key}`} className="bg-secondary/20 hover:bg-secondary/30">
+                  <TableCell className="w-10 py-1.5 pl-6">
                     <Checkbox
-                      checked={groupAllSelected}
-                      ref={(el) => { if (el) (el as any).indeterminate = groupSomeSelected; }}
+                      checked={g.groupAllSelected}
+                      ref={(el) => { if (el) (el as unknown as { indeterminate: boolean }).indeterminate = g.groupSomeSelected; }}
                       onCheckedChange={() => selectGroupAds(group)}
                       aria-label={`Select all ${group.subLabel}`}
                     />
                   </TableCell>
-                  <TableCell colSpan={11} className="py-1.5">
-                    <button
-                      className="flex items-center gap-2 w-full text-left pl-4"
-                      onClick={() => toggleGroup(group.key)}
-                    >
-                      {isGroupCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {group.subLabel}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">({group.ads.length})</span>
-                    </button>
+                  <TableCell colSpan={8} className="py-1.5 pl-4">
+                    {groupLabel({ group, collapsed: g.isGroupCollapsed })}
                   </TableCell>
                 </TableRow>,
 
                 // Ad rows
-                ...(!isGroupCollapsed ? applyAdSort(group.ads, sortMode).map((ad, adIdx, orderedAds) => (
-                  <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined} className={compact ? 'text-xs [&>td]:py-1.5' : undefined}>
-                    <TableCell className="pl-12">
+                ...(!g.isGroupCollapsed ? applyAdSort(group.ads, sortMode).map((ad, adIdx, orderedAds) => {
+                  const off = ad.advStatus === BINANCE_AD_STATUS.OFFLINE;
+                  const dim = off ? 'opacity-60' : undefined;
+                  return (
+                  <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined} className={compact ? 'text-xs' : undefined}>
+                    <TableCell className="w-10 pl-9">
                       <Checkbox
                         checked={selectedAdvNos.has(ad.advNo)}
                         onClick={(e) => handleRowSelect(e, ad.advNo, group.key, orderedAds)}
                         aria-label={`Select ad ${ad.advNo}`}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      <div className="flex items-center gap-2">
-                        <span>{ad.advNo?.slice(-8) || '—'}</span>
-                        <AccountBadge accountId={ad._exchangeAccountId} showName={false} />
-                      </div>
+                    <TableCell className={cn('min-w-[9.5rem] @[64rem]:min-w-[13.5rem]', dim)}>
+                      <AdIdentity ad={ad} automation={automationMap.get(ad.advNo)} excluded={!!excludedAds?.has(ad.advNo)} chipLabelClassName={CHIP_LABEL_WIDE} />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col items-start gap-1">
-                        <Badge variant="outline" className={ad.tradeType === 'BUY' ? 'bg-success/10 text-success border-success/20' : 'bg-destructive/10 text-destructive border-destructive/20'}>
-                          {ad.tradeType}
-                        </Badge>
-                        {isBlockAd(ad) && (
-                          <Badge variant="outline" className="border-border bg-secondary text-[10px] text-secondary-foreground">
-                            Block
-                          </Badge>
-                        )}
-                      </div>
+                    <TableCell className={cn('text-right', dim)}>
+                      <AdPriceValue ad={ad} {...priceProps(ad)} />
                     </TableCell>
-                    <TableCell className="font-medium">{ad.asset}</TableCell>
-                    <TableCell>
-                      <span className="text-xs">{ad.priceType === 1 ? 'Fixed' : 'Floating'}</span>
+                    <TableCell className={cn('text-right', dim)}><AdRemaining ad={ad} bar={!compact} /></TableCell>
+                    <TableCell className={cn('text-right text-xs', dim)}>
+                      <AdLimits ad={ad} />
+                      <div className="mt-1 flex justify-end @[64rem]:hidden"><AdMethods ad={ad} max={2} fee="summary" className="justify-end" /></div>
                     </TableCell>
-                    <AdPriceCell
-                      ad={ad}
-                      isEditing={editingPriceAdvNo === ad.advNo}
-                      onRequestEdit={() => setEditingPriceAdvNo(ad.advNo)}
-                      onClose={() => setEditingPriceAdvNo(prev => (prev === ad.advNo ? null : prev))}
-                    />
-                    <TableCell className="text-right tabular-nums">
-                      {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}
-                      <div className="text-xs text-muted-foreground">
-                        / {Number(ad.initAmount || 0).toLocaleString('en-IN')} total
-                      </div>
+                    <TableCell className={cn('hidden min-w-[8rem] @[64rem]:table-cell', dim)}><AdMethods ad={ad} /></TableCell>
+                    <TableCell className="min-w-[8.5rem]">
+                      <AdStatusControl ad={ad} onToggleStatus={onToggleStatus} isTogglingStatus={isTogglingStatus} />
+                      <div className="mt-1 @[80rem]:hidden"><AdUpdated ad={ad} /></div>
                     </TableCell>
-                    <TableCell className="text-right text-xs tabular-nums">
-                      ₹{Number(ad.minSingleTransAmount || 0).toLocaleString('en-IN')} ~ ₹{Number(ad.maxSingleTransAmount || 0).toLocaleString('en-IN')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-[180px]">
-                        {(ad.tradeMethods || []).slice(0, 3).map((m, i) => (
-                          <div key={i} className="flex items-center gap-1">
-                            <PaymentMethodBadge identifier={m.identifier} payType={m.payType} size="sm" />
-                            {formatCommissionRate(ad, m.identifier || m.payType) && (
-                              <span className="text-[10px] text-muted-foreground tabular-nums">{formatCommissionRate(ad, m.identifier || m.payType)}</span>
-                            )}
-                          </div>
-                        ))}
-                        {(ad.tradeMethods || []).length > 3 && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            +{ad.tradeMethods.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col items-start gap-1">
-                        <Badge
-                          variant="outline"
-                          className={
-                            ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
-                            : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
-                            : 'bg-muted text-muted-foreground border-border'
-                          }
-                        >
-                          {getAdStatusLabel(ad.advStatus)}
-                        </Badge>
-                        {getAdHiddenReason(ad) && (
-                          <Badge
-                            variant="outline"
-                            title={getAdHiddenReason(ad)!}
-                            className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
-                          >
-                            Not visible
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="text-xs text-muted-foreground">
-                      {toValidDate(ad.updateTime) ? (
-                        <div className="flex flex-col">
-                          <span>{safeFormat(ad.updateTime, 'dd MMM yyyy HH:mm')}</span>
-                          {(() => {
-                            const d = toValidDate(ad.updateTime)!;
-                            const mins = Math.floor((Date.now() - d.getTime()) / 60000);
-                            if (mins <= 30) return null;
-                            const label = mins >= 60 ? `${Math.floor(mins / 60)}h ago` : `${mins}m ago`;
-                            return <span className="text-warning">{label}</span>;
-                          })()}
-                        </div>
-                      ) : '—'}
-                    </TableCell>
+                    <TableCell className="hidden @[80rem]:table-cell"><AdUpdated ad={ad} /></TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <AdAutomationIndicator info={automationMap.get(ad.advNo)} />
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon" aria-label="Block / Unblock"
-                                className="h-8 w-8"
-                                onClick={() => toggleExclusion.mutate({ advNo: ad.advNo, exclude: !excludedAds?.has(ad.advNo) })}
-                                disabled={toggleExclusion.isPending}
-                              >
-                                {excludedAds?.has(ad.advNo) ? (
-                                  <ShieldBan className="h-3.5 w-3.5 text-destructive" />
-                                ) : (
-                                  <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {excludedAds?.has(ad.advNo) ? 'Excluded from automation — click to include' : 'Click to exclude from automation'}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                         <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <QuickEditPopover ad={ad}>
-                          <Button variant="ghost" size="icon" aria-label="Quick edit price and limits" className="h-8 w-8" title="Quick edit — price & limits">
-                            <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                        </QuickEditPopover>
-                        {onDuplicate && (
-                          <Button variant="ghost" size="icon" aria-label="Duplicate" className="h-8 w-8" onClick={() => onDuplicate(ad)} title="Duplicate ad">
-                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                        )}
-                        {onHistory && isSuperAdmin && (
-                          <Button variant="ghost" size="icon" aria-label="History" className="h-8 w-8" onClick={() => onHistory(ad.advNo)} title="View change history">
-                            <History className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="ghost"
-                          size="icon" aria-label="Disable / Locked"
-                          className="h-8 w-8"
-                          onClick={() => onToggleStatus(ad.advNo, ad.advStatus)}
-                          disabled={isTogglingStatus}
-                          title={ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'Take Offline' : 'Go Online'}
-                        >
-                          {ad.advStatus === BINANCE_AD_STATUS.ONLINE ? (
-                            <PowerOff className="h-3.5 w-3.5 text-trade-sell" />
-                          ) : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? (
-                            <Lock className="h-3.5 w-3.5 text-warning" />
-                          ) : (
-                            <Power className="h-3.5 w-3.5 text-trade-buy" />
-                          )}
-                        </Button>
-                      </div>
+                      <AdRowActions ad={ad} onEdit={onEdit} onDuplicate={onDuplicate} onHistory={onHistory} canHistory={isSuperAdmin} {...rowProps(ad)} />
                     </TableCell>
                   </TableRow>
-                )) : []),
+                  );
+                }) : []),
               ];
             }) : []),
           ];
         })}
       </TableBody>
     </Table>
+    )}
+    </div>
   );
 }

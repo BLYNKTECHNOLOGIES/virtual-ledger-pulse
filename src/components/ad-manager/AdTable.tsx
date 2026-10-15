@@ -1,44 +1,22 @@
 import { useMemo, useRef, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ShieldBan, ShieldCheck, Megaphone, ArrowUp, ArrowDown, History, Copy, SlidersHorizontal } from 'lucide-react';
-import { AdAutomationIndicator, useAdAutomationMap } from './AdAutomationIndicator';
+import { Megaphone, ArrowUp, ArrowDown, ArrowDownUp } from 'lucide-react';
+import { useAdAutomationMap } from './AdAutomationIndicator';
 import { useAuth } from '@/hooks/useAuth';
 import { isSuperAdminRoleName } from '@/lib/auth/roles';
-import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
-import { PaymentMethodBadge } from './PaymentMethodBadge';
-import { InlinePriceEditor } from './InlinePriceEditor';
-import { QuickEditPopover } from './QuickEditPopover';
-import { AdSortMode, applyAdSort, stalePriceLabel } from './CategorizedAdTable';
-import { AccountBadge } from '@/components/exchange/AccountBadge';
-import { safeFormat } from '@/lib/safe-date';
+import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { AdSortMode, applyAdSort } from './CategorizedAdTable';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useValueFlash } from '@/hooks/useValueFlash';
-import { isBlockAd, adZone } from '@/lib/adZone';
+import { cn } from '@/lib/utils';
+import {
+  AD_LIST_BREAKPOINT, CHIP_LABEL_WIDE, AdIdentity, AdLimits, AdMethods, AdPriceValue, AdRemaining, AdRowActions, AdStatusControl, AdUpdated, useWidthBelow,
+} from './AdRowParts';
+import { limitsText, qty } from './adUi';
 
 const PAGE = 200;
-
-function formatCommissionRate(ad: BinanceAd, identifier?: string) {
-  const list = ad.tradeMethodCommissionRateVoList || [];
-  const matched = list.find((item) => String(item.tradeMethodIdentifier || item.tradeMethodName || '') === String(identifier || ''));
-  const rate = matched?.commissionRate ?? ad.commissionRate ?? ad.takerCommissionRate;
-  if (rate === undefined || rate === null || rate === '') return null;
-  return `${(Number(rate) * 100).toFixed(4)}%`;
-}
-
-
-function DeskPriceCell({ ad, isEditing, onRequestEdit, onClose }: { ad: BinanceAd; isEditing: boolean; onRequestEdit: () => void; onClose: () => void }) {
-  const flash = useValueFlash(Number(ad.price || 0), 'value-flash');
-  return (
-    <TableCell className={`text-right font-semibold tabular-nums ${flash}`}>
-      <InlinePriceEditor ad={ad} isEditing={isEditing} onRequestEdit={onRequestEdit} onClose={onClose} />
-    </TableCell>
-  );
-}
-
 interface DeskTableProps {
   ads: BinanceAd[];
    onEdit: (ad: BinanceAd) => void;
@@ -55,10 +33,15 @@ interface DeskTableProps {
 
 function SortHeader({ label, active, dir, onClick, className }: { label: string; active: boolean; dir: 'asc' | 'desc'; onClick: () => void; className?: string }) {
   return (
-    <TableHead className={className}>
-      <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={onClick}>
+    <TableHead className={className} aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+      <button
+        type="button"
+        className={cn('inline-flex items-center gap-1 rounded uppercase tracking-wider hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active && 'text-foreground')}
+        onClick={onClick}
+        title={`Sort by ${label.toLowerCase()}`}
+      >
         {label}
-        {active && (dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+        {active ? (dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowDownUp className="h-3 w-3 opacity-40" />}
       </button>
     </TableHead>
   );
@@ -73,17 +56,13 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
   const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);
   const [visible, setVisible] = useState(PAGE);
   const lastClickedRef = useRef<string | null>(null);
+  const [wrapRef, narrow] = useWidthBelow(AD_LIST_BREAKPOINT);
 
   const sorted = useMemo(() => applyAdSort(ads, sortMode), [ads, sortMode]);
   const shown = sorted.slice(0, visible);
 
   if (!ads || ads.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-        <Megaphone className="h-8 w-8 opacity-40" />
-        <p className="text-sm">No ads found</p>
-      </div>
-    );
+    return <EmptyState icon={Megaphone} title="No ads found" description="Nothing matches this tab, status and filters." className="rounded-lg border border-dashed border-border py-12" />;
   }
 
   const allSelected = shown.length > 0 && shown.every(ad => selectedAdvNos.has(ad.advNo));
@@ -121,183 +100,144 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
     onSortModeChange(sortMode === desc ? asc : desc);
   };
 
-  const rowClass = compact ? 'text-xs [&>td]:py-1.5' : undefined;
+  const rowProps = (ad: BinanceAd) => ({
+    excluded: !!excludedAds?.has(ad.advNo),
+    onToggleExclusion: () => toggleExclusion.mutate({ advNo: ad.advNo, exclude: !excludedAds?.has(ad.advNo) }),
+    exclusionPending: toggleExclusion.isPending,
+  });
+  const priceProps = (ad: BinanceAd) => ({
+    isEditing: editingPriceAdvNo === ad.advNo,
+    onRequestEdit: () => setEditingPriceAdvNo(ad.advNo),
+    onClose: () => setEditingPriceAdvNo(prev => (prev === ad.advNo ? null : prev)),
+  });
+
+  const priceActive = sortMode === 'price-asc' || sortMode === 'price-desc';
+  const availActive = sortMode === 'avail-asc' || sortMode === 'avail-desc';
 
   return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:text-[11px] [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:font-medium">
-            <TableHead className="w-10">
+    <div ref={wrapRef} className="@container min-w-0">
+      {narrow ? (
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-secondary/40 px-3 py-2 text-[11px] text-muted-foreground">
+            <label className="flex items-center gap-2 font-medium text-foreground">
               <Checkbox
                 checked={allSelected}
-                ref={(el) => { if (el) (el as any).indeterminate = someSelected; }}
+                ref={(el) => { if (el) (el as unknown as { indeterminate: boolean }).indeterminate = someSelected; }}
                 onCheckedChange={toggleAll}
                 aria-label="Select all ads"
               />
-            </TableHead>
-            <TableHead>Ad ID</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Asset</TableHead>
-            <TableHead>Price Type</TableHead>
-            <SortHeader label="Price" active={sortMode === 'price-asc' || sortMode === 'price-desc'} dir={sortMode === 'price-asc' ? 'asc' : 'desc'} onClick={() => cycleSort('price-asc', 'price-desc')} className="text-right" />
-            <SortHeader label="Available Qty" active={sortMode === 'avail-asc' || sortMode === 'avail-desc'} dir={sortMode === 'avail-asc' ? 'asc' : 'desc'} onClick={() => cycleSort('avail-asc', 'avail-desc')} className="text-right" />
-            <TableHead className="text-right">Order Limit</TableHead>
-            <TableHead>Payment Methods</TableHead>
-            <TableHead>Status</TableHead>
-            <SortHeader label="Updated" active={sortMode === 'updated-desc'} dir="desc" onClick={() => cycleSort('updated-desc', 'updated-desc')} />
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {shown.map((ad) => {
-            const staleAge = stalePriceLabel(ad.updateTime);
-            return (
-              <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined} className={rowClass}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedAdvNos.has(ad.advNo)}
-                    onClick={(e) => handleRowSelect(e, ad.advNo)}
-                    aria-label={`Select ad ${ad.advNo}`}
-                  />
-                </TableCell>
-                <TableCell className="font-mono text-xs">
-                  <div className="flex items-center gap-2">
-                    <span>{ad.advNo?.slice(-8) || '—'}</span>
-                    <AccountBadge accountId={ad._exchangeAccountId} showName={false} />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col items-start gap-1">
-                    <Badge variant="outline" className={ad.tradeType === 'BUY' ? 'bg-success/10 text-success border-success/20' : 'bg-destructive/10 text-destructive border-destructive/20'}>
-                      {ad.tradeType}
-                    </Badge>
-                    {isBlockAd(ad) && (
-                      <Badge variant="outline" className="border-border bg-secondary text-[10px] text-secondary-foreground">Block</Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="font-medium">{ad.asset}</TableCell>
-                <TableCell><span className="text-xs">{ad.priceType === 1 ? 'Fixed' : 'Floating'}</span></TableCell>
-                <DeskPriceCell
-                  ad={ad}
-                  isEditing={editingPriceAdvNo === ad.advNo}
-                  onRequestEdit={() => setEditingPriceAdvNo(ad.advNo)}
-                  onClose={() => setEditingPriceAdvNo(prev => (prev === ad.advNo ? null : prev))}
-                />
-                <TableCell className="text-right tabular-nums">
-                  {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}
-                  <div className="text-xs text-muted-foreground">/ {Number(ad.initAmount || 0).toLocaleString('en-IN')} total</div>
-                </TableCell>
-                <TableCell className="text-right text-xs tabular-nums">
-                  ₹{Number(ad.minSingleTransAmount || 0).toLocaleString('en-IN')} ~ ₹{Number(ad.maxSingleTransAmount || 0).toLocaleString('en-IN')}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1 max-w-[180px]">
-                    {(ad.tradeMethods || []).slice(0, 3).map((m, i) => (
-                      <div key={i} className="flex items-center gap-1">
-                        <PaymentMethodBadge identifier={m.identifier} payType={m.payType} size="sm" />
-                        {formatCommissionRate(ad, m.identifier || m.payType) && (
-                          <span className="text-[10px] text-muted-foreground tabular-nums">{formatCommissionRate(ad, m.identifier || m.payType)}</span>
-                        )}
-                      </div>
-                    ))}
-                    {(ad.tradeMethods || []).length > 3 && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">+{ad.tradeMethods.length - 3}</Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col items-start gap-1">
-                    <Badge
-                      variant="outline"
-                      className={
-                        ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
-                        : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
-                        : 'bg-muted text-muted-foreground border-border'
-                      }
-                    >
-                      {getAdStatusLabel(ad.advStatus)}
-                    </Badge>
-                    {getAdHiddenReason(ad) && (
-                      <Badge
-                        variant="outline"
-                        title={getAdHiddenReason(ad)!}
-                        className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
-                      >
-                        Not visible
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-
-                <TableCell className="text-xs text-muted-foreground">
-                  {ad.updateTime ? (
-                    <div className="flex flex-col">
-                      <span>{safeFormat(ad.updateTime, 'dd MMM yyyy HH:mm')}</span>
-                      {staleAge && <span className="text-warning">{staleAge}</span>}
+              Select all {shown.length}
+            </label>
+            <span className="ml-auto flex items-center gap-1">
+              <span>Sort</span>
+              {[
+                { label: 'Price', on: priceActive, dir: sortMode === 'price-asc' ? 'asc' : 'desc', go: () => cycleSort('price-asc', 'price-desc') },
+                { label: 'Remaining', on: availActive, dir: sortMode === 'avail-asc' ? 'asc' : 'desc', go: () => cycleSort('avail-asc', 'avail-desc') },
+                { label: 'Updated', on: sortMode === 'updated-desc', dir: 'desc', go: () => cycleSort('updated-desc', 'updated-desc') },
+              ].map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={s.go}
+                  className={cn('inline-flex h-6 items-center gap-0.5 rounded-md border px-1.5', s.on ? 'border-primary/30 bg-primary/10 text-foreground' : 'border-border hover:text-foreground')}
+                >
+                  {s.label}
+                  {s.on && (s.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                </button>
+              ))}
+            </span>
+          </div>
+          <ul className="divide-y divide-border" aria-label="Ads">
+            {shown.map((ad) => {
+              const selected = selectedAdvNos.has(ad.advNo);
+              const off = ad.advStatus === BINANCE_AD_STATUS.OFFLINE;
+              return (
+                <li key={ad.advNo} className={cn('flex gap-2.5 px-3 py-3 transition-colors', selected && 'bg-primary/[0.06]')}>
+                  <Checkbox className="mt-0.5" checked={selected} onClick={(e) => handleRowSelect(e, ad.advNo)} aria-label={`Select ad ${ad.advNo}`} />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className={cn('flex items-start justify-between gap-2', off && 'opacity-70')}>
+                      <AdIdentity ad={ad} automation={automationMap.get(ad.advNo)} excluded={!!excludedAds?.has(ad.advNo)} />
+                      <div className="shrink-0 text-right text-sm"><AdPriceValue ad={ad} {...priceProps(ad)} /></div>
                     </div>
-                  ) : '—'}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <AdAutomationIndicator info={automationMap.get(ad.advNo)} />
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon" aria-label="Block / Unblock"
-                            className="h-8 w-8"
-                            onClick={() => toggleExclusion.mutate({ advNo: ad.advNo, exclude: !excludedAds?.has(ad.advNo) })}
-                            disabled={toggleExclusion.isPending}
-                          >
-                            {excludedAds?.has(ad.advNo) ? <ShieldBan className="h-3.5 w-3.5 text-destructive" /> : <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {excludedAds?.has(ad.advNo) ? 'Excluded from automation — click to include' : 'Click to exclude from automation'}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                     <Button variant="ghost" size="icon" aria-label="Edit" className="h-8 w-8" onClick={() => onEdit(ad)}>
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <QuickEditPopover ad={ad}>
-                      <Button variant="ghost" size="icon" aria-label="Quick edit price and limits" className="h-8 w-8" title="Quick edit — price & limits">
-                        <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    </QuickEditPopover>
-                    {onDuplicate && (
-                      <Button variant="ghost" size="icon" aria-label="Duplicate" className="h-8 w-8" onClick={() => onDuplicate(ad)} title="Duplicate ad">
-                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    )}
-                    {onHistory && isSuperAdmin && (
-                      <Button variant="ghost" size="icon" aria-label="History" className="h-8 w-8" onClick={() => onHistory(ad.advNo)} title="View change history">
-                        <History className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    )}
-
-                    <Button
-                      variant="ghost"
-                      size="icon" aria-label="Disable / Locked"
-                      className="h-8 w-8"
-                      onClick={() => onToggleStatus(ad.advNo, ad.advStatus)}
-                      disabled={isTogglingStatus}
-                      title={ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'Take Offline' : 'Go Online'}
-                    >
-                      {ad.advStatus === BINANCE_AD_STATUS.ONLINE ? <PowerOff className="h-3.5 w-3.5 text-trade-sell" />
-                        : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? <Lock className="h-3.5 w-3.5 text-warning" />
-                        : <Power className="h-3.5 w-3.5 text-trade-buy" />}
-                    </Button>
+                    <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground tabular-nums', off && 'opacity-70')}>
+                      <span className={Number(ad.surplusAmount || 0) <= 0 ? 'text-destructive' : undefined}>{qty(ad.surplusAmount)} / {qty(ad.initAmount)} {ad.asset}</span>
+                      <span>{limitsText(ad)}</span>
+                    </div>
+                    <div className={cn('flex flex-wrap items-center justify-between gap-2', off && 'opacity-70')}>
+                      <AdMethods ad={ad} />
+                      <AdUpdated ad={ad} />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <AdStatusControl ad={ad} onToggleStatus={onToggleStatus} isTogglingStatus={isTogglingStatus} />
+                      <AdRowActions ad={ad} onEdit={onEdit} onDuplicate={onDuplicate} onHistory={onHistory} canHistory={isSuperAdmin} {...rowProps(ad)} />
+                    </div>
                   </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : (
+        <Table density={compact ? 'compact' : 'comfortable'} className="[overflow-wrap:normal]" containerClassName="bg-card">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allSelected}
+                  ref={(el) => { if (el) (el as unknown as { indeterminate: boolean }).indeterminate = someSelected; }}
+                  onCheckedChange={toggleAll}
+                  aria-label="Select all ads"
+                />
+              </TableHead>
+              <TableHead>Ad</TableHead>
+              <SortHeader label="Price" active={priceActive} dir={sortMode === 'price-asc' ? 'asc' : 'desc'} onClick={() => cycleSort('price-asc', 'price-desc')} className="text-right" />
+              <SortHeader label="Remaining" active={availActive} dir={sortMode === 'avail-asc' ? 'asc' : 'desc'} onClick={() => cycleSort('avail-asc', 'avail-desc')} className="text-right" />
+              <TableHead className="text-right">Order limit</TableHead>
+              <TableHead className="hidden @[64rem]:table-cell">Methods</TableHead>
+              <TableHead>Status</TableHead>
+              <SortHeader label="Updated" active={sortMode === 'updated-desc'} dir="desc" onClick={() => cycleSort('updated-desc', 'updated-desc')} className="hidden @[80rem]:table-cell" />
+              <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {shown.map((ad) => {
+              const off = ad.advStatus === BINANCE_AD_STATUS.OFFLINE;
+              const dim = off ? 'opacity-60' : undefined;
+              return (
+                <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined} className={compact ? 'text-xs' : undefined}>
+                  <TableCell className="w-10">
+                    <Checkbox
+                      checked={selectedAdvNos.has(ad.advNo)}
+                      onClick={(e) => handleRowSelect(e, ad.advNo)}
+                      aria-label={`Select ad ${ad.advNo}`}
+                    />
+                  </TableCell>
+                  <TableCell className={cn('min-w-[9.5rem] @[64rem]:min-w-[13.5rem]', dim)}>
+                    <AdIdentity ad={ad} automation={automationMap.get(ad.advNo)} excluded={!!excludedAds?.has(ad.advNo)} chipLabelClassName={CHIP_LABEL_WIDE} />
+                  </TableCell>
+                  <TableCell className={cn('text-right', dim)}>
+                    <AdPriceValue ad={ad} {...priceProps(ad)} />
+                  </TableCell>
+                  <TableCell className={cn('text-right', dim)}><AdRemaining ad={ad} bar={!compact} /></TableCell>
+                  <TableCell className={cn('text-right text-xs', dim)}>
+                    <AdLimits ad={ad} />
+                    <div className="mt-1 flex justify-end @[64rem]:hidden"><AdMethods ad={ad} max={2} fee="summary" className="justify-end" /></div>
+                  </TableCell>
+                  <TableCell className={cn('hidden min-w-[8rem] @[64rem]:table-cell', dim)}><AdMethods ad={ad} /></TableCell>
+                  <TableCell className="min-w-[8.5rem]">
+                    <AdStatusControl ad={ad} onToggleStatus={onToggleStatus} isTogglingStatus={isTogglingStatus} />
+                    <div className="mt-1 @[80rem]:hidden"><AdUpdated ad={ad} /></div>
+                  </TableCell>
+                  <TableCell className="hidden @[80rem]:table-cell"><AdUpdated ad={ad} /></TableCell>
+                  <TableCell className="text-right">
+                    <AdRowActions ad={ad} onEdit={onEdit} onDuplicate={onDuplicate} onHistory={onHistory} canHistory={isSuperAdmin} {...rowProps(ad)} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
       {visible < sorted.length && (
         <div className="flex justify-center py-4">
           <Button variant="outline" size="sm" onClick={() => setVisible(v => v + PAGE)}>
@@ -305,6 +245,6 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 }

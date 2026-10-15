@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Loader2, ArrowDownWideNarrow, ArrowRight, Info } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { AdZone, adZone, ZONE_SHORT } from '@/lib/adZone';
 import { useSpotIndexINR } from '@/hooks/useSpotIndexINR';
 import { useHybridPriceAdjuster } from '@/hooks/useHybridPriceAdjuster';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AdDialogHeader, CHIP_MUTED, NoteBox, RunProgress, RunRow, RunSummary, SEG_BTN, SEG_LIST, SelectionSummary, SideChip, StepRail, shortAdNo } from './adUi';
+import { cn } from '@/lib/utils';
 
 
 interface Props {
@@ -371,162 +373,168 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Price Ladder</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-xl w-[calc(100vw-1.5rem)] sm:w-full max-h-[88vh] overflow-y-auto">
+        <AdDialogHeader
+          icon={ArrowDownWideNarrow}
+          title="Price ladder"
+          description={<>Steps the selected ads down {LADDER_STEP} at a time from a top rate, highest first, inside each asset · side · zone group (P2P and Block zones are separate books).</>}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SelectionSummary ads={ads} />
+          <StepRail steps={['Set', 'Review', 'Apply']} current={step === 'form' ? 0 : step === 'confirm' ? 1 : 2} />
+        </div>
 
         {step === 'form' && (
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              Step <strong>{ads.length}</strong> selected ad{ads.length !== 1 ? 's' : ''} down in fixed {LADDER_STEP} increments,
-              highest first — separately inside each asset + side + zone group (P2P and Block zones are separate books).
-            </p>
-
-
-            <div>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
               <Label>Ladder input</Label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <Button
+              <div className={cn(SEG_LIST, 'flex h-9 w-full items-center')} role="group" aria-label="Ladder input">
+                <button
                   type="button"
-                  variant={effectiveMode === 'fixed' ? 'default' : 'outline'}
+                  aria-pressed={effectiveMode === 'fixed'}
                   disabled={!hasFixedAds}
                   title={!hasFixedAds ? 'No fixed-price ads selected — enter a floating ratio instead' : undefined}
-                  size="sm"
                   onClick={() => setMode('fixed')}
+                  className={cn(SEG_BTN, 'h-8 flex-1 justify-center disabled:cursor-not-allowed disabled:opacity-50')}
                 >
                   Fixed rate (INR)
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant={effectiveMode === 'ratio' ? 'default' : 'outline'}
-                  size="sm"
+                  aria-pressed={effectiveMode === 'ratio'}
                   onClick={() => setMode('ratio')}
+                  className={cn(SEG_BTN, 'h-8 flex-1 justify-center')}
                 >
                   Floating ratio (%)
-                </Button>
+                </button>
               </div>
             </div>
 
-            {effectiveMode === 'fixed' && assets.length > 1 && (
-              <div>
-                <Label>Anchor asset</Label>
-                <Select value={anchor} onValueChange={setAnchorAsset}>
-                  <SelectTrigger className="text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assets.map((a) => (
-                      <SelectItem key={a} value={a}>{a}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  The rate you enter belongs to this asset; other assets are scaled by their live spot index.
-                </p>
-              </div>
-            )}
+            <div className={cn('grid gap-3', effectiveMode === 'fixed' && assets.length > 1 ? 'sm:grid-cols-[10rem_1fr]' : 'grid-cols-1')}>
+              {effectiveMode === 'fixed' && assets.length > 1 && (
+                <div className="space-y-1.5">
+                  <Label>Anchor asset</Label>
+                  <Select value={anchor} onValueChange={setAnchorAsset}>
+                    <SelectTrigger className="text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assets.map((a) => (
+                        <SelectItem key={a} value={a}>{a}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-            <div>
-              <Label>{effectiveMode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={effectiveMode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
-                autoFocus
-                className="text-foreground"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="space-y-1.5">
+                <Label>{effectiveMode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder={effectiveMode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
+                  autoFocus
+                  className="text-base font-semibold tabular-nums text-foreground"
+                />
+              </div>
+            </div>
+            <div className="-mt-2 space-y-1 text-xs text-muted-foreground">
+              {effectiveMode === 'fixed' && assets.length > 1 && (
+                <div>The rate you enter belongs to the anchor asset; other assets are scaled by their live spot index.</div>
+              )}
+              <div>
                 {effectiveMode === 'ratio'
                   ? 'Applies as the top rung to every group; fixed ads get the equivalent price from their live index.'
                   : 'Floating ads get the equivalent ratio derived from their live index.'}
-              </p>
+              </div>
             </div>
 
-
-            <p className={`text-xs ${rateIsFallback ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-              Index base — USDT/INR ₹{usdtInr ? usdtInr.toFixed(2) : '—'}{rateSource ? ` (${rateSource})` : ''}
-            </p>
-
-            {pricesLoading && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading live index prices…
-              </p>
-            )}
+            <div className={cn('flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-relaxed', rateIsFallback ? 'border-destructive/30 bg-destructive/10 text-destructive' : 'border-border bg-secondary/40 text-muted-foreground')}>
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div className="min-w-0">
+                <div className={rateIsFallback ? 'font-medium' : undefined}>
+                  Index base — USDT/INR <span className="font-semibold tabular-nums text-foreground">₹{usdtInr ? usdtInr.toFixed(2) : '—'}</span>{rateSource ? ` (${rateSource})` : ''}
+                </div>
+                {adjuster !== 0 && <div>Hybrid adjuster {adjuster} is subtracted from every derived floating ratio.</div>}
+                {pricesLoading && (
+                  <div className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Loading live index prices…</div>
+                )}
+              </div>
+            </div>
 
             {groups.length > 0 && (
-              <div className="rounded-lg border border-border divide-y divide-border">
-                {groups.map((g) => (
-                  <div key={`${g.asset}|${g.side}|${g.zone}`} className="px-2 py-1.5 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono font-medium">{g.asset} · {g.side} · {ZONE_SHORT[g.zone]}</span>
-
-                      {!g.skipped && (
-                        <span className="text-muted-foreground tabular-nums">
-                          {g.rungs.length} rung{g.rungs.length !== 1 ? 's' : ''}
+              <div className="overflow-hidden rounded-lg border border-border">
+                <div className="grid grid-cols-[1fr_auto] gap-2 border-b border-border bg-secondary/50 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+                  <span>Group</span><span>Top rung</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {groups.map((g) => (
+                    <div key={`${g.asset}|${g.side}|${g.zone}`} className="px-3 py-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5">
+                          <span className="font-semibold text-foreground">{g.asset}</span>
+                          <SideChip side={g.side} />
+                          <span className={CHIP_MUTED}>{ZONE_SHORT[g.zone]}</span>
+                          {!g.skipped && <span className="text-muted-foreground tabular-nums">{g.rungs.length} rung{g.rungs.length !== 1 ? 's' : ''}</span>}
                         </span>
-                      )}
-                    </div>
-                    {g.skipped ? (
-                      <p className="text-destructive mt-0.5">{g.skipped}</p>
-                    ) : (
-                      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
-                        {g.topPrice !== null && <span>Top: <span className="text-foreground">₹{fmtINR(g.topPrice)}</span></span>}
-                        {g.index !== null && <span>Index: <span className="text-foreground">₹{fmtINR(g.index)}</span></span>}
-                        {g.topRatio !== null && (
-                          <span className="col-span-2">Float top: <span className="text-foreground">{g.topRatio.toFixed(2)}%</span></span>
+                        {!g.skipped && (
+                          <span className="text-right tabular-nums">
+                            {g.topPrice !== null && <span className="font-semibold text-foreground">₹{fmtINR(g.topPrice)}</span>}
+                            {g.topRatio !== null && <span className="ml-2 text-muted-foreground">{g.topRatio.toFixed(2)}%</span>}
+                          </span>
                         )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {g.skipped ? (
+                        <div className="mt-1 text-destructive">{g.skipped}</div>
+                      ) : g.index !== null ? (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">Index ₹{fmtINR(g.index)}</div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {adjuster !== 0 && (
-              <p className="text-xs text-muted-foreground">
-                Hybrid price adjuster of {adjuster} is subtracted from every derived floating ratio.
-              </p>
-            )}
-
             {invalidRung && (
-              <p className="text-xs text-destructive">
+              <NoteBox tone="destructive" title="Ladder goes below zero">
                 This top rate takes a {invalidRung.asset} rung to {invalidRung.next}. Raise it or select fewer ads.
-              </p>
+              </NoteBox>
             )}
           </div>
         )}
 
         {step === 'confirm' && (
-          <div className="space-y-3 py-2">
-            <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
-              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium">Confirm Price Ladder</p>
-                <p className="text-muted-foreground mt-1">
-                  {ladder.length} ad(s) across {groups.filter((g) => !g.skipped).length} group(s) will be re-priced in {LADDER_STEP} steps.
-                  {skippedGroups.length > 0 && ` ${skippedGroups.length} group(s) skipped — no index price.`}
-                </p>
-              </div>
-            </div>
-            <ScrollArea className="max-h-64">
-              <div className="space-y-2 pr-1">
+          <div className="space-y-3">
+            <NoteBox title={`Re-price ${ladder.length} ad${ladder.length !== 1 ? 's' : ''}?`}>
+              {ladder.length} ad(s) across {groups.filter((g) => !g.skipped).length} group(s) will be re-priced in {LADDER_STEP} steps.
+              {skippedGroups.length > 0 && ` ${skippedGroups.length} group(s) skipped — no index price.`}
+            </NoteBox>
+            <ScrollArea className="max-h-72 rounded-md border border-border">
+              <div className="divide-y divide-border">
                 {groups.filter((g) => !g.skipped).map((g) => (
-                  <div key={`${g.asset}|${g.side}|${g.zone}`} className="space-y-1">
-                    <p className="text-xs font-semibold">
-                      {g.asset} · {g.side} · {ZONE_SHORT[g.zone]} — top ₹{fmtINR(g.topPrice)}
-                      {g.topRatio !== null && ` / ${g.topRatio.toFixed(2)}%`}
-                    </p>
+                  <div key={`${g.asset}|${g.side}|${g.zone}`} className="space-y-1 p-2">
+                    <div className="flex items-center justify-between gap-2 px-1 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <span className="font-semibold text-foreground">{g.asset}</span>
+                        <SideChip side={g.side} />
+                        <span className={CHIP_MUTED}>{ZONE_SHORT[g.zone]}</span>
+                      </span>
+                      <span className="tabular-nums text-muted-foreground">
+                        top ₹{fmtINR(g.topPrice)}{g.topRatio !== null && ` / ${g.topRatio.toFixed(2)}%`}
+                      </span>
+                    </div>
 
                     {g.rungs.map((r, i) => (
-                      <div key={r.ad.advNo} className="flex items-center justify-between gap-2 text-[11px] px-1">
-                        <span className="font-mono truncate">
-                          {i + 1}. …{r.ad.advNo.slice(-6)}{r.floating ? ' float%' : ''}
+                      <div key={r.ad.advNo} className="flex items-center justify-between gap-2 rounded px-1.5 py-1 text-[11px] odd:bg-secondary/40">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="w-5 text-right tabular-nums text-muted-foreground">{i + 1}.</span>
+                          <span className="t-mono truncate text-foreground">{shortAdNo(r.ad.advNo, 6)}</span>
+                          {r.floating && <span className={CHIP_MUTED}>float %</span>}
                         </span>
-                        <span className="tabular-nums whitespace-nowrap">
-                          {fmtINR(r.current)} → <strong>{fmtINR(r.next)}</strong>
+                        <span className="whitespace-nowrap tabular-nums text-muted-foreground">
+                          {fmtINR(r.current)} → <strong className="text-foreground">{fmtINR(r.next)}</strong>
                         </span>
                       </div>
                     ))}
@@ -538,44 +546,37 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
         )}
 
         {(step === 'executing' || step === 'done') && (
-          <ScrollArea className="max-h-60">
-            <div className="space-y-2 py-2 pr-1">
-              {step === 'done' && (
-                <p className="text-sm font-medium mb-2">
-                  {failCount === 0 ? 'All ads re-priced' : `${successCount} succeeded, ${failCount} failed`}
-                </p>
-              )}
-              {results.map((r) => (
-                <div key={r.ad.advNo} className="flex items-start gap-2 text-xs">
-                  {r.status === 'pending' && <Loader2 className="h-3.5 w-3.5 mt-0.5 shrink-0 animate-spin text-muted-foreground" />}
-                  {r.status === 'success' && <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-success" />}
-                  {r.status === 'error' && <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-destructive" />}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono truncate">{r.asset} {r.side} …{r.ad.advNo.slice(-6)}</span>
-                      <span className="text-muted-foreground tabular-nums whitespace-nowrap">
-                        {fmtINR(r.current)} → {fmtINR(r.next)}
-                      </span>
-                    </div>
-                    {r.message && <p className="text-destructive break-words">{r.message}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="space-y-2">
+            {step === 'executing' && <RunProgress done={results.filter((r) => r.status === 'success').length} total={results.length} label="Re-pricing the ladder… (failed rungs are retried)" />}
+            {step === 'done' && <RunSummary ok={successCount} failed={failCount} okText="All ads re-priced" />}
+            <ScrollArea className="max-h-64 rounded-md border border-border">
+              <div className="p-1">
+                {results.map((r) => (
+                  <RunRow
+                    key={r.ad.advNo}
+                    status={r.status}
+                    advNo={r.ad.advNo}
+                    tag={<span className="text-[11px] text-muted-foreground">{r.asset} {r.side}</span>}
+                    change={`${fmtINR(r.current)} → ${fmtINR(r.next)}`}
+                    message={r.message}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           {step === 'form' && (
             <>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
-              <Button onClick={handleConfirm} disabled={!!invalidRung || pricesLoading}>Next</Button>
+              <Button onClick={handleConfirm} disabled={!!invalidRung || pricesLoading} className="gap-1.5">Review <ArrowRight className="h-3.5 w-3.5" /></Button>
             </>
           )}
           {step === 'confirm' && (
             <>
               <Button variant="outline" onClick={() => setStep('form')}>Back</Button>
-              <Button onClick={executeUpdates}>Confirm & Apply</Button>
+              <Button onClick={executeUpdates}>Apply ladder to {ladder.length} ad{ladder.length !== 1 ? 's' : ''}</Button>
             </>
           )}
           {step === 'done' && (

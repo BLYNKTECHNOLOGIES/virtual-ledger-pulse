@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Power, PowerOff } from 'lucide-react';
 import { BinanceAd, useUpdateAdStatus, BINANCE_AD_STATUS, getAdStatusLabel } from '@/hooks/useBinanceAds';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AdDialogHeader, NoteBox, RunProgress, RunRow, RunSummary, SelectionSummary } from './adUi';
 
 interface Props {
   open: boolean;
@@ -62,55 +63,40 @@ export function BulkStatusDialog({ open, onOpenChange, ads: selectedAds, targetS
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Bulk {actionVerb} Ads</DialogTitle>
-        </DialogHeader>
+        <AdDialogHeader
+          icon={targetStatus === BINANCE_AD_STATUS.ONLINE ? Power : PowerOff}
+          tone={targetStatus === BINANCE_AD_STATUS.ONLINE ? 'success' : 'destructive'}
+          title={`${actionVerb} ads`}
+          description={targetStatus === BINANCE_AD_STATUS.ONLINE ? 'Turns the selected ads on in Binance, one by one.' : 'Turns the selected ads off in Binance, one by one.'}
+        />
+
+        <SelectionSummary ads={selectedAds} label={`${selectedAds.length} selected`} />
 
         {step === 'confirm' && (
-          <div className="space-y-3 py-2">
-            <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
-              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium">Confirm Bulk Status Change</p>
-                <p className="text-muted-foreground mt-1">
-                  {actionVerb} <strong>{ads.length}</strong> ad{ads.length !== 1 ? 's' : ''} → <strong>{statusLabel}</strong>
-                </p>
-                {alreadyCount > 0 && (
-                  <p className="text-muted-foreground mt-1">
-                    {alreadyCount} selected ad{alreadyCount !== 1 ? 's are' : ' is'} already {statusLabel} and will be skipped.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          <NoteBox tone={targetStatus === BINANCE_AD_STATUS.ONLINE ? 'info' : 'warning'} title={`${actionVerb} ${ads.length} ad${ads.length !== 1 ? 's' : ''} → ${statusLabel}`}>
+            {alreadyCount > 0 && <>{alreadyCount} selected ad{alreadyCount !== 1 ? 's are' : ' is'} already {statusLabel} and will be skipped.</>}
+          </NoteBox>
         )}
 
         {(step === 'executing' || step === 'done') && (
-          <ScrollArea className="max-h-60">
-            <div className="space-y-2 py-2">
-              {step === 'done' && (
-                <p className="text-sm font-medium mb-2">
-                  {failCount === 0 ? `✅ All ads ${actionVerb.toLowerCase()}d` : `⚠️ ${successCount} succeeded, ${failCount} failed`}
-                </p>
-              )}
-              {results.map(r => (
-                <div key={r.advNo} className="flex items-center gap-2 text-sm">
-                  {r.status === 'pending' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  {r.status === 'success' && <CheckCircle className="h-4 w-4 text-success" />}
-                  {r.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
-                  <span className="font-mono text-xs">…{r.advNo.slice(-8)}</span>
-                  {r.message && <span className="text-xs text-destructive">{r.message}</span>}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="space-y-2">
+            {step === 'executing' && <RunProgress done={results.filter(r => r.status !== 'pending').length} total={results.length} label={`${actionVerb === 'Activate' ? 'Activating' : 'Deactivating'} ads…`} />}
+            {step === 'done' && <RunSummary ok={successCount} failed={failCount} okText={`All ads ${actionVerb.toLowerCase()}d`} />}
+            <ScrollArea className="max-h-60 rounded-md border border-border">
+              <div className="p-1">
+                {results.map(r => (
+                  <RunRow key={r.advNo} status={r.status} advNo={r.advNo} message={r.message} />
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           {step === 'confirm' && (
             <>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
-              <Button onClick={executeUpdates} disabled={ads.length === 0}>{ads.length === 0 ? `Nothing to ${actionVerb.toLowerCase()}` : `${actionVerb} ${ads.length} Ad${ads.length !== 1 ? 's' : ''}`}</Button>
+              <Button onClick={executeUpdates} disabled={ads.length === 0}>{ads.length === 0 ? `Nothing to ${actionVerb.toLowerCase()}` : `${actionVerb} ${ads.length} ad${ads.length !== 1 ? 's' : ''}`}</Button>
             </>
           )}
           {step === 'done' && (

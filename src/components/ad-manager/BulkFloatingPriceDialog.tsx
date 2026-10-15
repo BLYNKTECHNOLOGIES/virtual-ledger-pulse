@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, Percent } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { zonesOf } from '@/lib/adZone';
+import { AdDialogHeader, NoteBox, RunProgress, RunRow, RunSummary, SelectionSummary, StepRail, shortAdNo } from './adUi';
 
 interface Props {
   open: boolean;
@@ -101,61 +102,54 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Bulk Floating Price Update</DialogTitle>
-        </DialogHeader>
+        <AdDialogHeader icon={Percent} title="Set floating ratio" description="Every selected floating ad gets exactly this ratio." />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SelectionSummary ads={ads} />
+          <StepRail steps={['Set', 'Review', 'Apply']} current={step === 'form' ? 0 : step === 'confirm' ? 1 : 2} />
+        </div>
 
         {step === 'form' && (
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              Set floating price ratio for <strong>{ads.length}</strong> floating ad{ads.length !== 1 ? 's' : ''}.
-            </p>
+          <div className="space-y-3">
             {zonesOf(ads as any).length > 1 && (
-              <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs">
-                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-                <p className="text-foreground">
-                  Your selection mixes <strong>P2P zone</strong> and <strong>Block zone</strong> ads. These are separate
-                  order books with different price levels — one shared ratio will misprice at least one zone.
-                </p>
-              </div>
+              <NoteBox title="Mixed zones">
+                Your selection mixes <strong>P2P zone</strong> and <strong>Block zone</strong> ads. These are separate
+                order books with different price levels — one shared ratio will misprice at least one zone.
+              </NoteBox>
             )}
 
-            <div>
+            <div className="space-y-1.5">
               <Label>New Floating Ratio (%)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                placeholder="e.g. 103.5"
-                autoFocus
-              />
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="relative">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={value}
+                  onChange={e => setValue(e.target.value)}
+                  placeholder="e.g. 103.5"
+                  autoFocus
+                  className="pr-8 text-base font-semibold tabular-nums"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
                 All selected ads will be set to exactly this ratio — the current ratio is replaced, not added to.
-              </p>
+              </div>
             </div>
           </div>
         )}
 
         {step === 'confirm' && (
-          <div className="space-y-3 py-2">
-            <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
-              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium">Confirm Bulk Floating Price Update</p>
-                <p className="text-muted-foreground mt-1">
-                  Set floating ratio to exactly <strong>{value}%</strong> for {ads.length} ad(s).
-                  Current ratios will be replaced.
-                </p>
-              </div>
-            </div>
-            <ScrollArea className="max-h-40">
-              <div className="space-y-1">
+          <div className="space-y-2">
+            <NoteBox title={`Set ${ads.length} ad${ads.length !== 1 ? 's' : ''} to ${value}%?`}>
+              Current ratios will be replaced.
+            </NoteBox>
+            <ScrollArea className="max-h-44 rounded-md border border-border">
+              <div className="p-1">
                 {ads.map(ad => (
-                  <div key={ad.advNo} className="flex items-center justify-between text-xs px-1">
-                    <span className="font-mono">…{ad.advNo.slice(-8)}</span>
-                    <span>
-                      {Number(ad.priceFloatingRatio || 0).toFixed(2)}% → <strong>{getNewRatio().toFixed(2)}%</strong>
+                  <div key={ad.advNo} className="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs odd:bg-secondary/40">
+                    <span className="flex items-center gap-1.5"><span className="font-medium text-foreground">{ad.asset}</span><span className="t-mono text-muted-foreground">{shortAdNo(ad.advNo)}</span></span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {Number(ad.priceFloatingRatio || 0).toFixed(2)}% → <strong className="text-foreground">{getNewRatio().toFixed(2)}%</strong>
                     </span>
                   </div>
                 ))}
@@ -165,38 +159,30 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
         )}
 
         {(step === 'executing' || step === 'done') && (
-          <ScrollArea className="max-h-60">
-            <div className="space-y-2 py-2">
-              {step === 'done' && (
-                <p className="text-sm font-medium mb-2">
-                  {failCount === 0 ? '✅ All ads updated' : `⚠️ ${successCount} succeeded, ${failCount} failed`}
-                </p>
-              )}
-              {results.map(r => (
-                <div key={r.advNo} className="flex items-center gap-2 text-sm">
-                  {r.status === 'pending' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  {r.status === 'success' && <CheckCircle className="h-4 w-4 text-success" />}
-                  {r.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
-                  <span className="font-mono text-xs">…{r.advNo.slice(-8)}</span>
-                  <span className="text-xs text-muted-foreground">{Number(r.oldRatio || 0).toFixed(2)}% → {Number(r.newRatio || 0).toFixed(2)}%</span>
-                  {r.message && <span className="text-xs text-destructive ml-auto">{r.message}</span>}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="space-y-2">
+            {step === 'executing' && <RunProgress done={results.filter(r => r.status !== 'pending').length} total={results.length} label="Updating floating ratios…" />}
+            {step === 'done' && <RunSummary ok={successCount} failed={failCount} okText="All ads updated" />}
+            <ScrollArea className="max-h-60 rounded-md border border-border">
+              <div className="p-1">
+                {results.map(r => (
+                  <RunRow key={r.advNo} status={r.status} advNo={r.advNo} change={`${Number(r.oldRatio || 0).toFixed(2)}% → ${Number(r.newRatio || 0).toFixed(2)}%`} message={r.message} />
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           {step === 'form' && (
             <>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
-              <Button onClick={handleConfirm}>Next</Button>
+              <Button onClick={handleConfirm} className="gap-1.5">Review <ArrowRight className="h-3.5 w-3.5" /></Button>
             </>
           )}
           {step === 'confirm' && (
             <>
               <Button variant="outline" onClick={() => setStep('form')}>Back</Button>
-              <Button onClick={executeUpdates}>Confirm & Update</Button>
+              <Button onClick={executeUpdates}>Update {ads.length} ad{ads.length !== 1 ? 's' : ''}</Button>
             </>
           )}
           {step === 'done' && (

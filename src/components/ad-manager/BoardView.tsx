@@ -1,28 +1,19 @@
 import { useMemo, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  MoreVertical, Edit, Copy, History, Lock, ShieldBan, ShieldCheck, ChevronDown, ChevronRight, SlidersHorizontal,
-} from 'lucide-react';
+import { Lock, ChevronDown, ChevronRight, Megaphone, Clock3, EyeOff } from 'lucide-react';
 import { AdAutomationIndicator, useAdAutomationMap } from './AdAutomationIndicator';
 import { BinanceAd, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
-import { QuickEditPopover } from './QuickEditPopover';
 import { AdSortMode, applyAdSort, stalePriceLabel } from './CategorizedAdTable';
 import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isBlockAd, adZone } from '@/lib/adZone';
+import { isBlockAd } from '@/lib/adZone';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
+import { AdRowActions } from './AdRowParts';
+import { ExcludedChip, HiddenChip, QtyBar, SideChip, StatusDot, ZoneChip, hiddenReasonShort, limitsText, qty } from './adUi';
 
 
 interface BoardViewProps {
@@ -56,7 +47,6 @@ function AdCard({
 }) {
   const [editingPrice, setEditingPrice] = useState(false);
   const automationMap = useAdAutomationMap();
-  const isBuy = ad.tradeType === 'BUY';
   const isOnline = ad.advStatus === BINANCE_AD_STATUS.ONLINE;
   const isPrivate = ad.advStatus === BINANCE_AD_STATUS.PRIVATE;
   const isOffline = ad.advStatus === BINANCE_AD_STATUS.OFFLINE;
@@ -64,128 +54,130 @@ function AdCard({
   const surplus = Number(ad.surplusAmount || 0);
   const outOfStock = surplus <= 0;
   const staleAge = stalePriceLabel(ad.updateTime);
-
-  const tint = isBuy ? 'bg-trade-buy/10 text-trade-buy border-trade-buy/30' : 'bg-trade-sell/10 text-trade-sell border-trade-sell/30';
+  const hidden = getAdHiddenReason(ad);
+  const methods = ad.tradeMethods || [];
 
   return (
-    <Card
+    <article
+      aria-label={`${ad.tradeType} ${ad.asset} ad …${(ad.advNo || '').slice(-8)}`}
       className={cn(
-        'relative flex min-w-0 flex-col gap-2 overflow-hidden p-3',
-        selected && 'ring-2 ring-primary',
-        isPrivate && 'border-warning/50',
-        outOfStock && 'border-destructive/50',
-        isOffline && 'opacity-60 grayscale-[.4]',
+        'relative flex min-w-0 flex-col rounded-lg border bg-card shadow-xs transition-[border-color,box-shadow] duration-150',
+        compact ? 'gap-2 p-2.5' : 'gap-3 p-3',
+        selected
+          ? 'border-primary ring-1 ring-primary'
+          : outOfStock
+            ? 'border-destructive/50'
+            : isPrivate
+              ? 'border-warning/50'
+              : 'border-border hover:border-muted-foreground/40',
       )}
     >
-      {/* Stale price dot */}
-      {staleAge && (
-        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-warning" title={`Price updated ${staleAge}`} />
-      )}
-
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label={`Select ad ${ad.advNo}`} />
-        <Badge variant="outline" className={cn('text-[10px] font-semibold', tint)}>{ad.tradeType}</Badge>
-        <span className="font-semibold text-sm text-foreground">{ad.asset}</span>
-        {isPrivate && <Lock className="h-3 w-3 text-warning" />}
-        {getAdHiddenReason(ad) && (
-          <Badge
-            variant="outline"
-            title={getAdHiddenReason(ad)!}
-            className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
-          >
-            Not visible
-          </Badge>
-        )}
-        <AccountBadge accountId={ad._exchangeAccountId} showName={false} />
-        <div className="ml-auto flex items-center gap-0.5">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onToggleExclusion} disabled={exclusionPending} aria-label="Automation exclusion">
-                  {excluded ? <ShieldBan className="h-3.5 w-3.5 text-destructive" /> : <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{excluded ? 'Excluded from automation — click to include' : 'Click to exclude from automation'}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      <div className={cn('flex min-w-0 flex-col', compact ? 'gap-1.5' : 'gap-2.5', isOffline && 'opacity-60 grayscale-[.3]')}>
+        {/* Identity */}
+        <div className="flex min-w-0 items-center gap-2">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label={`Select ad ${ad.advNo}`} />
+          <span className="text-sm font-semibold leading-none text-foreground">{ad.asset}</span>
+          <SideChip side={ad.tradeType} />
+          <ZoneChip ad={ad} />
+          <span className="whitespace-nowrap text-[11px] text-muted-foreground">{ad.priceType === 1 ? 'Fixed' : 'Floating'}</span>
+          {isPrivate && <Lock className="h-3 w-3 shrink-0 text-warning" aria-label="Private ad" />}
+          {compact && hidden && <HiddenChip reason={hidden} />}
+          <AccountBadge accountId={ad._exchangeAccountId} showName={false} />
+          <span className="t-mono ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground" title={`Ad ${ad.advNo}`}>
+            …{(ad.advNo || '').slice(-6)}
+          </span>
         </div>
-      </div>
 
-      {/* Price hero */}
-      <div className="text-2xl font-semibold tabular-nums text-foreground">
-        <InlinePriceEditor
-          ad={ad}
-          isEditing={editingPrice}
-          onRequestEdit={() => setEditingPrice(true)}
-          onClose={() => setEditingPrice(false)}
-        />
-      </div>
-
-      {/* Remaining quantity */}
-      <div className={cn('text-[11px] tabular-nums', outOfStock ? 'text-destructive' : 'text-muted-foreground')}>
-        {surplus.toLocaleString('en-IN')} {ad.asset} remaining
-      </div>
-
-      {/* Meta */}
-      <div className="flex items-center justify-between gap-2 min-w-0">
-        <span className="text-[11px] tabular-nums text-muted-foreground truncate min-w-0">
-          ₹{Number(ad.minSingleTransAmount || 0).toLocaleString('en-IN')}~₹{Number(ad.maxSingleTransAmount || 0).toLocaleString('en-IN')}
-        </span>
-        <div className="flex items-center gap-1 shrink-0 overflow-hidden">
-          {(ad.tradeMethods || []).slice(0, 2).map((m, i) => (
-            <PaymentMethodBadge key={i} identifier={m.identifier} payType={m.payType} size="sm" />
-          ))}
-          {(ad.tradeMethods || []).length > 2 && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">+{ad.tradeMethods.length - 2}</Badge>
+        {/* Price */}
+        <div>
+          <div className={cn('font-semibold leading-none tabular-nums text-foreground', compact ? 'text-lg' : 'text-2xl')}>
+            <InlinePriceEditor
+              ad={ad}
+              isEditing={editingPrice}
+              onRequestEdit={() => setEditingPrice(true)}
+              onClose={() => setEditingPrice(false)}
+            />
+          </div>
+          {staleAge && (
+            <div className="mt-1.5 flex items-center gap-1 text-[11px] text-warning" title="This ad has not been updated for over 30 minutes">
+              <Clock3 className="h-3 w-3" /> Updated {staleAge}
+            </div>
           )}
         </div>
+
+        {/* Remaining quantity */}
+        <div className="space-y-1">
+          <div className="flex items-baseline justify-between gap-2 text-[11px] tabular-nums">
+            <span className={cn('min-w-0 truncate', outOfStock ? 'font-medium text-destructive' : 'text-foreground')}>
+              {surplus.toLocaleString('en-IN')} {ad.asset} <span className={outOfStock ? undefined : 'text-muted-foreground'}>{outOfStock ? 'left — empty' : 'left'}</span>
+            </span>
+            <span className="shrink-0 text-muted-foreground">of {qty(ad.initAmount)}</span>
+          </div>
+          <QtyBar ad={ad} />
+        </div>
+
+        {/* Limits and methods */}
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[11px] tabular-nums text-muted-foreground" title="Order limit">
+            {limitsText(ad)}
+          </span>
+          <div className="flex shrink-0 items-center gap-1 overflow-hidden">
+            {methods.slice(0, 2).map((m, i) => (
+              <PaymentMethodBadge key={i} identifier={m.identifier} payType={m.payType} size="sm" />
+            ))}
+            {methods.length > 2 && (
+              <span className="inline-flex h-5 shrink-0 items-center rounded-md border border-border px-1.5 text-[10px] text-muted-foreground" title={methods.slice(2).map((x) => x.tradeMethodName || x.identifier).join(', ')}>
+                +{methods.length - 2}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {!compact && hidden && (
+          <div className="flex items-start gap-1.5 rounded-md border border-destructive/25 bg-destructive/10 px-2 py-1.5 text-[11px] leading-snug text-destructive" title={hidden}>
+            <EyeOff className="mt-px h-3 w-3 shrink-0" />
+            <span><span className="font-semibold">Not visible on Binance.</span> {hiddenReasonShort(hidden)}.</span>
+          </div>
+        )}
       </div>
 
-
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border pt-2">
-        <div className="flex items-center gap-2">
+      {/* Controls */}
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Switch
             checked={isOnline || isPrivate}
             onCheckedChange={() => onToggleStatus(ad.advNo, ad.advStatus)}
             disabled={isTogglingStatus}
             aria-label="Toggle ad status"
+            title={isOnline ? 'Switch off (take offline)' : isPrivate ? 'Switch off (private ad goes offline)' : 'Switch on (go online)'}
           />
-          <span className="text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
+            <StatusDot status={ad.advStatus} />
             {isOnline ? 'Active' : isPrivate ? 'Private' : 'Inactive'}
           </span>
         </div>
-        <div className="flex items-center gap-0.5">
+        <div className="flex min-w-0 items-center gap-1">
           <AdAutomationIndicator info={automationMap.get(ad.advNo)} />
-          <QuickEditPopover ad={ad}>
-            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Quick edit price and limits" title="Quick edit — price & limits">
-              <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
-          </QuickEditPopover>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More actions">
-                <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(ad)}><Edit className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDuplicate(ad)}><Copy className="h-3.5 w-3.5 mr-2" />Duplicate</DropdownMenuItem>
-              {onHistory && (
-                <DropdownMenuItem onClick={() => onHistory(ad.advNo)}><History className="h-3.5 w-3.5 mr-2" />History</DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {excluded && <ExcludedChip />}
+          <AdRowActions
+            ad={ad}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onHistory={onHistory}
+            canHistory
+            excluded={excluded}
+            onToggleExclusion={onToggleExclusion}
+            exclusionPending={exclusionPending}
+          />
         </div>
       </div>
-    </Card>
+    </article>
   );
 }
 
 interface ZoneProps {
   label: string;
-  tintClass: string;
+  side: 'BUY' | 'SELL';
   ads: BinanceAd[];
   sortMode: AdSortMode;
   onEdit: (ad: BinanceAd) => void;
@@ -201,8 +193,22 @@ interface ZoneProps {
   exclusionPending: boolean;
 }
 
+const CARD_GRID = 'grid grid-cols-1 gap-3 @[34rem]:grid-cols-2 @[56rem]:grid-cols-3 @[84rem]:grid-cols-4';
+
+function DeskCounts({ ads }: { ads: BinanceAd[] }) {
+  const on = ads.filter((a) => a.advStatus !== BINANCE_AD_STATUS.OFFLINE).length;
+  const hidden = ads.filter((a) => getAdHiddenReason(a)).length;
+  return (
+    <span className="flex items-center gap-2 text-[11px] tabular-nums text-muted-foreground">
+      <span><span className="font-medium text-foreground">{on}</span> on</span>
+      <span>{ads.length - on} off</span>
+      {hidden > 0 && <span className="text-destructive">{hidden} not visible</span>}
+    </span>
+  );
+}
+
 function Zone({
-  label, tintClass, ads, sortMode,
+  label, side, ads, sortMode,
   selectedAdvNos, onSelectionChange, excludedAds, onToggleExclusion, exclusionPending,
   onEdit, onToggleStatus, onHistory, onDuplicate, isTogglingStatus, compact,
 }: ZoneProps) {
@@ -215,15 +221,19 @@ function Zone({
   };
 
   return (
-    <div className="space-y-3">
-      <div className={cn('flex items-center justify-between rounded-md border px-3 py-1.5', tintClass)}>
-        <span className="text-sm font-semibold">{label} <span className="opacity-70">({ads.length})</span></span>
+    <section className="@container min-w-0 space-y-3" aria-label={label}>
+      <div className={cn('flex items-center justify-between gap-2 rounded-lg border border-border border-l-[3px] bg-card px-3 py-2', side === 'BUY' ? 'border-l-trade-buy' : 'border-l-trade-sell')}>
+        <span className="flex items-center gap-2">
+          <span className={cn('text-sm font-semibold', side === 'BUY' ? 'text-trade-buy' : 'text-trade-sell')}>{label}</span>
+          <span className="t-mono rounded bg-secondary px-1.5 text-[11px] tabular-nums text-muted-foreground">{ads.length}</span>
+        </span>
+        <DeskCounts ads={ads} />
       </div>
 
       {sorted.length === 0 ? (
-        <EmptyState icon={Megaphone} title="No ads" className="py-8" />
+        <EmptyState icon={Megaphone} title="No ads" description={`No ${side === 'BUY' ? 'buy' : 'sell'} ads match this view.`} className="rounded-lg border border-dashed border-border py-8" />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className={CARD_GRID}>
           {sorted.map((ad) => (
             <AdCard
               key={ad.advNo}
@@ -243,7 +253,7 @@ function Zone({
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -272,28 +282,32 @@ export function BoardView({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
   };
 
   if (!ads || ads.length === 0) {
-    return <EmptyState icon={Megaphone} title="No ads found" />;
+    return <EmptyState icon={Megaphone} title="No ads found" description="Nothing matches this tab, status and filters." className="rounded-lg border border-dashed border-border py-12" />;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Zone label="Buy Desk" tintClass="bg-trade-buy/10 text-trade-buy border-trade-buy/30" ads={buyAds} {...(zoneCommon as any)} />
-        <Zone label="Sell Desk" tintClass="bg-trade-sell/10 text-trade-sell border-trade-sell/30" ads={sellAds} {...(zoneCommon as any)} />
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <Zone label="Buy desk" side="BUY" ads={buyAds} {...(zoneCommon as any)} />
+        <Zone label="Sell desk" side="SELL" ads={sellAds} {...(zoneCommon as any)} />
       </div>
 
       {blockAds.length > 0 && (
-        <div className="space-y-3">
+        <section className="@container space-y-3" aria-label="Block ads">
           <button
-            className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-1.5 w-full text-left"
+            type="button"
+            className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => setBlockOpen((o) => !o)}
+            aria-expanded={blockOpen}
           >
-            {blockOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <span className="text-sm font-semibold text-foreground">Block Ads</span>
-            <span className="text-xs text-muted-foreground">({blockAds.length})</span>
+            {blockOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            <span className="text-sm font-semibold text-foreground">Block ads</span>
+            <span className="t-mono rounded bg-secondary px-1.5 text-[11px] tabular-nums text-muted-foreground">{blockAds.length}</span>
+            <span className="hidden text-[11px] text-muted-foreground sm:inline">Block zone — a separate order book</span>
+            <span className="ml-auto"><DeskCounts ads={blockAds} /></span>
           </button>
           {blockOpen && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className={CARD_GRID}>
               {applyAdSort(blockAds, sortMode).map((ad) => (
                 <AdCard
                   key={ad.advNo}
@@ -317,7 +331,7 @@ export function BoardView({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
               ))}
             </div>
           )}
-        </div>
+        </section>
       )}
     </div>
   );

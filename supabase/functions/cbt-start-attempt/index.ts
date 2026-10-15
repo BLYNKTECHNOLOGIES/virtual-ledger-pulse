@@ -71,6 +71,26 @@ Deno.serve(async (req) => {
       return fail("not_startable", "This test has already been submitted.", 409);
     }
 
+    // QZ7c: claim the start atomically — only one request builds the sections. A claim older than
+    // 2 minutes belongs to a request that died and may be taken over.
+    const claimAt = new Date().toISOString();
+    const staleBefore = new Date(Date.now() - 120_000).toISOString();
+    const { data: claimed } = await db.from("cbt_attempts").update({ start_claimed_at: claimAt })
+      .eq("id", attempt.id).eq("status", "registered")
+      .or(`start_claimed_at.is.null,start_claimed_at.lt.${staleBefore}`).select("id");
+    if (!claimed?.length) {
+      // another request is building this test: wait briefly for it, then answer with the running state
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const { data: a } = await db.from("cbt_attempts").select("status").eq("id", attempt.id).single();
+        if (a?.status === "in_progress") return json(await buildState(db, attempt.id));
+        if (a?.status !== "registered") return fail("not_startable", "This test has already been submitted.", 409);
+      }
+      return fail("preparing", "Your test is being prepared. Please wait a moment.", 409);
+    }
+    // our claim must still be ours when we flip (a takeover after 2 minutes changes it)
+    const ownClaim = claimAt;
+
     const { data: drive } = await db.from("cbt_drives").select("*").eq("id", attempt.drive_id).single();
     const { data: role } = await db.from("cbt_job_roles").select("*").eq("id", attempt.job_role_id).single();
     const { data: settings } = await db.from("cbt_settings").select("*").eq("id", true).single();
@@ -232,7 +252,7 @@ Deno.serve(async (req) => {
     const { data: flipped } = await db.from("cbt_attempts").update({
       status: "in_progress", blueprint_snapshot: snapshot, started_at: new Date().toISOString(),
       last_heartbeat_at: new Date().toISOString(), token_expires_at: tokenExpires, current_section_index: roleSections[0].order_index,
-    }).eq("id", attempt.id).eq("status", "registered").select("id");
+    }).eq("id", attempt.id).eq("status", "registered").eq("start_claimed_at", ownClaim).select("id");
     if (!flipped?.length) return json(await buildState(db, attempt.id));
 
     // enter the first section

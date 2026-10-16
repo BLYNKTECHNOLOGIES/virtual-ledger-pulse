@@ -41,6 +41,7 @@ const schema = z
     salary_max: optNum(0, 9999999999, "Salary"),
     salary_period: z.enum(["monthly", "annual"]),
     show_salary: z.boolean(),
+    is_published: z.boolean(),
     experience_min_years: optNum(0, 50, "Experience").refine((v) => v === "" || Number(v) * 2 === Math.round(Number(v) * 2), "Use steps of 0.5"),
     experience_max_years: optNum(0, 50, "Experience").refine((v) => v === "" || Number(v) * 2 === Math.round(Number(v) * 2), "Use steps of 0.5"),
     summary: z.string().max(500),
@@ -73,6 +74,7 @@ const toForm = (j: AtsJob | null | undefined, defLocation: string): FormValues =
   salary_max: s(j?.salary_max),
   salary_period: (j?.salary_period as "monthly" | "annual") ?? "monthly",
   show_salary: j?.show_salary ?? false,
+  is_published: j?.is_published ?? false,
   experience_min_years: s(j?.experience_min_years),
   experience_max_years: s(j?.experience_max_years),
   summary: j?.summary ?? "",
@@ -101,6 +103,7 @@ function toPayload(v: FormValues) {
     salary_max: num(v.salary_max),
     salary_period: v.salary_period,
     show_salary: v.show_salary,
+    is_published: v.is_published,
     experience_min_years: num(v.experience_min_years),
     experience_max_years: num(v.experience_max_years),
     summary: nn(v.summary),
@@ -216,8 +219,9 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
   const save = useAtsMutation(
     async (v: FormValues) => {
       const payload = toPayload(v);
-      if (isEdit) return updateJob({ id: job!.id, patch: payload });
-      return createJob({ ...payload, status: mode.current === "open" ? "open" : "draft" });
+      if (isEdit) return updateJob({ id: job!.id, patch: { ...payload, is_published: job!.status === "open" ? payload.is_published : false } });
+      const opening = mode.current === "open";
+      return createJob({ ...payload, is_published: opening && payload.is_published, status: opening ? "open" : "draft" });
     },
     {
       invalidate: () => [...jobKeys(job?.id), ["workforce_hiring_requirements"], ["workforce_staffing_matrix"], ["workforce_audit"]],
@@ -339,6 +343,19 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
                 <Controller control={control} name="show_salary" render={({ field }) => (
                   <Switch id="ats-show-salary" checked={field.value} onCheckedChange={field.onChange} />
                 )} />
+              </div>
+              <div className="rounded-md border border-border px-3 py-2 sm:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="ats-publish" className="font-normal">Publish on careers page</Label>
+                  <Controller control={control} name="is_published" render={({ field }) => (
+                    <Switch id="ats-publish" checked={field.value} disabled={isEdit && job!.status !== "open"} onCheckedChange={field.onChange} />
+                  )} />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isEdit
+                    ? (job!.status === "open" ? "Shows on the careers page within about 5 minutes of saving." : "Only open jobs can be published. Open this job first.")
+                    : "Applies when you create and open the job; drafts are never published."}
+                </p>
               </div>
               <Field label="Experience min (years)" error={e.experience_min_years?.message}>
                 <Input type="number" inputMode="decimal" min={0} max={50} step={0.5} className="text-foreground" {...register("experience_min_years")} />

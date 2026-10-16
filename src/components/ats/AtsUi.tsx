@@ -41,7 +41,7 @@ export const JobDetailsInput = forwardRef<HTMLTextAreaElement, {
       onChange={(event) => onChange(event.target.value)}
       onPaste={(event) => {
         const el = event.currentTarget;
-        const edit = pasteJobList(value, el.selectionStart, el.selectionEnd, event.clipboardData.getData("text/plain"));
+        const edit = pasteJobList(value, el.selectionStart, el.selectionEnd, event.clipboardData.getData("text/plain"), event.clipboardData.getData("text/html"));
         if (edit) { event.preventDefault(); apply(edit); }
       }}
       onKeyDown={(event) => {

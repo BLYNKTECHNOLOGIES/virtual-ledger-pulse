@@ -132,6 +132,14 @@ export async function handleSend(req: Request): Promise<Response> {
         references = [...extractIds(parent.references_header), parent.message_id].slice(-10).join(' ')
       }
     }
+    if (!inReplyTo) {
+      // No explicit reply target: continue the candidate's mail thread, so all mail to them stays together.
+      const parent = await latestThreadParent(admin, candidateId)
+      if (parent) {
+        inReplyTo = parent.message_id
+        references = [...extractIds(parent.references_header), parent.message_id].slice(-10).join(' ')
+      }
+    }
 
     const fileIds: string[] = Array.isArray(body?.fileIds)
       ? [...new Set<string>(body.fileIds.map((x: unknown) => String(x)).filter((x: string) => UUID_RE.test(x)))]
@@ -186,6 +194,16 @@ export async function handleSend(req: Request): Promise<Response> {
   const result = await deliver(admin, mailbox, row)
   console.log('ats-mail-send', JSON.stringify({ ok: result.ok, error: result.code ?? null, attachments: (row.attachments ?? []).length }))
   return json({ id: row.id, status: result.ok ? 'sent' : 'failed', ...(result.ok ? {} : { error: result.code }) })
+}
+
+/** The newest sent message in the candidate's thread (either direction), used to keep all their mail together. */
+export async function latestThreadParent(
+  admin: any, candidateId: string,
+): Promise<{ message_id: string; references_header: string | null } | null> {
+  const { data } = await admin.from('ats_messages').select('message_id, references_header')
+    .eq('candidate_id', candidateId).eq('status', 'sent').not('message_id', 'is', null)
+    .order('created_at', { ascending: false }).limit(1)
+  return data?.[0]?.message_id ? data[0] : null
 }
 
 /** An interview email (with its calendar invite) is only resent while the interview is still as it describes. */

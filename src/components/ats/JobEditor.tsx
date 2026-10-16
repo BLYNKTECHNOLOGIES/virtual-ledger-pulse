@@ -156,6 +156,9 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
   const reqs = useRequirementsLookup();
   const mode = useRef<"draft" | "open">("draft");
   const [confirmClose, setConfirmClose] = useState(false);
+  const reqLinks = useJobRequirementLinks(job?.id);
+  const [extraReqIds, setExtraReqIds] = useState<string[]>([]);
+  useEffect(() => { if (open) setExtraReqIds(reqLinks.data ?? []); }, [open, job?.id, reqLinks.data]);
 
   const defLocation = settings.data?.default_location ?? "";
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: toForm(job, defLocation) });

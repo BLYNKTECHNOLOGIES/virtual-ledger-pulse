@@ -240,12 +240,15 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
   const save = useAtsMutation(
     async (v: FormValues) => {
       const payload = toPayload(v);
-      if (isEdit) return updateJob({ id: job!.id, patch: { ...payload, is_published: job!.status === "open" ? payload.is_published : false } });
-      const opening = mode.current === "open";
-      return createJob({ ...payload, is_published: opening && payload.is_published, status: opening ? "open" : "draft" });
+      const saved = isEdit
+        ? await updateJob({ id: job!.id, patch: { ...payload, is_published: job!.status === "open" ? payload.is_published : false } })
+        : await createJob({ ...payload, is_published: mode.current === "open" && payload.is_published, status: mode.current === "open" ? "open" : "draft" });
+      const linked = [...new Set([v.requisition_id, ...extraReqIds].filter(Boolean))] as string[];
+      await syncJobRequirementLinks(saved.id, linked, nn(v.requisition_id));
+      return saved;
     },
     {
-      invalidate: () => [...jobKeys(job?.id), ["workforce_hiring_requirements"], ["workforce_staffing_matrix"], ["workforce_audit"]],
+      invalidate: () => [...jobKeys(job?.id), ["workforce_hiring_requirements"], ["workforce_staffing_matrix"], ["workforce_audit"], ["ats", "job-requirement-links"], ["ats", "active-job-requirement-links"], ["ats", "requirement-jobs"]],
       success: isEdit ? "Job updated" : () => (mode.current === "open" ? "Job created and opened" : "Draft saved"),
       onSuccess: (data) => {
         reset(getValues());
@@ -410,22 +413,24 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
           </section>
 
           <section className="min-w-0 space-y-3 border-t border-border pt-5 lg:col-start-1">
-            <h3 className="text-xs font-semibold text-muted-foreground">Hiring requirement (optional)</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">Hiring requirement{(watch("shift_ids") ?? []).length > 1 ? "s" : ""} (optional)</h3>
             <Controller control={control} name="requisition_id" render={({ field }) => (
-              <Select value={field.value || NONE} onValueChange={(v) => (v === NONE ? field.onChange("") : applyRequirement(v))}>
-                <SelectTrigger className="text-foreground"><SelectValue placeholder="Not linked" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Not linked</SelectItem>
-                  {reqOptions.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      <span>{o.label}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{o.status}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <RequirementLinkEditor
+                jobId={job?.id}
+                shiftIds={watch("shift_ids") ?? []}
+                shiftOptions={shifts.data ?? []}
+                reqOptions={reqOptions}
+                primaryId={field.value}
+                extraIds={extraReqIds}
+                onChange={(primary, extras) => { if (primary !== field.value) field.onChange(primary); setExtraReqIds(extras); }}
+                onPick={pickLink}
+              />
             )} />
-            <p className="text-xs text-muted-foreground">Choosing one fills in the fields that are still empty and sets Openings to the number still needed. Openings then follow the requirement automatically.</p>
+            <p className="text-xs text-muted-foreground">
+              {(watch("shift_ids") ?? []).length > 1
+                ? "Pick the requirement each shift feeds — one job post covers every shift. Choosing one fills in the fields that are still empty; openings follow the total still needed. Hires are asked their shift and fill that shift's requirement."
+                : "Choosing one fills in the fields that are still empty and sets Openings to the number still needed. Openings then follow the requirement automatically."}
+            </p>
             <JobLineShiftNotice requirementId={watch("requisition_id") || null} jobShiftIds={watch("shift_ids") ?? []} />
           </section>
 

@@ -1,8 +1,8 @@
 # Project architecture decisions
 
-- Tables wrap to available width; only wide grids set minimum widths.
+- Tables fit; narrow settlements stack to stay readable; modal widths match base breakpoints. Only wide grids set minimums.
 
-- Subdirectories have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/, src/components/terminal/, hrms/quiz/, supabase/functions/); read it before editing there.
+- Read subdirectory AGENTS.md before editing (ATS, workforce, Terminal, quiz, edge functions).
 
 - Brand images resolve through BrandLogo/brandLogos; ERP/HRMS use ThemeContext and Terminal passes its own theme, so logo contrast follows the actual surface.
 

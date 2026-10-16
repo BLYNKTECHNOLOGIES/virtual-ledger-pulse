@@ -131,3 +131,8 @@
 - [x] Link settlement order numbers to exact Sales IDs in both layouts and fetch older linked orders.
 - [x] Verify sample-record clicks at 1280/833/390, exact older-sale fetch once, destination row highlight, 322 tests and clean preview build.
 - [ ] Verify signed-in real settlement click (blocked: external unmanaged Supabase authentication unavailable).
+
+## ATS multi-shift requirement linking
+- [ ] One job links to multiple hiring requirements (per-shift pickers in job form).
+- [ ] Reconcile/openings/Workforce cards follow the full linked set; hires keep filling the right shift's requirement.
+- [ ] Requirements already linked to an active job hidden by default in the picker, visible on expand.

@@ -14,6 +14,7 @@
 - In the job form's "Hiring requirement" section, when the job has multiple shifts you get one picker **per selected shift**, each offering the recruiting requirements for that shift's staffing line (same department/role). Picking one still auto-fills empty fields as today.
 - A job with one shift behaves exactly as today.
 - Openings = total still-needed across the linked requirements; you can still edit it.
+- **Already-linked requirements are hidden by default**: a requirement linked to another active (open) job no longer appears in the picker list. An "Show requirements already linked to a job" expander reveals them — marked with the job they're linked to — in the rare case you deliberately want to share one. Requirements linked to *this* job always stay visible.
 
 ### 3. Everything else follows the set of linked requirements
 - **Workforce Planning**: each linked requirement's card and detail show this job; the job page's Workforce section shows each linked requirement with its own progress.

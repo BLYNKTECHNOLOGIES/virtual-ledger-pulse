@@ -262,8 +262,7 @@ Deno.serve(async (req) => {
     if (rErr) throw rErr;
     const r = res as { candidate_id: string; application_id: string; duplicate: boolean; job_matched: boolean | null };
 
-    // preferred shifts (optional; never fails the application)
-    const shifts = parsePreferredShifts(p.preferred_shifts);
+    // preferred shifts (validated above; storing never fails the application)
     if (shifts) {
       try {
         const { data: cur } = await db.from("ats_applications").select("preferred_shifts").eq("id", r.application_id).maybeSingle();

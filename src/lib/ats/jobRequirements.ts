@@ -10,7 +10,8 @@ export function useJobRequirementLinks(jobId?: string | null) {
     queryKey: ["ats", "job-requirement-links", jobId],
     enabled: !!jobId,
     queryFn: async (): Promise<string[]> => {
-      const { data, error } = await supabase.from("ats_job_requirements" as any).select("requirement_id").eq("job_id", jobId!);
+      if (!jobId) return [];
+      const { data, error } = await supabase.from("ats_job_requirements" as any).select("requirement_id").eq("job_id", jobId);
       if (error) throw error;
       return (data ?? []).map((r: any) => r.requirement_id as string);
     },
@@ -23,7 +24,7 @@ export interface LinkedJobRef { jobId: string; jobTitle: string }
 /** requirement_id → the open/paused job already feeding it (single link + link table). */
 export function useActiveJobRequirementLinks(excludeJobId?: string | null) {
   return useQuery({
-    queryKey: ["ats", "active-job-requirement-links"],
+    queryKey: ["ats", "active-job-requirement-links", excludeJobId ?? null],
     queryFn: async (): Promise<Map<string, LinkedJobRef>> => {
       const [{ data: jobs, error: e1 }, { data: links, error: e2 }] = await Promise.all([
         supabase.from("ats_jobs").select("id, title, requisition_id").in("status", ["open", "paused"]),

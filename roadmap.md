@@ -133,6 +133,7 @@
 - [ ] Verify signed-in real settlement click (blocked: external unmanaged Supabase authentication unavailable).
 
 ## ATS multi-shift requirement linking
+- [ ] Repair and verify hidden requirements expansion with selectable entries and matching eligibility counts.
 - [x] One job links to multiple hiring requirements (per-shift pickers in job form).
 - [x] Reconcile/openings/Workforce cards follow the full linked set; hires keep filling the right shift's requirement.
 - [x] Requirements already linked to an active job hidden by default in the picker, visible on expand.

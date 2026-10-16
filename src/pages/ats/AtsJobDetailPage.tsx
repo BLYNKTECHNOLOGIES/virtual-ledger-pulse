@@ -198,7 +198,9 @@ export default function AtsJobDetailPage() {
               <Fact label="Experience">{fmtExperience(j.experience_min_years, j.experience_max_years)}</Fact>
               <Fact label="Hiring manager">{manager ?? "—"}</Fact>
               <Fact label="Target date">{fmtDate(j.target_close_date)}</Fact>
-              <Fact label="Hiring requirement">{j.requisition_id ? <Link className="t-mono text-primary hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${j.requisition_id}`}>{reqNo === "Linked" ? "Open" : reqNo}</Link> : "—"}</Fact>
+<Fact label={`Hiring requirement${linkedReqIds.length > 1 ? "s" : ""}`}>{linkedReqIds.length ? linkedReqIds.map((rid, i) => (
+                <span key={rid}>{i > 0 && " · "}<Link className="t-mono text-primary hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${rid}`}>{reqs.data?.find((r: any) => r.id === rid)?.requirement_no ?? (i === 0 && reqNo === "Linked" ? "Open" : "Linked")}</Link></span>
+              )) : "—"}</Fact>
               <Fact label="Created">{j.created_by_name ?? "—"}<span className="block text-xs text-muted-foreground">{fmtDateTime(j.created_at)}</span></Fact>
               <Fact label="Opened">{fmtDateTime(j.opened_at)}</Fact>
               {j.status === "closed" && <Fact label="Closed">{j.closed_reason ?? fmtDateTime(j.closed_at)}{j.closed_reason && <span className="block text-xs text-muted-foreground">{fmtDateTime(j.closed_at)}</span>}</Fact>}

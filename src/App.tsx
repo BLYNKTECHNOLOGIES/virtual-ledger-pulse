@@ -1029,6 +1029,7 @@ function App() {
   return (
     <React.StrictMode>
       <ThemeProvider>
+        <TooltipProvider>
         <AuthProvider>
           <Suspense fallback={<RouteFallback />}>
             <RouterProvider router={router} />

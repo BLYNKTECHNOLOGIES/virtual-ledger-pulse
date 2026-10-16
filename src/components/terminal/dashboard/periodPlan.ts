@@ -107,7 +107,9 @@ export function planDashboardPeriod(filter: TimeFilter, now: number, heldSplit: 
 
   const summaryWindows: [number, number][] = shift === 'all'
     ? [[periodStart, heldSplit]]
-    : windows.filter((w) => w.start < heldSplit).map((w) => [w.start, Math.min(w.end, heldSplit)] as [number, number]);
+    // A window that starts exactly on the split is kept ([split, split]): the summary's raw part
+    // then counts a row created on that very millisecond, which the browser leaves out (R2 · C7).
+    : windows.filter((w) => w.start <= heldSplit).map((w) => [w.start, Math.min(w.end, heldSplit)] as [number, number]);
 
   const started = windows.filter((w) => w.start <= now);
   const chartStart = started.length ? Math.min(...started.map((w) => w.start)) : now;

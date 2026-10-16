@@ -271,9 +271,12 @@ export function TimePeriodFilter({ value, onChange, compact = false }: Props) {
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={(d) => {
-                  if (d) {
-                    onChange({ mode: '1d', date: d, shift: activeShift });
+                onSelect={(d, clicked) => {
+                  // Clicking the highlighted day (today, while a preset or range is active) reports
+                  // undefined ("deselect"); it still means "show this day".
+                  const day = d ?? clicked;
+                  if (day) {
+                    onChange({ mode: '1d', date: day, shift: activeShift });
                     setCalOpen(false);
                   }
                 }}

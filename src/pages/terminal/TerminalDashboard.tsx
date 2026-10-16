@@ -16,7 +16,7 @@ import {
 import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { useOrderSummary } from '@/hooks/useOrderSummary';
 import { planDashboardPeriod, makePlanPredicate, sealedCutoffAt } from '@/components/terminal/dashboard/periodPlan';
-import { useDashboardClock, useDashboardOrders, useDashboardSyncMetadata, useUserChangePending } from '@/components/terminal/dashboard/dashPeriodHooks';
+import { useDashboardClock, useDashboardOrders, useDashboardSyncMetadata, useReadPeriodState, useUserChangePending } from '@/components/terminal/dashboard/dashPeriodHooks';
 import { toDashboardOrders } from '@/components/terminal/dashboard/dashboardOrders';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { mergeStatsWithSummary } from '@/lib/orderSummary';
@@ -76,18 +76,25 @@ export default function TerminalDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [windowPlan.usesSummary, windowPlan.summary.startTimestamp, windowPlan.sealedCutoff, JSON.stringify(windowPlan.summary.windows)]);
   const {
-    aggregate: sealedSummary, isLoading: summaryLoading, isError: summaryError, isFetching: summaryFetching,
-    isPlaceholderData: summaryPlaceholderRaw, dataUpdatedAt: summaryUpdatedAt, refetch: refetchSummary,
+    aggregate: sealedSummary, status: summaryStatus, fetchStatus: summaryFetchStatus, isError: summaryError,
+    isPlaceholderData: summaryPlaceholderRaw, dataUpdatedAt: summaryUpdatedAt, errorUpdatedAt: summaryErrorUpdatedAt,
+    refetch: refetchSummary,
   } = useOrderSummary(summaryArgs);
+  // A summary read in progress: fetching, or paused while offline. With no rows of its own it is
+  // still loading; one that failed stays "failed" while it runs again (TanStack clears the error then).
+  const summaryRunning = summaryFetchStatus !== 'idle';
+  const summaryLoading = summaryStatus === 'pending' && summaryRunning;
+  const summaryFailed = summaryError || (summaryRunning && summaryErrorUpdatedAt > summaryUpdatedAt);
+  const rawOrders = useDashboardOrders(windowPlan);
   const {
-    data: cachedOrders, isLoading: rawLoading, isError: rawError,
-    isPlaceholderData: rawPlaceholderRaw, dataUpdatedAt: rawUpdatedAt, lastReadAt, refetch: refetchDb,
+    data: cachedOrders, isError: rawError, dataUpdatedAt: rawUpdatedAt, lastReadAt, refetch: refetchDb,
     refetchFailed: refetchFailedDb, retryBusy: rawRetryBusy,
-  } = useDashboardOrders(windowPlan);
+  } = rawOrders;
   // Each order-history read that lands advances the clock too.
   useEffect(() => { if (lastReadAt) bumpClock(); }, [lastReadAt, bumpClock]);
-  // Time-driven key changes keep the previous rows (trimmed) silently; only a user change shows "Updating…".
-  const rawPlaceholder = useUserChangePending(userKey, rawPlaceholderRaw);
+  // Shimmer on a first load and while a failed part runs again; after a user change the previous
+  // rows stay dimmed with "Updating…"; time-driven key changes keep the previous rows silently (R2).
+  const { loading: rawLoading, placeholder: rawPlaceholder } = useReadPeriodState(userKey, rawOrders);
   const summaryPlaceholder = useUserChangePending(userKey, summaryPlaceholderRaw);
   const dbLoading = rawLoading || (windowPlan.usesSummary && summaryLoading);
 
@@ -221,11 +228,13 @@ export default function TerminalDashboard() {
   // Read failures. "Missing" = nothing was ever loaded for this period; otherwise a refresh
   // failed and the last loaded figures stay on screen.
   const rawMissing = rawError && rawUpdatedAt === 0;
-  const summaryMissing = windowPlan.usesSummary && summaryError && summaryUpdatedAt === 0;
+  const summaryMissing = windowPlan.usesSummary && summaryFailed && summaryUpdatedAt === 0;
   const sealedOrders = windowPlan.usesSummary ? sealedSummary.totalOrders : 0;
-  const loadFailed = rawError || (windowPlan.usesSummary && summaryError);
+  const loadFailed = rawError || (windowPlan.usesSummary && summaryFailed);
   // Nothing at all could be read for the period: panels say so instead of showing zeros.
-  const periodUnavailable = !dbLoading && ((rawMissing && sealedOrders === 0) || (summaryMissing && orders.length === 0));
+  // While the previous choice's rows are still on screen ("Updating…") the panels are not marked unavailable.
+  const userChangeShowing = rawPlaceholder || (windowPlan.usesSummary && summaryPlaceholder);
+  const periodUnavailable = !dbLoading && !userChangeShowing && ((rawMissing && sealedOrders === 0) || (summaryMissing && orders.length === 0));
   // Right after a period change the previous period's rows stay on screen until the new read
   // lands. With nothing of them left in the new period the panels shimmer; otherwise the
   // figures are dimmed and marked "Updating…".
@@ -235,7 +244,7 @@ export default function TerminalDashboard() {
   const periodLoading = dbLoading || periodPending;
   // Retry re-runs only the read that failed; the strip stays (with its button) while it runs.
   // R8: busy only while a read that failed runs again.
-  const retryBusy = rawRetryBusy || (windowPlan.usesSummary && summaryError && summaryFetching);
+  const retryBusy = rawRetryBusy || (windowPlan.usesSummary && summaryFailed && summaryRunning);
   const [retrying, holdRetry] = useRetryHold(retryBusy);
   const titleRef = useRef<HTMLHeadingElement>(null);
   useFocusAfterRetry(retrying, loadFailed, titleRef);
@@ -316,7 +325,7 @@ export default function TerminalDashboard() {
               if (retryBusy) return;
               holdRetry();
               if (rawError) refetchFailedDb();
-              if (windowPlan.usesSummary && summaryError) refetchSummary();
+              if (windowPlan.usesSummary && summaryFailed) refetchSummary();
             }}
           >
             <RefreshCw className={cn('h-3 w-3', retryBusy && 'animate-spin')} aria-hidden="true" />

@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync, readdirSync } from "fs";
 import path from "path";
-import { QueryClient, QueryObserver } from "@tanstack/query-core";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import {
   planDashboardPeriod, makePlanPredicate, sealedCutoffAt, readKey, summaryKey, istDayStart,
   type DashboardPeriodPlan, type ReadRange,
@@ -139,7 +139,8 @@ const SIM_ORDERS = makeOrders(ist(2026, 7, 20), T0 + 72 * H);
 
 describe("V1b · 72 h in 60 s steps from 15 Oct 16:40 IST (split and choice held)", () => {
   for (const [name, f, kind] of SIM) {
-    it(name, () => {
+    // 72 h × 60 s plans; 1Y + a shift takes about 5 s on a loaded machine (R2 · C5).
+    it(name, { timeout: 60_000 }, () => {
       const held = sealedCutoffAt(T0);
       let prev = planDashboardPeriod(f, T0, held, T0);
       const at2359 = planDashboardPeriod(f, ist(2026, 10, 15, 23, 59), held, T0);
@@ -323,7 +324,7 @@ describe("V1g · no 'Up to' on the dashboard", () => {
 
 // ───────────────────────── V1h · R9 trim cost ─────────────────────────
 describe("V1h · R9 · 1Y + Evening plan + one trim pass per tick", () => {
-  it("after ≤ 1/5 of before, same result", () => {
+  it("after ≤ 1/5 of before (medians of interleaved runs), same result", { timeout: 60_000 }, () => {
     const now = ist(2026, 10, 15, 16, 40), held = sealedCutoffAt(now);
     const rows = Array.from({ length: 11518 }, (_, i) => held + 1 + Math.floor((i / 11518) * (now - held)));
     const f: TimeFilter = { mode: "1y", shift: "shift3" };
@@ -334,8 +335,12 @@ describe("V1h · R9 · 1Y + Evening plan + one trim pass per tick", () => {
       return { ms: (performance.now() - t) / 20, n };
     };
     time(naive); time(makePlanPredicate); // warm-up
-    const before = time(naive), after = time(makePlanPredicate);
-    console.log(`V1h | ${TZ} | before ${before.ms.toFixed(2)} ms, after ${after.ms.toFixed(2)} ms per tick (${rows.length} rows, ${planDashboardPeriod(f, now, held).windows.length} windows)`);
+    // Interleaved runs, compared by their medians, so a busy machine does not fail the test (R2 · C5).
+    const msBefore: number[] = [], msAfter: number[] = []; let nb = 0, na = 0;
+    for (let i = 0; i < 7; i++) { const x = time(naive), y = time(makePlanPredicate); msBefore.push(x.ms); msAfter.push(y.ms); nb = x.n; na = y.n; }
+    const median = (v: number[]) => [...v].sort((p, q) => p - q)[Math.floor(v.length / 2)];
+    const before = { ms: median(msBefore), n: nb }, after = { ms: median(msAfter), n: na };
+    console.log(`V1h | ${TZ} | before ${before.ms.toFixed(2)} ms, after ${after.ms.toFixed(2)} ms per tick, medians of 7 (${rows.length} rows, ${planDashboardPeriod(f, now, held).windows.length} windows)`);
     expect(after.n).toBe(before.n);
     expect(after.ms).toBeLessThanOrEqual(before.ms / 5);
     // exactness over every minute of the year for a sample of the plan
@@ -372,7 +377,7 @@ describe("V1j · R8 · Retry busy and scope", () => {
     expect(combineDashboardParts(part({}), part({ isError: true, isFetching: true })).retryBusy).toBe(true);
   });
   it("Retry re-runs only the failed part", () => {
-    const r = { isError: false, refetch: vi.fn() }, o = { isError: true, refetch: vi.fn() };
+    const r = { ...part({}), refetch: vi.fn() }, o = { ...part({ isError: true }), refetch: vi.fn() };
     retryFailedParts(r, o);
     expect(r.refetch).not.toHaveBeenCalled(); expect(o.refetch).toHaveBeenCalledTimes(1);
   });

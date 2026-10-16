@@ -1,14 +1,18 @@
 /**
- * TD-FIX-B F5 (+ R1/R3/R4/R8) — dashboard-only hooks: one page clock, the scheduled
+ * TD-FIX-B F5 (+ R1/R3/R4/R8, R2) — dashboard-only hooks: one page clock, the scheduled
  * order-history reads (recent every 60 s, older every 30 min, visible tab only), and a
  * refreshed sync-status read for the pill. Terminal Analytics does not use these.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { fetchCachedOrderRows, fetchSyncMetadata } from '@/hooks/useBinanceOrderSync';
 import { isUserChangePending } from './periodPlan';
-import { combineDashboardParts, createDashboardClock, dashboardReadOptionsBase, retryFailedParts, type PartState } from './dashParts';
+import {
+  combinePartFlags, createDashboardClock, dashboardReadOptionsBase, mergePartRows, readPeriodState, retryFailedParts,
+  type CombinedFlags, type PartState,
+} from './dashParts';
 export { combineDashboardParts, createDashboardClock, retryFailedParts } from './dashParts';
 import { DashboardPeriodPlan, OLDER_REREAD_MS, RECENT_REREAD_MS, ReadRange } from './periodPlan';
 
@@ -26,7 +30,9 @@ export function useDashboardClock(): [number, () => void] {
   useEffect(() => {
     const clock = clockRef.current!;
     const id = setInterval(() => clock.tick(), 60_000);
-    const onVis = () => clock.visibilityChanged();
+    // R2 · C3: commit the new clock (and so the new read keys) before TanStack's own
+    // visibilitychange listener on window runs its focus refetch, so stale keys are not re-read.
+    const onVis = () => { flushSync(() => clock.visibilityChanged()); };
     document.addEventListener('visibilitychange', onVis);
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
   }, []);
@@ -46,14 +52,15 @@ export function useDashboardOrders(plan: DashboardPeriodPlan) {
   const recent = useRead(plan.recent, plan.scheduled, RECENT_REREAD_MS);
   const older = useRead(plan.older, plan.scheduled, OLDER_REREAD_MS);
   const hasOlder = !!plan.older;
-  const combined = useMemo(
-    () => combineDashboardParts(recent as PartState, hasOlder ? (older as PartState) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [recent.data, recent.isLoading, recent.isPlaceholderData, recent.isError, recent.isFetching, recent.dataUpdatedAt,
-      older.data, older.isLoading, older.isPlaceholderData, older.isError, older.isFetching, older.dataUpdatedAt, hasOlder],
+  // R2 · C4: the merged rows change only when a part's rows change, not on every fetch start/end.
+  const data = useMemo(
+    () => mergePartRows(recent.data, hasOlder ? older.data : undefined),
+    [recent.data, older.data, hasOlder],
   );
+  const flags = combinePartFlags(recent as PartState, hasOlder ? (older as PartState) : null);
   return {
-    ...combined,
+    data,
+    ...flags,
     /** Universal sync: refresh every part. */
     refetch: () => { recent.refetch(); if (hasOlder) older.refetch(); },
     /** Retry (R8): only the part(s) that failed. */
@@ -71,6 +78,17 @@ export function useDashboardSyncMetadata() {
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
+}
+
+/**
+ * R2 · C1 — the order-history state as the page shows it (see readPeriodState): shimmer on a
+ * first load and while a failed part runs again; "Updating…" only after a user change.
+ */
+export function useReadPeriodState(userKey: string, flags: Pick<CombinedFlags, 'isLoading' | 'partial' | 'isPlaceholderData'>) {
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  const state = readPeriodState(flags, settledKey, userKey);
+  useEffect(() => { if (state.settled) setSettledKey(userKey); }, [state.settled, userKey]);
+  return state;
 }
 
 /**

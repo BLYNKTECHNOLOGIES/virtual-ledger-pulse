@@ -15,6 +15,7 @@ import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { RouteFallback } from './components/shared/RouteFallback';
 import { ThemeProvider } from './contexts/ThemeContext';
 

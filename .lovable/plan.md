@@ -1,28 +1,52 @@
-# UM-R0 — design review only
+# Per-job application form builder (ATS → careers page)
 
-No application changes; review of the proposed atomic UI script.
+## What you get
+In the job form (New job / Edit job) a new **Application form** section where HR decides, per job, what the careers-page form asks:
 
-| ID | OK / change | One-line note |
-|---|---|---|
-| D1 | OK | Preserve existing tab permissions; map `settings` to `online`, fall back only after permissions finish loading, and retain unrelated URL parameters. |
-| D2 | OK | Filter before slicing into pages of 50; reset the page on filter changes and derive “No role” from the existing role mapping. |
-| D3 | Change | Matrix is fine; templates are an explicit selection-behaviour exception—keep the existing create payload and do not copy Edit role’s function queries/writes. |
-| D5 | OK | Remove duplicate save-result toasts only; retain validation, later-operation error handling, audits and self-role permission invalidations. |
-| D6 | OK | Replace debug details with the disabled button and reason; retain the exact creation checks and loading state. |
-| D7 | OK | “Online now” fits the existing view; it means activity within five minutes, not guaranteed current presence. |
-| D8 | Change | Explicit extra-read exception to “every query unchanged”; execute only for Super Admins with the identical pending query and key. |
-| D11 | OK | Clear all three picks on Cancel, matching the existing dismiss handler; do not change approval validation or submissions. |
-| D12 | OK | Limit `showFallback={false}` to inline action gates; retain page-level denial and every permission check. |
-| D16 | OK | Null-safe search fixes the confirmed unsafe `last_name.toLowerCase()`; safely handle every nullable searched field. |
-| (a) | OK | The current New user dialog supplies no role, and the live creation RPC inserts none. |
-| (b) | Change | Say “Rejects the sign-up and attempts account removal”; deletion errors are not checked, so email/phone reuse is not guaranteed. |
-| (c) | Change | Say “Requires sign-in again at the next successful session check”; checks run every 30 seconds, not immediate server-side revocation. |
-| (d) | OK | Live `users.role_id` FK is `NO ACTION`; “Move them to another role first” is appropriate for assigned roles. |
+1. **Standard fields**: each one set to **Required / Optional / Hidden**:
+   Phone, Email, Total experience, Current CTC, Expected CTC, Notice period, Current location, Skills, LinkedIn, Cover letter, Resume upload.
+   - Name is always required. You need at least one way to contact the candidate (phone or email), so the form won't let you hide both.
+   - Shift preference stays automatic: it is required whenever the job offers more than one shift.
+2. **Custom questions**: add, reorder, edit or remove questions for this job only. Each question has:
+   - Type: short text, long text, number, yes/no, single choice, multiple choice, date, link
+   - Required on/off, help text, options (for choice types), max length or min/max for numbers
+   - **Knockout rule** (optional): for example "Are you willing to work night shifts? → No" flags the application as *Not a fit* for HR review. It never auto-rejects the candidate and never sends an email.
+3. **Form templates**: "Save as template" / "Start from template" (for example *Operations default*, *KYC role*). A template is copied into the job. Editing the template later never changes jobs that were already posted.
+4. **Preview**: a live preview of what the candidate will see.
+5. **Safe defaults**: existing jobs and any new job without changes keep exactly today's form, so nothing breaks on the website.
+6. **Changes after applications arrive**: you can still edit the form. Old applications keep the questions and answers they were submitted with. A notice warns you that past applicants answered an older version.
 
-- D1/D2/D3/D8/D11/D16 are small behaviour exceptions, not strictly cosmetic; record them explicitly while leaving calls, authorization and audits unchanged.
-- Existing provisioning conflict: New user currently calls `create_user_with_password`, whereas the standing rule requires `create-erp-user` for linked Auth/ERP accounts; flag separately, not a silent redesign fix.
-- Keep Blynk cyan and existing typography/tokens; tables must fit without unnecessary horizontal scrolling, phone cards must retain all actions, and tier chips must not redefine hierarchy.
+## Where answers show up
+- The candidate's Application/Review panel shows each custom question with the candidate's answer, labelled with the question text as it was when they applied. Knockout flags show as a badge.
+- The Candidates list gets a "Not a fit" filter. The Excel export includes the custom answers.
 
-## Verification boundary
+## Server-side enforcement (cannot be bypassed by the website)
+- The careers job feed publishes each job's form definition.
+- The application intake checks every submission against that job's form:
+  - required fields must be present
+  - hidden fields are ignored
+  - answers must match the question type and options
+  - unknown questions are dropped
+- When a submission fails these checks, the intake returns a clear error code the website can show to the candidate.
 
-Reviewed current page/dialog/hook source, live creation function and role foreign key, project rules, and the supplied Horilla repository reference. Account creation, rejection and forced logout were not executed; no test accounts or records were created. The future atomic script still needs review against these constraints.
+## Technical details
+- DB (one migration):
+  - `ats_jobs.application_form jsonb` (null = legacy default), validated by a trigger: allowed keys, types, and at least one of phone or email required or optional.
+  - New table `ats_form_templates` (name, form jsonb, timestamps), with grants and RLS for HR staff via `hr_is_hr_staff`.
+  - `ats_applications.form_snapshot jsonb` (form version used) and `knockout_flags text[]`.
+- `ats-public-jobs`: adds `application_form` to each job, resolved to the full effective form (legacy default when null) so the website always gets a complete definition. `form_version` is a hash, so the website cache knows when the form changed.
+- `ats-intake`:
+  - validates against the effective form
+  - stores custom answers under `answers.custom[question_id]`
+  - writes `form_snapshot` and knockout flags
+  - error codes: `invalid: required:<key>`, `invalid: answer:<id>`
+- UI: new `ApplicationFormEditor` inside JobEditor, built from the existing AtsUi primitives. Templates live in `src/lib/ats/forms.ts`. Tests cover required/hidden/knockout validation.
+- Records the rule in `src/components/ats/AGENTS.md` and adds one STATE_LOG line.
+
+## Prompt for the website project (delivered after deployment)
+I'll give you a ready-to-paste prompt. It tells the website to:
+- build the apply form from each job's `application_form` instead of fixed fields
+- render each question type and honour Required/Hidden
+- send custom answers as `answers: { [question_id]: value }`
+- show the server's error codes to the candidate
+- fall back to the current form when `application_form` is missing

@@ -122,7 +122,14 @@ async function notifyCandidate(
   const { data: parents } = await admin.from('ats_messages').select('message_id, references_header')
     .eq('interview_id', ctx.iv.id).eq('direction', 'outbound').eq('status', 'sent')
     .order('created_at', { ascending: false }).limit(1)
-  const parent = parents?.[0]?.message_id ? parents[0] : null
+  // No interview thread yet: continue the candidate's general thread, so all their mail stays together.
+  let parent = parents?.[0]?.message_id ? parents[0] : null
+  if (!parent) {
+    const { data: anyPrev } = await admin.from('ats_messages').select('message_id, references_header')
+      .eq('candidate_id', ctx.cand.id).eq('status', 'sent').not('message_id', 'is', null)
+      .order('created_at', { ascending: false }).limit(1)
+    parent = anyPrev?.[0]?.message_id ? anyPrev[0] : null
+  }
   const references = parent ? [...extractIds(parent.references_header), parent.message_id].slice(-10).join(' ') : null
 
   const cancel = action === 'cancel'

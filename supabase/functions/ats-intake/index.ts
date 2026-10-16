@@ -244,6 +244,13 @@ Deno.serve(async (req) => {
     };
     const answers = { experience_text, expected_ctc_text, notice_period_text, skills_text, linkedin };
 
+    // shift preference is mandatory when the matched job offers multiple shifts
+    const shifts = parsePreferredShifts(p.preferred_shifts);
+    if (slug) {
+      const { data: job } = await db.from("ats_jobs").select("shift_ids").eq("slug", slug).eq("status", "open").maybeSingle();
+      if (job && Array.isArray(job.shift_ids) && job.shift_ids.length > 1 && !shifts) throw new Invalid("preferred_shifts");
+    }
+
     // create (idempotent)
     stage = "create";
     const { data: res, error: rErr } = await db.rpc("ats_intake_application", {
@@ -255,8 +262,7 @@ Deno.serve(async (req) => {
     if (rErr) throw rErr;
     const r = res as { candidate_id: string; application_id: string; duplicate: boolean; job_matched: boolean | null };
 
-    // preferred shifts (optional; never fails the application)
-    const shifts = parsePreferredShifts(p.preferred_shifts);
+    // preferred shifts (validated above; storing never fails the application)
     if (shifts) {
       try {
         const { data: cur } = await db.from("ats_applications").select("preferred_shifts").eq("id", r.application_id).maybeSingle();

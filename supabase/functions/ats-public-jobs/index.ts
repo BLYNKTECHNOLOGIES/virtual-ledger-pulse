@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
       requirements: j.requirements,
       benefits: j.benefits,
       shifts: (j.shift_ids ?? []).map((id: string) => sMap.get(id)).filter(Boolean),
+      shift_required: (j.shift_ids ?? []).length > 1,
       posted_at: j.opened_at ?? j.created_at,
       valid_through: j.target_close_date,
     }));

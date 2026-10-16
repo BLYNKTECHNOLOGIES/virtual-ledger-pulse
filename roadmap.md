@@ -126,3 +126,7 @@
 - [x] Remove duplicate employee-level attendance exception analysis.
 - [x] Verify direct database totals, owner exclusions, TypeScript, and preview build.
 - [ ] Verify signed-in desktop/mobile layout, selectors, drill-down, and exports (blocked: external Supabase authentication is unavailable to automated browser checks).
+
+## Settlement Sales links
+- [x] Link settlement order numbers to exact Sales IDs in both layouts and fetch older linked orders.
+- [ ] Verify navigation and highlight; authenticated live check blocked by external unmanaged Supabase.

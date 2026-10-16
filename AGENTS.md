@@ -1,6 +1,7 @@
 # Project architecture decisions
 
-- Tables fit; narrow settlements stack to stay readable; modal widths match base breakpoints. Only wide grids set minimums.
+- Tables fit; narrow settlements stack; modal widths match breakpoints. Only wide grids set minimums.
+- Settlement links use sales_view and Sales orderId; fetch missing linked orders to reach older sales.
 
 - Read subdirectory AGENTS.md before editing (ATS, workforce, Terminal, quiz, edge functions).
 

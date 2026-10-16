@@ -16,12 +16,25 @@ describe("job list formatting", () => {
     expect(pasteJobList("", 0, 0, points.join("\n\n"))?.value).toBe(points.map((point) => `• ${point}`).join("\n"));
   });
   test("preserves existing bullets and numbering, including Windows line endings", () => {
-    expect(pasteJobList("", 0, 0, "• Accuracy\r\n\r\n• Speed")?.value).toBe("• Accuracy\n• Speed");
+    expect(pasteJobList("", 0, 0, "• Accuracy\r\n\r\n• Speed")?.value).toBe("• Accuracy\n\n• Speed");
     expect(pasteJobList("", 0, 0, "1. Accuracy\n2. Speed")?.value).toBe("1. Accuracy\n2. Speed");
   });
   test("single paragraphs use normal paste and selected content is replaced", () => {
     expect(pasteJobList("", 0, 0, "A single paragraph.\n")).toBeNull();
     expect(pasteJobList("Intro\nOld\nOutro", 6, 9, "Accuracy\nSpeed")?.value).toBe("Intro\n• Accuracy\n• Speed\nOutro");
+  });
+  test("preserves section headings, open-circle bullets and numbered responsibilities", () => {
+    const text = "Key Responsibilities\n\n1. Payment Execution\n\n○ Execute UPI or IMPS payments promptly.\n○ Ensure accuracy in amounts.\n\n2. Timely Response\n\n○ Act on payment requests immediately.";
+    expect(pasteJobList("", 0, 0, text)?.value).toBe(text);
+  });
+  test("preserves prose paragraphs instead of bulleting them", () => {
+    const paragraph = "The Junior External Compliance Officer will support the Compliance Department in managing regulatory, documentation, and external coordination activities. This role requires frequent intercity and interstate travel.";
+    expect(pasteJobList("", 0, 0, `${paragraph}\n\nThe ideal candidate should be comfortable with travel.`)?.value).toBe(`${paragraph}\n\nThe ideal candidate should be comfortable with travel.`);
+  });
+  test("preserves indented nested lists", () => {
+    const text = "Travel & Field Operations\n\n• Travel regularly.\n  ◦ Visit government offices.\n\nDocumentation & Reporting\n\n• Maintain records.";
+    expect(pasteJobList("", 0, 0, text)?.value).toBe(text);
+    expect(continueJobList("  ◦ Visit offices.", 17, 17)?.value).toBe("  ◦ Visit offices.\n  ◦ ");
   });
   test("pasting into an empty bullet does not duplicate its marker", () => {
     const edit = pasteJobList("• ", 2, 2, "Accuracy\nSpeed");

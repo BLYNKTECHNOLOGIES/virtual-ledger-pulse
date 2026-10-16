@@ -17,7 +17,8 @@ import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotPanel, type CopilotPick } from './chat/CopilotPanel';
 import { CopilotEntryDialog } from './chat/CopilotEntryDialog';
 import { useCopilotAccess, copilotLearn, copilotUndo, type CopilotError, type LearnBody } from '@/hooks/useCopilotPlaybook';
-import { cycleIndex, latestUnanswered, learnToast, unfilledTokens } from '@/lib/copilot/copilotText';
+import { copilotAdmin } from '@/hooks/useCopilotAdmin';
+import { cycleIndex, latestUnanswered, learnToast, pickKey, sameText, unfilledTokens } from '@/lib/copilot/copilotText';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
 import { playMessageSound } from '@/lib/chatSound';
@@ -127,9 +128,30 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // Binance's documented send endpoint requires an order number, so replying
   // to these from the terminal is not supported.
   const isEnquiryThread = orderNumber.startsWith('INQ-');
+  // Copilot: a reply picked for another step ("If: Checking KYC") sets the chat to that step once Binance has the
+  // message, so the mark is newer than it (a mark older than our last step message would be ignored). Not when a newer
+  // message of ours went out in the meantime, or when delivery came much later (a retry): the chat has moved on.
+  const copilotStepOnDeliveryRef = useRef(new Map<string, { step: NonNullable<CopilotPick['situation']>; sentAt: number }>());
+  const copilotLastSendRef = useRef(new Map<string, number>());
+  const [copilotRefresh, setCopilotRefresh] = useState(0);
+  const openOrderRef = useRef(orderNumber);
+  openOrderRef.current = orderNumber;
   // After Binance confirms a send, pull the stored copy straight away so the
   // bubble is replaced by a durable message instead of disappearing.
-  const handleDelivered = useCallback((deliveredOrderNo: string) => {
+  const handleDelivered = useCallback((deliveredOrderNo: string, content?: string) => {
+    const stepKey = `${deliveredOrderNo}\n${content ?? ''}`;
+    const pending = copilotStepOnDeliveryRef.current.get(stepKey);
+    if (pending) {
+      copilotStepOnDeliveryRef.current.delete(stepKey);
+      const newerSend = (copilotLastSendRef.current.get(deliveredOrderNo) ?? 0) > pending.sentAt;
+      if (!newerSend && Date.now() - pending.sentAt < 60_000) {
+        const { step } = pending;
+        // The chat itself shows that step (an earlier correction is being undone): back to what the chat shows.
+        copilotAdmin.setSituation(deliveredOrderNo, step.side, step.code === step.detected ? null : step.code, step.detected)
+          .then(() => { if (openOrderRef.current === deliveredOrderNo) setCopilotRefresh((n) => n + 1); })
+          .catch((e) => toast.warning('The step was not saved for this chat', { description: (e as Error)?.message }));
+      }
+    }
     callBinanceAds('syncOrderChatMessages', { orderNo: deliveredOrderNo, rows: 50, maxPages: 1, sort: 'desc' }, exchangeAccountId ?? undefined)
       .catch((err) => console.warn('Post-send chat sync failed:', err))
       .finally(() => {
@@ -576,11 +598,22 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   );
   // The suggestion currently in the composer; sending it saves it to the Playbook ("use = approve").
   const copilotPickRef = useRef<CopilotPick | null>(null);
+  // The step of a reply picked for another step, shown under the composer while that reply is in it.
+  const [copilotPickStep, setCopilotPickStep] = useState<string | null>(null);
+  const setCopilotPick = useCallback((pick: CopilotPick | null) => {
+    copilotPickRef.current = pick;
+    setCopilotPickStep(pick?.situation?.label ?? null);
+  }, []);
   const copilotStateRef = useRef<{ requestId: string | null; picks: CopilotPick[] }>({ requestId: null, picks: [] });
   const [copilotSaveOwn, setCopilotSaveOwn] = useState(false);
   const [copilotEntryId, setCopilotEntryId] = useState<string | null>(null);
-  const handleCopilotState = useCallback((s: { requestId: string | null; picks: CopilotPick[] }) => { copilotStateRef.current = s; }, []);
-  useEffect(() => { copilotPickRef.current = null; setCopilotSaveOwn(false); }, [orderNumber]);
+  const handleCopilotState = useCallback((s: { requestId: string | null; picks: CopilotPick[] }) => {
+    copilotStateRef.current = s;
+    // A reply for another step that is no longer offered (the chat moved on) sets no step when sent: drop the note.
+    const cur = copilotPickRef.current;
+    setCopilotPickStep(cur?.situation && s.picks.some((p) => pickKey(p) === pickKey(cur)) ? cur.situation.label : null);
+  }, []);
+  useEffect(() => { setCopilotPick(null); setCopilotSaveOwn(false); }, [orderNumber, setCopilotPick]);
   const copilotHint = useMemo(() => ({
     tradeType: tradeType ?? null,
     status: orderStatus ?? null,
@@ -603,6 +636,8 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         templateValues,
         hint: copilotHint,
         beforeAt: beforeAt ?? null,
+        // A reply picked for another step ("If: Checking KYC") is saved under that step.
+        situation: beforeAt ? null : (picked?.situation?.code ?? null),
       });
       const t = learnToast(res);
       (t.tone === 'warning' ? toast.warning : toast.success)(t.title, {
@@ -627,13 +662,13 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   }, [orderNumber, exchangeAccountId, templateValues, copilotHint, queryClient]);
 
   const insertCopilotPick = useCallback((pick: CopilotPick) => {
-    copilotPickRef.current = pick;
+    setCopilotPick(pick);
     setText(pick.text);
     requestAnimationFrame(() => {
       const el = inputRef.current;
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
     });
-  }, []);
+  }, [setCopilotPick]);
   const approveCopilotPick = useCallback((pick: CopilotPick) => { void teachCopilot('approved', pick.text, pick); }, [teachCopilot]);
   const saveBubbleToPlaybook = useCallback((m: UnifiedMessage) => {
     if (m.text) void teachCopilot('saved', m.text, null, (m.timestamp || Date.now()) + 1000);
@@ -666,8 +701,16 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     // Copilot: a sent suggestion is saved to the Playbook; an own reply only when Save is switched on.
     const picked = copilotPickRef.current;
     const saveOwn = copilotSaveOwn;
-    copilotPickRef.current = null;
+    setCopilotPick(null);
     setCopilotSaveOwn(false);
+    // A reply picked for another step, sent unchanged while it is still offered, tells the Copilot the client's real
+    // step: the chat is set to it once Binance has the message.
+    const sentAt = Date.now();
+    copilotLastSendRef.current.set(orderNumber, sentAt);
+    if (isCopilotApprover && picked?.situation && sameText(msg, picked.text)
+      && copilotStateRef.current.picks.some((p) => pickKey(p) === pickKey(picked))) {
+      copilotStepOnDeliveryRef.current.set(`${orderNumber}\n${msg}`, { step: picked.situation, sentAt });
+    }
 
     try {
       wsSendMessage(orderNumber, msg);
@@ -685,7 +728,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // Insert (not send) the quick reply into the input with template tokens filled,
   // so the operator can review/adjust before sending. Tap-shaving per T1.
   const handleQuickReply = (replyText: string) => {
-    if (!(inputRef.current?.value ?? '').trim()) copilotPickRef.current = null;
+    if (!(inputRef.current?.value ?? '').trim()) setCopilotPick(null);
     const filled = fillTemplate(replyText, templateValues || {});
     setText((prev) => (prev.trim() ? `${prev.trim()} ${filled}` : filled));
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -874,6 +917,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               onInsert={insertCopilotPick}
               onApprove={approveCopilotPick}
               onState={handleCopilotState}
+              refreshKey={copilotRefresh}
             />
           </div>
         )}
@@ -909,7 +953,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             value={text}
             onChange={(e) => {
               setText(e.target.value);
-              if (!e.target.value.trim()) copilotPickRef.current = null;
+              if (!e.target.value.trim()) setCopilotPick(null);
             }}
             onKeyDown={(e) => {
               // Copilot (approvers): Ctrl/Cmd+Enter approves without sending; Tab cycles the suggestions.
@@ -918,7 +962,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                 const value = text.trim();
                 if (!value) return;
                 const picked = copilotPickRef.current;
-                copilotPickRef.current = null;
+                setCopilotPick(null);
                 void teachCopilot(picked ? 'approved' : 'saved', value, picked);
                 return;
               }
@@ -928,7 +972,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                 const last = copilotPickRef.current;
                 if (picks.length && (!current || (last && current === last.text.trim()))) {
                   e.preventDefault();
-                  const idx = last ? picks.findIndex((p) => p.text === last.text) : -1;
+                  const idx = last ? picks.findIndex((p) => pickKey(p) === pickKey(last)) : -1;
                   const next = picks[cycleIndex(picks.length, idx, e.shiftKey ? -1 : 1)];
                   if (next) insertCopilotPick(next);
                   return;
@@ -968,6 +1012,11 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           </Button>
 
         </div>
+        {isCopilotApprover && copilotPickStep && (
+          <p className="mt-1.5 px-1 text-[11px] text-primary">
+            Reply for “{copilotPickStep}”: sending it unchanged sets this chat to that step.
+          </p>
+        )}
         {isEnquiryThread && (
           <p className="text-[11px] text-warning mt-1.5 px-1">
             Enquiry chat with no order — Binance only accepts replies inside an order, so reply from the Binance app

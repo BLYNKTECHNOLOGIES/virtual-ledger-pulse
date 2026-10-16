@@ -10,7 +10,10 @@ import {
   type ContactPurpose,
 } from '../_shared/copilot-playbook.ts'
 import { buildChatContext, contextSummary, orderFacts, type OrderHint } from '../_shared/copilot-context.ts'
-import { beforeVerification, invitesPayment, situationDef } from '../_shared/copilot-situation.ts'
+import {
+  alternativeSteps, beforeVerification, detectSituation, fitsOrder, invitesPayment, type OrderFit, scopeStages, situationDef, stageDepth,
+} from '../_shared/copilot-situation.ts'
+import type { Side } from '../_shared/copilot-playbook.ts'
 import type { CopilotConfig, MatchRow, Store } from '../_shared/copilot-store.ts'
 import type { Ai } from '../_shared/copilot-ai.ts'
 
@@ -30,8 +33,7 @@ const PENDING_FRESH_MS = 45_000
 const PENDING_EMBED_LIMIT = 50
 const LABELS = ['A', 'B']
 
-const stagesOf = (m: Pick<MatchRow, 'scope'>): string[] => (Array.isArray(m.scope?.stages) ? m.scope.stages : [])
-const situationLabels = (m: Pick<MatchRow, 'scope'>) => stagesOf(m).map((c) => situationDef(c)?.label ?? c)
+const situationLabels = (m: Pick<MatchRow, 'scope'>) => scopeStages(m.scope).map((c) => situationDef(c)?.label ?? c)
 
 /**
  * The text to offer in the chat's language. An out-of-date copy (the other language was edited after it) is never
@@ -134,6 +136,39 @@ export function bestFitting(matches: MatchRow[], perQuestion = 2): MatchRow[] {
   return out
 }
 
+export interface StepOption { m: MatchRow; steps: string[] }
+
+/**
+ * The question's replies for the other steps the client could be at (alternativeSteps), for the approver to pick
+ * from. Per step: the most specific reply for that step, approved before tentative, then the one used in the most
+ * similar chat. When that reply also applies at the current step (the reply offered above, or one for any step), the
+ * step has nothing different to offer and is left out: sending it would say nothing about the client's step. A step
+ * whose most specific replies disagree offers nothing until the conflict is resolved. Outdated-only replies and
+ * (before verification on our sell orders) replies that ask the client to pay never count. A reply that is the best
+ * for two steps is offered once, for both. Steps with no reply of their own come back in `open`, for a one-tap switch.
+ */
+export function stepOptions(entries: MatchRow[], steps: string[], order: OrderFit, shown: Set<string>, current: string | null): { options: StepOption[]; open: string[] } {
+  const options: StepOption[] = []
+  const open: string[] = []
+  const ctx = (m: MatchRow) => m.context_similarity ?? -1
+  const alsoHere = (m: MatchRow) => shown.has(m.entry_id) || fitsOrder(m.scope, order, current)
+  for (const step of steps) {
+    const unsafe = (m: MatchRow) => beforeVerification(order.side as Side | null, step) && (invitesPayment(m.reply_en) || invitesPayment(m.reply_hi))
+    const fitting = entries.filter((m) => usableReply(m) && fitsOrder(m.scope, order, step) && !unsafe(m))
+    const top = fitting.reduce((n, m) => Math.max(n, stageDepth(m.scope, step)), -1)
+    const disputed = fitting.filter((m) => m.conflict_open && stageDepth(m.scope, step) === top)
+    if (disputed.length) { if (!disputed.some(alsoHere)) open.push(step); continue }
+    const best = fitting.filter((m) => !m.conflict_open).sort((a, b) => stageDepth(b.scope, step) - stageDepth(a.scope, step)
+      || (a.status === b.status ? 0 : a.status === 'approved' ? -1 : 1) || ctx(b) - ctx(a))[0]
+    if (!best) { open.push(step); continue }
+    if (alsoHere(best)) continue
+    const same = options.find((o) => o.m.entry_id === best.entry_id)
+    if (same) same.steps.push(step)
+    else options.push({ m: best, steps: [step] })
+  }
+  return { options, open }
+}
+
 export async function handleDraft(deps: Deps, userId: string, input: DraftInput): Promise<Out> {
   const { store, ai } = deps
   const t0 = Date.now()
@@ -152,7 +187,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
   const turn = ctx.turn
   const stage = ctx.situation.code
   if (mode === 'suggest' && !turn) {
-    return { status: 200, body: { status: 'nothing_to_answer', context: summary, playbook: [], related: [], drafts: [], otherSituations: [], heldBack: [] } }
+    return { status: 200, body: { status: 'nothing_to_answer', context: summary, playbook: [], related: [], drafts: [], otherSituations: [], heldBack: [], alternatives: [], otherSteps: [] } }
   }
 
   // One automatic suggestion per chat state (latest client message, order status and situation), shared by both approvers.
@@ -262,6 +297,35 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
     }
     const otherSituations = [...otherByTopic.values()].filter((o) => o.situations.length > 0)
 
+    // ── Other steps the client could be at. KYC happens outside the chat, so a step worked out from our messages is a
+    // best guess: the question's replies for the neighbouring steps are offered too, and the approver picks. ──
+    const order: OrderFit = { side: ctx.side, category: ctx.category, accountId: ctx.accountId, status: ctx.status, clientState: ctx.clientState }
+    const steps = alternativeSteps(ctx.side, ctx.situation, ctx.clientState)
+    // The question the client asked: the one whose reply is shown, else the best match whose reply for this step was
+    // held back or that has replies only for other steps.
+    const mainTopic = strong[0]?.topic_id
+      ?? matches.find((m) => m.similarity >= cfg.match_threshold && (heldTopics.has(m.topic_id) || otherSituations.some((o) => o.topicId === m.topic_id)))?.topic_id
+      ?? null
+    const picked = stepOptions(mainTopic ? matches.filter((m) => m.topic_id === mainTopic) : [], steps, order, new Set(strong.map((m) => m.entry_id)), stage)
+    // What the chat will show once the reply is sent (the chat alone, as the detector reads it). The step to set is that
+    // one when it is one of the reply's steps. A reply that would itself end KYC before verification is never offered.
+    const lastAt = ctx.transcript.reduce((n, m) => Math.max(n, m.at), 0)
+    const sentAt = Math.max(now.getTime(), lastAt + 1)
+    const afterSending = (text: string) => detectSituation(ctx.side, ctx.status,
+      [...ctx.transcript, { id: 'copilot-step-check', at: sentAt, who: 'us', kind: 'text', text }], sentAt).code
+    const open = [...picked.open]
+    const alternatives = picked.options.flatMap((o) => {
+      const item = playbookItem(o.m, lang, ctx.address)
+      const next = afterSending(item.text)
+      if (beforeVerification(ctx.side, ctx.situation.detectedCode) && !beforeVerification(ctx.side, next)) {
+        for (const c of o.steps) if (!open.includes(c)) open.push(c)
+        return []
+      }
+      const stepsFirst = next && o.steps.includes(next) ? [next, ...o.steps.filter((c) => c !== next)] : o.steps
+      return [{ ...item, steps: stepsFirst, stepLabels: stepsFirst.map((c) => situationDef(c)?.label ?? c) }]
+    })
+    const otherSteps = open.map((c) => ({ code: c, label: situationDef(c)?.label ?? c }))
+
     const approvedFits = strong.some((m) => m.status === 'approved' && !m.conflict_open)
     const conflictFits = strong.some((m) => m.conflict_open)
     const needAi = mode !== 'suggest' || (!approvedFits && !conflictFits)
@@ -340,7 +404,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
 
     const purposes = new Set<ContactPurpose>()
     for (const d of drafts) for (const p of d.contacts as ContactPurpose[]) purposes.add(p)
-    for (const p of [...playbook, ...relatedItems]) for (const c of contactCodes(p.text)) purposes.add(c)
+    for (const p of [...playbook, ...relatedItems, ...alternatives]) for (const c of contactCodes(p.text)) purposes.add(c)
     const { contacts, missing } = await contactsFor(store, purposes)
 
     const result = {
@@ -349,6 +413,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
       playbook, related: relatedItems, drafts, contactPurposes: [...purposes],
       otherSituations: otherSituations.map((o) => ({ topicId: o.topicId, title: o.title, similarity: Math.round(o.similarity * 1000) / 1000, situations: o.situations })),
       heldBack,
+      alternatives, otherSteps,
       aiAvailable: status !== 'capped', aiFailed,
     }
     await store.updateRequest(requestId!, {

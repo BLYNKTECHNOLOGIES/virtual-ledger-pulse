@@ -54,7 +54,8 @@ export function prewarmChatSockets(_accountIds: (string | null)[]): void {}
 export function useBinanceChatWebSocket(
   _activeOrderNo: string | null,
   accountId?: string | null,
-  onDelivered?: (orderNo: string) => void,
+  /** Called once Binance has the message (the server found its echo); `content` is what was sent. */
+  onDelivered?: (orderNo: string, content: string) => void,
 ): UseBinanceChatWebSocketReturn {
   const accountIdRef = useRef<string | null>(accountId ?? null);
   accountIdRef.current = accountId ?? null;
@@ -87,7 +88,7 @@ export function useBinanceChatWebSocket(
         setQueuedMessages((current) => current.map((item) =>
           item.tempId === tempId ? { ...item, status: 'sent' as const } : item
         ));
-        onDeliveredRef.current?.(orderNo);
+        onDeliveredRef.current?.(orderNo, content);
         return true;
       } catch (cause) {
         const message = cause instanceof Error ? cause.message : 'Binance did not confirm delivery';

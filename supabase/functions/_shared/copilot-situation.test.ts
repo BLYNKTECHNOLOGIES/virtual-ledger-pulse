@@ -2,7 +2,8 @@
 // The chats below follow real sell and buy orders (texts shortened, numbers removed).
 import { buildTranscript, type ChatRow } from './copilot-playbook.ts'
 import {
-  asksToPayNow, beforeVerification, covers, detectSituation, evidenceText, invitesPayment, markable, resolveSituation, SITUATIONS, situationDef, statusFromEvents,
+  alternativeSteps, asksToPayNow, beforeVerification, covers, detectSituation, evidenceText, fitsOrder, invitesPayment, markable, resolveSituation,
+  SITUATIONS, situationDef, stageDepth, statusFromEvents,
 } from './copilot-situation.ts'
 
 function eq(actual: unknown, expected: unknown, msg = '') {
@@ -237,4 +238,96 @@ Deno.test("statusFromEvents: the order status as of a cut chat, from Binance's n
   eq(statusFromEvents(buildTranscript([sys(2, 'buyer_payed'), sys(3, 'buyer_completed')])), 'COMPLETED')
   eq(statusFromEvents(buildTranscript([sys(2, 'seller_reason_expired')])), 'CANCELLED')
   eq(statusFromEvents(buildTranscript([sys(2, 'seller_payed'), sys(4, 'submit_appeal')])), 'APPEAL')
+})
+
+// ─── Other steps the client could be at (CP-5) ──────────────────────────────────────────────────────
+
+Deno.test('alternativeSteps: the neighbouring KYC steps, closest first; never "Client can pay" before verification', () => {
+  eq(alternativeSteps('SELL', { code: 'sell.kyc.call' }, 'new'), ['sell.kyc.review', 'sell.kyc.pending'])
+  eq(alternativeSteps('SELL', { code: 'sell.kyc.review' }, 'new'), ['sell.kyc.call', 'sell.kyc.pending'])
+  eq(alternativeSteps('SELL', { code: 'sell.kyc.pending' }, 'new'), ['sell.kyc.review', 'sell.kyc.call'])
+  for (const code of ['sell.kyc.pending', 'sell.kyc.review', 'sell.kyc.call']) {
+    ok(alternativeSteps('SELL', { code }, 'approved').every((c) => covers('sell.kyc', c)), `only KYC steps from ${code}`)
+    ok(alternativeSteps('SELL', { code }, 'new').every((c) => markable(c, 'SELL')), 'every step can be set by an approver')
+  }
+})
+
+Deno.test('alternativeSteps: verified, paid and finished orders have none; a sell order with no KYC sign may still need KYC', () => {
+  // Verified on Binance or payment details shared: the step comes from Binance or our details, not a guess.
+  const verified = sit('SELL', 'TRADING', [...rmRows, sys(14, 'maker_verified_additional_kyc_maker_sell')])
+  eq(verified.code, 'sell.pay.ready'); eq(verified.noKyc, undefined)
+  eq(alternativeSteps('SELL', verified, 'new'), [])
+  // No Binance KYC notice and no KYC request from us: "Client can pay", but a client we have not approved may need KYC.
+  const plain = sit('SELL', 'TRADING', [client(0, 'Hi, can I pay?')])
+  eq(plain.code, 'sell.pay.ready'); eq(plain.noKyc, true)
+  eq(alternativeSteps('SELL', plain, 'new'), ['sell.kyc.pending'])
+  eq(alternativeSteps('SELL', plain, 'linked'), ['sell.kyc.pending'])
+  eq(alternativeSteps('SELL', plain, 'approved'), [], 'an approved client without extra KYC can pay')
+  for (const code of ['sell.pay.checking', 'buy.pay.sent', 'done', 'cancelled', 'appeal']) eq(alternativeSteps('SELL', { code }, 'new').concat(alternativeSteps('BUY', { code }, 'new')), [], code)
+  eq(alternativeSteps(null, { code: 'sell.kyc.call' }, 'new'), [], 'side unknown')
+  eq(alternativeSteps('SELL', { code: null }, 'new'), [])
+})
+
+Deno.test('alternativeSteps: our payment steps on a buy order', () => {
+  eq(alternativeSteps('BUY', { code: 'buy.details' }, 'new'), ['buy.pay.processing', 'buy.pay.cooling'])
+  eq(alternativeSteps('BUY', { code: 'buy.pay.processing' }, 'approved'), ['buy.pay.cooling', 'buy.details'])
+  eq(alternativeSteps('BUY', { code: 'buy.pay.cooling' }, 'approved'), ['buy.pay.processing', 'buy.details'])
+  eq(alternativeSteps('BUY', { code: 'sell.kyc.call' }, 'new'), [], 'a sell step on a buy order')
+})
+
+Deno.test("fitsOrder and stageDepth follow the database's fits and specificity", () => {
+  const o = { side: 'SELL', category: 'regular', accountId: 'acc-1', status: 'TRADING', clientState: 'new' }
+  ok(fitsOrder({}, o, 'sell.kyc.call') && fitsOrder(null, o, null), 'no scope: any order, any situation')
+  ok(fitsOrder({ stages: ['sell.kyc'] }, o, 'sell.kyc.call'), 'a group covers its steps')
+  ok(!fitsOrder({ stages: ['sell.kyc'] }, o, null), 'unknown situation: only replies for any situation')
+  ok(!fitsOrder({ stages: ['sell.kyc.review'] }, o, 'sell.kyc.call'))
+  ok(!fitsOrder({ sides: ['BUY'] }, o, 'sell.kyc.call'))
+  ok(!fitsOrder({ client_states: ['approved'] }, o, 'sell.kyc.call'))
+  ok(fitsOrder({ account_ids: ['acc-1'], categories: ['regular'], statuses: ['TRADING'] }, o, 'sell.kyc.call'))
+  eq(stageDepth({ stages: ['sell.kyc', 'sell.kyc.call'] }, 'sell.kyc.call'), 3)
+  eq(stageDepth({ stages: ['sell.kyc'] }, 'sell.kyc.review'), 2)
+  eq(stageDepth({}, 'sell.kyc.review'), 0)
+  eq(stageDepth({ stages: ['sell.pay.ready'] }, 'sell.kyc.review'), 0)
+})
+
+Deno.test('sell: "you can pay to the given account once verified" is still a KYC reply; "please pay on it" shares the details', () => {
+  for (const text of [
+    'Sir, you can pay to the given account once your verification is complete.',
+    'Sir, after your verification is complete, please pay to the above account.',
+    'Sir, kindly wait. You can pay to the same account after verification.',
+    "Please don't pay on it",
+  ]) eq(sit('SELL', 'TRADING', [...withDocs, us(3, text)]).code, 'sell.kyc.review', text)
+  for (const text of ['Please pay on it sir', 'pay on this upi sir', 'Please pay sir', 'Sir your verification is completed successfully , kindly pay on the given details']) {
+    eq(sit('SELL', 'TRADING', [...withDocs, us(3, text)]).code, 'sell.pay.ready', text)
+  }
+})
+
+Deno.test('buy: "please share the requested details so that we can process your payment" asks for details; our promise does not', () => {
+  const paying = [us(0, 'Paying on your given details, sir.'), client(1, 'How long?')]
+  eq(sit('BUY', 'TRADING', paying).code, 'buy.pay.processing')
+  eq(sit('BUY', 'TRADING', [...paying, us(2, 'Sir, please share the requested details so that we can process your payment.')]).code, 'buy.details')
+  eq(sit('BUY', 'TRADING', [...paying, us(2, 'Not yet, sir. Please share the requested details first so that we can process the payment.')]).code, 'buy.details')
+  eq(sit('BUY', 'TRADING', [...paying, us(2, 'Abhi nahi sir. Pehle requested details share kar dijiye, taaki payment process kar sakein.')]).code, 'buy.details', 'Hinglish word order')
+  eq(sit('BUY', 'TRADING', [...paying, us(2, 'Sir, payment process ho raha hai, details share kar denge.')]).code, 'buy.pay.processing', 'our promise in Hinglish')
+  eq(sit('BUY', 'TRADING', [us(0, 'Sir please share your PAN details and mobile no'), client(1, 'PAN [number] mobile [number]'), us(2, 'We will share the payment details once it is done, please wait.')]).code, 'buy.pay.processing',
+    'the client answered; our promise to share is not a new request')
+})
+
+Deno.test('buy: thanks, past tense and warnings about details are not requests for them', () => {
+  const paying = [us(0, 'Paying on your given details, sir.'), client(1, 'How long?')]
+  for (const text of [
+    'Details share karne ke liye thank you sir, payment process ho raha hai.',
+    'Aapne details share kar di hai, payment process ho raha hai, please wait.',
+    'Sir payment is in process, please do not share your details with anyone.',
+  ]) eq(sit('BUY', 'TRADING', [...paying, us(2, text)]).code, 'buy.pay.processing', text)
+})
+
+Deno.test('sell: the Hinglish verification-call message is read as the call', () => {
+  eq(sit('SELL', 'TRADING', [...withDocs, us(3, 'Sir, ek baar verification zaroori hai. Hamari KYC team thodi der mein aapse connect karegi.')]).code, 'sell.kyc.call')
+  eq(sit('SELL', 'TRADING', [...withDocs, us(3, 'Sir, verification ke liye hamari KYC team aapko call karegi.')]).code, 'sell.kyc.call')
+  eq(sit('SELL', 'TRADING', [...withDocs, us(3, 'Sir, hamari support team aapse contact karegi.')]).code, 'sell.kyc.review', 'any team contacting is not the KYC call')
+  eq(sit('SELL', 'TRADING', [...withDocs, us(3, 'Sir, verification ke liye hamari KYC team aapse contact karegi.')]).code, 'sell.kyc.review',
+    'like the English "our KYC team will contact you": not read as the call')
+  eq(sit('SELL', 'TRADING', [...withDocs, us(3, 'Sir, ek baar verification complete ho jaye, phir payment details share kar denge.')]).code, 'sell.kyc.review',
+    '"ek baar" meaning "once"')
 })

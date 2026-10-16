@@ -450,3 +450,80 @@ Deno.test('the judge never sees personal data typed in the reply', async () => {
   eq(a.chats.length, 1)
   ok(!String(s.learnCalls[0].p_reply_text).includes('9876543210'))
 })
+
+// ─── A reply picked for another step (CP-5) ─────────────────────────────────────────────────────────
+
+async function stepSetup(context: Record<string, unknown>) {
+  const s = new FakeStore(), a = new FakeAi()
+  const reqId = await withRequest(s, 'Shall I pay now?', {
+    situation: 'sell.kyc.call', context_text: 'situation: Verification call\nus: Sir one time verification is needed.', chat_before: [{ from: 'us', text: 'Sir one time verification is needed.' }],
+    chat_tail: [{ from: 'client', at: '20:30', text: 'Shall I pay now?' }], ...context,
+  })
+  await s.updateRequest(reqId, { context_embedding: new Array(1536).fill(0.03) })
+  const e = entry({ title: 'Can I pay now?', scope: { stages: ['sell.kyc.pending'] }, fits: false, specificity: -1, reply_en: 'Sir, please share the requested KYC details first.', reply_hi: null })
+  s.entryRows = [{ id: e.entry_id, topic_id: e.topic_id, scope: e.scope, status: 'approved', title: e.title, reply_en: e.reply_en, reply_hi: null }]
+  s.matchRows = [e]
+  const send = (situation: unknown, extra: Record<string, unknown> = {}) => run(s, a, {
+    action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, sourceEntryId: e.entry_id, situation,
+    insertedText: 'Sir, please share the requested KYC details first.', finalText: 'Sir, please share the requested KYC details first.', ...extra,
+  })
+  return { s, a, e, send }
+}
+
+Deno.test('a reply picked for another step is filed under that step ("use = approve"), with its example chat labelled for it', async () => {
+  const { s, a, e, send } = await stepSetup({})
+  const r = await send('sell.kyc.pending')
+  eq(r.status, 200); eq(a.chats.length, 0, 'used unchanged: no judge')
+  const p = s.learnCalls[0]
+  eq([p.p_relation, p.p_target_entry_id, p.p_stage], ['merge', e.entry_id, 'sell.kyc.pending'], 'a merge for its own step, not a widening into the detected one')
+  eq(p.p_context.situation, 'sell.kyc.pending'); eq(p.p_context.situation_label, 'KYC pending')
+  ok(String(p.p_example_text).startsWith('situation: KYC pending'), 'the example chat says the step the approver picked')
+  eq(p.p_example_embedding, null, 'its embedding is made at the next lookup, never the one labelled with the old step')
+  eq(s.matchCalls[0].stage, 'sell.kyc.pending'); eq(r.body.situation, 'KYC pending')
+})
+
+Deno.test('a picked step is ignored when it is not a step for this order, would end KYC, or when Binance has the status', async () => {
+  for (const bad of ['sell.kyc', 'buy.details', 'sell.pay.checking', 'sell.pay.ready', 'nonsense', 42]) {
+    const { s, send } = await stepSetup({})
+    await send(bad)
+    eq([s.learnCalls[0].p_stage, s.learnCalls[0].p_relation], ['sell.kyc.call', 'widen'], `ignored: ${bad}`)
+  }
+  // Paid on Binance: the status situation stands whatever was picked.
+  const paid = await stepSetup({ situation: 'sell.pay.checking', status: 'BUYER_PAYED' })
+  await paid.send('sell.kyc.review')
+  eq(paid.s.learnCalls[0].p_stage, 'sell.pay.checking')
+})
+
+Deno.test('saving an older message ignores a picked step: it is filed under the step it was sent in', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'When will I get the TDS certificate?'), msg('us', 'Sir, the TDS certificate is shared every quarter.')]
+  const before = Number(s.rows[1].binance_create_time) + 1000
+  const r = await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, the TDS certificate is shared every quarter.', beforeAt: before, situation: 'sell.kyc.review' })
+  eq(r.status, 200)
+  eq(s.learnCalls[0].p_stage, 'sell.pay.ready', 'the chat at that time had no KYC')
+})
+
+Deno.test('before verification a pay reply is never widened into KYC, even by a reply that asks nothing of the kind', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const reqId = await withRequest(s, 'Can I pay now?', { situation: 'sell.kyc.review' })
+  const pay = entry({ title: 'Can I pay now?', scope: { stages: ['sell.pay.ready'] }, fits: false, specificity: -1, reply_en: 'Yes, sir. Please pay to the payment details shared in this order.' })
+  s.matchRows = [pay]
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'merge', target_entry_id: pay.entry_id })
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, we are checking your details. Please wait a few minutes.' })
+  const p = s.learnCalls[0]
+  eq([p.p_relation, p.p_target_topic_id, p.p_target_entry_id], ['variant', pay.topic_id, null], 'a reply of its own for this step, not a wider pay reply')
+  eq(p.p_scope.stages, ['sell.kyc.review'])
+})
+
+Deno.test('a request to pay sent while the chat showed KYC is filed under "Client can pay", with its example chat there too', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const reqId = await withRequest(s, 'Where do I pay?', { situation: 'sell.kyc.review', context_text: 'situation: Checking KYC\nus: Please share your Aadhaar.' })
+  await s.updateRequest(reqId, { context_embedding: new Array(1536).fill(0.03) })
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new', situation_specific: true })
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, please pay to the payment details shown in the order.' })
+  const p = s.learnCalls[0]
+  eq(p.p_scope, { stages: ['sell.pay.ready'] }); eq(p.p_stage, 'sell.pay.ready')
+  ok(String(p.p_example_text).startsWith('situation: Client can pay'), 'the example is labelled with the step the reply is filed under')
+  eq(p.p_example_embedding, null); eq(p.p_context.situation, 'sell.kyc.review', 'the learning log keeps what the chat showed')
+  eq(r.body.situation, 'Client can pay')
+})

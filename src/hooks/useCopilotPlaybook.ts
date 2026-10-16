@@ -104,6 +104,15 @@ export interface DraftResponse {
   otherSituations?: Array<{ topicId: string; title: string; similarity: number; situations: string[] }>;
   /** Approved replies not offered here, and why (e.g. asks to pay before verification). */
   heldBack?: Array<{ entryId: string; title: string; reason: string }>;
+  /** The question's replies for the other steps the client could be at (KYC happens outside the chat). */
+  alternatives?: StepSuggestion[];
+  /** Other steps the client could be at with no saved reply: a tap switches the chat to that step. */
+  otherSteps?: Array<{ code: string; label: string }>;
+}
+/** A reply for another step ("If: Checking KYC"); `steps` are the step codes it is the reply for, closest first. */
+export interface StepSuggestion extends PlaybookSuggestion {
+  steps: string[];
+  stepLabels: string[];
 }
 export interface OrderHint {
   tradeType?: string | null;
@@ -156,6 +165,8 @@ export interface LearnBody {
   templateValues?: TemplateOrderValues;
   hint?: OrderHint;
   beforeAt?: number | null;
+  /** The step a reply was picked for ("If: Checking KYC"): it is saved under that step. */
+  situation?: string | null;
 }
 
 export function copilotLearn(body: LearnBody): Promise<LearnResult> {

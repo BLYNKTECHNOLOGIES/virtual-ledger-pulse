@@ -1038,6 +1038,7 @@ function App() {
           <SonnerToaster position="top-right" richColors closeButton />
 
         </AuthProvider>
+        </TooltipProvider>
       </ThemeProvider>
     </React.StrictMode>
   );

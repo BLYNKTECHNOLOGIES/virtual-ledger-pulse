@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkSubmission, effectiveForm, DEFAULT_FIELDS } from "./forms";
+import { checkSubmission, effectiveForm, DEFAULT_FIELDS } from "../../../supabase/functions/_shared/ats-form";
 
 describe("application form", () => {
   it("no custom form keeps today's defaults", () => {

@@ -132,6 +132,14 @@ export async function handleSend(req: Request): Promise<Response> {
         references = [...extractIds(parent.references_header), parent.message_id].slice(-10).join(' ')
       }
     }
+    if (!inReplyTo) {
+      // No explicit reply target: continue the candidate's mail thread, so all mail to them stays together.
+      const parent = await latestThreadParent(admin, candidateId)
+      if (parent) {
+        inReplyTo = parent.message_id
+        references = [...extractIds(parent.references_header), parent.message_id].slice(-10).join(' ')
+      }
+    }
 
     const fileIds: string[] = Array.isArray(body?.fileIds)
       ? [...new Set<string>(body.fileIds.map((x: unknown) => String(x)).filter((x: string) => UUID_RE.test(x)))]

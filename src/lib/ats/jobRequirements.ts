@@ -1,5 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { diffLinks } from "./jobRequirementDiff";
+
+export { diffLinks };
 
 /** Extra requirement links of one job (ats_job_requirements; the job's requisition_id is separate). */
 export function useJobRequirementLinks(jobId?: string | null) {
@@ -42,15 +45,6 @@ export function useActiveJobRequirementLinks(excludeJobId?: string | null) {
     },
     staleTime: 30_000,
   });
-}
-
-/** Pure diff: which links to insert/delete so the table holds exactly `desired` (requisition_id excluded — it lives on the job). */
-export function diffLinks(current: string[], desired: string[], primaryId: string | null) {
-  const want = new Set(desired.filter((id) => id && id !== primaryId));
-  return {
-    add: [...want].filter((id) => !current.includes(id)),
-    remove: current.filter((id) => !want.has(id)),
-  };
 }
 
 /** Make ats_job_requirements match the desired set for a job (requisition_id stays on the job row). */

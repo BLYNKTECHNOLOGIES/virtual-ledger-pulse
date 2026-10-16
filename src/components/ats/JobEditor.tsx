@@ -21,6 +21,8 @@ import {
 } from "@/lib/ats/api";
 import { EMPLOYMENT_TYPES, humanize } from "@/lib/ats/format";
 import { JobLineShiftNotice } from "./JobLineShiftNotice";
+import { ApplicationFormEditor } from "./ApplicationFormEditor";
+import { type ApplicationForm, effectiveForm } from "@/lib/ats/forms";
 
 const NONE = "__none";
 const optNum = (min: number, max: number, label: string) =>
@@ -50,6 +52,7 @@ const schema = z
     benefits: z.string().max(20000, "Keep this under 20,000 characters."),
     aliases: z.array(z.string()),
     requisition_id: z.string(),
+    application_form: z.custom<ApplicationForm>(),
   })
   .refine((d) => d.salary_min === "" || d.salary_max === "" || Number(d.salary_max) >= Number(d.salary_min), {
     path: ["salary_max"], message: "Maximum must be at least the minimum",
@@ -83,6 +86,7 @@ const toForm = (j: AtsJob | null | undefined, defLocation: string): FormValues =
   benefits: j?.benefits ?? "",
   aliases: j?.aliases ?? [],
   requisition_id: j?.requisition_id ?? "",
+  application_form: effectiveForm((j as any)?.application_form ?? null),
 });
 
 const nn = (v: string) => (v.trim() === "" ? null : v.trim());
@@ -112,6 +116,7 @@ function toPayload(v: FormValues) {
     benefits: nn(v.benefits),
     aliases: v.aliases,
     requisition_id: nn(v.requisition_id),
+    application_form: effectiveForm(v.application_form) as any,
   };
 }
 
@@ -406,6 +411,15 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
             )} />
             <p className="text-xs text-muted-foreground">Choosing one fills in the fields that are still empty and sets Openings to the number still needed. Openings then follow the requirement automatically.</p>
             <JobLineShiftNotice requirementId={watch("requisition_id") || null} jobShiftIds={watch("shift_ids") ?? []} />
+          </section>
+
+          <section className="min-w-0 space-y-3 border-t border-border pt-5 lg:col-span-2">
+            <h3 className="text-xs font-semibold text-muted-foreground">Application form on careers page</h3>
+            <p className="text-xs text-muted-foreground">Choose what candidates are asked when they apply for this job. The server checks every application against these rules.</p>
+            {isEdit && <p className="text-xs text-muted-foreground">Changes apply to new applications only; earlier applicants keep the questions they answered.</p>}
+            <Controller control={control} name="application_form" render={({ field }) => (
+              <ApplicationFormEditor value={field.value} onChange={field.onChange} multiShift={(watch("shift_ids") ?? []).length > 1} />
+            )} />
           </section>
         </form>
       </ResponsiveDialog>

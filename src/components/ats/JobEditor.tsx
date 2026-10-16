@@ -21,6 +21,8 @@ import {
 } from "@/lib/ats/api";
 import { EMPLOYMENT_TYPES, humanize } from "@/lib/ats/format";
 import { JobLineShiftNotice } from "./JobLineShiftNotice";
+import { RequirementLinkEditor } from "./RequirementLinkEditor";
+import { syncJobRequirementLinks, useJobRequirementLinks } from "@/lib/ats/jobRequirements";
 import { ApplicationFormEditor } from "./ApplicationFormEditor";
 import { type ApplicationForm, effectiveForm } from "@/lib/ats/forms";
 
@@ -189,8 +191,8 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     if (empty && v != null && v !== "" && !(Array.isArray(v) && v.length === 0)) setValue(k, v, { shouldDirty: true, shouldValidate: true });
   };
 
-  const applyRequirement = (id: string) => {
-    setValue("requisition_id", id, { shouldDirty: true });
+  const applyRequirement = (id: string, setPrimary = true) => {
+    if (setPrimary) setValue("requisition_id", id, { shouldDirty: true });
     const r = reqOptions.find((o) => o.id === id)?.raw;
     if (!r) return;
     setIfEmpty("department_id", r.department_id ?? "");

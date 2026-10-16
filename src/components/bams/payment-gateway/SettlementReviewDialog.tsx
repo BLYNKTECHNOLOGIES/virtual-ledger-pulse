@@ -145,7 +145,7 @@ export function SettlementReviewDialog({
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="md:max-w-5xl max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
@@ -157,7 +157,7 @@ export function SettlementReviewDialog({
   if (!settlement) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="md:max-w-5xl">
           <div className="text-center py-8">
             <p className="text-muted-foreground">Settlement details not found</p>
           </div>
@@ -168,17 +168,17 @@ export function SettlementReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="md:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
-              Settlement Review - {settlement.settlement_batch_id}
+          <div className="flex flex-col gap-3 pr-6 sm:flex-row sm:items-center sm:justify-between">
+            <DialogTitle className="flex min-w-0 items-start gap-2 text-left leading-snug">
+              <Eye className="mt-1 h-5 w-5 shrink-0" />
+              <span className="break-words [overflow-wrap:anywhere]">Settlement Review - {settlement.settlement_batch_id}</span>
             </DialogTitle>
             <Button 
               onClick={handleGeneratePDF}
               disabled={generatingPdf}
-              className="flex items-center gap-2"
+              className="flex shrink-0 items-center gap-2 self-start sm:self-center"
             >
               {generatingPdf ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -309,36 +309,64 @@ export function SettlementReviewDialog({
                 Transaction Details ({settlement.settlement_items.length} orders)
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
+            <CardContent className="responsive-list">
+              <div className="responsive-list-cards divide-y divide-border">
+                {settlement.settlement_items.map((item) => (
+                  <div key={item.id} className="space-y-3 py-4 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{item.sales_orders.order_number}</span>
+                      <span className="whitespace-nowrap font-semibold tabular-nums">₹{item.amount.toLocaleString('en-IN')}</span>
+                    </div>
+                    <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">Client Name</dt>
+                        <dd className="break-words">{item.sales_orders.client_name}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Order Date</dt>
+                        <dd>{format(new Date(item.sales_orders.order_date), 'MMM dd, yyyy')}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Payment Method</dt>
+                        <dd>Payment Gateway</dd>
+                      </div>
+                      <div>
+                        <dt className="mb-1 text-xs text-muted-foreground">Status</dt>
+                        <dd><Badge variant="default" className="whitespace-nowrap bg-success/10 text-success">{item.sales_orders.settlement_status || 'SETTLED'}</Badge></dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+              <Table containerClassName="responsive-list-table" className="[overflow-wrap:normal]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Order Number</TableHead>
-                    <TableHead>Client Name</TableHead>
-                    <TableHead>Order Date</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead className="w-[22%]">Order Number</TableHead>
+                    <TableHead className="w-[22%]">Client Name</TableHead>
+                    <TableHead className="whitespace-nowrap">Order Date</TableHead>
+                    <TableHead numeric className="whitespace-nowrap">Amount</TableHead>
                     <TableHead>Payment Method</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {settlement.settlement_items.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium [overflow-wrap:anywhere]">
                         {item.sales_orders.order_number}
                       </TableCell>
-                      <TableCell>{item.sales_orders.client_name}</TableCell>
-                      <TableCell>
+                      <TableCell className="break-words">{item.sales_orders.client_name}</TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {format(new Date(item.sales_orders.order_date), 'MMM dd, yyyy')}
                       </TableCell>
-                      <TableCell>₹{item.amount.toLocaleString('en-IN')}</TableCell>
+                      <TableCell numeric className="whitespace-nowrap">₹{item.amount.toLocaleString('en-IN')}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="whitespace-nowrap">
                           Payment Gateway
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="default" className="bg-success/10 text-success">
+                        <Badge variant="default" className="whitespace-nowrap bg-success/10 text-success">
                           {item.sales_orders.settlement_status || 'SETTLED'}
                         </Badge>
                       </TableCell>
@@ -355,7 +383,7 @@ export function SettlementReviewDialog({
               <CardTitle>Reconciliation Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-3 [&>div]:gap-3 [&>div>span:last-child]:shrink-0 [&>div>span:last-child]:whitespace-nowrap [&>div>span:last-child]:tabular-nums">
                 <div className="flex justify-between">
                   <span>Total Orders:</span>
                   <span className="font-medium">{settlement.settlement_items.length}</span>

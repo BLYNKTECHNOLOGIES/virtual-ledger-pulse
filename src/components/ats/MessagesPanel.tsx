@@ -335,7 +335,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="min-h-[180px] flex-1 space-y-3 overflow-y-auto p-3">
         {thread.isLoading || st.isLoading ? <RowsSkeleton rows={5} /> : thread.isError ? <QueryError error={thread.error} onRetry={() => thread.refetch()} /> : (
           <>
             {!enabled && (
@@ -368,7 +368,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       )}
 
       {enabled && (
-        <div className="border-t border-border p-3">
+        <div className="max-h-[60%] shrink-0 overflow-y-auto border-t border-border p-3">
           {!composing ? (
             <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => openComposer()}>Write an email…</Button>
           ) : !candidate.email ? (
@@ -881,7 +881,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
           <Checkbox checked={reply} onCheckedChange={(v) => setReply(!!v)} /> Reply in this thread
         </label>
       )}
-      <Textarea ref={bodyRef} rows={8} maxLength={20000} value={body} onChange={(e) => { setBody(e.target.value); setAiNote(false); }} className="resize-none text-foreground" aria-label="Message" />
+      <Textarea ref={bodyRef} rows={5} maxLength={20000} value={body} onChange={(e) => { setBody(e.target.value); setAiNote(false); }} className="max-h-[40vh] min-h-[110px] resize-y text-foreground" aria-label="Message" />
       {aiNote && <p className="text-xs text-muted-foreground">AI draft — check it before sending.</p>}
       <p className="text-xs text-muted-foreground">Your HR signature is added automatically.</p>
       {hasPlaceholders && <p className="text-xs text-destructive">Replace the {"{{placeholders}}"} first</p>}

@@ -182,18 +182,29 @@ export const useRequirementsLookup = () =>
     queryKey: atsKeys.lookup("requirements"),
     staleTime: 60_000,
     queryFn: async () => {
-      const [rows, pipe] = await Promise.all([
+      const [rows, pipe, plans] = await Promise.all([
         supabase
           .from("hr_hiring_requirements")
-          .select("id,requirement_no,department_id,position_id,shift_id,shift_label,location,employment_type,number_required,positions_filled,required_skills,experience_required,salary_min,salary_max,status")
+          .select("id,requirement_no,department_id,position_id,shift_id,shift_label,location,employment_type,number_required,positions_filled,required_skills,experience_required,salary_min,salary_max,status,staffing_plan_id")
           .in("status", REQUIREMENT_PICKER_STATUSES as unknown as string[])
           .order("requirement_no"),
         supabase.rpc("hr_requirement_pipeline", { p_requirement: null }),
+        supabase.from("hr_headcount_plans").select("id,shift_id,eligible_shift_ids"),
       ]);
       const list = unwrap(rows) as any[];
       if (pipe.error) throw pipe.error;
+      if (plans.error) throw plans.error;
+      const planShifts = new Map<string, string[]>(((plans.data ?? []) as any[]).map((p) => [
+        p.id as string,
+        (p.eligible_shift_ids?.length ? p.eligible_shift_ids : p.shift_id ? [p.shift_id] : []) as string[],
+      ]));
       const need = new Map<string, number>(((pipe.data ?? []) as any[]).map((p) => [p.requirement_id, p.still_needed]));
-      return list.map((r) => ({ ...r, still_needed: need.get(r.id) ?? Math.max((r.number_required ?? 0) - (r.positions_filled ?? 0), 0) }));
+      return list.map((r) => ({
+        ...r,
+        still_needed: need.get(r.id) ?? Math.max((r.number_required ?? 0) - (r.positions_filled ?? 0), 0),
+        // Shifts the requirement's staffing line covers; null = no line / unrestricted (covers any shift).
+        plan_shift_ids: r.staffing_plan_id ? planShifts.get(r.staffing_plan_id) ?? [] : null,
+      }));
     },
   });
 

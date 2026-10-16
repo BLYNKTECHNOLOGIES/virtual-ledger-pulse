@@ -3,6 +3,53 @@ import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 
 /** A team's code (copilot_teams): kyc, rm, support, or one added later. */
 export type ContactPurpose = string;
+
+/** A suggestion the composer can insert (Tab cycles them); sending it saves it to the Playbook ("use = approve"). */
+export interface CopilotPick {
+  kind: 'entry' | 'draft';
+  entryId?: string | null;
+  callId?: string | null;
+  requestId: string | null;
+  /** Text as inserted into the composer (order values and contact numbers filled in). */
+  text: string;
+  title?: string;
+  /** A reply picked for another step: sending it sets the chat to that step, and it is saved under it. */
+  situation?: { code: string; label: string; side: 'BUY' | 'SELL'; detected: string | null } | null;
+}
+
+interface EntrySource { entryId: string; title: string; text: string; conflict?: boolean }
+interface DraftSource { callId: string | null; text: string; blocked: boolean }
+interface StepSource extends EntrySource { steps: string[]; stepLabels: string[] }
+
+/**
+ * The suggestions in the order the panel shows them and the composer cycles them: the Playbook replies for this
+ * step, the AI drafts (also for this step), then the replies for other steps. A reply for another step carries its
+ * step (the first one listed: the step the chat will show once it is sent, else the closest), so sending it sets the
+ * chat to that step and saves it there.
+ */
+export function buildCopilotPicks(a: {
+  playbook: EntrySource[]; drafts: DraftSource[]; alternatives?: StepSource[] | null; requestId: string | null;
+  side: 'BUY' | 'SELL' | null; detected: string | null; fill: (text: string) => string;
+}): CopilotPick[] {
+  const stepOf = (p: StepSource): CopilotPick['situation'] =>
+    (a.side && p.steps[0] ? { code: p.steps[0], label: p.stepLabels[0] ?? p.steps[0], side: a.side, detected: a.detected } : null);
+  const picks: CopilotPick[] = [
+    ...a.playbook.filter((p) => !p.conflict).map((p) => ({ kind: 'entry' as const, entryId: p.entryId, requestId: a.requestId, text: a.fill(p.text), title: p.title })),
+    ...a.drafts.filter((d) => !d.blocked).map((d) => ({ kind: 'draft' as const, callId: d.callId, requestId: a.requestId, text: a.fill(d.text) })),
+  ];
+  for (const p of a.alternatives ?? []) {
+    const situation = stepOf(p);
+    if (!p.conflict && situation) picks.push({ kind: 'entry', entryId: p.entryId, requestId: a.requestId, text: a.fill(p.text), title: p.title, situation });
+  }
+  return picks;
+}
+
+/** One suggestion's identity (two suggestions can have the same text; a draft whose call was not logged has no id). */
+export const pickKey = (p: Pick<CopilotPick, 'kind' | 'entryId' | 'callId' | 'situation' | 'text'>) =>
+  `${p.kind}:${p.entryId ?? p.callId ?? p.text}:${p.situation?.code ?? ''}`;
+
+/** The same text, ignoring spacing and case: a suggestion sent as inserted. */
+export const sameText = (a: string, b: string) => a.replace(/\s+/g, ' ').trim().toLowerCase() === b.replace(/\s+/g, ' ').trim().toLowerCase();
 export interface PickedContact { name: string; phone: string; availableNow: boolean }
 export type PickedContacts = Partial<Record<ContactPurpose, PickedContact>>;
 
@@ -93,9 +140,9 @@ export function learnToast(r: LearnResult): { title: string; description: string
   const wording = r.phrasing === 'added' ? ' The client’s wording was added as another way of asking.' : '';
   switch (r.action) {
     case 'created': return { title: 'Saved to Playbook', description: `New question ${t}${sit}`, tone: 'success' };
-    case 'merged': return { title: 'Saved to Playbook', description: `Reply for ${t} used again.${wording}`, tone: 'success' };
+    case 'merged': return { title: 'Saved to Playbook', description: `Reply for ${t}${sit} used again.${wording}`, tone: 'success' };
     case 'updated': return { title: 'Playbook updated', description: `New wording saved for ${t}.${wording}`, tone: 'success' };
-    case 'promoted': return { title: 'Playbook confirmed', description: `${t} is now approved.${wording}`, tone: 'success' };
+    case 'promoted': return { title: 'Playbook confirmed', description: `${t}${sit} is now approved.${wording}`, tone: 'success' };
     case 'widened': return { title: 'Playbook updated', description: `${t} now also applies${sit ? ` here${sit}` : ' in this situation'}.${wording}`, tone: 'success' };
     case 'variant': return { title: 'Saved to Playbook', description: `New reply for ${t}${sit}.`, tone: 'success' };
     case 'replaced': return { title: 'Saved to Playbook', description: `Your answer replaced the tentative ${t}`, tone: 'success' };

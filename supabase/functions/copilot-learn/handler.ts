@@ -14,8 +14,10 @@ import {
 } from '../_shared/copilot-playbook.ts'
 import { buildChatContext, type OrderHint } from '../_shared/copilot-context.ts'
 import {
-  asksToPayNow, beforeVerification, covers, detectSituation, invitesPayment, resolveSituation, situationDef, statusFromEvents,
+  asksToPayNow, beforeVerification, covers, detectSituation, fitsOrder, fitsStage, invitesPayment, markable, resolveSituation, scopeStages,
+  situationDef, STATUS_SITUATIONS, statusFromEvents,
 } from '../_shared/copilot-situation.ts'
+import type { Side } from '../_shared/copilot-playbook.ts'
 import type { MatchRow, Store } from '../_shared/copilot-store.ts'
 import type { Ai } from '../_shared/copilot-ai.ts'
 
@@ -33,6 +35,8 @@ export interface LearnInput {
   hint?: OrderHint | null
   /** Saving one of our earlier messages: only the chat before this time (ms) is used to find the question. */
   beforeAt?: number | null
+  /** The step the approver picked the reply for ("If: Checking KYC"): it is filed under that step, not the detected one. */
+  situation?: string | null
   callId?: string
   reason?: string
   eventId?: string
@@ -55,18 +59,9 @@ function dbErr(e: { message: string; code?: string }): Out {
   return { status: 500, body: { error: 'db_error' } }
 }
 
-const stagesOf = (scope: any): string[] => (Array.isArray(scope?.stages) ? scope.stages : [])
-/** A reply applies in this situation when it lists no situations, or one that covers it. Unknown situation: only "any". */
-const fitsStage = (scope: any, stage: string | null) => {
-  const s = stagesOf(scope)
-  return s.length === 0 || (!!stage && s.some((c) => covers(c, stage)))
-}
-const allows = (list: unknown, v: string | null) => !Array.isArray(list) || list.length === 0 || (!!v && list.includes(v))
-/** Same rule as the database's "fits": the reply applies to this order now (side, size, account, status, client, situation). */
-export function fitsOrder(scope: any, o: { side: string | null; category: string; accountId: string | null; status: string; clientState: string }, stage: string | null) {
-  return allows(scope?.sides, o.side) && allows(scope?.categories, o.category) && allows(scope?.account_ids, o.accountId)
-    && allows(scope?.statuses, o.status) && allows(scope?.client_states, o.clientState) && fitsStage(scope, stage)
-}
+const stagesOf = scopeStages
+/** Same rule as the database's "fits" (shared with the draft engine). */
+export { fitsOrder }
 
 /** The client's wording to keep: the part the judge quoted (if it is really in the question), else the message that matched. */
 export function pickPhrasing(question: string, quoted: string | null | undefined, matchedInput: string | null | undefined): string {
@@ -219,6 +214,19 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     })
     embedding = e.vectors?.[0] ?? null
     ctxEmbedding = ctxText ? e.vectors?.[1] ?? null : null
+  }
+  // A reply the approver picked for another step ("If: Checking KYC") tells us the client's real step: it is filed
+  // there. Never over Binance's own status (paid, completed, cancelled, appeal), never out of KYC on a sell order (only
+  // Binance's Verified notice or our payment details end it), and not when saving an older message.
+  const picked = typeof input?.situation === 'string' ? input.situation : null
+  const pickSide = ctxInfo.side as Side | null
+  if (picked && picked !== ctxInfo.stage && !input?.beforeAt && markable(picked, pickSide)
+    && !(ctxInfo.stage && STATUS_SITUATIONS.has(ctxInfo.stage))
+    && !(beforeVerification(pickSide, ctxInfo.stage) && !beforeVerification(pickSide, picked))) {
+    ctxInfo = { ...ctxInfo, stage: picked }
+    // The example chat is labelled with the picked step; its embedding is made at the next lookup, never mislabelled.
+    ctxText = contextText(prior, situationDef(picked)?.label ?? null)
+    ctxEmbedding = null
   }
   const stage = ctxInfo.stage && situationDef(ctxInfo.stage) ? ctxInfo.stage : null
 
@@ -401,6 +409,25 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
       const st = scope.stages ?? []
       if (!st.length || st.some((c) => covers('sell.kyc', c))) scope = { ...scope, stages: [stage && covers('sell.pay', stage) ? stage : 'sell.pay.ready'] }
     }
+  } else if (ctxInfo.side === 'SELL' && beforeVerification('SELL', stage) && target && relation === 'widen') {
+    // A pay reply is never widened into a step before verification. A reply with no request to pay that the judge took
+    // for "the same answer" as a pay reply is this step's own reply in that question.
+    const tgt: any = candidates.find((c) => c.entry_id === target) ?? (source && source.id === target ? source : null)
+    if (tgt?.topic_id && (invitesPayment(tgt.reply_en) || invitesPayment(tgt.reply_hi))) {
+      relation = 'variant'; targetTopic = tgt.topic_id; target = null
+      scope = { ...scope, stages: stage ? [stage] : [] }
+      if (!scope.stages.length) delete scope.stages
+    }
+  }
+
+  // A reply filed under another step than the chat showed (a request to pay sent while the chat looked like KYC) keeps
+  // its example chat under that step, labelled for it.
+  let exampleStage = stage
+  const filedAt = scope.stages?.length === 1 ? scope.stages[0] : null
+  if (filedAt && filedAt !== stage && (relation === 'new' || relation === 'variant' || relation === 'conflict')) {
+    exampleStage = filedAt
+    ctxText = contextText(prior, situationDef(filedAt)?.label ?? null)
+    ctxEmbedding = null
   }
 
   // The phrasing's own embedding. For the whole question the fresh one is used, or (null) the database takes the
@@ -429,7 +456,7 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
       side: ctxInfo.side, status: ctxInfo.status, category: ctxInfo.category, client_state: ctxInfo.clientState,
       situation: stage, situation_label: situationDef(stage)?.label ?? null, chat: tail,
     },
-    p_target_topic_id: targetTopic, p_stage: stage,
+    p_target_topic_id: targetTopic, p_stage: exampleStage,
     // The chat this reply was used in, kept as an example: later chats like it bring this reply up first.
     p_example_chat: tail.length ? tail.map((l) => ({ from: l.from, text: maskPII(l.text).slice(0, 220) })) : null,
     p_example_text: ctxText || null,
@@ -443,7 +470,7 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     body: {
       eventId: d.event_id, action: d.action, entryId: d.entry_id, topicId: d.topic_id ?? null, title: d.title, otherEntryId: d.other_entry_id ?? null,
       inboxItemId: d.inbox_item_id ?? null, stored, storedLanguage: replyLang, judged, reason,
-      phrasing: d.phrasing ?? null, situation: stage ? (situationDef(stage)?.label ?? stage) : null,
+      phrasing: d.phrasing ?? null, situation: exampleStage ? (situationDef(exampleStage)?.label ?? exampleStage) : null,
     },
   }
 }

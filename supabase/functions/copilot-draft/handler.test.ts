@@ -333,3 +333,238 @@ Deno.test('a reply whose every copy is out of date is never offered; the AI draf
   eq(r.body.playbook.length, 0); eq(r.body.related.length, 0)
   eq(a.chats.length, 2, 'drafted, since nothing usable fits')
 })
+
+// ─── Other steps the client could be at (CP-5) ──────────────────────────────────────────────────────
+
+const callChat = () => [...kycAsked(), msg('client', 'img', 'image'), msg('us', 'Sir one time verification is needed, our team will connect you soon.'), msg('client', 'Shall I pay now?')]
+const payNowTopic = () => {
+  const t = id()
+  return {
+    t,
+    call: entry({ topic_id: t, title: 'Can I pay now?', status: 'tentative', scope: { sides: ['SELL'], stages: ['sell.kyc.review', 'sell.kyc.call'] }, specificity: 3,
+      reply_en: 'Please wait a moment, sir. We will share the payment details as soon as your verification is complete.', reply_hi: null }),
+    pending: entry({ topic_id: t, title: 'Can I pay now?', scope: { sides: ['SELL'], stages: ['sell.kyc.pending'] }, fits: false, specificity: -1,
+      reply_en: 'Sir, please share the requested KYC details first. We will share the payment details as soon as your verification is complete.', reply_hi: null }),
+    pay: entry({ topic_id: t, title: 'Can I pay now?', status: 'tentative', scope: { sides: ['SELL'], stages: ['sell.pay.ready'] }, fits: false, specificity: -1,
+      reply_en: 'Yes, sir. Please pay to the payment details shared in this order, from a bank account in your own name.', reply_hi: null }),
+  }
+}
+
+Deno.test('the reply for the detected step comes first; the same question\'s replies for the other KYC steps are offered; never a pay reply', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = callChat()
+  const q = payNowTopic()
+  s.matchRows = [q.call, q.pending, q.pay]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.call')
+  eq(r.body.playbook.map((p: any) => p.entryId), [q.call.entry_id])
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps, p.stepLabels]), [[q.pending.entry_id, ['sell.kyc.pending'], ['KYC pending']]])
+  eq(r.body.alternatives[0].text, q.pending.reply_en); eq(r.body.alternatives[0].status, 'approved')
+  eq(r.body.otherSteps, [], '"Checking KYC" already has the reply shown above')
+  const everything = JSON.stringify(r.body)
+  ok(!everything.includes(q.pay.entry_id), 'a reply asking to pay is never offered before verification, not even as another step')
+})
+
+Deno.test('steps with no reply in the question are offered as one-tap switches; an unknown question offers them all', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'How much time?')]
+  const t = id()
+  s.matchRows = [entry({ topic_id: t, title: 'How long will it take?', scope: { stages: ['sell.kyc.pending'] }, specificity: 3, reply_en: 'Sir, please share the documents first; we check them within a few minutes.' })]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.pending')
+  eq(r.body.alternatives, [])
+  eq(r.body.otherSteps, [{ code: 'sell.kyc.review', label: 'Checking KYC' }, { code: 'sell.kyc.call', label: 'Verification call' }])
+  s.matchRows = []
+  s.rows.push(msg('client', 'hello?'))
+  const unknown = await run(s, a)
+  eq(unknown.body.otherSteps.map((x: any) => x.code), ['sell.kyc.review', 'sell.kyc.call'])
+})
+
+Deno.test('a pay reply saved under a KYC step is skipped; a reply for two other steps is offered once, for both; a reply that applies here too is not', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'Can I pay now?')]
+  const t = id()
+  const pending = entry({ topic_id: t, title: 'Can I pay now?', scope: { stages: ['sell.kyc.pending'] }, specificity: 3, reply_en: 'Sir, please share the requested KYC details first.' })
+  const misfiled = entry({ topic_id: t, title: 'Can I pay now?', scope: { stages: ['sell.kyc.review'] }, fits: false, specificity: -1, reply_en: 'Sir, please pay to {upi}.' })
+  const both = entry({ topic_id: t, title: 'Can I pay now?', status: 'tentative', scope: { stages: ['sell.kyc.review', 'sell.kyc.call'] }, fits: false, specificity: -1, reply_en: 'Sir, we are checking your details. We will share the payment details once you are verified.' })
+  const group = entry({ topic_id: t, title: 'Can I pay now?', scope: { stages: ['sell.kyc'] }, specificity: 2, reply_en: 'Sir, please wait while we complete your verification.' })
+  s.matchRows = [pending, misfiled, both, group]
+  const r = await run(s, a)
+  eq(r.body.playbook.map((p: any) => p.entryId), [pending.entry_id])
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps]), [[both.entry_id, ['sell.kyc.review', 'sell.kyc.call']]])
+  eq(r.body.alternatives[0].stepLabels, ['Checking KYC', 'Verification call'])
+  ok(!JSON.stringify(r.body.alternatives).includes(misfiled.entry_id), 'the pay reply is never offered')
+  ok(!JSON.stringify(r.body.alternatives).includes(group.entry_id), 'a reply for every KYC step says nothing about the step')
+  eq(r.body.otherSteps, [])
+})
+
+Deno.test('verified or paid orders have no other steps', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const q = payNowTopic()
+  s.rows = [...kycAsked(), sysRow('maker_verified_additional_kyc_maker_sell'), msg('client', 'Can I pay now?')]
+  s.matchRows = [{ ...q.pay, fits: true, specificity: 3 }, q.pending, { ...q.call, fits: false, specificity: -1 }]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.pay.ready')
+  eq(r.body.playbook.map((p: any) => p.entryId), [q.pay.entry_id])
+  eq(r.body.alternatives, []); eq(r.body.otherSteps, [])
+  s.orderRow = { ...s.orderRow, order_status: 'BUYER_PAYED' }
+  s.rows.push(msg('client', 'paid, please check'))
+  const paid = await run(s, a)
+  eq(paid.body.context.situation, 'sell.pay.checking')
+  eq(paid.body.alternatives, []); eq(paid.body.otherSteps, [])
+})
+
+Deno.test('a client we have not approved, on an order with no KYC sign: the KYC reply is offered next to "Client can pay"', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = { status: 'not_found' }
+  s.rows = [msg('client', 'Can I pay now?')]
+  const q = payNowTopic()
+  s.matchRows = [{ ...q.pay, status: 'approved', fits: true, specificity: 3 }, q.pending, { ...q.call, fits: false, specificity: -1 }]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.pay.ready'); eq(r.body.context.client_state, 'new')
+  eq(r.body.playbook.map((p: any) => p.entryId), [q.pay.entry_id])
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps]), [[q.pending.entry_id, ['sell.kyc.pending']]])
+  // An approved client on the same order: nothing else to offer.
+  s.panel = { status: 'linked', client: { kyc_status: 'VERIFIED', buyer_status: 'APPROVED' } }
+  s.rows.push(msg('client', 'sir?'))
+  const known = await run(s, a)
+  eq(known.body.alternatives, []); eq(known.body.otherSteps, [])
+})
+
+Deno.test('buy order: replies for our other payment steps, closest first', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, trade_type: 'BUY' }
+  s.rows = [msg('us', 'Please share your PAN card and bank details, sir.'), msg('client', 'When will you pay?')]
+  const t = id()
+  const details = entry({ topic_id: t, title: 'When will you pay?', scope: { sides: ['BUY'], stages: ['buy.details'] }, specificity: 2, reply_en: 'Sir, we will pay as soon as you share your PAN and bank details.' })
+  const cooling = entry({ topic_id: t, title: 'When will you pay?', status: 'tentative', scope: { sides: ['BUY'], stages: ['buy.pay.cooling'] }, fits: false, specificity: -1, reply_en: 'Sir, your account is being activated with our bank. We will pay right after.' })
+  const paying = entry({ topic_id: t, title: 'When will you pay?', scope: { sides: ['BUY'], stages: ['buy.pay.processing'] }, fits: false, specificity: -1, reply_en: 'Sir, your payment is in process.' })
+  s.matchRows = [details, cooling, paying]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'buy.details')
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps]), [[paying.entry_id, ['buy.pay.processing']], [cooling.entry_id, ['buy.pay.cooling']]])
+})
+
+Deno.test("other steps' team numbers are filled in, and the cached chat state keeps the options", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = callChat()
+  s.contactRows = [{ id: 'c1', purpose: 'kyc', person_name: 'Chirag', phone: '9800011122', available_now: true, priority: 1 }]
+  const q = payNowTopic()
+  const pending = { ...q.pending, reply_en: 'Sir, please share the requested KYC details first. For help, our KYC team is at {contact:kyc}.' }
+  s.matchRows = [q.call, pending]
+  const r = await run(s, a)
+  eq(r.body.contactPurposes, ['kyc']); eq(r.body.contacts.kyc?.name, 'Chirag')
+  const again = await run(s, a)
+  eq(again.body.cached, true)
+  eq(again.body.alternatives.map((p: any) => p.entryId), [pending.entry_id]); eq(again.body.contacts.kyc?.name, 'Chirag')
+})
+
+Deno.test('stepOptions: most specific first, approved before tentative, then the most similar chat; conflicts, outdated and general replies never', async () => {
+  const { stepOptions } = await import('./handler.ts')
+  const o = { side: 'SELL', category: 'regular', accountId: null, status: 'TRADING', clientState: 'new' }
+  const t = id()
+  const group = entry({ topic_id: t, scope: { stages: ['sell.kyc'] }, reply_en: 'Group reply.' })
+  const stepTentative = entry({ topic_id: t, status: 'tentative', scope: { stages: ['sell.kyc.review'] }, reply_en: 'Review, tentative.' })
+  const stepApproved = entry({ topic_id: t, scope: { stages: ['sell.kyc.review'] }, reply_en: 'Review, approved.', context_similarity: 0.2 })
+  const stepApprovedLike = entry({ topic_id: t, scope: { stages: ['sell.kyc.review'] }, reply_en: 'Review, approved, like this chat.', context_similarity: 0.9 })
+  const conflictA = entry({ topic_id: t, scope: { stages: ['sell.kyc.call'] }, conflict_open: true, reply_en: 'Call, one answer.' })
+  const conflictB = entry({ topic_id: t, scope: { stages: ['sell.kyc.call'] }, conflict_open: true, reply_en: 'Call, the other answer.' })
+  const outdated = entry({ topic_id: t, scope: { stages: ['sell.kyc.call'] }, reply_en: 'Call, outdated.', reply_en_stale: true, reply_hi: null })
+  const otherSide = entry({ topic_id: t, scope: { sides: ['BUY'], stages: ['sell.kyc.call'] }, reply_en: 'Wrong side.' })
+  const all = [group, stepTentative, stepApproved, stepApprovedLike, conflictA, conflictB, outdated, otherSide]
+  const r = stepOptions(all, ['sell.kyc.review', 'sell.kyc.call'], o, new Set(), 'sell.kyc.pending')
+  eq(r.options.map((x) => [x.m.reply_en, x.steps]), [['Review, approved, like this chat.', ['sell.kyc.review']]])
+  eq(r.open, ['sell.kyc.call'], 'the call step\'s answers disagree: a switch, never the group reply in their place')
+  // Only a reply that applies at the current step too (the group, or the reply shown above): nothing for that step.
+  eq(stepOptions([group], ['sell.kyc.review'], o, new Set(), 'sell.kyc.pending'), { options: [], open: [] })
+  eq(stepOptions([stepApproved], ['sell.kyc.review'], o, new Set([stepApproved.entry_id]), 'sell.kyc.call'), { options: [], open: [] })
+  eq(stepOptions([], ['sell.kyc.call'], o, new Set(), 'sell.kyc.pending'), { options: [], open: ['sell.kyc.call'] })
+})
+
+Deno.test('a question whose reply for this step was held back still offers its replies for the other steps', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('client', 'Can I pay now?')]
+  const t = id()
+  const payAny = entry({ topic_id: t, title: 'Can I pay now?', reply_en: 'Yes sir, please pay to {upi}.', reply_hi: null })
+  const pendingR = entry({ topic_id: t, title: 'Can I pay now?', scope: { stages: ['sell.kyc.pending'] }, fits: false, specificity: -1, reply_en: 'Sir, please share the requested KYC details first.', reply_hi: null })
+  const callR = entry({ topic_id: t, title: 'Can I pay now?', status: 'tentative', scope: { stages: ['sell.kyc.call'] }, fits: false, specificity: -1, reply_en: 'Sir, our KYC team will call you for the verification first.', reply_hi: null })
+  s.matchRows = [payAny, pendingR, callR]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.review')
+  eq(r.body.heldBack.map((h: any) => h.entryId), [payAny.entry_id])
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps]), [[callR.entry_id, ['sell.kyc.call']], [pendingR.entry_id, ['sell.kyc.pending']]])
+  eq(r.body.otherSteps, [])
+})
+
+Deno.test('a reply for any step is not offered as another step; a step whose answers disagree is a switch', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'How much longer? please hurry')]
+  const t = id()
+  const pendingR = entry({ topic_id: t, title: 'Client asks us to hurry', scope: { stages: ['sell.kyc.pending'] }, specificity: 3, reply_en: 'Sir, please share the requested KYC details so that we can proceed.' })
+  const anyR = entry({ topic_id: t, title: 'Client asks us to hurry', specificity: 0, reply_en: 'Sure, sir. We are on it.' })
+  const callA = entry({ topic_id: t, title: 'Client asks us to hurry', scope: { stages: ['sell.kyc.call'] }, fits: false, specificity: -1, conflict_open: true, reply_en: 'Sir, the call will happen shortly.' })
+  const callB = entry({ topic_id: t, title: 'Client asks us to hurry', scope: { stages: ['sell.kyc.call'] }, fits: false, specificity: -1, conflict_open: true, reply_en: 'Sir, please wait for our call.' })
+  s.matchRows = [pendingR, anyR, callA, callB]
+  const r = await run(s, a)
+  eq(r.body.playbook.map((p: any) => p.entryId), [pendingR.entry_id])
+  eq(r.body.alternatives, [], '"We are on it" applies at every step: it is no answer for another step')
+  eq(r.body.otherSteps.map((x: any) => x.code), ['sell.kyc.call'])
+})
+
+Deno.test('the step to set is the one the chat will show once the reply is sent', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'What verification?')]
+  const t = id()
+  const pendingR = entry({ topic_id: t, title: 'What is the verification?', scope: { stages: ['sell.kyc.pending'] }, specificity: 3, reply_en: 'Sir, please share the requested KYC details first.' })
+  const callR = entry({ topic_id: t, title: 'What is the verification?', scope: { stages: ['sell.kyc.review', 'sell.kyc.call'] }, fits: false, specificity: -1,
+    reply_en: 'Sir, a one-time verification is needed. Our KYC team will connect with you shortly.' })
+  s.matchRows = [pendingR, callR]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.pending')
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps, p.stepLabels]), [[callR.entry_id, ['sell.kyc.call', 'sell.kyc.review'], ['Verification call', 'Checking KYC']]],
+    'it announces the call: sending it sets "Verification call"')
+})
+
+Deno.test("a chat set to a KYC step by an approver still gets that question's replies for the other KYC steps", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = { status: 'not_found' }
+  s.rows = [msg('client', 'Can I pay now?')]
+  s.mark = { code: 'sell.kyc.pending', at: Date.now() + 60_000, by: SHUBHAM }
+  const q = payNowTopic()
+  s.matchRows = [{ ...q.pending, fits: true, specificity: 3 }, { ...q.call, fits: false, specificity: -1 }, q.pay]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.pending'); eq(r.body.context.situation_detected, 'sell.pay.ready')
+  eq(r.body.playbook.map((p: any) => p.entryId), [q.pending.entry_id])
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps]), [[q.call.entry_id, ['sell.kyc.review', 'sell.kyc.call']]],
+    'the chat alone reads "Client can pay"; sending this reply does not change that, so it is offered')
+  ok(!JSON.stringify(r.body.alternatives).includes(q.pay.entry_id))
+})
+
+Deno.test('other steps come from the question whose reply is shown, not a closer match with replies only for other situations', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('client', 'How much time?')]
+  const a1 = entry({ similarity: 0.93, title: 'How long will it take?', scope: { stages: ['sell.pay.checking'] }, fits: false, specificity: -1, reply_en: 'Thank you, sir. We are checking the payment.' })
+  const t = id()
+  const shown = entry({ topic_id: t, similarity: 0.88, title: 'When will KYC be done?', scope: { stages: ['sell.kyc.review'] }, specificity: 3, reply_en: 'Sir, we are checking your details.' })
+  const call = entry({ topic_id: t, similarity: 0.88, title: 'When will KYC be done?', scope: { stages: ['sell.kyc.call'] }, fits: false, specificity: -1, reply_en: 'Sir, our KYC team will call you shortly.' })
+  s.matchRows = [a1, shown, call]
+  const r = await run(s, a)
+  eq(r.body.playbook.map((p: any) => p.entryId), [shown.entry_id])
+  eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps]), [[call.entry_id, ['sell.kyc.call']]])
+  eq(r.body.otherSteps.map((x: any) => x.code), ['sell.kyc.pending'])
+})
+
+Deno.test('the step to set follows the language shown: the Hinglish call message sets "Verification call" too', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'ye verification kya hai?'), msg('us', 'Sure, sir.'), msg('client', 'kya hai ye verification bataiye?'), msg('us', 'Please allow me a moment, sir.'),
+    msg('client', 'jaldi bataiye verification kya hai?')]
+  const t = id()
+  const pendingR = entry({ topic_id: t, title: 'What is the verification?', scope: { stages: ['sell.kyc.pending'] }, specificity: 3, reply_en: 'Sir, please share the requested KYC details first.', reply_hi: 'Sir, pehle requested KYC details share kar dijiye.' })
+  const callR = entry({ topic_id: t, title: 'What is the verification?', scope: { stages: ['sell.kyc.review', 'sell.kyc.call'] }, fits: false, specificity: -1,
+    reply_en: 'A one-time verification is needed, sir. Our KYC team will connect with you shortly.', reply_hi: 'Sir, ek baar verification zaroori hai. Hamari KYC team thodi der mein aapse connect karegi.' })
+  s.matchRows = [pendingR, callR]
+  const r = await run(s, a)
+  eq(r.body.context.language, 'hi'); eq(r.body.context.situation, 'sell.kyc.pending')
+  eq(r.body.alternatives[0]?.text, 'Sir, ek baar verification zaroori hai. Hamari KYC team thodi der mein aapse connect karegi.')
+  eq(r.body.alternatives[0].steps, ['sell.kyc.call', 'sell.kyc.review'])
+})

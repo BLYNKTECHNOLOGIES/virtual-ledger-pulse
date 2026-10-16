@@ -1,6 +1,8 @@
 // Copilot v2 panel for approvers (Shubham, Abhishek) in the Terminal order chat.
 // Approved Playbook replies come first (no AI). AI drafts are made only for this open chat, only when no
 // approved reply fits or the approver asks. Nothing is ever sent from here: Insert puts text in the composer.
+// KYC happens outside the chat, so a step worked out from our messages is a best guess: the question's replies for
+// the neighbouring steps are offered too ("If: Checking KYC"), and sending one sets the chat to that step.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,28 +10,21 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertTriangle, BookCheck, Check, ChevronDown, ChevronUp, CornerDownLeft, History, Languages, Loader2, MapPin, Phone, RefreshCw,
-  ShieldAlert, Sparkles, Wand2, X,
+  ShieldAlert, Signpost, Sparkles, Wand2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  copilotDraft, copilotReject, CopilotError, type AiDraft, type DraftResponse, type PlaybookSuggestion,
+  copilotDraft, copilotReject, CopilotError, type AiDraft, type DraftResponse, type PlaybookSuggestion, type StepSuggestion,
 } from '@/hooks/useCopilotPlaybook';
 import { copilotAdmin, useCopilotSituations, useCopilotTeams, useUserNames, userLabel } from '@/hooks/useCopilotAdmin';
 import {
-  FLAG_LABEL, REJECT_REASONS, contactsUsed, fillCopilotText, modelLabel, statusLabel, teamLabel, type ContactPurpose,
+  FLAG_LABEL, REJECT_REASONS, buildCopilotPicks, contactsUsed, fillCopilotText, modelLabel, statusLabel, teamLabel, type ContactPurpose,
+  type CopilotPick,
 } from '@/lib/copilot/copilotText';
 import { markableSituations, STATUS_SITUATIONS } from '@/lib/copilot/situations';
 import type { TemplateOrderValues } from '@/lib/fill-template';
 
-export interface CopilotPick {
-  kind: 'entry' | 'draft';
-  entryId?: string | null;
-  callId?: string | null;
-  requestId: string | null;
-  /** Text as inserted into the composer (order values and contact numbers filled in). */
-  text: string;
-  title?: string;
-}
+export type { CopilotPick } from '@/lib/copilot/copilotText';
 
 interface Props {
   orderNumber: string;
@@ -46,6 +41,8 @@ interface Props {
   onApprove: (pick: CopilotPick) => void;
   /** Lets the composer cycle suggestions with Tab and attach the request to what gets saved. */
   onState: (s: { requestId: string | null; picks: CopilotPick[] }) => void;
+  /** Changes when the chat's step was set from outside the panel (a reply sent for another step): fresh suggestions. */
+  refreshKey?: number;
 }
 
 const COLLAPSE_KEY = 'terminal-copilot-collapsed';
@@ -144,6 +141,7 @@ function SituationMenu({ side, current, detected, detectedLabel, marked, disable
 
 export function CopilotPanel({
   orderNumber, exchangeAccountId, tradeType, orderStatus, totalPrice, asset, payMethod, trigger, templateValues, onInsert, onApprove, onState,
+  refreshKey = 0,
 }: Props) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [data, setData] = useState<DraftResponse | null>(null);
@@ -197,24 +195,39 @@ export function CopilotPanel({
     return () => { clearTimeout(t); seq.current++; };
   }, [orderNumber, triggerKey, orderStatus, load]);
 
+  // The chat's step was set from outside (a reply sent for another step): fresh suggestions for a client message still
+  // waiting, for that step. With nothing to answer, what is shown stays (drafts asked for by hand are kept).
+  const seenRefresh = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey === seenRefresh.current) return;
+    seenRefresh.current = refreshKey;
+    if (triggerRef.current) void load('suggest');
+  }, [refreshKey, load]);
+
   const fill = useCallback((text: string) => fillCopilotText(text, templateValues, data?.contacts), [templateValues, data?.contacts]);
   const requestId = data?.requestId ?? null;
   const drafts = useMemo(() => (data?.drafts ?? []).filter((d) => !(d.callId && hidden.has(d.callId))), [data?.drafts, hidden]);
   const playbook = useMemo(() => data?.playbook ?? [], [data?.playbook]);
   const related = useMemo(() => data?.related ?? [], [data?.related]);
+  const alternatives = useMemo(() => data?.alternatives ?? [], [data?.alternatives]);
+  const otherSteps = useMemo(() => data?.otherSteps ?? [], [data?.otherSteps]);
+  const side = data?.context?.side ?? null;
+  const detected = data?.context?.situation_detected ?? null;
 
-  const picks = useMemo<CopilotPick[]>(() => [
-    ...playbook.filter((p) => !p.conflict).map((p) => ({ kind: 'entry' as const, entryId: p.entryId, requestId, text: fill(p.text), title: p.title })),
-    ...drafts.filter((d) => !d.blocked).map((d) => ({ kind: 'draft' as const, callId: d.callId, requestId, text: fill(d.text) })),
-  ], [playbook, drafts, requestId, fill]);
+  const picks = useMemo<CopilotPick[]>(
+    () => buildCopilotPicks({ playbook, drafts, alternatives, requestId, side, detected, fill }),
+    [playbook, drafts, alternatives, requestId, side, detected, fill],
+  );
 
   useEffect(() => { onState({ requestId, picks }); }, [requestId, picks, onState]);
 
   const toggleCollapsed = () => setCollapsed((c) => { writeCollapsed(!c); return !c; });
 
-  const changeSituation = async (code: string | null) => {
+  const changeSituation = async (picked: string | null) => {
     const side = data?.context?.side;
     if (!side) return;
+    // Picking what the chat itself shows undoes an earlier correction.
+    const code = picked !== null && picked === data?.context?.situation_detected ? null : picked;
     setBusy('situation');
     try {
       await copilotAdmin.setSituation(orderNumber, side, code, data?.context?.situation_detected ?? null);
@@ -317,6 +330,33 @@ export function CopilotPanel({
         {p.note && !compact && <div className="mt-1 text-[10px] text-muted-foreground">Note: {p.note}</div>}
         {p.status === 'tentative' && !p.conflict && !compact && <div className="mt-1 text-[10px] text-warning">Tentative — sending it, or Confirm, makes it approved.</div>}
         {!compact && contactLine(p.text)}
+      </div>
+    );
+  };
+
+  // A reply for another step the client could be at. Insert, then send: the chat is set to that step and the reply is
+  // saved under it.
+  const stepCard = (p: StepSuggestion) => {
+    const pick = picks.find((x) => x.kind === 'entry' && x.entryId === p.entryId && x.situation);
+    if (!pick) return null;
+    const text = pick.text;
+    const steps = p.stepLabels.join(' or ');
+    return (
+      <div key={p.entryId} className="rounded-md border border-border bg-card px-2.5 py-1.5">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <span title="The reply for this step" className="inline-flex min-h-5 min-w-0 max-w-full items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium leading-tight text-primary">
+            If: {steps}
+          </span>
+          <Chip tone={p.status === 'approved' ? 'green' : 'amber'}>{p.status === 'approved' ? 'Approved' : 'Tentative'}</Chip>
+          {p.languageNote?.endsWith('_outdated') && <span className="shrink-0 text-[10px] text-warning">· {lang} copy out of date — {p.language === 'en' ? 'English' : 'Hindi'} shown</span>}
+          {p.missingLanguage && !p.languageNote?.endsWith('_outdated') && <span className="shrink-0 text-[10px] text-warning">· {lang} version not saved yet</span>}
+          <Button variant="outline" size="sm" className="ml-auto h-6 shrink-0 px-2 text-[11px]" onClick={() => onInsert(pick)}
+            title={`Insert. Sending it sets this chat to “${pick.situation?.label}” and saves the reply there.`}>
+            <CornerDownLeft className="mr-1 h-3 w-3" />Insert
+          </Button>
+        </div>
+        <div className="mt-1 whitespace-pre-wrap break-words text-[11px] leading-snug text-card-foreground">{text}</div>
+        {contactLine(p.text)}
       </div>
     );
   };
@@ -441,6 +481,30 @@ export function CopilotPanel({
             </div>
           ))}
           {!loading && drafts.map((d) => draftCard(d))}
+          {/* Other steps: the chat's step is worked out from our messages (KYC happens outside the chat), so the
+              approver can pick the reply for the step the client is really at, or switch the chat to it. */}
+          {!loading && ctx?.side && (alternatives.length > 0 || otherSteps.length > 0) && (
+            <div className="space-y-1.5 rounded-md border border-dashed border-primary/25 px-2 py-1.5" aria-label="Other steps">
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px] leading-snug">
+                <Signpost className="h-3 w-3 shrink-0 text-primary" />
+                <span className="font-medium text-foreground">Client at another step?</span>
+                {alternatives.length > 0 && <span className="text-muted-foreground">Sending one of these sets the chat to its step.</span>}
+                {otherSteps.length > 0 && (
+                  <>
+                    <span className="text-muted-foreground">{alternatives.length ? 'Or switch to' : 'Switch to'}</span>
+                    {otherSteps.map((st) => (
+                      <button key={st.code} type="button" disabled={working} onClick={() => void changeSituation(st.code)}
+                        title={`Switch this chat to “${st.label}” and get its suggestions.`}
+                        className="inline-flex h-5 items-center rounded-full border border-border bg-secondary/60 px-2 text-[10px] font-medium text-foreground hover:bg-secondary disabled:opacity-60">
+                        {st.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+              {alternatives.map((p) => stepCard(p))}
+            </div>
+          )}
           {busy && (
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Drafting…</div>
           )}

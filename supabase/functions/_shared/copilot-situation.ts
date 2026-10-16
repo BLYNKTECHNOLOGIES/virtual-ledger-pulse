@@ -76,6 +76,8 @@ export interface Detected {
   since: number
   /** Beneficiary activation: when the bank should allow the payment (ms). */
   readyAt?: number | null
+  /** Sell order with no KYC sign at all in the chat (no Binance KYC notice, no KYC request from us). */
+  noKyc?: boolean
 }
 export interface Mark { code: string | null; at: number; by: string | null }
 export interface Situation extends Detected {
@@ -92,12 +94,28 @@ const ours = (m: Msg) => m.who === 'us' || m.who === 'auto'
 // Our standard messages (operators follow a script; checked against 30 days of chats). The verification call is the
 // KYC team's, even where operators' messages say "RM team".
 const KYC_ASK = /\baadha+r\b|\bmobile (no|number)\b|\bpurpose of (buying|purchas)|\bsource of (fund|income)|\bkyc\b[^.?!]{0,40}\b(share|send|complete|submit|provide)\b|\b(share|send|provide)\b[^.?!]{0,40}\b(documents?|kyc)\b/i
-const RM = /one[\s-]?time verification|\brm\b|relationship manager|verifying with (the )?team|verification (is )?(in progress|pending|under process)|team will (connect|call|reach)|\bvideo kyc\b|\bvkyc\b|will (call|connect with) you/i
+const RM = /one[\s-]?time verification|\brm\b|relationship manager|verifying with (the )?team|verification (is )?(in progress|pending|under process)|team will (connect|call|reach)|\bvideo kyc\b|\bvkyc\b|will (call|connect with) you|\bek\s*baar\s*(ka\s+|ki\s+)?verification\b(?!\s+(complete|poori|puri|done|ho\s+ja|hone|hote|ke\s+baad))|\b(kyc|verification)\b[^.?!]{0,60}\b(connect|call)\s+(karegi|karega|karenge)\b/i
 const UPI_ID = /\b[a-z0-9._-]{2,}@[a-z]{2,}\b(?![.@])/i
-const DETAILS = [UPI_ID, /\b[A-Z]{4}0[A-Z0-9]{6}\b/i, /\b(account|a\/c)\s*(no|number)?\b[^.?!]{0,20}\d{6,}/i,
-  /\bpay (on|to) (it|this|the (above|same|given) (upi|details|account))\b/i, /^\s*(please |kindly )?pay( now)?( on it)?( sir| ma'?am)?\s*\.?\s*$/i]
+const DETAIL_VALUES = [UPI_ID, /\b[A-Z]{4}0[A-Z0-9]{6}\b/i, /\b(account|a\/c)\s*(no|number)?\b[^.?!]{0,20}\d{6,}/i]
+const DETAIL_ASKS = [/\bpay (on|to) (it|this|the (above|same|given) (upi|details|account))\b/i, /^\s*(please |kindly )?pay( now)?( on it)?( sir| ma'?am)?\s*\.?\s*$/i]
+/**
+ * Our message gives the payment details, or tells the client to pay to them now ("pay on this UPI"). Not "you can pay
+ * to the given account once your verification is complete": that is still a KYC reply.
+ */
+const sharesDetails = (text: string) =>
+  DETAIL_VALUES.some((re) => re.test(text)) || hasPaymentDetails(text) || (DETAIL_ASKS.some((re) => re.test(text)) && invitesPayment(text))
 const BUY_ASK = /\b(pan( card| no| number| details)?|mobile (no|number)|bank (details|account)|account (no|number|details)|ifsc|upi id)\b/i
 const ASKING = /\b(share|send|provide|kindly|please|need)\b|\?/i
+/**
+ * "Please share the requested details" / "pehle details share kar dijiye": a request for details, whatever else it
+ * says ("so that we can process the payment"). Only a request: "please ... share ... details", or the Hinglish
+ * imperative, not "details share karne ke liye thank you" or "aapne details share kar di hai".
+ */
+const DETAILS_ASK = /\b(please|kindly|pls|plz)\b[^.?!]{0,30}\b(share|send|provide)\b[^.?!]{0,40}\bdetails\b|\bdetails\b[^.?!]{0,25}\b(share|send|bhej)\w*\s+(kar\s+)?(dijiye|dijie|dijiyega|kijiye|kariye|karo|do|dein)\b/i
+/** "We will share the details" / "details share kar denge": our promise, not a request. */
+const OUR_PROMISE = /\b(we|i)\s*('ll|will|shall|are going to)\s+(share|send|provide)\b|\b(share|send|bhej)\w*\s+(kar\s+)?(denge|dunga|dungi|karenge|karunga|karungi)\b/i
+/** "Please do not share your details with anyone": a warning, not a request. */
+const NOT_ASKING = /\b(do not|don'?t|never|no need to)\s+(\w+\s+){0,2}(share|send|provide)\b|\b(share|send|bhej)\w*\s+(mat|na)\b|\bmat\s+(share|send|bhej)/i
 const PAYING = /\bpaying on\b|\bprocess(ing)?\b|\bin process\b|\bpayment is (in )?progress\b|\bfinance team\b|\binitiat/i
 const COOLING = /\bbeneficiary\b/i
 const QUESTION = /\?|^\s*(how|what|when|why|where|which|kitna|kitni|kitne|kya|kab|kyu|kyon|kaise|any update|update)\b/i
@@ -144,7 +162,7 @@ function detectSell(t: Msg[]): Detected {
   let askMsg = latest(t, kycAsk)
   const firstAsk = first(t, kycAsk)
   const verified = latest(t, (m) => m.who === 'system' && m.event === 'maker_verified_additional_kyc_maker_sell')
-  const details = latest(t, (m) => m.who === 'us' && m.kind === 'text' && DETAILS.some((re) => re.test(m.text)))
+  const details = latest(t, (m) => m.who === 'us' && m.kind === 'text' && sharesDetails(m.text))
   const rm = latest(t, (m) => m.who === 'us' && m.kind === 'text' && RM.test(m.text))
   let kycStart = [kycEvent?.at, firstAsk?.at].filter((x): x is number => typeof x === 'number').sort((a, b) => a - b)[0] ?? null
 
@@ -168,7 +186,7 @@ function detectSell(t: Msg[]): Detected {
   } else if (rm && rm.at >= (askMsg?.at ?? 0)) {
     return { code: 'sell.kyc.call', evidence: [{ at: rm.at, text: 'Verification call message sent' }], since: rm.at }
   }
-  if (kycStart === null) return { code: 'sell.pay.ready', evidence: [{ at: null, text: 'No extra KYC on this order' }], since: 0 }
+  if (kycStart === null) return { code: 'sell.pay.ready', evidence: [{ at: null, text: 'No extra KYC on this order' }], since: 0, noKyc: true }
 
   const after = askMsg?.at ?? kycStart
   const gave = latest(t, (m) => m.at > after && answer(m))
@@ -189,9 +207,12 @@ function detectSell(t: Msg[]): Detected {
 }
 
 function detectBuy(t: Msg[], now: number): Detected {
-  const ask = latest(t, (m) => m.who === 'us' && m.kind === 'text' && BUY_ASK.test(m.text) && ASKING.test(m.text) && !COOLING.test(m.text))
+  const asksDetails = (text: string) =>
+    (BUY_ASK.test(text) || (DETAILS_ASK.test(text) && !OUR_PROMISE.test(text) && !NOT_ASKING.test(text))) && ASKING.test(text) && !COOLING.test(text)
+  const ask = latest(t, (m) => m.who === 'us' && m.kind === 'text' && asksDetails(m.text))
   const cooling = latest(t, (m) => m.who === 'us' && m.kind === 'text' && COOLING.test(m.text))
-  const paying = latest(t, (m) => m.who === 'us' && m.kind === 'text' && PAYING.test(m.text) && !COOLING.test(m.text))
+  // "Please share the details so that we can process your payment" asks for details; it does not say we are paying.
+  const paying = latest(t, (m) => m.who === 'us' && m.kind === 'text' && PAYING.test(m.text) && !COOLING.test(m.text) && !asksDetails(m.text))
   const last = [ask && { k: 'ask' as const, m: ask }, cooling && { k: 'cooling' as const, m: cooling }, paying && { k: 'paying' as const, m: paying }]
     .filter((x): x is { k: 'ask' | 'cooling' | 'paying'; m: Msg } => !!x)
     .sort((a, b) => b.m.at - a.m.at)[0]
@@ -253,6 +274,60 @@ export function resolveSituation(side: Side | null, d: Detected, mark: Mark | nu
 /** "Verified on Binance 11:26 · Payment details shared 11:26" */
 export function evidenceText(ev: Evidence[]): string {
   return ev.map((e) => (e.at ? `${e.text} ${hhmm(e.at)}` : e.text)).join(' · ')
+}
+
+// ─── Other steps the client could be at ─────────────────────────────────────────────────────────────
+
+// The steps worked out from our messages and the client's (not from Binance): KYC happens outside the chat, so the
+// detected step is a best guess and the approver may know better. In flow order.
+const KYC_STEPS = ['sell.kyc.pending', 'sell.kyc.review', 'sell.kyc.call']
+const BUY_STEPS = ['buy.details', 'buy.pay.processing', 'buy.pay.cooling']
+const NEIGHBOURS: Record<string, string[]> = {
+  'sell.kyc.pending': ['sell.kyc.review', 'sell.kyc.call'],
+  'sell.kyc.review': ['sell.kyc.call', 'sell.kyc.pending'],
+  'sell.kyc.call': ['sell.kyc.review', 'sell.kyc.pending'],
+  'buy.details': ['buy.pay.processing', 'buy.pay.cooling'],
+  'buy.pay.processing': ['buy.pay.cooling', 'buy.details'],
+  'buy.pay.cooling': ['buy.pay.processing', 'buy.details'],
+}
+
+/**
+ * The other steps this chat could really be at, closest first, for the approver to pick from: the neighbouring KYC
+ * steps (documents, our check, the KYC team's call) or our payment steps on a buy order. Never "Client can pay" before
+ * verification: that comes only from Binance's Verified notice or our payment details. A sell order with no KYC sign
+ * at all, for a client not approved by us, may still need KYC. Status situations (paid, completed, cancelled,
+ * appeal) come from Binance and have no alternatives.
+ */
+export function alternativeSteps(side: Side | null, s: { code: string | null; noKyc?: boolean }, clientState: string | null): string[] {
+  const code = s.code
+  if (!code || !side || STATUS_SITUATIONS.has(code)) return []
+  if (side === 'SELL' && KYC_STEPS.includes(code)) return [...NEIGHBOURS[code]]
+  if (side === 'SELL' && code === 'sell.pay.ready' && s.noKyc && clientState !== 'approved') return ['sell.kyc.pending']
+  if (side === 'BUY' && BUY_STEPS.includes(code)) return [...NEIGHBOURS[code]]
+  return []
+}
+
+// ─── Reply scopes ───────────────────────────────────────────────────────────────────────────────────
+
+/** A Playbook reply's scope (empty or missing list = any). */
+export type ReplyScope = Partial<Record<'stages' | 'sides' | 'categories' | 'account_ids' | 'statuses' | 'client_states', unknown>> | null | undefined
+const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+export const scopeStages = (scope: ReplyScope): string[] => list(scope?.stages)
+/** A reply applies in this situation when it lists no situations, or one that covers it. Unknown situation: only "any". */
+export const fitsStage = (scope: ReplyScope, stage: string | null) => {
+  const s = scopeStages(scope)
+  return s.length === 0 || (!!stage && s.some((c) => covers(c, stage)))
+}
+const allows = (v: unknown, x: string | null) => !Array.isArray(v) || v.length === 0 || (!!x && v.includes(x))
+export interface OrderFit { side: string | null; category: string; accountId: string | null; status: string; clientState: string }
+/** Same rule as the database's "fits": the reply applies to this order now (side, size, account, status, client, situation). */
+export function fitsOrder(scope: ReplyScope, o: OrderFit, stage: string | null) {
+  return allows(scope?.sides, o.side) && allows(scope?.categories, o.category) && allows(scope?.account_ids, o.accountId)
+    && allows(scope?.statuses, o.status) && allows(scope?.client_states, o.clientState) && fitsStage(scope, stage)
+}
+/** Same rule as the database's specificity: the depth of the most specific listed situation covering this one (0 = any). */
+export function stageDepth(scope: ReplyScope, stage: string | null): number {
+  return scopeStages(scope).filter((c) => covers(c, stage)).reduce((n, c) => Math.max(n, c.split('.').length), 0)
 }
 
 // ─── Replies that ask the client to pay ─────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  contactAvailableNow, contactsUsed, cycleIndex, fillCopilotText, hasUnfilledToken, latestUnanswered, learnToast, modelLabel, PHONE_RE,
-  maskPersonal, statusLabel, teamLabel, unfilledTokens, type PanelMessage,
+  buildCopilotPicks, contactAvailableNow, contactsUsed, cycleIndex, fillCopilotText, hasUnfilledToken, latestUnanswered, learnToast, modelLabel, PHONE_RE,
+  maskPersonal, pickKey, sameText, statusLabel, teamLabel, unfilledTokens, type PanelMessage,
 } from './copilotText';
 
 describe('fillCopilotText', () => {
@@ -62,6 +62,51 @@ describe('learnToast', () => {
       .toBe('“How long?” now also applies here (KYC pending). The client’s wording was added as another way of asking.');
     expect(learnToast({ action: 'conflict', title: 'TDS timing' }).tone).toBe('warning');
     expect(learnToast({ action: 'promoted', title: 'Paying bank' }).description).toBe('“Paying bank” is now approved.');
+  });
+  it('names the step a reply was saved under when it was used again or confirmed', () => {
+    expect(learnToast({ action: 'merged', title: 'Can I pay now?', situation: 'KYC pending' }).description).toBe('Reply for “Can I pay now?” (KYC pending) used again.');
+    expect(learnToast({ action: 'promoted', title: 'Can I pay now?', situation: 'Checking KYC' }).description).toBe('“Can I pay now?” (Checking KYC) is now approved.');
+    expect(learnToast({ action: 'merged', title: 'TDS timing' }).description).toBe('Reply for “TDS timing” used again.');
+  });
+});
+
+describe('buildCopilotPicks', () => {
+  const fill = (t: string) => t.replace('{amount}', '4,500');
+  const playbook = [
+    { entryId: 'e1', title: 'Can I pay now?', text: 'Please wait, sir.' },
+    { entryId: 'e2', title: 'Can I pay now?', text: 'Conflicting.', conflict: true },
+  ];
+  const drafts = [{ callId: 'c1', text: 'Draft A for {amount}', blocked: false }, { callId: 'c2', text: 'Blocked', blocked: true }];
+  const alternatives = [
+    { entryId: 'e3', title: 'Can I pay now?', text: 'Sir, please share the KYC details first.', steps: ['sell.kyc.pending'], stepLabels: ['KYC pending'] },
+    { entryId: 'e4', title: 'Can I pay now?', text: 'We are checking.', steps: ['sell.kyc.review', 'sell.kyc.call'], stepLabels: ['Checking KYC', 'Verification call'] },
+  ];
+  it('in the panel\'s order: this step\'s replies, the drafts, then the replies for other steps; conflicts and blocked drafts are left out', () => {
+    const picks = buildCopilotPicks({ playbook, drafts, alternatives, requestId: 'r1', side: 'SELL', detected: 'sell.kyc.call', fill });
+    expect(picks.map((p) => p.entryId ?? p.callId)).toEqual(['e1', 'c1', 'e3', 'e4']);
+    expect(picks[1].text).toBe('Draft A for 4,500');
+    expect(picks.every((p) => p.requestId === 'r1')).toBe(true);
+  });
+  it('a reply for another step carries its first listed step; this step\'s replies and drafts carry none', () => {
+    const picks = buildCopilotPicks({ playbook, drafts, alternatives, requestId: 'r1', side: 'SELL', detected: 'sell.kyc.call', fill });
+    expect(picks[0].situation).toBeUndefined();
+    expect(picks[1].situation).toBeUndefined();
+    expect(picks[2].situation).toEqual({ code: 'sell.kyc.pending', label: 'KYC pending', side: 'SELL', detected: 'sell.kyc.call' });
+    expect(picks[3].situation).toEqual({ code: 'sell.kyc.review', label: 'Checking KYC', side: 'SELL', detected: 'sell.kyc.call' });
+  });
+  it('tells suggestions apart by identity, not text, and compares sent text loosely', () => {
+    const same = buildCopilotPicks({ playbook: [{ entryId: 'e1', title: 'Q', text: 'Please wait, sir.' }], drafts: [],
+      alternatives: [{ entryId: 'e9', title: 'Q', text: 'Please wait, sir.', steps: ['sell.kyc.review'], stepLabels: ['Checking KYC'] }], requestId: 'r', side: 'SELL', detected: null, fill });
+    expect(pickKey(same[0])).not.toBe(pickKey(same[1]));
+    expect(same.findIndex((p) => pickKey(p) === pickKey(same[1]))).toBe(1);
+    expect(sameText('  Please  wait, Sir. ', 'please wait, sir.')).toBe(true);
+    expect(sameText('Please wait, sir. Thanks', 'Please wait, sir.')).toBe(false);
+    const unlogged = buildCopilotPicks({ playbook: [], drafts: [{ callId: null, text: 'A', blocked: false }, { callId: null, text: 'B', blocked: false }], requestId: null, side: 'SELL', detected: null, fill });
+    expect(pickKey(unlogged[0])).not.toBe(pickKey(unlogged[1]));
+  });
+  it('without a known side, replies for other steps are not offered (a step cannot be set)', () => {
+    expect(buildCopilotPicks({ playbook, drafts, alternatives, requestId: null, side: null, detected: null, fill }).map((p) => p.entryId ?? p.callId)).toEqual(['e1', 'c1']);
+    expect(buildCopilotPicks({ playbook: [], drafts: [], alternatives: undefined, requestId: null, side: 'BUY', detected: null, fill })).toEqual([]);
   });
 });
 

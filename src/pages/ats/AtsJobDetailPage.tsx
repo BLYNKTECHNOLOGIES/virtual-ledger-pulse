@@ -31,6 +31,7 @@ import {
   useDepartmentsLookup, useEmployeesLookup, useRequirementsLookup, useShiftsLookup,
 } from "@/lib/ats/api";
 import { employmentLabel, fieldLabels, fmtDate, fmtDateTime, fmtExperience, fmtPay, fmtRelative } from "@/lib/ats/format";
+import { useJobRequirementLinks } from "@/lib/ats/jobRequirements";
 
 const CLOSE_REASONS = ["Filled", "Cancelled", "On hold / budget", "Other"];
 const EVENT_ICON: Record<string, typeof Activity> = {
@@ -61,6 +62,7 @@ export default function AtsJobDetailPage() {
   const shifts = useShiftsLookup();
   const emps = useEmployeesLookup();
   const reqs = useRequirementsLookup();
+  const extraReqLinks = useJobRequirementLinks(jobId);
   const [closeOpen, setCloseOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -99,6 +101,7 @@ export default function AtsJobDetailPage() {
   const shiftLabels = (j.shift_ids ?? []).map((id) => shifts.data?.find((x) => x.id === id)?.label).filter(Boolean).join(", ");
   const manager = emps.data?.find((e) => e.id === j.hiring_manager_employee_id)?.label;
   const reqNo = j.requisition_id ? (reqs.data?.find((r: any) => r.id === j.requisition_id)?.requirement_no ?? "Linked") : null;
+  const linkedReqIds = [...new Set([j.requisition_id, ...(extraReqLinks.data ?? [])].filter(Boolean))] as string[];
   const total = s?.total_applications ?? 0;
   const busy = setStatus.isPending;
 
@@ -183,8 +186,8 @@ export default function AtsJobDetailPage() {
           </SectionCard>
 
           <CareersJobCard job={j} />
-          {j.requisition_id && <WorkforceJobCard requirementId={j.requisition_id} jobStatus={j.status} pausing={busy} onPause={() => setStatus.mutate({ status: "paused" })} />}
-          {j.requisition_id && <JobLineShiftNotice requirementId={j.requisition_id} jobShiftIds={(j.shift_ids ?? []) as string[]} />}
+          {linkedReqIds.map((rid) => <WorkforceJobCard key={rid} requirementId={rid} jobStatus={j.status} pausing={busy} onPause={() => setStatus.mutate({ status: "paused" })} />)}
+          {linkedReqIds.map((rid) => <JobLineShiftNotice key={rid} requirementId={rid} jobShiftIds={(j.shift_ids ?? []) as string[]} />)}
 
           <SectionCard title="Key facts">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

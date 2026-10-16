@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, ArrowRightLeft, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, Clock, Loader2, Mail, MessageCircle,
-  MoreVertical, Paperclip, Phone, RefreshCw, Reply, RotateCcw, Send, Sparkles, Upload, UserX,
+  Maximize2, Minimize2, MoreVertical, Paperclip, Phone, RefreshCw, Reply, RotateCcw, Send, Sparkles, Upload, UserX,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,7 @@ const ACTIVITY_ICON: Record<string, typeof Mail> = {
 };
 const ACTIVITY_KEY = "ats-msg-activity";
 const readActivityPref = () => { try { return localStorage.getItem(ACTIVITY_KEY) !== "off"; } catch { return true; } };
+const WIDE_KEY = "ats-msg-compose-large";
 
 export interface ComposerPreset { nonce: number; code?: string; interviewId?: string | null; ai?: boolean }
 interface SchedReq { interview: InterviewRow | null; time: ProposedTime | null; handled?: string; msgId?: string }
@@ -107,6 +108,9 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   const ivs = useAppInterviews(appId);
   const events = useCandidateEvents(candidate.id);
   const [composing, setComposing] = useState(false);
+  // Large writing mode (whole screen, past emails beside the composer); remembered per browser.
+  const [wide, setWideState] = useState(() => { try { return localStorage.getItem(WIDE_KEY) !== "0"; } catch { return true; } });
+  const setWide = (v: boolean) => { setWideState(v); try { localStorage.setItem(WIDE_KEY, v ? "1" : "0"); } catch { /* storage unavailable */ } };
   const [preset, setPreset] = useState<ComposerPreset | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const [showActivity, setShowActivity] = useState(readActivityPref);
@@ -123,6 +127,17 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   };
 
   useEffect(() => { if (composeSignal) setComposing(true); }, [composeSignal]);
+  const expanded = enabled && composing && wide && !!candidate.email;
+  // Esc leaves large mode (the draft stays) unless a dialog or menu is open.
+  useEffect(() => {
+    if (!expanded) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || document.querySelector("[role=dialog],[role=alertdialog],[role=menu],[role=listbox]")) return;
+      setWide(false);
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [expanded]);
 
   // "r" opens the composer (panel visible, not typing, no dialog open).
   const openRef = useRef(openComposer);
@@ -303,7 +318,9 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   };
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col", className)}>
+    <>
+    {expanded && <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" aria-hidden onClick={() => setWide(false)} />}
+    <div className={cn("flex min-h-0 flex-col", expanded ? "fixed inset-2 z-50 rounded-xl border border-border bg-card shadow-2xl sm:inset-4" : "h-full", !expanded && className)}>
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">Messages</p>
@@ -335,6 +352,8 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
         </div>
       </div>
 
+      <div className={cn("flex min-h-0 flex-1 flex-col", expanded && "lg:flex-row")}>
+      <div className={cn("flex min-h-0 flex-col", expanded ? "max-h-[35%] shrink-0 border-b border-border lg:max-h-none lg:w-[42%] lg:border-b-0 lg:border-r" : "flex-1")}>
       <div className="min-h-[180px] flex-1 space-y-3 overflow-y-auto p-3">
         {thread.isLoading || st.isLoading ? <RowsSkeleton rows={5} /> : thread.isError ? <QueryError error={thread.error} onRetry={() => thread.refetch()} /> : (
           <>
@@ -366,9 +385,10 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
           handled={barMsg.handled_at ? { action: barMsg.handled_action, by: barMsg.handled_by_name, at: barMsg.handled_at } : null}
           onStep={runStep} onUndo={() => handle(barMsg.id, null)} />
       )}
+      </div>
 
       {enabled && (
-        <div className="min-h-[260px] max-h-[78%] shrink-0 overflow-y-auto border-t border-border p-3">
+        <div className={cn("overflow-y-auto p-3", expanded ? "flex min-h-0 flex-1 flex-col" : "min-h-[260px] max-h-[78%] shrink-0 border-t border-border")}>
           {!composing ? (
             <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => openComposer()}>Write an email…</Button>
           ) : !candidate.email ? (
@@ -379,10 +399,12 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
           ) : (
             <Composer candidate={candidate} appId={appId} files={files} thread={msgs} preset={preset} focusNonce={focusNonce}
               upcomingId={upcoming?.id ?? null} aiOn={aiOn && enabled && msgs.some((x) => x.direction === "inbound")}
+              expanded={expanded} onToggleExpand={() => setWide(!expanded)}
               onClose={() => { setComposing(false); setPreset(null); }} onDone={refreshAll} />
           )}
         </div>
       )}
+      </div>
       {pickOpen && target && <OfferTimesDialog open onOpenChange={(o) => !o && setPickOpen(false)} target={target} moveInterview={upcoming ?? null} />}
       {target && (
         <ScheduleInterviewDialog open={!!sched} onOpenChange={(o) => !o && setSched(null)} target={target}
@@ -394,6 +416,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
           }} />
       )}
     </div>
+    </>
   );
 }
 
@@ -654,9 +677,10 @@ const readFu = (): FollowUpChoice => {
   try { const v = localStorage.getItem(FU_KEY); return FOLLOW_UP_CHOICES.some((c) => c.value === v) ? (v as FollowUpChoice) : "off"; } catch { return "off"; }
 };
 
-function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomingId, aiOn = false, onClose, onDone }: {
+function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomingId, aiOn = false, expanded = false, onToggleExpand, onClose, onDone }: {
   candidate: AtsCandidate; appId: string | null; files: AtsFile[]; thread: AtsMessage[]; onClose: () => void; onDone: () => void;
   preset?: ComposerPreset | null; focusNonce?: number; upcomingId?: string | null; aiOn?: boolean;
+  expanded?: boolean; onToggleExpand?: () => void;
 }) {
   const qc = useQueryClient();
   const templates = useEmailTemplates();
@@ -710,10 +734,12 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
+    // Large mode: the box fills the free height instead.
+    if (expanded) { el.style.height = ""; return; }
     el.style.height = "auto";
     const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
     el.style.height = `${Math.min(Math.max(el.scrollHeight, line * 14 + 16), line * 34 + 16)}px`;
-  }, [body]);
+  }, [body, expanded]);
 
   const hasPlaceholders = PLACEHOLDER_RE.test(`${subject}\n${body}`);
   const selFiles = files.filter((f) => sel.includes(f.id));
@@ -852,7 +878,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
   };
 
   return (
-    <div className="space-y-2" onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); send(); } }}>
+    <div className={cn(expanded ? "flex min-h-0 flex-1 flex-col gap-2" : "space-y-2")} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); send(); } }}>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted-foreground">To</span>
         <span className="min-w-0 flex-1 truncate text-foreground">{candidate.email}</span>
@@ -860,6 +886,12 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
           <SelectTrigger className="h-8 w-[200px] text-foreground"><SelectValue placeholder="Use a template…" /></SelectTrigger>
           <SelectContent>{(templates.data ?? []).filter((t) => !usesInterviewFields(t) && t.code !== "interview-pick-a-slot").map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
         </Select>
+        {onToggleExpand && (
+          <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5" onClick={onToggleExpand}
+            title={expanded ? "Back to the normal size (Esc)" : "Write in a large window"}>
+            {expanded ? <><Minimize2 className="h-4 w-4" /> Smaller</> : <><Maximize2 className="h-4 w-4" /> Bigger</>}
+          </Button>
+        )}
       </div>
       {(quickReplies.length > 0 || aiOn) && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" aria-label="Quick replies">
@@ -881,7 +913,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
           <Checkbox checked={reply} onCheckedChange={(v) => setReply(!!v)} /> Reply in this thread
         </label>
       )}
-      <Textarea ref={bodyRef} rows={14} maxLength={20000} value={body} onChange={(e) => { setBody(e.target.value); setAiNote(false); }} className="max-h-[55vh] min-h-[280px] resize-y text-foreground" aria-label="Message" />
+      <Textarea ref={bodyRef} rows={14} maxLength={20000} value={body} onChange={(e) => { setBody(e.target.value); setAiNote(false); }} className={cn("text-foreground", expanded ? "min-h-[200px] flex-1 resize-none text-[15px] leading-relaxed" : "max-h-[55vh] min-h-[280px] resize-y")} aria-label="Message" />
       {aiNote && <p className="text-xs text-muted-foreground">AI draft — check it before sending.</p>}
       <p className="text-xs text-muted-foreground">Your HR signature is added automatically.</p>
       {hasPlaceholders && <p className="text-xs text-destructive">Replace the {"{{placeholders}}"} first</p>}

@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActiveJobRequirementLinks } from "@/lib/ats/jobRequirements";
+import { hiddenRequirementOptions, requirementCoversShift as covers } from "@/lib/ats/requirementOptions";
 
 const NONE = "__none";
 
 export interface ReqOption { id: string; label: string; status: string; raw: any }
-
-/** A requirement covers a shift when it has no staffing line (unrestricted) or its line lists the shift. */
-const covers = (raw: any, shiftId: string) =>
-  !raw?.plan_shift_ids || raw.plan_shift_ids.length === 0 || raw.plan_shift_ids.includes(shiftId);
 
 /**
  * Hiring-requirement links for a job. One shift → a single picker (the job's requisition_id).
@@ -47,7 +44,8 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
     const rest: string[] = [];
     for (const id of pool) {
       const raw = reqOptions.find((o) => o.id === id)?.raw;
-      const slot = shiftIds.find((s) => !next[s] && (!raw || covers(raw, s))) ?? shiftIds.find((s) => !next[s]);
+      const slot = shiftIds.length === 0 && !next.__single ? "__single" :
+        shiftIds.find((s) => !next[s] && (!raw || covers(raw, s))) ?? shiftIds.find((s) => !next[s]);
       if (slot) next[slot] = id; else rest.push(id);
     }
     rest.forEach((id, i) => { next[`__extra_${i}`] = id; });
@@ -56,10 +54,11 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
   }, [jobId, primaryId, extraIds.join(","), shiftIds.join(","), reqOptions.length]);
 
   const chosenIds = useMemo(() => new Set(Object.values(slots).filter(Boolean)), [slots]);
-  const hiddenCount = useMemo(
-    () => reqOptions.filter((o) => linkedElsewhere.data?.has(o.id) && !chosenIds.has(o.id)).length,
-    [reqOptions, linkedElsewhere.data, chosenIds],
+  const hiddenOptions = useMemo(
+    () => hiddenRequirementOptions(reqOptions, linkedElsewhere.data, chosenIds, shiftIds),
+    [reqOptions, linkedElsewhere.data, chosenIds, shiftIds],
   );
+  const hiddenCount = hiddenOptions.length;
 
   const optionVisible = (o: ReqOption) => showLinked || chosenIds.has(o.id) || !linkedElsewhere.data?.has(o.id);
 
@@ -70,6 +69,7 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
     setSlots(next);
     const values = [
       ...shiftIds.map((s) => next[s]).filter(Boolean),
+      ...(next.__single ? [next.__single] : []),
       ...Object.keys(next).filter((k) => k.startsWith("__extra_")).sort().map((k) => next[k]).filter(Boolean),
     ];
     onChange(values[0] ?? "", values.slice(1));
@@ -93,7 +93,7 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
               <SelectItem key={o.id} value={o.id}>
                 <span>{o.label}</span>
                 <span className="ml-2 text-xs text-muted-foreground">
-                  {linkedElsewhere.data?.has(o.id) && o.id !== value ? `linked to ${linkedElsewhere.data.get(o.id)!.jobTitle} · ` : ""}{o.status}
+                  {linkedElsewhere.data?.has(o.id) && o.id !== value ? `linked to ${linkedElsewhere.data.get(o.id)?.jobTitle} · ` : ""}{o.status}
                 </span>
               </SelectItem>
             ))}
@@ -118,10 +118,27 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
         );
       })}
       {hiddenCount > 0 && (
-        <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => setShowLinked((v) => !v)}>
+        <Button type="button" variant="ghost" size="sm" className="h-auto whitespace-normal text-left gap-1.5 text-xs text-muted-foreground" aria-expanded={showLinked} aria-controls="hidden-job-requirements" onClick={() => setShowLinked((v) => !v)}>
           {showLinked ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           {showLinked ? "Hide" : "Show"} {hiddenCount} requirement{hiddenCount === 1 ? "" : "s"} already linked to a job
         </Button>
+      )}
+      {showLinked && hiddenCount > 0 && (
+        <div id="hidden-job-requirements" className="space-y-2 border-l border-border pl-3">
+          {hiddenOptions.map((o) => (
+            <div key={o.id} className="space-y-1.5 py-2">
+              <p className="break-words text-sm text-foreground">{o.label}</p>
+              <p className="break-words text-xs text-muted-foreground">Linked to {linkedElsewhere.data?.get(o.id)?.jobTitle}</p>
+              <div className="flex flex-wrap gap-2">
+                {(multi ? shiftIds.filter((s) => covers(o.raw, s)) : [shiftIds[0] ?? "__single"]).map((s) => (
+                  <Button key={s} type="button" variant="outline" size="sm" className="h-auto whitespace-normal text-left" onClick={() => setSlot(s, o.id)}>
+                    <Plus className="h-3.5 w-3.5 shrink-0" />{multi ? `Use for ${shiftName(s)}` : "Use requirement"}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

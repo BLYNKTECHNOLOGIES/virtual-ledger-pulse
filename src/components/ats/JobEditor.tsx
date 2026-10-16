@@ -215,6 +215,17 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     if (pos) setIfEmpty("title", pos.label);
   };
 
+  // A requirement got picked in one of the per-shift slots: fill empty fields, and when several
+  // requirements are linked set Openings to the total still needed (same untouched-openings guard).
+  const pickLink = (id: string) => {
+    applyRequirement(id, false);
+    const ids = [...new Set([getValues("requisition_id"), ...extraReqIds, id].filter(Boolean))] as string[];
+    if (ids.length > 1 && (!isEdit || getValues("openings") === "1" || getValues("openings") === "")) {
+      const sum = ids.reduce((n, r) => n + (reqOptions.find((o) => o.id === r)?.raw?.still_needed ?? 0), 0);
+      setValue("openings", String(Math.max(sum, 1)), { shouldDirty: true });
+    }
+  };
+
   // Opened from Workforce Planning ("Create ATS job"): pre-select the requirement once its options have loaded.
   const appliedReq = useRef<string | null>(null);
   useEffect(() => {

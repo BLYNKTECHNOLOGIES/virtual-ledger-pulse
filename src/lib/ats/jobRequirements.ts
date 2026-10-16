@@ -1,5 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { diffLinks } from "./jobRequirementDiff";
+
+export { diffLinks };
 
 /** Extra requirement links of one job (ats_job_requirements; the job's requisition_id is separate). */
 export function useJobRequirementLinks(jobId?: string | null) {

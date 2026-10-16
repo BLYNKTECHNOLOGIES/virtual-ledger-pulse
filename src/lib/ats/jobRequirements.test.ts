@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffLinks } from "./jobRequirements";
+import { diffLinks } from "./jobRequirementDiff";
 
 describe("diffLinks", () => {
   it("adds new and removes stale links", () => {

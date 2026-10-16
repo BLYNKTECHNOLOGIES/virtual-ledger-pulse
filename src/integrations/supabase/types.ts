@@ -791,9 +791,11 @@ export type Database = {
           created_by: string | null
           created_by_name: string | null
           external_ref: string | null
+          form_snapshot: Json | null
           hired_at: string | null
           id: string
           job_id: string | null
+          knockout_flags: string[]
           owner_name: string | null
           owner_user_id: string | null
           position_text: string | null
@@ -823,9 +825,11 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string | null
           external_ref?: string | null
+          form_snapshot?: Json | null
           hired_at?: string | null
           id?: string
           job_id?: string | null
+          knockout_flags?: string[]
           owner_name?: string | null
           owner_user_id?: string | null
           position_text?: string | null
@@ -855,9 +859,11 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string | null
           external_ref?: string | null
+          form_snapshot?: Json | null
           hired_at?: string | null
           id?: string
           job_id?: string | null
+          knockout_flags?: string[]
           owner_name?: string | null
           owner_user_id?: string | null
           position_text?: string | null
@@ -1428,6 +1434,33 @@ export type Database = {
           },
         ]
       }
+      ats_form_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          form: Json
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          form: Json
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          form?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ats_import_rows: {
         Row: {
           application_id: string | null
@@ -1908,6 +1941,7 @@ export type Database = {
       ats_jobs: {
         Row: {
           aliases: string[]
+          application_form: Json | null
           benefits: string | null
           closed_at: string | null
           closed_reason: string | null
@@ -1945,6 +1979,7 @@ export type Database = {
         }
         Insert: {
           aliases?: string[]
+          application_form?: Json | null
           benefits?: string | null
           closed_at?: string | null
           closed_reason?: string | null
@@ -1982,6 +2017,7 @@ export type Database = {
         }
         Update: {
           aliases?: string[]
+          application_form?: Json | null
           benefits?: string | null
           closed_at?: string | null
           closed_reason?: string | null
@@ -35306,6 +35342,7 @@ export type Database = {
       ats_text_array: { Args: { p: Json }; Returns: string[] }
       ats_try_numeric: { Args: { p: string }; Returns: number }
       ats_try_timestamptz: { Args: { p: string }; Returns: string }
+      ats_validate_application_form: { Args: { f: Json }; Returns: undefined }
       audit_client_nickname_merges: {
         Args: never
         Returns: {

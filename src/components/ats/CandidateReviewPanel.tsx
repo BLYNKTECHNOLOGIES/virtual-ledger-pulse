@@ -653,30 +653,41 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
 
 function FormAnswers({ appId }: { appId: string }) {
   const [a, setA] = useState<Record<string, any> | null>(null);
+  const [snap, setSnap] = useState<{ questions?: { id: string; label: string }[] } | null>(null);
+  const [flags, setFlags] = useState<string[]>([]);
   const [state, setState] = useState<LoadState>("loading");
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
     setState("loading");
-    supabase.from("ats_applications").select("answers").eq("id", appId).maybeSingle()
-      .then(({ data, error }) => {
+    (supabase as any).from("ats_applications").select("answers,form_snapshot,knockout_flags").eq("id", appId).maybeSingle()
+      .then(({ data, error }: any) => {
         if (!alive) return;
         if (error) { setState("error"); return; }
-        setA((data?.answers as Record<string, any>) ?? {}); setState("ok");
+        setA((data?.answers as Record<string, any>) ?? {}); setSnap(data?.form_snapshot ?? null); setFlags(data?.knockout_flags ?? []); setState("ok");
       }, () => alive && setState("error"));
     return () => { alive = false; };
   }, [appId, tick]);
   if (state !== "ok") return <SectionCard title="From the application form"><LoadFallback state={state} onRetry={() => setTick((n) => n + 1)} /></SectionCard>;
   const rows: [string, string][] = [
-    ["Experience", "experience_text"], ["Expected CTC per year", "expected_ctc_text"],
-    ["Notice period", "notice_period_text"], ["Skills", "skills_text"],
+    ["Experience", "experience_text"], ["Current CTC", "current_ctc_text"], ["Expected CTC per year", "expected_ctc_text"],
+    ["Notice period", "notice_period_text"], ["Current location", "current_location"], ["Skills", "skills_text"],
   ];
   const shown = a ? rows.filter(([, k]) => a[k]) : [];
-  if (!shown.length) return null;
+  const custom = (a?.custom ?? {}) as Record<string, unknown>;
+  const labelOf = (id: string) => snap?.questions?.find((q) => q.id === id)?.label ?? id;
+  const customIds = Object.keys(custom);
+  if (!shown.length && !customIds.length) return null;
   return (
     <SectionCard title="From the application form">
+      {flags.length > 0 && (
+        <p className="mb-3 inline-flex rounded-full border border-destructive/40 bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
+          Not a fit: {flags.map(labelOf).join(", ")}
+        </p>
+      )}
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {shown.map(([label, k]) => <Fact key={k} label={label}><span className="whitespace-pre-wrap">{String(a![k])}</span></Fact>)}
+        {customIds.map((id) => <Fact key={id} label={labelOf(id)}><span className="whitespace-pre-wrap">{Array.isArray(custom[id]) ? (custom[id] as string[]).join(", ") : String(custom[id])}</span></Fact>)}
       </dl>
     </SectionCard>
   );

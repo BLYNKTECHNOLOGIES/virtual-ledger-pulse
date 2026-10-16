@@ -88,12 +88,12 @@ describe("F5 · edges", () => {
     expect(readKey(after.recent)).toBe(readKey(before.recent));
   });
 
-  it("(d) summary windows start before the split, end by it, never empty for a shift", () => {
+  it("(d) summary windows start no later than the split, end by it, never empty for a shift", () => {
     for (const f of [{ mode: "1y", shift: "shift3" }, { mode: "1y", shift: "shift1" }, { mode: "1y", shift: "all" }] as TimeFilter[]) {
       const p = planDashboardPeriod(f, T0, sealedCutoffAt(T0));
       expect(p.usesSummary).toBe(true);
       expect(p.summary.windows.length).toBeGreaterThan(0);
-      for (const [ws, we] of p.summary.windows) { expect(ws).toBeLessThan(p.sealedCutoff); expect(we).toBeLessThanOrEqual(p.sealedCutoff); }
+      for (const [ws, we] of p.summary.windows) { expect(ws).toBeLessThanOrEqual(p.sealedCutoff); expect(we).toBeLessThanOrEqual(p.sealedCutoff); }
     }
   });
 

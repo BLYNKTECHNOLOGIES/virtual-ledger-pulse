@@ -2,6 +2,7 @@
 // Logs contain only codes, ids and timings — never personal data or URLs.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { parsePreferredShifts } from "./shifts.ts";
+import { checkSubmission, effectiveForm, formVersion } from "../_shared/ats-form.ts";
 
 const MAX_BODY = 64 * 1024;
 const MAX_FILE = 10 * 1024 * 1024;
@@ -215,16 +216,31 @@ Deno.serve(async (req) => {
     if (name.length < 1 || name.length > 120) throw new Invalid("name");
     const position = str(p.position_text)?.trim() ?? "";
     if (position.length < 1 || position.length > 200) throw new Invalid("position_text");
+    const slug = str(p.job_slug)?.trim() || null;
+    if (slug && !/^[a-z0-9-]{1,80}$/.test(slug)) throw new Invalid("job_slug");
+
+    // per-job application form: required/hidden fields and custom questions
+    const shifts = parsePreferredShifts(p.preferred_shifts);
+    let jobRow: { shift_ids: string[] | null; application_form: unknown } | null = null;
+    if (slug) {
+      const { data } = await db.from("ats_jobs").select("shift_ids,application_form").eq("slug", slug).eq("status", "open").maybeSingle();
+      jobRow = data as any;
+      if (jobRow && Array.isArray(jobRow.shift_ids) && jobRow.shift_ids.length > 1 && !shifts) throw new Invalid("preferred_shifts");
+    }
+    const form = effectiveForm(jobRow?.application_form ?? null);
+    const fc = checkSubmission(form, p, p.answers);
+    if (!fc.ok) throw new Invalid(fc.field);
+    for (const k of fc.drop) delete p[k];
+    if (!str(p.email)?.trim() && !str(p.phone)?.trim()) throw new Invalid("email");
+
+    const experience_text = trunc(p.experience_text, 40);
+    const current_ctc_text = trunc(p.current_ctc_text, 40);
+    const current_location = trunc(p.current_location, 120);
     const email = str(p.email)?.trim() || null;
     const phone = str(p.phone)?.trim() || null;
     if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Invalid("email");
     if (phone && phone.length > 32) throw new Invalid("phone");
-    if (!email && !phone) throw new Invalid("email");
-    const slug = str(p.job_slug)?.trim() || null;
-    if (slug && !/^[a-z0-9-]{1,80}$/.test(slug)) throw new Invalid("job_slug");
     if (p.resume != null && (typeof p.resume !== "object" || Array.isArray(p.resume))) throw new Invalid("resume");
-
-    const experience_text = trunc(p.experience_text, 40);
     const expected_ctc_text = trunc(p.expected_ctc_text, 40);
     const notice_period_text = trunc(p.notice_period_text, 40);
     const linkedin = trunc(p.linkedin, 300);
@@ -242,14 +258,8 @@ Deno.serve(async (req) => {
       linkedin_url: normLinkedin(linkedin),
       consent: true, consent_version: "website-apply-form",
     };
-    const answers = { experience_text, expected_ctc_text, notice_period_text, skills_text, linkedin };
-
-    // shift preference is mandatory when the matched job offers multiple shifts
-    const shifts = parsePreferredShifts(p.preferred_shifts);
-    if (slug) {
-      const { data: job } = await db.from("ats_jobs").select("shift_ids").eq("slug", slug).eq("status", "open").maybeSingle();
-      if (job && Array.isArray(job.shift_ids) && job.shift_ids.length > 1 && !shifts) throw new Invalid("preferred_shifts");
-    }
+    if (current_location) candidate.city = current_location;
+    const answers = { experience_text, current_ctc_text, expected_ctc_text, notice_period_text, current_location, skills_text, linkedin, custom: fc.custom };
 
     // create (idempotent)
     stage = "create";
@@ -272,6 +282,16 @@ Deno.serve(async (req) => {
           if (sErr) log({ code: "shifts_store_failed", application_id: r.application_id });
         }
       } catch { log({ code: "shifts_store_failed", application_id: r.application_id }); }
+    }
+
+    // form snapshot + knockout flags (only when the job had a matching form; never fails the application)
+    if (jobRow) {
+      try {
+        const { error: fErr } = await db.from("ats_applications").update({
+          form_snapshot: { version: formVersion(form), ...form }, knockout_flags: fc.knockout,
+        }).eq("id", r.application_id).is("form_snapshot", null);
+        if (fErr) log({ code: "form_store_failed", application_id: r.application_id });
+      } catch { log({ code: "form_store_failed", application_id: r.application_id }); }
     }
 
     // resume

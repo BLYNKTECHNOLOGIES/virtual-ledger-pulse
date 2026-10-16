@@ -1,5 +1,6 @@
 // Public, read-only feed of published open ATS jobs for the careers website.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { effectiveForm, formVersion } from "../_shared/ats-form.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
     const slug = new URL(req.url).searchParams.get("slug")?.trim().toLowerCase() || null;
     let q = db.from("ats_jobs")
-      .select("slug,title,department_id,location,employment_type,experience_min_years,experience_max_years,salary_min,salary_max,salary_period,show_salary,summary,description,requirements,benefits,shift_ids,opened_at,created_at,target_close_date")
+      .select("slug,title,department_id,location,employment_type,experience_min_years,experience_max_years,salary_min,salary_max,salary_period,show_salary,summary,description,requirements,benefits,shift_ids,application_form,opened_at,created_at,target_close_date")
       .eq("status", "open").eq("is_published", true)
       .order("opened_at", { ascending: false, nullsFirst: false });
     if (slug) q = q.eq("slug", slug);
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
     const dMap = new Map((depts.data ?? []).map((d: any) => [d.id, d.name]));
     const sMap = new Map((shifts.data ?? []).map((s: any) => [s.id, { name: s.name, start: hhmm(s.start_time), end: hhmm(s.end_time) }]));
 
-    const out = (jobs ?? []).map((j) => ({
+    const out = (jobs ?? []).map((j) => { const form = effectiveForm((j as any).application_form); return {
       slug: j.slug,
       title: j.title,
       department: (j.department_id && dMap.get(j.department_id)) ?? null,
@@ -60,7 +61,9 @@ Deno.serve(async (req) => {
       shift_required: (j.shift_ids ?? []).length > 1,
       posted_at: j.opened_at ?? j.created_at,
       valid_through: j.target_close_date,
-    }));
+      application_form: form,
+      form_version: formVersion(form),
+    }; });
     console.log(JSON.stringify({ fn: "ats-public-jobs", count: out.length, by_slug: !!slug, ms: Date.now() - t0 }));
     if (slug) return out[0] ? reply(200, { job: out[0] }) : reply(404, { error: "not_found" });
     return reply(200, { generated_at: new Date().toISOString(), jobs: out });

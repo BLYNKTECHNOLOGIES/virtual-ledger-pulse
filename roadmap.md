@@ -8,7 +8,7 @@
 - [ ] Verify signed-in Users widths at 1024/1280/1440 and screenshots of Users, Online now, History, Edit role (blocked: external unmanaged Supabase session unavailable).
 
 ## ATS job details formatting
-- [ ] Preserve formatted clipboard headings, paragraphs, lists and section breaks across all four job fields; verify paste behavior and regressions.
+- [x] Preserve formatted clipboard headings, paragraphs, lists and section breaks across all four job fields; 12 formatting tests and actual isolated input HTML/plain paste checks pass (signed-in save remains blocked below).
 - [x] Rename Benefits to candidate-visible Notes across editor, job detail and activity labels; widen/reorganize editor with larger full-width writing fields, verify actual isolated form at 1280/1125/390 widths and editable Notes/list controls (no live save).
 - [x] Automatically bullet pasted multi-line points across all four job details fields; nine tests pass and the actual editor paste event produces the supplied eight bullets (isolated editor; live save remains blocked below).
 - [x] Add bullet and numbered-list controls with Enter continuation to all four job copy fields, preserving the existing plain-text careers feed.

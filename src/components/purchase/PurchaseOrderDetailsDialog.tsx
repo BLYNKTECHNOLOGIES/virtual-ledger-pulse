@@ -1,22 +1,42 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, Receipt, ExternalLink, ImageIcon, User, Building, Coins, SplitSquareHorizontal } from "lucide-react";
+import { ArrowUpRight, Download, Landmark, Printer, ShoppingBag } from "lucide-react";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import { TransactionActorsCard } from "@/components/purchase/TransactionActorsCard";
-import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
+import {
+  Chip,
+  CopyButton,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Facts,
+  OrderNo,
+  PurchaseStatusChip,
+  Section,
+  SummaryRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDate,
+  fmtDateTime,
+  fmtInr,
+  fmtQty,
+  fmtRate,
+} from "@/components/orders-ui";
 
 import { usersDirectory } from "@/lib/usersDirectory";
+
+// Below 768px the app's global CSS forces every <h3> to 16px (index.css, mobile text block);
+// keep the kit's 11px section headings inside this dialog. Presentation only.
+const DETAILS_BODY = "[&_h3]:!text-[11px]";
+
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 
 interface PurchaseOrderDetailsDialogProps {
@@ -224,286 +244,284 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "COMPLETED":
-        return <Badge className="bg-success/10 text-success">Completed</Badge>;
-      case "PENDING":
-        return <Badge className="bg-info/10 text-info">Pending</Badge>;
-      case "REVIEW_NEEDED":
-        return <Badge className="bg-warning/10 text-warning">Review</Badge>;
-      default:
-        return <Badge variant="secondary">Unknown</Badge>;
-    }
-  };
+  /* ── Presentation only ─────────────────────────────────────────────────── */
 
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const orderNumberText = String(order.order_number ?? "").trim();
+  // Undefined data = the lookup is still running; null = it found nothing.
+  const creatorLabel =
+    creatorUser?.username || order.created_by_user?.username || (creatorUser === undefined ? "Loading…" : "—");
+  const platformLabel =
+    platformName !== 'N/A'
+      ? platformName
+      : walletIdForPlatform && platformWallet === undefined
+        ? "Loading…"
+        : "—";
+  const productName = order.product_name || order.purchase_order_items?.[0]?.products?.name || "—";
+  const productCodeLabel = order.product_category || order.purchase_order_items?.[0]?.products?.code;
+  const showProductCode = productCodeLabel && productCodeLabel !== productName;
+
+  const showFee = !order.off_market && (order.fee_amount > 0 || order.fee_percentage > 0);
+  const tdsAmount = Number(order.tds_amount || 0);
+  const showTds = !!order.tds_applied || tdsAmount > 0;
+  const tdsRate = Number(order.total_amount) > 0 ? (tdsAmount / Number(order.total_amount)) * 100 : null;
+  const hasSplits = !!paymentSplits && paymentSplits.length > 0;
+  const splitTotal = hasSplits ? paymentSplits.reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0) : 0;
+
+  const bankLine = (bank: any) =>
+    bank ? (
+      <>
+        {bank.bank_name}
+        {bank.account_number && (
+          <>
+            <span className="mx-1.5" aria-hidden>·</span>
+            <span className="font-mono text-[12px] tabular-nums text-foreground/80">{bank.account_number}</span>
+          </>
+        )}
+      </>
+    ) : null;
+
+  const supplierLink = canViewClient && linkedClient?.id ? (
+    <button
+      type="button"
+      onClick={openClientPage}
+      title="Open client page"
+      className="inline-flex max-w-full items-start gap-1 text-left font-medium text-primary hover:underline focus-visible:underline focus-visible:outline-none"
+    >
+      <span className="min-w-0 break-words">{order.supplier_name}</span>
+      <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+    </button>
+  ) : (
+    order.supplier_name || "—"
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
-        <DialogHeader>
-          <DialogTitle>Purchase Order Details - {order.order_number}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass("lg")}>
+        <DialogHead
+          icon={ShoppingBag}
+          title="Purchase order details"
+          description={order.supplier_name || "Supplier not recorded"}
+          meta={
+            <>
+              <PurchaseStatusChip status={order.status} />
+              <span className="inline-flex min-w-0 items-center gap-0.5">
+                <span className="sr-only">Order number</span>
+                <OrderNo value={order.order_number} className="break-all" />
+                <CopyButton value={orderNumberText} label="Copy order number" />
+              </span>
+            </>
+          }
+        />
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Order Number</label>
-              <p className="text-sm font-mono">{order.order_number}</p>
+        <DialogBody className={DETAILS_BODY}>
+          {/* What was bought, at what price */}
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Order total</div>
+            <div className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight tabular-nums text-foreground">
+              {fmtInr(order.total_amount)}
             </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Supplier</label>
-              {canViewClient && linkedClient?.id ? (
-                <p
-                  className="text-sm cursor-pointer"
-                  onClick={openClientPage}
-                  role="link"
-                  title="Open client page"
-                >
-                  {order.supplier_name}
-                </p>
-              ) : (
-                <p className="text-sm">{order.supplier_name}</p>
-              )}
+            <div className="text-[13px] tabular-nums text-muted-foreground">
+              {fmtAssetQty(order.quantity || 1, productCode)} @ {fmtRate(order.price_per_unit || order.total_amount)}
             </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Phone</label>
-              <p className="text-sm">{order.contact_number || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Assigned To</label>
-              <p className="text-sm">{order.assigned_to || 'Unassigned'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Total Amount</label>
-              <p className="text-sm font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Quantity</label>
-              <p className="text-sm">{order.quantity || 1}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Price per Unit</label>
-              <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Product</label>
-              {(() => {
-                const productName = order.product_name || order.purchase_order_items?.[0]?.products?.name || 'N/A';
-                const productCodeLabel = order.product_category || order.purchase_order_items?.[0]?.products?.code;
-                const showCode = productCodeLabel && productCodeLabel !== productName;
-                return (
-                  <>
-                    <p className="text-sm">{productName}</p>
-                    {showCode && (
-                      <p className="text-xs text-muted-foreground">{productCodeLabel}</p>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Platform</label>
-              <p className="text-sm">{platformName}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Status</label>
-              <div className="mt-1">{getStatusBadge(order.status)}</div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Order Date</label>
-              <p className="text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy HH:mm:ss')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Updated At</label>
-              <p className="text-sm">{format(new Date(order.updated_at), 'MMM dd, yyyy HH:mm:ss')}</p>
-            </div>
-            {/* Created By - for manual entries */}
-            {order.created_by && (
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  Created By
-                </label>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-sm font-medium">{creatorUser?.username || 'Loading...'}</p>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* USDT Equivalent Section for non-USDT coins */}
+          <Section title="Order">
+            <Facts
+              cols={3}
+              items={[
+                { label: "Order number", value: <OrderNo value={order.order_number} className="break-all" /> },
+                { label: "Order date", value: fmtDate(order.order_date) },
+                { label: "Platform", value: platformLabel },
+                { label: "Product", value: productName, hint: showProductCode ? productCodeLabel : undefined },
+                order.created_by ? { label: "Created by", value: creatorLabel } : null,
+                { label: "Assigned to", value: order.assigned_to || "Unassigned" },
+                { label: "Created at", value: <span className="tabular-nums">{fmtDateTime(order.created_at)}</span> },
+                { label: "Updated at", value: <span className="tabular-nums">{fmtDateTime(order.updated_at)}</span> },
+              ]}
+            />
+          </Section>
+
+          <Section title="Supplier">
+            <Facts
+              cols={3}
+              items={[
+                { label: "Name", value: supplierLink },
+                { label: "Phone", value: <span className="tabular-nums">{order.contact_number || "—"}</span> },
+                order.pan_number ? { label: "PAN", value: order.pan_number, mono: true } : null,
+                order.client_state ? { label: "State", value: order.client_state } : null,
+              ]}
+            />
+          </Section>
+
+          {(showFee || showTds) && (
+            <Section title="Amounts" boxed bodyClassName="py-1.5 sm:py-2">
+              {showFee && (
+                <>
+                  <SummaryRow label="Platform fee" value={fmtAssetQty(order.fee_amount || 0, "USDT", 4)} />
+                  <SummaryRow label="Fee rate" value={`${Number(order.fee_percentage || 0).toFixed(2)}%`} />
+                </>
+              )}
+              {showTds && (
+                <>
+                  <SummaryRow
+                    label="Order total"
+                    value={fmtInr(order.total_amount)}
+                    className={showFee ? "mt-1 border-t border-border/60 pt-2.5" : undefined}
+                  />
+                  <SummaryRow
+                    label="TDS"
+                    hint={tdsRate !== null ? `${Number(tdsRate.toFixed(2))}% of order total` : undefined}
+                    value={`−${fmtInr(tdsAmount)}`}
+                  />
+                  <SummaryRow
+                    label="Net payable"
+                    value={order.net_payable_amount != null ? fmtInr(order.net_payable_amount) : "—"}
+                    strong
+                  />
+                </>
+              )}
+            </Section>
+          )}
+
+          {/* USDT equivalent for non-USDT coins: stored snapshot, else the live rate */}
           {isNonUsdt && effectiveRate && effectiveRate > 0 && (() => {
             const qty = Number(order.quantity || 1);
             const totalAmt = Number(order.total_amount || 0);
             const usdtEquivQty = qty * effectiveRate;
             const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
             return (
-              <div className="p-3 bg-info/10 dark:bg-info/20 rounded-lg border border-info/20 dark:border-info">
-                <h3 className="text-sm font-semibold text-info dark:text-info mb-2 flex items-center gap-2">
-                  <Coins className="h-4 w-4" />
-                  USDT Equivalent {isLiveRate ? <span className="text-xs font-normal text-warning">(live)</span> : <span className="text-xs font-normal">(snapshot)</span>}
-                </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-info dark:text-info">{productCode}/USDT Rate</label>
-                    <p className="text-sm font-medium text-info dark:text-info">{formatSmartDecimal(effectiveRate, 6)}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-info dark:text-info">Equiv. USDT Qty</label>
-                    <p className="text-sm font-medium text-info dark:text-info">{formatSmartDecimal(usdtEquivQty, 4)}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-info dark:text-info">Equiv. USDT Rate</label>
-                    <p className="text-sm font-medium text-info dark:text-info">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
-                  </div>
-                </div>
-              </div>
+              <Section
+                title="USDT equivalent"
+                actions={isLiveRate ? <Chip tone="warning">Live rate</Chip> : <Chip tone="neutral">Snapshot</Chip>}
+              >
+                <Facts
+                  cols={3}
+                  items={[
+                    { label: `${productCode}/USDT rate`, value: <span className="tabular-nums">{fmtQty(effectiveRate, 6)}</span> },
+                    { label: "Equivalent USDT qty", value: <span className="tabular-nums">{fmtQty(usdtEquivQty, 4)}</span> },
+                    { label: "Equivalent USDT rate", value: <span className="tabular-nums">{fmtRate(equivUsdtRate)}</span> },
+                  ]}
+                />
+              </Section>
             );
           })()}
 
-          {/* Platform Fee Information */}
-          {!order.off_market && (order.fee_amount > 0 || order.fee_percentage > 0) && (
-            <div className="p-4 bg-warning/10 rounded-lg border border-warning/20 dark:bg-warning/20 dark:border-warning">
-              <h3 className="text-sm font-semibold text-warning dark:text-warning mb-3 flex items-center gap-2">
-                <Coins className="h-4 w-4" />
-                Platform Fee Details
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-warning dark:text-warning">Fee Percentage</label>
-                  <p className="text-sm text-warning dark:text-warning">{Number(order.fee_percentage || 0).toFixed(2)}%</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-warning dark:text-warning">Fee Amount (USDT)</label>
-                  <p className="text-sm text-warning dark:text-warning font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {payoutGatewayFees.length > 0 && (
-            <div className="p-4 bg-muted/50 rounded-lg border border-border">
-              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-primary" />
-                Payout Gateway Fee
-              </h3>
-              <div className="grid grid-cols-2 gap-4 mb-3">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Total Fee</label>
-                  <p className="text-sm text-foreground font-medium">₹{payoutGatewayFeeTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Entries</label>
-                  <p className="text-sm text-foreground font-medium">{payoutGatewayFees.length}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {payoutGatewayFees.map((fee: any) => (
-                  <div key={fee.id} className="flex items-center justify-between p-2.5 rounded-md border bg-background">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Building className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{fee.bank_accounts?.account_name || 'Bank account not found'}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {fee.bank_accounts ? `${fee.bank_accounts.bank_name} - ${fee.bank_accounts.account_number}` : fee.description}
-                        </p>
-                      </div>
+          {(hasSplits || bankAccount || payoutGatewayFees.length > 0) && (
+            <Section title="Payment">
+              <div className="space-y-4">
+                {hasSplits ? (
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      {paymentSplits.length > 1 ? `Split payment · ${paymentSplits.length} accounts` : "Paid from"}
                     </div>
-                    <p className="text-sm font-mono font-medium shrink-0">₹{Number(fee.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+                      {paymentSplits.map((split: any) => (
+                        <li key={split.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                            <div className="min-w-0">
+                              <div className="break-words text-[13px] font-medium leading-5 text-foreground">
+                                {(split.bank_accounts as any)?.account_name || 'Unknown'}
+                              </div>
+                              {split.bank_accounts && <div className="text-xs text-muted-foreground">{bankLine(split.bank_accounts)}</div>}
+                            </div>
+                          </div>
+                          <span className="shrink-0 font-mono text-[13px] font-medium tabular-nums text-foreground">{fmtInr(split.amount)}</span>
+                        </li>
+                      ))}
+                      {paymentSplits.length > 1 && (
+                        <li className="flex items-center justify-between gap-3 bg-muted/30 px-3 py-2">
+                          <span className="text-[13px] font-semibold text-foreground">Total</span>
+                          <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">{fmtInr(splitTotal)}</span>
+                        </li>
+                      )}
+                    </ul>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Payment Account Details */}
-          {(paymentSplits && paymentSplits.length > 0) ? (
-            <div className="p-4 bg-muted/50 rounded-lg border">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <SplitSquareHorizontal className="h-4 w-4" />
-                Payment Accounts (Split Payment)
-              </h3>
-              <div className="space-y-2">
-                {paymentSplits.map((split: any) => (
-                  <div key={split.id} className="flex items-center justify-between p-2.5 rounded-md border bg-background">
-                    <div className="flex items-center gap-2">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{(split.bank_accounts as any)?.account_name || 'Unknown'}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {(split.bank_accounts as any)?.bank_name} - {(split.bank_accounts as any)?.account_number}
-                        </p>
+                ) : bankAccount ? (
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">Paid from</div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <div className="min-w-0">
+                          <div className="break-words text-[13px] font-medium leading-5 text-foreground">{bankAccount.account_name}</div>
+                          <div className="text-xs text-muted-foreground">{bankLine(bankAccount)}</div>
+                        </div>
                       </div>
+                      <span className="shrink-0 font-mono text-[13px] font-medium tabular-nums text-foreground">{fmtInr(order.total_amount)}</span>
                     </div>
-                    <p className="text-sm font-mono font-medium">₹{Number(split.amount).toLocaleString('en-IN')}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : bankAccount ? (
-            <div className="p-4 bg-muted/50 rounded-lg border">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Building className="h-4 w-4" />
-                Payment Account
-              </h3>
-              <div className="flex items-center justify-between p-2.5 rounded-md border bg-background">
-                <div className="flex items-center gap-2">
-                  <Building className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{bankAccount.account_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {bankAccount.bank_name} - {bankAccount.account_number}
-                    </p>
+                ) : null}
+
+                {payoutGatewayFees.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Payout gateway fee · {payoutGatewayFees.length} {payoutGatewayFees.length === 1 ? "entry" : "entries"}
+                    </div>
+                    <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+                      {payoutGatewayFees.map((fee: any) => (
+                        <li key={fee.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                            <div className="min-w-0">
+                              <div className="truncate text-[13px] font-medium leading-5 text-foreground">
+                                {fee.bank_accounts?.account_name || 'Bank account not found'}
+                              </div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {fee.bank_accounts ? bankLine(fee.bank_accounts) : fee.description}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="shrink-0 font-mono text-[13px] font-medium tabular-nums text-foreground">{fmtInr(fee.amount)}</span>
+                        </li>
+                      ))}
+                      {payoutGatewayFees.length > 1 && (
+                        <li className="flex items-center justify-between gap-3 bg-muted/30 px-3 py-2">
+                          <span className="text-[13px] font-semibold text-foreground">Total fee</span>
+                          <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">{fmtInr(payoutGatewayFeeTotal)}</span>
+                        </li>
+                      )}
+                    </ul>
                   </div>
-                </div>
-                <p className="text-sm font-mono font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</p>
+                )}
               </div>
-            </div>
-          ) : null}
+            </Section>
+          )}
 
           {order.description && (
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Description</label>
-              <p className="text-sm mt-1 p-3 bg-muted rounded-lg break-all whitespace-pre-wrap">{order.description}</p>
-            </div>
+            <Section title="Description">
+              <p className="whitespace-pre-wrap text-[13px] leading-5 text-foreground [overflow-wrap:anywhere]">{order.description}</p>
+            </Section>
           )}
 
-
-          {/* Transaction Actors - Shown prominently for closed orders */}
+          {/* Who did what, for closed orders */}
           {(order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'EXPIRED') && (
-            <>
-              <TransactionActorsCard 
-                orderId={order.id} 
+            <div className="space-y-3">
+              <TransactionActorsCard
+                orderId={order.id}
                 orderStatus={order.status}
               />
-              
-              <ActivityTimeline 
-                entityId={order.id} 
-                entityType="purchase_order"
-                title="Full Activity Log"
-              />
-            </>
-          )}
 
-          <div className="flex gap-3 pt-4 border-t">
-            <Button onClick={handleDownloadPDF} className="flex-1">
-              <Download className="h-4 w-4 mr-2" />
-              Download Receipt PDF
-            </Button>
-            <Button onClick={handlePrintPDF} variant="outline" className="flex-1">
-              <Printer className="h-4 w-4 mr-2" />
-              Print Receipt
-            </Button>
-          </div>
-        </div>
+              <ActivityTimeline
+                entityId={order.id}
+                entityType="purchase_order"
+                title="Full activity log"
+                className="bg-card"
+              />
+            </div>
+          )}
+        </DialogBody>
+
+        <DialogFoot>
+          <Button type="button" variant="outline" onClick={handlePrintPDF} className="flex-auto sm:flex-none">
+            <Printer className="h-4 w-4" />
+            Print receipt
+          </Button>
+          <Button type="button" onClick={handleDownloadPDF} className="flex-auto sm:flex-none">
+            <Download className="h-4 w-4" />
+            Download receipt PDF
+          </Button>
+        </DialogFoot>
       </DialogContent>
     </Dialog>
   );

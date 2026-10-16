@@ -1,17 +1,32 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { ComponentProps } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Wallet, Package, DollarSign } from "lucide-react";
+import { CheckCircle, Loader2, Wallet } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import {
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Facts,
+  Field,
+  FieldGrid,
+  OrderNo,
+  SalesStatusChip,
+  Section,
+  SummaryRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtInr,
+  fmtQty,
+  fmtRate,
+} from "@/components/orders-ui";
 
 interface OrderCompletionFormProps {
   open: boolean;
@@ -252,112 +267,111 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
   const selectedWallet = wallets?.find(w => w.id === order?.wallet_id);
   const totalAmount = formData.quantity * formData.price;
 
+  /* ── Presentation (display only) ──────────────────────────────────────── */
+
+  const selectedProductView = products?.find((p) => p.name === formData.stockName);
+  const orderAmountView = Number(order?.total_amount) || 0;
+  const amountGap = totalAmount - orderAmountView;
+  const walletAddress = selectedWallet
+    ? (typeof selectedWallet.wallet_address === 'string' && selectedWallet.wallet_address.length > 16
+        ? `${selectedWallet.wallet_address.substring(0, 10)}...${selectedWallet.wallet_address.substring(selectedWallet.wallet_address.length - 6)}`
+        : '—')
+    : '—';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-success" />
-            Complete Sales Order - {order?.order_number}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass("lg")}>
+        <DialogHead
+          icon={CheckCircle}
+          title="Complete sales order"
+          description="Record what was sold for this order. Completing marks it paid and completed."
+          meta={
+            order ? (
+              <>
+                <OrderNo value={order.order_number} />
+                <SalesStatusChip status={order.payment_status} />
+              </>
+            ) : null
+          }
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Order Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Order Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Client:</span>
-                  <p>{order?.client_name}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Order #:</span>
-                  <p className="font-mono">{order?.order_number}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Order Amount:</span>
-                  <p>₹{order?.total_amount?.toLocaleString('en-IN')}</p>
-                </div>
-                <div>
-                  <span className="font-medium">USDT Amount:</span>
-                  <p>{order?.usdt_amount || order?.total_amount} USDT</p>
-                </div>
-              </div>
+        <DialogBody>
+          <Group title="Order">
+            <Facts
+              cols={3}
+              items={[
+                { label: 'Client', value: order?.client_name || '—' },
+                { label: 'Order amount', value: fmtInr(order?.total_amount), className: 'tabular-nums' },
+                { label: 'USDT amount', value: fmtAssetQty(order?.usdt_amount || order?.total_amount, 'USDT'), className: 'tabular-nums' },
+              ]}
+            />
+          </Group>
 
-              {selectedWallet && (
-                <div className="mt-4 p-3 bg-info/10 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wallet className="h-4 w-4 text-info" />
-                    <span className="font-medium text-info">Wallet Details</span>
-                  </div>
-                  <div className="text-sm space-y-1">
-                    <div>Name: {selectedWallet.wallet_name}</div>
-                    <div>Balance: {selectedWallet.current_balance?.toLocaleString('en-IN')} USDT</div>
-                    <div>Address: {typeof selectedWallet.wallet_address === 'string' && selectedWallet.wallet_address.length > 16 ? `${selectedWallet.wallet_address.substring(0, 10)}...${selectedWallet.wallet_address.substring(selectedWallet.wallet_address.length - 6)}` : 'N/A'}</div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {selectedWallet && (
+            <Group title="Wallet" icon={Wallet}>
+              <Facts
+                cols={3}
+                items={[
+                  { label: 'Name', value: selectedWallet.wallet_name },
+                  { label: 'Balance', value: fmtAssetQty(selectedWallet.current_balance, 'USDT'), className: 'tabular-nums' },
+                  { label: 'Address', value: walletAddress, mono: walletAddress !== '—' },
+                ]}
+              />
+            </Group>
+          )}
 
-          {/* Completion Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Completion Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Stock/Product</Label>
+          <Group title="Completion details">
+            <FieldGrid>
+              <Field
+                label="Stock / product"
+                htmlFor="completion-product"
+                required
+                hint={!formData.stockName ? 'Select a product to complete the order.' : undefined}
+                className="sm:col-span-2"
+              >
                 <Select value={formData.stockName} onValueChange={(value) => setFormData({...formData, stockName: value})}>
-                  <SelectTrigger>
+                  <SelectTrigger id="completion-product">
                     <SelectValue placeholder="Select product" />
                   </SelectTrigger>
                   <SelectContent>
                     {products?.map((product) => (
                       <SelectItem key={product.id} value={product.name}>
-                        <div className="flex flex-col">
-                          <span>{product.name}</span>
-                          <span className="text-xs text-muted-foreground">Stock: {product.current_stock_quantity} {product.unit_of_measurement}</span>
-                        </div>
+                        {product.name}
+                        <span className="text-muted-foreground"> · Stock: {fmtQty(product.current_stock_quantity)} {product.unit_of_measurement}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Quantity</Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value) || 1})}
-                    min="0.01"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <Label>Price per Unit</Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    value={formData.price}
-                    onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
+              <Field label="Quantity" htmlFor="completion-quantity">
+                <Input
+                  id="completion-quantity"
+                  type="number"
+                  inputMode="decimal"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value) || 1})}
+                  min="0.01"
+                  step="0.01"
+                  className="tabular-nums"
+                />
+              </Field>
+              <Field label="Price per unit" htmlFor="completion-price" hint="In INR">
+                <Input
+                  id="completion-price"
+                  type="number"
+                  inputMode="decimal"
+                  value={formData.price}
+                  onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                  min="0"
+                  step="0.01"
+                  className="tabular-nums"
+                />
+              </Field>
 
-              <div>
-                <Label>Warehouse</Label>
+              <Field label="Warehouse" htmlFor="completion-warehouse" hint="Active wallets" className="sm:col-span-2">
                 <Select value={formData.warehouseId} onValueChange={(value) => setFormData({...formData, warehouseId: value})}>
-                  <SelectTrigger>
+                  <SelectTrigger id="completion-warehouse">
                     <SelectValue placeholder="Select warehouse" />
                   </SelectTrigger>
                   <SelectContent>
@@ -368,44 +382,73 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
 
-              <div>
-                <Label>Description</Label>
+              <Field label="Description" htmlFor="completion-description" className="sm:col-span-2">
                 <Textarea
+                  id="completion-description"
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   placeholder="Order completion notes"
+                  rows={3}
                 />
-              </div>
+              </Field>
+            </FieldGrid>
+          </Group>
 
-              <div className="p-3 bg-success/10 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-success" />
-                  <span className="font-medium text-success">Final Amount</span>
-                </div>
-                <div className="text-lg font-bold text-success">
-                  ₹{totalAmount.toLocaleString('en-IN')}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <Group title="Amount" boxed bodyClassName="py-1.5 sm:py-2">
+            <SummaryRow label="Order amount" value={fmtInr(order?.total_amount)} />
+            <SummaryRow
+              label="Quantity × price per unit"
+              value={`${fmtAssetQty(formData.quantity, selectedProductView?.code)} × ${fmtRate(formData.price)}`}
+              tone="muted"
+            />
+            <SummaryRow
+              label="Final amount"
+              value={fmtInr(totalAmount)}
+              hint={
+                Math.abs(amountGap) >= 0.01
+                  ? `${fmtInr(Math.abs(amountGap))} ${amountGap > 0 ? 'more' : 'less'} than the order amount; the order is saved with the final amount.`
+                  : undefined
+              }
+              strong
+            />
+          </Group>
+        </DialogBody>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-4 mt-6 pt-4 border-t">
+        <DialogFoot
+          start={
+            <span className="text-[13px] text-muted-foreground">
+              Final amount <span className="font-semibold tabular-nums text-foreground">{fmtInr(totalAmount)}</span>
+            </span>
+          }
+        >
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={() => completeOrderMutation.mutate()}
             disabled={completeOrderMutation.isPending || !formData.stockName}
-            className="bg-success hover:bg-success"
           >
-            {completeOrderMutation.isPending ? 'Completing...' : 'Complete Order'}
+            {completeOrderMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Completing…
+              </>
+            ) : (
+              'Complete order'
+            )}
           </Button>
-        </div>
+        </DialogFoot>
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * The kit's Section, with its heading kept at 11px on phones: a global mobile rule in index.css
+ * forces every h3 to 16px !important, which turns the small uppercase section labels into shouting.
+ */
+function Group({ title, ...rest }: ComponentProps<typeof Section>) {
+  return <Section {...rest} title={title ? <span className="!text-[11px] !leading-4">{title}</span> : undefined} />;
 }

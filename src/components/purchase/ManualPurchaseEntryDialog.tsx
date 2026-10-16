@@ -1,28 +1,96 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, forwardRef, type ComponentPropsWithoutRef, type ElementRef, type ReactNode } from 'react';
 import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { useQuickAction } from "@/hooks/useQuickAction";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ShoppingCart, Wallet, Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
+import { ShoppingCart, Loader2, Plus, Minus, CheckCircle2, AlertCircle, Check } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { createSellerClient } from "@/utils/clientIdGenerator";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { updateClientFromOrder } from "@/utils/updateClientFromOrder";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
+import { cn } from "@/lib/utils";
+import { ShareBar } from "@/components/finance-ui/primitives";
+import {
+  Chip,
+  DIALOG_FORM,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Field,
+  FieldGrid,
+  Section,
+  SummaryRow,
+  ToggleRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtInr,
+  fmtQty,
+} from "@/components/orders-ui";
+
+/* ── Presentation helpers (private; candidates for the orders-ui kit) ───── */
+
+/**
+ * Select option whose muted detail (a balance, a chain, stock) shows in the open list only;
+ * the closed trigger shows just the option's main text.
+ */
+const DetailSelectItem = forwardRef<
+  ElementRef<typeof SelectPrimitive.Item>,
+  ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & { detail?: ReactNode }
+>(({ className, children, detail, ...props }, ref) => (
+  <SelectPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex w-full cursor-default select-none items-center gap-3 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className,
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-4 w-4" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
+    <span className="min-w-0 flex-1 truncate">
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </span>{" "}
+    {detail != null && detail !== "" && <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">{detail}</span>}
+  </SelectPrimitive.Item>
+));
+DetailSelectItem.displayName = "DetailSelectItem";
+
+/** "₹" in front of an amount input. */
+function RupeeAffix({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden>
+        ₹
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/** "₹24,962.50": two decimals, so money breakdowns line up (display only). */
+const money2 = (n: number) =>
+  `${n < 0 ? "-" : ""}₹${Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Bank balance as the original option showed it: "₹2,36,890.75". */
+const bankBalance = (account: { balance?: number | string | null }) =>
+  `₹${Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
 interface PaymentSplit {
   bank_account_id: string;
@@ -599,574 +667,597 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     }
   };
 
+  /* ── Presentation only (derived from the state above) ───────────────── */
+  const showSummary = parseFloat(formData.total_amount) > 0;
+  const showTdsBreakdown = tdsCalculation.tdsRate > 0 && parseFloat(formData.total_amount) > 0;
+  const showFeeBreakdown = feeCalculation.feeAmount > 0 && parseFloat(formData.quantity) > 0;
+  const hasSplitAmounts = isMultiplePayments && paymentSplits.some(s => parseFloat(s.amount) > 0);
+  const assetCode = selectedProduct?.code || '';
+  // The original fee preview always said "USDT"; it now names the selected product (USDT when none).
+  const feeAsset = selectedProduct?.code || 'USDT';
+  const remainingIsZero = Math.abs(splitAllocation.remaining) < 0.005;
+  const totalForNote = parseFloat(formData.total_amount) || 0;
+  const quantityForNote = parseFloat(formData.quantity) || 0;
+  const footNote = [totalForNote > 0 ? fmtInr(totalForNote) : null, quantityForNote > 0 ? fmtAssetQty(quantityForNote, assetCode) : null]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2 flex-shrink-0" size="sm">
-          <ShoppingCart className="w-4 h-4" />
-          <span className="whitespace-nowrap">Manual Entry</span>
+        <Button size="sm" className="h-9 shrink-0 gap-1.5">
+          <Plus className="h-4 w-4" />
+          <span className="whitespace-nowrap">Manual entry</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5" />
-            Manual Purchase Entry
-          </DialogTitle>
-          <DialogDescription>
-            Direct ledger entry — bypasses all workflow, timers, and notifications
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass("xxl")}>
+        <DialogHead
+          icon={ShoppingCart}
+          title="Manual purchase entry"
+          description="Direct ledger entry — bypasses all workflow, timers and notifications."
+          meta={
+            formData.is_off_market || isMultiplePayments ? (
+              <>
+                {formData.is_off_market && <Chip tone="info">Off-market</Chip>}
+                {isMultiplePayments && <Chip tone="neutral">Split payment</Chip>}
+              </>
+            ) : undefined
+          }
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Row 1: Order Number + Contact Number */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order_number">Order Number</Label>
-              <Input
-                id="order_number"
-                autoFocus
-                value={formData.order_number}
-                onChange={(e) => handleInputChange('order_number', e.target.value)}
-                placeholder={isGeneratingOrderNumber ? "Generating..." : formData.is_off_market ? "Auto-generated" : "Auto-generated if empty"}
-                disabled={formData.is_off_market || isGeneratingOrderNumber}
-                className={formData.is_off_market ? "bg-muted" : ""}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="contact_number">Contact Number</Label>
-              <Input
-                id="contact_number"
-                value={formData.contact_number}
-                onChange={(e) => handleInputChange('contact_number', e.target.value)}
-                placeholder="Enter contact number"
-              />
-            </div>
-          </div>
-
-          {/* Row 2: Seller Name + Product */}
-          <div className="grid grid-cols-2 gap-4 items-start">
-            <div>
-              <SupplierAutocomplete
-                value={formData.supplier_name}
-                onChange={(value) => handleInputChange('supplier_name', value)}
-                onContactChange={(contact) => handleInputChange('contact_number', contact)}
-                onClientSelect={(clientId, clientName, bankDetails) => {
-                  setSelectedClientId(clientId);
-                  setSelectedClientBankDetails(bankDetails || null);
-                  handleInputChange('supplier_name', clientName);
-                  
-                  // Auto-fill PAN if client has one and TDS is 1%
-                  if (bankDetails?.pan_card_number && formData.tds_option === '1%') {
-                    handleInputChange('pan_number', bankDetails.pan_card_number);
-                  }
-                }}
-                onNewClient={(isNew) => {
-                  setIsNewClient(isNew);
-                  if (isNew) {
-                    setSelectedClientBankDetails(null);
-                  }
-                }}
-                selectedClientId={selectedClientId}
-              />
-            </div>
-            
-            {/* Product Selection */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product_id">Product *</Label>
-              <Select 
-                value={formData.product_id} 
-                onValueChange={(value) => handleInputChange('product_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[60] border border-border shadow-sm">
-                  {productsLoading ? (
-                    <SelectItem value="loading" disabled>Loading products...</SelectItem>
-                  ) : productsError ? (
-                    <SelectItem value="error" disabled>Error loading products</SelectItem>
-                  ) : !products || products.length === 0 ? (
-                    <SelectItem value="empty" disabled>No products found</SelectItem>
-                  ) : (
-                    products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {product.code} (Stock: {product.current_stock_quantity})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Row 3: Total Amount, Price per Unit, Quantity */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="total_amount">Total Amount (₹)</Label>
-              <Input
-                id="total_amount"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                value={formData.total_amount}
-                onChange={(e) => handleInputChange('total_amount', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="price_per_unit">Price per Unit (₹) *</Label>
-              <Input
-                id="price_per_unit"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                value={formData.price_per_unit}
-                onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
-                placeholder="0.00"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                inputMode="decimal"
-                step="any"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', e.target.value)}
-                placeholder="0.00"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Row 4: Wallet and Bank Account */}
-          <div className="grid grid-cols-2 gap-4 items-start">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between h-6">
-                <Label htmlFor="credit_wallet_id" className="whitespace-nowrap">Wallet *</Label>
-                {/* Placeholder to keep header-row height aligned with Bank Account column */}
-                <div className="flex items-center gap-1.5 opacity-0 select-none pointer-events-none">
-                  <Checkbox checked={false} />
-                  <span className="text-xs whitespace-nowrap">Split Payment</span>
-                </div>
-              </div>
-              <Select 
-                value={formData.credit_wallet_id} 
-                onValueChange={(value) => {
-                  handleInputChange('credit_wallet_id', value);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select wallet" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50 border border-border shadow-sm">
-                  {wallets?.map((wallet) => (
-                    <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name}
-                      {wallet.chain_name ? ` — ${wallet.chain_name}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between h-6">
-                <Label htmlFor="deduction_bank_account_id" className="whitespace-nowrap">Bank Account *</Label>
-                <div className="flex items-center gap-1.5">
-                  <Checkbox 
-                    id="multiple_payments"
-                    checked={isMultiplePayments}
-                    onCheckedChange={(checked) => {
-                      setIsMultiplePayments(checked === true);
-                      if (checked) {
-                        if (tdsCalculation.netPayable > 0) {
-                          setPaymentSplits([{ 
-                            bank_account_id: formData.deduction_bank_account_id || '', 
-                            amount: tdsCalculation.netPayable.toFixed(2) 
-                          }]);
-                        }
-                      } else {
-                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="multiple_payments" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-                    Split Payment
-                  </Label>
-                </div>
-              </div>
-              
-              {!isMultiplePayments ? (
-                <Select 
-                  value={formData.deduction_bank_account_id} 
-                  onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank account" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50 border border-border shadow-sm">
-                    {bankAccounts?.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-10 flex items-center">
-                  Configure payment distribution below
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Multiple Payments Section - Full Width */}
-          {isMultiplePayments && (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-4 space-y-4">
-                {/* Header with validation status */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="font-medium">Payment Distribution</Label>
-                    {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Status Bar */}
-                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-xs mb-1">Net Payable</div>
-                    <div className="font-semibold">₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div className="text-center border-x">
-                    <div className="text-muted-foreground text-xs mb-1">Allocated</div>
-                    <div className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-xs mb-1">Remaining</div>
-                    <div className={`font-semibold ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
-                      ₹{splitAllocation.remaining.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Rows - Table-like layout */}
-                <div className="space-y-2">
-                  {/* Header Row */}
-                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
-                    <div className="col-span-4">Amount (₹)</div>
-                    <div className="col-span-7">Bank Account</div>
-                    <div className="col-span-1"></div>
-                  </div>
-                  
-                  {/* Payment Rows */}
-                  {paymentSplits.map((split, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
-                      <div className="col-span-4">
+        <form onSubmit={handleSubmit} className={DIALOG_FORM}>
+          <DialogBody>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
+              <div className="min-w-0 space-y-6">
+                {/* Order */}
+                <Section title="Order">
+                  <FieldGrid>
+                    <Field
+                      label="Order number"
+                      htmlFor="order_number"
+                      hint={formData.is_off_market ? "Preview — the final OFP number is assigned when the order is created." : undefined}
+                    >
+                      <div className="relative">
                         <Input
+                          id="order_number"
+                          autoFocus
+                          value={formData.order_number}
+                          onChange={(e) => handleInputChange('order_number', e.target.value)}
+                          placeholder={isGeneratingOrderNumber ? "Generating..." : formData.is_off_market ? "Auto-generated" : "Auto-generated if empty"}
+                          disabled={formData.is_off_market || isGeneratingOrderNumber}
+                          className={cn(
+                            "font-mono placeholder:font-sans",
+                            formData.is_off_market && "bg-muted disabled:opacity-100",
+                            isGeneratingOrderNumber && "pr-9",
+                          )}
+                        />
+                        {isGeneratingOrderNumber && (
+                          <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />
+                        )}
+                      </div>
+                    </Field>
+
+                    <Field label="Order date" htmlFor="order_date">
+                      <Input
+                        id="order_date"
+                        type="date"
+                        value={formData.order_date}
+                        onChange={(e) => handleInputChange('order_date', e.target.value)}
+                      />
+                    </Field>
+                  </FieldGrid>
+                </Section>
+
+                {/* Seller */}
+                <Section title="Seller">
+                  <FieldGrid>
+                    <Field label="Seller name" htmlFor="sellerName" required>
+                      <SupplierAutocomplete
+                        hideLabel
+                        value={formData.supplier_name}
+                        onChange={(value) => handleInputChange('supplier_name', value)}
+                        onContactChange={(contact) => handleInputChange('contact_number', contact)}
+                        onClientSelect={(clientId, clientName, bankDetails) => {
+                          setSelectedClientId(clientId);
+                          setSelectedClientBankDetails(bankDetails || null);
+                          handleInputChange('supplier_name', clientName);
+
+                          // Auto-fill PAN if client has one and TDS is 1%
+                          if (bankDetails?.pan_card_number && formData.tds_option === '1%') {
+                            handleInputChange('pan_number', bankDetails.pan_card_number);
+                          }
+                        }}
+                        onNewClient={(isNew) => {
+                          setIsNewClient(isNew);
+                          if (isNew) {
+                            setSelectedClientBankDetails(null);
+                          }
+                        }}
+                        selectedClientId={selectedClientId}
+                      />
+                    </Field>
+
+                    <Field label="Contact number" htmlFor="contact_number">
+                      <Input
+                        id="contact_number"
+                        value={formData.contact_number}
+                        onChange={(e) => handleInputChange('contact_number', e.target.value)}
+                        placeholder="Enter contact number"
+                        className="tabular-nums"
+                      />
+                    </Field>
+                  </FieldGrid>
+                </Section>
+
+                {/* Asset & pricing */}
+                <Section title="Asset & pricing">
+                  <div className="space-y-3.5">
+                    <FieldGrid>
+                      <Field label="Product" htmlFor="product_id" required>
+                        <Select
+                          value={formData.product_id}
+                          onValueChange={(value) => handleInputChange('product_id', value)}
+                        >
+                          <SelectTrigger id="product_id">
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[60]">
+                            {productsLoading ? (
+                              <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                            ) : productsError ? (
+                              <SelectItem value="error" disabled>Error loading products</SelectItem>
+                            ) : !products || products.length === 0 ? (
+                              <SelectItem value="empty" disabled>No products found</SelectItem>
+                            ) : (
+                              products.map((product) => (
+                                <DetailSelectItem
+                                  key={product.id}
+                                  value={product.id}
+                                  detail={[
+                                    product.code && product.code !== product.name ? product.code : null,
+                                    `Stock ${fmtQty(product.current_stock_quantity)}`,
+                                  ].filter(Boolean).join(" · ")}
+                                >
+                                  {product.name}
+                                </DetailSelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </FieldGrid>
+
+                    <FieldGrid cols={3}>
+                      <Field label="Total amount" htmlFor="total_amount">
+                        <RupeeAffix>
+                          <Input
+                            id="total_amount"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            value={formData.total_amount}
+                            onChange={(e) => handleInputChange('total_amount', e.target.value)}
+                            placeholder="0"
+                            className="pl-7 tabular-nums"
+                          />
+                        </RupeeAffix>
+                      </Field>
+
+                      <Field label="Price per unit" htmlFor="price_per_unit" required>
+                        <RupeeAffix>
+                          <Input
+                            id="price_per_unit"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            value={formData.price_per_unit}
+                            onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
+                            placeholder="0.00"
+                            required
+                            className="pl-7 tabular-nums"
+                          />
+                        </RupeeAffix>
+                      </Field>
+
+                      <Field
+                        label="Quantity"
+                        htmlFor="quantity"
+                        required
+                        aside={assetCode ? <span className="font-mono text-[11px] font-medium text-muted-foreground">{assetCode}</span> : undefined}
+                      >
+                        <Input
+                          id="quantity"
                           type="number"
                           inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          value={split.amount}
-                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                          step="any"
+                          value={formData.quantity}
+                          onChange={(e) => handleInputChange('quantity', e.target.value)}
                           placeholder="0.00"
+                          required
+                          className="tabular-nums"
                         />
-                      </div>
-                      <div className="col-span-7">
-                        <Select 
-                          value={split.bank_account_id} 
-                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                      </Field>
+                    </FieldGrid>
+                  </div>
+                </Section>
+
+                {/* Wallet & bank */}
+                <Section title="Wallet & bank">
+                  <FieldGrid>
+                    <Field label="Wallet" htmlFor="credit_wallet_id" required>
+                      <Select
+                        value={formData.credit_wallet_id}
+                        onValueChange={(value) => {
+                          handleInputChange('credit_wallet_id', value);
+                        }}
+                      >
+                        <SelectTrigger id="credit_wallet_id">
+                          <SelectValue placeholder="Select wallet" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {wallets?.map((wallet) => (
+                            <DetailSelectItem key={wallet.id} value={wallet.id} detail={wallet.chain_name || undefined}>
+                              {wallet.wallet_name}
+                            </DetailSelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <Field
+                      label="Bank account"
+                      htmlFor={isMultiplePayments ? undefined : "deduction_bank_account_id"}
+                      required
+                      className={isMultiplePayments ? "sm:col-span-2" : undefined}
+                      aside={
+                        <div className="flex items-center gap-1.5">
+                          <Checkbox
+                            id="multiple_payments"
+                            checked={isMultiplePayments}
+                            onCheckedChange={(checked) => {
+                              setIsMultiplePayments(checked === true);
+                              if (checked) {
+                                if (tdsCalculation.netPayable > 0) {
+                                  setPaymentSplits([{
+                                    bank_account_id: formData.deduction_bank_account_id || '',
+                                    amount: tdsCalculation.netPayable.toFixed(2)
+                                  }]);
+                                }
+                              } else {
+                                setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                              }
+                            }}
+                          />
+                          <Label htmlFor="multiple_payments" className="cursor-pointer whitespace-nowrap text-xs font-medium text-muted-foreground">
+                            Split payment
+                          </Label>
+                        </div>
+                      }
+                    >
+                      {!isMultiplePayments ? (
+                        <Select
+                          value={formData.deduction_bank_account_id}
+                          onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="deduction_bank_account_id">
                             <SelectValue placeholder="Select bank account" />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
+                          <SelectContent>
                             {bankAccounts?.map((account) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </SelectItem>
+                              <DetailSelectItem key={account.id} value={account.id} detail={bankBalance(account)}>
+                                {account.account_name}
+                              </DetailSelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="col-span-1 flex justify-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removePaymentSplit(index)}
-                          disabled={paymentSplits.length === 1}
-                          className="h-8 w-8"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addPaymentSplit}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Another Bank
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* TDS Section */}
-          <Card className="border-warning/20 bg-warning/10">
-            <CardContent className="pt-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Label className="font-medium">TDS Deduction</Label>
-                <Badge variant="outline" className="text-xs">Tax</Badge>
-              </div>
-              
-              <Select 
-                value={formData.tds_option} 
-                onValueChange={(value) => handleInputChange('tds_option', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select TDS option" />
-                </SelectTrigger>
-                <SelectContent className="bg-card z-50">
-                  <SelectItem value="none">No TDS</SelectItem>
-                  <SelectItem value="1%">1% TDS (Requires PAN)</SelectItem>
-                  <SelectItem value="20%">20% TDS (No PAN Required)</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {formData.tds_option === '1%' && (
-                <div className="space-y-2">
-                  <Label htmlFor="pan_number">PAN Number *</Label>
-                  <Input
-                    id="pan_number"
-                    value={formData.pan_number}
-                    onChange={(e) => handleInputChange('pan_number', e.target.value.toUpperCase())}
-                    placeholder="ABCDE1234F"
-                    maxLength={10}
-                    className="uppercase"
-                  />
-                </div>
-              )}
-
-              {tdsCalculation.tdsRate > 0 && parseFloat(formData.total_amount) > 0 && (
-                <div className="text-sm bg-card p-2 rounded border">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">TDS Amount ({tdsCalculation.tdsRate}%):</span>
-                    <span className="font-medium text-warning">₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-muted-foreground">Net Payable:</span>
-                    <span className="font-semibold text-success">₹{tdsCalculation.netPayable.toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Platform Fee Section */}
-          <Card className="border-muted">
-            <CardContent className="pt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label>Off Market</Label>
-                  <Info className="w-3 h-3 text-muted-foreground" />
-                </div>
-                <Switch
-                  checked={formData.is_off_market}
-                  onCheckedChange={async (checked) => {
-                    handleInputChange('is_off_market', checked);
-                    if (checked) {
-                      // Preview off-market order number (without consuming sequence)
-                      setIsGeneratingOrderNumber(true);
-                      try {
-                        const { data, error } = await supabase.rpc('preview_off_market_purchase_order_number');
-                        if (!error && data) {
-                          handleInputChange('order_number', data);
-                        }
-                      } catch (err) {
-                        console.error('Failed to preview off-market order number:', err);
-                      } finally {
-                        setIsGeneratingOrderNumber(false);
-                      }
-                    } else {
-                      // Clear order number when turning off
-                      handleInputChange('order_number', '');
-                    }
-                  }}
-                />
-              </div>
-              
-              {!formData.is_off_market && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="fee_percentage">Platform Fee (%)</Label>
-                    <Input
-                      id="fee_percentage"
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      value={formData.fee_percentage}
-                      onChange={(e) => handleInputChange('fee_percentage', e.target.value)}
-                      placeholder="Enter fee percentage"
-                    />
-                  </div>
-
-                  {feeCalculation.feeAmount > 0 && parseFloat(formData.quantity) > 0 && (
-                    <div className="text-sm bg-muted/50 p-2 rounded border">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Fee Amount:</span>
-                        <span className="font-medium text-warning">{feeCalculation.feeAmount.toFixed(4)} USDT</span>
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-muted-foreground">Net Credit to Wallet:</span>
-                        <span className="font-semibold text-success">{feeCalculation.netCredit.toFixed(4)} USDT</span>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-              
-              {formData.is_off_market && (
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="w-3 h-3" />
-                  Off Market: No platform fees will be applied
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Order Date */}
-          <div className="space-y-2">
-            <Label htmlFor="order_date">Order Date</Label>
-            <Input
-              id="order_date"
-              type="date"
-              value={formData.order_date}
-              onChange={(e) => handleInputChange('order_date', e.target.value)}
-            />
-          </div>
-
-          {/* Description - moved to bottom */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Enter purchase description"
-              rows={2}
-            />
-          </div>
-
-          {/* Summary Card */}
-          {parseFloat(formData.total_amount) > 0 && (
-            <Card className="bg-muted/50">
-              <CardContent className="pt-4">
-                <div className="text-sm font-medium mb-2">Transaction Summary</div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Order Amount:</span>
-                    <span>₹{parseFloat(formData.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  {tdsCalculation.tdsRate > 0 && (
-                    <div className="flex justify-between text-warning">
-                      <span>TDS Deducted ({tdsCalculation.tdsRate}%):</span>
-                      <span>-₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  
-                  {/* Bank Deductions - Split or Single */}
-                  {isMultiplePayments && paymentSplits.some(s => parseFloat(s.amount) > 0) ? (
-                    <>
-                      <div className="border-t pt-1 mt-1">
-                        <span className="text-muted-foreground">Bank Deductions:</span>
-                      </div>
-                      {paymentSplits.filter(s => parseFloat(s.amount) > 0).map((split, index) => {
-                        const bank = bankAccounts?.find(b => b.id === split.bank_account_id);
-                        return (
-                          <div key={index} className="flex justify-between pl-4 text-destructive">
-                            <span>• {bank?.account_name || 'Unknown Bank'}:</span>
-                            <span>-₹{parseFloat(split.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      ) : (
+                        /* Split payment: rows of amount + bank, running total vs net payable */
+                        <div className="overflow-hidden rounded-lg border border-border">
+                          <div className="space-y-2 border-b border-border bg-muted/30 px-3 py-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                              <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+                                {splitAllocation.isValid ? (
+                                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-destructive" aria-hidden />
+                                )}
+                                Payment distribution
+                              </span>
+                              <span className="text-xs tabular-nums text-muted-foreground">
+                                Allocated <span className="font-semibold text-foreground">{money2(splitAllocation.totalAllocated)}</span> of {money2(tdsCalculation.netPayable)} net payable
+                              </span>
+                            </div>
+                            <ShareBar
+                              value={splitAllocation.totalAllocated}
+                              max={tdsCalculation.netPayable}
+                              tone={splitAllocation.isValid ? "positive" : "warning"} className="bg-foreground/10"
+                              label={`Allocated ${money2(splitAllocation.totalAllocated)} of ${money2(tdsCalculation.netPayable)}`}
+                            />
                           </div>
-                        );
-                      })}
-                      <div className="flex justify-between font-semibold border-t pt-1 mt-1">
-                        <span>Total Bank Deduction:</span>
-                        <span className="text-destructive">-₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex justify-between font-semibold border-t pt-1 mt-1">
-                      <span>Bank Deduction:</span>
-                      <span className="text-destructive">-₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  
-                  {selectedProduct?.code === 'USDT' && (
-                    <>
-                      <div className="flex justify-between pt-2 border-t mt-2">
-                        <span className="text-muted-foreground">Quantity Purchased:</span>
-                        <span>{parseFloat(formData.quantity || '0').toFixed(4)} USDT</span>
-                      </div>
-                      {!formData.is_off_market && feeCalculation.feeAmount > 0 && (
-                        <div className="flex justify-between text-warning">
-                          <span>Platform Fee:</span>
-                          <span>-{feeCalculation.feeAmount.toFixed(4)} USDT</span>
+
+                          <div className="space-y-2 p-3">
+                            <div className="hidden grid-cols-[9rem_minmax(0,1fr)_2.25rem] gap-2 px-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground sm:grid">
+                              <span>Amount</span>
+                              <span>Bank account</span>
+                              <span />
+                            </div>
+                            {paymentSplits.map((split, index) => (
+                              <div key={index} className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2 sm:grid-cols-[9rem_minmax(0,1fr)_2.25rem]">
+                                <RupeeAffix>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.01"
+                                    min="0"
+                                    value={split.amount}
+                                    onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                                    placeholder="0.00"
+                                    aria-label={`Split ${index + 1} amount`}
+                                    className="pl-7 tabular-nums"
+                                  />
+                                </RupeeAffix>
+                                <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                                  <Select
+                                    value={split.bank_account_id}
+                                    onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                                  >
+                                    <SelectTrigger aria-label={`Split ${index + 1} bank account`}>
+                                      <SelectValue placeholder="Select bank account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {bankAccounts?.map((account) => (
+                                        <DetailSelectItem key={account.id} value={account.id} detail={bankBalance(account)}>
+                                          {account.account_name}
+                                        </DetailSelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removePaymentSplit(index)}
+                                  disabled={paymentSplits.length === 1}
+                                  className="col-start-2 row-start-1 h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:col-start-3"
+                                  aria-label={`Remove split ${index + 1}`}
+                                  title="Remove this bank"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={addPaymentSplit}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Add another bank
+                            </Button>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-[13px]">
+                            <span className="text-muted-foreground">
+                              {splitAllocation.remaining < 0 && !remainingIsZero ? "Over-allocated by" : "Remaining"}
+                            </span>
+                            <span className={cn("font-semibold tabular-nums", splitAllocation.isValid ? "text-success" : "text-destructive")}>
+                              {money2(remainingIsZero ? 0 : Math.abs(splitAllocation.remaining))}
+                            </span>
+                          </div>
+                          {remainingIsZero && !splitAllocation.isValid && (
+                            <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                              Every row needs a bank account and an amount.
+                            </p>
+                          )}
                         </div>
                       )}
-                      <div className="flex justify-between font-semibold text-success">
-                        <span>Wallet Credit:</span>
-                        <span>+{feeCalculation.netCredit.toFixed(4)} USDT</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    </Field>
+                  </FieldGrid>
+                </Section>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+                {/* Tax */}
+                <Section title="Tax">
+                  <div className="space-y-3.5">
+                    <FieldGrid>
+                      <Field label="TDS" htmlFor="tds_option">
+                        <Select
+                          value={formData.tds_option}
+                          onValueChange={(value) => handleInputChange('tds_option', value)}
+                        >
+                          <SelectTrigger id="tds_option">
+                            <SelectValue placeholder="Select TDS option" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No TDS</SelectItem>
+                            <SelectItem value="1%">1% TDS (with PAN)</SelectItem>
+                            <SelectItem value="20%">20% TDS (without PAN)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+
+                      {formData.tds_option === '1%' && (
+                        <Field label="PAN number" htmlFor="pan_number" required>
+                          <Input
+                            id="pan_number"
+                            value={formData.pan_number}
+                            onChange={(e) => handleInputChange('pan_number', e.target.value.toUpperCase())}
+                            placeholder="ABCDE1234F"
+                            maxLength={10}
+                            className="uppercase font-mono placeholder:font-sans"
+                          />
+                        </Field>
+                      )}
+                    </FieldGrid>
+
+                    {showTdsBreakdown && (
+                      <div className="rounded-lg border border-border px-3 py-1 sm:px-4">
+                        <SummaryRow label={`TDS (${tdsCalculation.tdsRate}%)`} value={`−${money2(tdsCalculation.tdsAmount)}`} />
+                        <SummaryRow label="Net payable" value={money2(tdsCalculation.netPayable)} strong />
+                      </div>
+                    )}
+                  </div>
+                </Section>
+
+                {/* Platform fee */}
+                <Section title="Platform fee">
+                  <div className="space-y-3.5">
+                    <ToggleRow
+                      title="Off-market order"
+                      description="No platform fee is deducted, and the order gets the next OFP order number."
+                      control={
+                        <Switch
+                          aria-label="Off-market order"
+                          checked={formData.is_off_market}
+                          onCheckedChange={async (checked) => {
+                            handleInputChange('is_off_market', checked);
+                            if (checked) {
+                              // Preview off-market order number (without consuming sequence)
+                              setIsGeneratingOrderNumber(true);
+                              try {
+                                const { data, error } = await supabase.rpc('preview_off_market_purchase_order_number');
+                                if (!error && data) {
+                                  handleInputChange('order_number', data);
+                                }
+                              } catch (err) {
+                                console.error('Failed to preview off-market order number:', err);
+                              } finally {
+                                setIsGeneratingOrderNumber(false);
+                              }
+                            } else {
+                              // Clear order number when turning off
+                              handleInputChange('order_number', '');
+                            }
+                          }}
+                        />
+                      }
+                    />
+
+                    {!formData.is_off_market && (
+                      <>
+                        <FieldGrid>
+                          <Field label="Platform fee (%)" htmlFor="fee_percentage" hint="Filled in from the wallet when it charges a fee.">
+                            <Input
+                              id="fee_percentage"
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              value={formData.fee_percentage}
+                              onChange={(e) => handleInputChange('fee_percentage', e.target.value)}
+                              placeholder="Enter fee percentage"
+                              className="tabular-nums"
+                            />
+                          </Field>
+                        </FieldGrid>
+
+                        {showFeeBreakdown && (
+                          <div className="rounded-lg border border-border px-3 py-1 sm:px-4">
+                            <SummaryRow label="Platform fee" value={`−${fmtAssetQty(feeCalculation.feeAmount, feeAsset)}`} />
+                            <SummaryRow label="Net credit to wallet" value={fmtAssetQty(feeCalculation.netCredit, feeAsset)} strong />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </Section>
+
+                {/* Notes */}
+                <Section title="Notes">
+                  <Field label="Description" htmlFor="description">
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      placeholder="Enter purchase description"
+                      rows={2}
+                      className="min-h-[64px]"
+                    />
+                  </Field>
+                </Section>
+              </div>
+
+              {/* Transaction summary. Below lg it shows only once there is an amount, as before;
+                  on wide screens it stays in place as a live summary. */}
+              <aside
+                className={cn("min-w-0 lg:sticky lg:top-0 lg:self-start", !showSummary && "hidden lg:block")}
+                aria-label="Transaction summary"
+              >
+                <Section title="Transaction summary" boxed bodyClassName="px-3 py-1.5 sm:px-4 sm:py-2">
+                  {showSummary ? (
+                    <>
+                      <SummaryRow label="Order amount" value={money2(parseFloat(formData.total_amount))} />
+                      {tdsCalculation.tdsRate > 0 && (
+                        <SummaryRow label={`TDS deducted (${tdsCalculation.tdsRate}%)`} value={`−${money2(tdsCalculation.tdsAmount)}`} />
+                      )}
+
+                      {/* Bank deductions - split or single */}
+                      {hasSplitAmounts ? (
+                        <>
+                          <p className="mt-1 border-t border-border pb-0.5 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                            Bank deductions
+                          </p>
+                          {paymentSplits.filter(s => parseFloat(s.amount) > 0).map((split, index) => {
+                            const bank = bankAccounts?.find(b => b.id === split.bank_account_id);
+                            return (
+                              <SummaryRow
+                                key={index}
+                                label={bank?.account_name || 'Unknown bank'}
+                                value={`−${money2(parseFloat(split.amount))}`}
+                                className="py-1"
+                              />
+                            );
+                          })}
+                          <SummaryRow label="Total bank deduction" value={`−${money2(splitAllocation.totalAllocated)}`} strong />
+                        </>
+                      ) : (
+                        <SummaryRow label="Bank deduction" value={`−${money2(tdsCalculation.netPayable)}`} strong />
+                      )}
+
+                      {selectedProduct?.code === 'USDT' && (
+                        <div className="mt-2 border-t border-border pt-1">
+                          <SummaryRow label="Quantity purchased" value={fmtAssetQty(parseFloat(formData.quantity || '0'), 'USDT')} />
+                          {!formData.is_off_market && feeCalculation.feeAmount > 0 && (
+                            <SummaryRow label="Platform fee" value={`−${fmtAssetQty(feeCalculation.feeAmount, 'USDT')}`} />
+                          )}
+                          <SummaryRow label="Wallet credit" value={`+${fmtAssetQty(feeCalculation.netCredit, 'USDT')}`} tone="positive" strong />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="py-1.5 text-xs leading-5 text-muted-foreground">
+                      Enter the price and quantity to see what leaves the bank and what reaches the wallet.
+                    </p>
+                  )}
+                </Section>
+              </aside>
+            </div>
+          </DialogBody>
+
+          <DialogFoot start={footNote ? <span className="hidden tabular-nums sm:inline lg:hidden">{footNote}</span> : undefined}>
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="min-w-[160px]">
+            <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating…
                 </>
               ) : (
-                "Create Manual Entry"
+                "Create order"
               )}
             </Button>
-          </div>
+          </DialogFoot>
         </form>
       </DialogContent>
     </Dialog>

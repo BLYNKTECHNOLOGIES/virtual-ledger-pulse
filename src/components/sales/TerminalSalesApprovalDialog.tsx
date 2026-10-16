@@ -1,17 +1,15 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { isPhoneBlocked } from "@/lib/blocked-phones";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search, Users, Plus, Minus } from "lucide-react";
+import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, AlertTriangle, Building2, Check, Info, Link2, Users, Plus, Minus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -25,14 +23,31 @@ interface PaymentSplit {
 
 import { createBuyerClient } from "@/utils/clientIdGenerator";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
-import { format } from "date-fns";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { matchesWordPrefix } from "@/lib/utils";
-import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
+import { cn, matchesWordPrefix } from "@/lib/utils";
 import { resolveOrderUserNo, sanitizeNickname, sanitizeVerifiedName, linkClientUserNo } from "@/lib/clientIdentityResolver";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
+import {
+  Callout,
+  Chip,
+  CopyButton,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Facts,
+  Field,
+  FieldGrid,
+  OrderNo,
+  Section,
+  SummaryRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDateTime,
+  fmtInr,
+  fmtRate,
+} from "@/components/orders-ui";
 
 interface Props {
   open: boolean;
@@ -845,7 +860,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     },
   });
 
-  const orderDate = od.create_time ? format(new Date(od.create_time), 'dd MMM yyyy, HH:mm') : '—';
+  const orderTimeLabel = od.create_time ? fmtDateTime(od.create_time) : '—';
 
   // Get the selected client object for hover preview
   const selectedClient = useMemo(() => {
@@ -853,506 +868,667 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     return allClients.find(c => c.id === linkedClientId) || null;
   }, [linkedClientId, allClients]);
 
+  /* ── Presentation only: everything below is derived from the state above ── */
+  const assetLabel = od.asset || 'USDT';
+  const account = cachedExchangeAccount(queryClient, syncRecord?.exchange_account_id ?? od?.exchange_account_id ?? null);
+  const normalizedDisplayName = displayName.trim().toLowerCase();
+  const isExactMatch = (client: any) => client.name.trim().toLowerCase() === normalizedDisplayName;
+  // Phones captured on the Terminal for this order (never the picked client's own phone).
+  const terminalPhones = [syncRecord?.contact_number, counterpartyPhone].map(phoneDigits).filter(Boolean);
+  const matchesTerminalPhone = (phone?: string | null) => {
+    const p = phoneDigits(phone);
+    return !!p && terminalPhones.includes(p);
+  };
+  const selectedMethodRow: any = isMultiplePayments ? null : paymentMethods.find((m: any) => m.id === paymentMethodId);
+  const hasDuplicateSplitMethods = isMultiplePayments && new Set(paymentSplits.map((s) => s.payment_method_id)).size !== paymentSplits.length;
+  // Why Approve is disabled (same order as its disabled condition), or what would stop the approval.
+  const footNote = approveMutation.isPending
+    ? null
+    : userNoResolving
+      ? 'Inferring Binance User No…'
+      : !lockedUserNo
+        ? 'Blocked until the Binance User No is inferred'
+        : isMultiplePayments
+          ? !splitAllocation.isValid
+            ? splitNote(splitAllocation.remaining)
+            : hasDuplicateSplitMethods
+              ? 'Use a different payment method on every row'
+              : null
+          : !paymentMethodId
+            ? 'Select a payment method to approve'
+            : null;
+
+  const createClientButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-8 gap-1.5"
+      onClick={() => createClientMutation.mutate()}
+      disabled={createClientMutation.isPending}
+    >
+      {createClientMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+      {createClientMutation.isPending ? 'Creating client…' : 'Create buyer client'}
+    </Button>
+  );
+
+  // A User No lock replaces the "Change client" button (the lock chip sits with the other chips).
+  const lockChip = userNoLocked && (
+    <Chip tone="info" title={`Locked via Binance User No${lockedUserNo ? ` (${lockedUserNo})` : ''}`}>
+      <Lock className="h-3 w-3" aria-hidden />
+      User No locked
+    </Chip>
+  );
+  const changeButton = !userNoLocked && (
+    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 self-center" onClick={handleUnlinkClient}>
+      Change client
+    </Button>
+  );
+
+  const previewContentProps = {
+    side: (isMobile ? 'bottom' : 'right') as 'bottom' | 'right',
+    align: (isMobile ? 'center' : 'start') as 'center' | 'start',
+    collisionPadding: 12,
+    avoidCollisions: true,
+    className: 'w-[calc(100vw-24px)] max-w-80 p-3 z-[9999] bg-popover border border-border shadow-sm',
+    sideOffset: 8,
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-base">Approve Terminal Sale</DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        className={dialogContentClass('xl', 'focus:outline-none')}
+        // Start focus on the dialog itself, not its first button: /erp-entry opens this dialog from an
+        // Enter keydown, and the same key press would otherwise activate that button.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement | null)?.focus();
+        }}
+      >
+        <DialogHead
+          icon={Link2}
+          title="Approve terminal sale"
+          description="Check the client and payment, then create the ERP sales order."
+          meta={
+            <>
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <span className="text-xs text-muted-foreground">Binance order</span>
+                <OrderNo value={od.order_number} className="truncate" />
+                <CopyButton value={od.order_number} label="Copy order number" />
+              </span>
+              {account && <AccountChip account={account} />}
+            </>
+          }
+        />
 
-        <div className="space-y-4">
-          {/* Read-only Terminal Data */}
-          <Card className="bg-muted/30 border-dashed">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                <Lock className="h-3 w-3" />
-                Terminal Data (Read-Only)
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <LockedField label="Order Number" value={od.order_number} />
-                <LockedField label="Order Date" value={orderDate} />
-                <LockedField label="Asset" value={od.asset || 'USDT'} />
-                <LockedField label="Quantity Sold" value={`${Number(od.amount || 0).toLocaleString('en-IN')} USDT`} />
-                <LockedField label="Price Per Unit" value={`₹${Number(od.unit_price || 0).toLocaleString('en-IN')}`} />
-                <LockedField label="Total Amount" value={`₹${totalAmount.toLocaleString('en-IN')}`} />
-                <LockedField label="Commission/Fee" value={`${Number(od.commission || 0).toLocaleString('en-IN')} USDT`} />
-                <LockedField label="Wallet" value={od.wallet_name || '—'} />
-                <LockedField label="Buyer Name" value={displayName} />
-                <LockedField label="Payment Method" value={od.pay_method || '—'} />
-              </div>
-            </CardContent>
-          </Card>
+        <DialogBody>
+          {/* Read-only Binance order data */}
+          <Section title={sectionHeading('Binance order')} boxed>
+            <Facts
+              cols={3}
+              className="grid-cols-2"
+              items={[
+                { label: 'Total amount', value: <span className="text-lg font-semibold leading-6 tabular-nums">{fmtInr(totalAmount)}</span> },
+                { label: 'Quantity sold', value: <span className="tabular-nums">{fmtAssetQty(od.amount || 0, assetLabel)}</span> },
+                { label: 'Price per unit', value: <span className="tabular-nums">{fmtRate(od.unit_price || 0)}</span> },
+                { label: 'Buyer', value: displayName },
+                { label: 'Paid via', value: od.pay_method || '—' },
+                { label: 'Fee', value: <span className="tabular-nums">{fmtAssetQty(od.commission || 0, assetLabel)}</span> },
+                { label: 'Wallet', value: od.wallet_name || '—' },
+                { label: 'Order time', value: orderTimeLabel },
+              ]}
+            />
+          </Section>
 
-          {/* Client Mapping - Intelligent Search */}
-          <Card className="border-info/20 bg-info/10 dark:border-info dark:bg-info/20">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">Client Mapping</Label>
-                {matchingClients.length > 0 && !linkedClientId && (
-                  <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20 dark:bg-warning/30 dark:text-warning dark:border-warning">
-                    <Search className="h-2.5 w-2.5 mr-1" />
-                    {matchingClients.length} match{matchingClients.length > 1 ? 'es' : ''} found
-                  </Badge>
+          {/* Client mapping */}
+          <Section
+            title={sectionHeading('Client')}
+            actions={
+              (userNoResolving || (matchingClients.length > 0 && !linkedClientId)) && (
+                <>
+                  {userNoResolving && (
+                    <Chip tone="neutral">
+                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                      Checking User No
+                    </Chip>
+                  )}
+                  {matchingClients.length > 0 && !linkedClientId && (
+                    <Chip tone="neutral">
+                      {matchingClients.length} match{matchingClients.length > 1 ? 'es' : ''} found
+                    </Chip>
+                  )}
+                </>
+              )
+            }
+            bodyClassName="space-y-3"
+          >
+            {!userNoResolving && !lockedUserNo && (
+              <Callout tone="danger" icon={AlertCircle} title="Binance User No not inferred">
+                It could not be inferred for this order (proxy issue, rate limit, or an order older than Binance's
+                identity window). Approval is blocked until it resolves. Close and reopen this dialog to try again.
+              </Callout>
+            )}
+
+            {linkedClientId && selectedClient ? (
+              <>
+                <div className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/10 text-success" aria-hidden>
+                    <CheckCircle2 className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <HoverCard openDelay={300} closeDelay={100} open={hoveredClientId === selectedClient.id} onOpenChange={(isOpen) => {
+                        setHoveredClientId(isOpen ? selectedClient.id : null);
+                      }}>
+                        <HoverCardTrigger asChild>
+                          <span
+                            className="min-w-0 cursor-pointer select-none truncate text-sm font-semibold text-foreground underline decoration-muted-foreground/50 decoration-dotted underline-offset-4 hover:decoration-foreground"
+                            onTouchStart={() => startClientPreviewPress(selectedClient.id)}
+                            onTouchEnd={cancelClientPreviewPress}
+                            onTouchMove={cancelClientPreviewPress}
+                            onTouchCancel={cancelClientPreviewPress}
+                          >
+                            {selectedClient.name}
+                          </span>
+                        </HoverCardTrigger>
+                        <HoverCardContent {...previewContentProps}>
+                          <ClientOrderPreview
+                            clientId={selectedClient.id}
+                            clientName={selectedClient.name}
+                            clientData={{
+                              client_id: selectedClient.client_id,
+                              phone: selectedClient.phone,
+                              date_of_onboarding: selectedClient.date_of_onboarding,
+                              client_type: selectedClient.client_type,
+                              is_buyer: selectedClient.is_buyer,
+                              is_seller: selectedClient.is_seller,
+                            }}
+                            isOpen={hoveredClientId === selectedClient.id}
+                          />
+                        </HoverCardContent>
+                      </HoverCard>
+                      <Chip tone="success">Linked</Chip>
+                      {clientAutoMatched && autoMatchVia === 'userno' && (
+                        <Chip tone="neutral" title="Auto-linked by Binance userNo">Auto-linked</Chip>
+                      )}
+                      {lockChip}
+                    </div>
+                    <ClientMeta client={selectedClient} />
+                  </div>
+                  {changeButton}
+                </div>
+
+                {selectedClient.buyer_approval_status === 'PENDING' && (
+                  <Callout tone="warning" icon={AlertCircle} title="New client – buyer approval pending">
+                    This client will appear in the Buyer Approvals queue after this sale is approved.
+                  </Callout>
                 )}
+              </>
+            ) : linkedClientId && !selectedClient ? (
+              // Client ID exists but is not in the clients list yet (still loading, or just created)
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/10 text-success" aria-hidden>
+                  <CheckCircle2 className="h-4 w-4" />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <span className="min-w-0 truncate text-sm font-semibold text-foreground">{linkedClientName || displayName}</span>
+                  <Chip tone="success">Linked</Chip>
+                  {lockChip}
+                </div>
+                {changeButton}
               </div>
-
-              {/* Linked client - with hover preview */}
-              {linkedClientId && selectedClient ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                    <HoverCard openDelay={300} closeDelay={100} open={hoveredClientId === selectedClient.id} onOpenChange={(isOpen) => {
-                      setHoveredClientId(isOpen ? selectedClient.id : null);
+            ) : matchingClients.length > 0 ? (
+              <>
+                {matchingClients.filter(c => c.name.trim().toLowerCase() === displayName.trim().toLowerCase()).length > 1 && (
+                  <Callout tone="warning" icon={Users} title="Multiple clients have exactly this name">
+                    Compare the phone and state on each row with the buyer's details, then link the right one.
+                  </Callout>
+                )}
+                <p className="text-[13px] text-muted-foreground">
+                  Matching clients found for "<span className="font-medium text-foreground">{displayName}</span>". Pick the right one
+                  — hover or long-press a row to see that client's recent orders.
+                </p>
+                <div className="max-h-72 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card" role="group" aria-label="Matching clients">
+                  {matchingClients.map((client) => (
+                    <HoverCard key={client.id} openDelay={300} closeDelay={100} open={hoveredClientId === client.id} onOpenChange={(isOpen) => {
+                      setHoveredClientId(isOpen ? client.id : null);
                     }}>
-                      <HoverCardTrigger asChild>
-                        <span
-                          className="text-sm font-medium cursor-pointer hover:underline underline-offset-2 select-none"
-                          onTouchStart={() => startClientPreviewPress(selectedClient.id)}
+                      {/* Keyboard focus must not open the preview (it loads order history); hover and long-press still do. */}
+                      <HoverCardTrigger asChild onFocus={(e) => e.preventDefault()}>
+                        <button
+                          type="button"
+                          className="flex w-full select-none items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                          aria-label={`Link ${client.name}, ${isExactMatch(client) ? 'exact' : 'partial'} match${matchesTerminalPhone(client.phone) ? ', phone matches' : ''}${client.client_id ? `, ${client.client_id}` : ''}${client.phone ? `, ${client.phone}` : ''}${client.state ? `, ${client.state}` : ''}`}
+                          onClick={() => {
+                            if (longPressFiredRef.current) { longPressFiredRef.current = false; return; }
+                            handleClientSelect(client);
+                          }}
+                          onTouchStart={() => startClientPreviewPress(client.id)}
                           onTouchEnd={cancelClientPreviewPress}
                           onTouchMove={cancelClientPreviewPress}
                           onTouchCancel={cancelClientPreviewPress}
                         >
-                          {selectedClient.name}
-                        </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="min-w-0 truncate text-sm font-medium text-foreground">{client.name}</span>
+                              {isExactMatch(client) ? <Chip tone="success">Exact</Chip> : <Chip tone="neutral">Partial</Chip>}
+                              {matchesTerminalPhone(client.phone) && (
+                                <Chip tone="success" title="Same phone as the one captured on the Terminal for this order">Phone matches</Chip>
+                              )}
+                            </span>
+                            <ClientMeta client={client} />
+                          </span>
+                          <span className="shrink-0 text-xs font-medium text-primary" aria-hidden>Link</span>
+                        </button>
                       </HoverCardTrigger>
-                      <HoverCardContent
-                        side={isMobile ? "bottom" : "right"}
-                        align={isMobile ? "center" : "start"}
-                        collisionPadding={12}
-                        avoidCollisions
-                        className="w-[calc(100vw-24px)] max-w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
-                        sideOffset={8}
-                      >
+                      <HoverCardContent {...previewContentProps}>
                         <ClientOrderPreview
-                          clientId={selectedClient.id}
-                          clientName={selectedClient.name}
+                          clientId={client.id}
+                          clientName={client.name}
                           clientData={{
-                            client_id: selectedClient.client_id,
-                            phone: selectedClient.phone,
-                            date_of_onboarding: selectedClient.date_of_onboarding,
-                            client_type: selectedClient.client_type,
-                            is_buyer: selectedClient.is_buyer,
-                            is_seller: selectedClient.is_seller,
+                            client_id: client.client_id,
+                            phone: client.phone,
+                            date_of_onboarding: client.date_of_onboarding,
+                            client_type: client.client_type,
+                            is_buyer: client.is_buyer,
+                            is_seller: client.is_seller,
                           }}
-                          isOpen={hoveredClientId === selectedClient.id}
+                          isOpen={hoveredClientId === client.id}
                         />
                       </HoverCardContent>
                     </HoverCard>
-                    <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20 dark:bg-success/30 dark:text-success dark:border-success">
-                      {selectedClient.client_id}
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20 dark:bg-success/30 dark:text-success dark:border-success">Linked</Badge>
-                    {userNoLocked ? (
-                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-auto flex items-center gap-1">
-                        <Lock className="h-2.5 w-2.5" />
-                        User No Locked
-                      </Badge>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-[10px] text-muted-foreground hover:text-destructive ml-auto"
-                        onClick={handleUnlinkClient}
-                      >
-                        Change
-                      </Button>
-                    )}
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="text-xs text-muted-foreground">None of these?</span>
+                  {createClientButton}
+                </div>
+              </>
+            ) : (
+              <Callout
+                tone="neutral"
+                icon={AlertCircle}
+                title={displayName === '—' ? 'Buyer name not verified yet' : `No matching client found for "${displayName}"`}
+              >
+                <p>
+                  {displayName === '—'
+                    ? "Binance hasn't returned the buyer's verified name, so a client can't be matched or created yet."
+                    : 'Create a buyer client from this order. New clients go to Buyer Approvals after the sale is approved.'}
+                </p>
+                <div className="mt-2">{createClientButton}</div>
+              </Callout>
+            )}
+
+            {salesConflicts.length > 0 && (
+              <Callout tone="warning" icon={AlertTriangle} title="Data conflict — choose which value to keep">
+                <p>The client record and the Terminal disagree. The value you pick fills the form below and is saved with this sale.</p>
+                <div className="mt-2 space-y-1.5">
+                  {salesConflicts.map((c) => {
+                    const current = c.field === 'Phone' ? contactNumber : clientState;
+                    return (
+                      <div key={c.field} className="flex flex-wrap items-center gap-2">
+                        <span className="w-12 shrink-0 text-xs font-medium text-muted-foreground">{c.field}</span>
+                        <ConflictOption source="Client" value={c.clientValue} active={current === c.clientValue} onClick={() => c.onChoose(c.clientValue)} />
+                        <ConflictOption source="Terminal" value={c.counterpartyValue} active={current === c.counterpartyValue} onClick={() => c.onChoose(c.counterpartyValue)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </Callout>
+            )}
+          </Section>
+
+          {/* Payment */}
+          <Section title={sectionHeading('Payment')} bodyClassName="space-y-3">
+            <FieldGrid>
+              <Field
+                label="Payment method"
+                htmlFor={isMultiplePayments ? undefined : 'tsa-payment-method'}
+                hint={selectedMethodRow ? settlementLine(selectedMethodRow) : undefined}
+                aside={
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="split-sales-payment"
+                      checked={isMultiplePayments}
+                      onCheckedChange={(checked) => {
+                        setIsMultiplePayments(!!checked);
+                        if (checked) {
+                           setPaymentSplits([{ payment_method_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
+                        } else {
+                           setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="split-sales-payment" className="cursor-pointer whitespace-nowrap text-xs font-normal text-muted-foreground">
+                      Split payment
+                    </Label>
                   </div>
-                  {(userNoLocked || (clientAutoMatched && autoMatchVia === 'userno')) && (
-                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                      {userNoLocked && (
-                        <span className="flex items-center gap-1 text-primary" title={`Locked via Binance User No${lockedUserNo ? ` (${lockedUserNo})` : ''}`}>
-                          <Lock className="h-3 w-3" />
-                          Locked
-                        </span>
-                      )}
-                      {clientAutoMatched && autoMatchVia === 'userno' && (
-                        <span className="flex items-center gap-1 text-info" title="Auto-linked by Binance userNo">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Auto-linked
-                        </span>
-                      )}
-                    </div>
-                  )}
+                }
+              >
+                {!isMultiplePayments ? (
+                  <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                    <SelectTrigger id="tsa-payment-method" className="h-9 text-left text-sm">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border z-50 max-h-[250px]">
+                      {paymentMethods.map((m: any) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.nickname || `${m.type}${m.bank_accounts ? ` - ${m.bank_accounts.account_name}` : ''}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex h-9 items-center rounded-lg border border-dashed border-border px-3 text-[13px] text-muted-foreground">
+                    Split across the methods below
+                  </div>
+                )}
+              </Field>
 
-                  {/* Show Buyer Approval Pending warning for newly created clients */}
-                  {selectedClient.buyer_approval_status === 'PENDING' && (
-                    <div className="flex items-center gap-2 rounded-md border border-warning/20 bg-warning/10 dark:border-warning dark:bg-warning/30 px-3 py-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-warning dark:text-warning shrink-0" />
-                      <span className="text-[11px] font-medium text-warning dark:text-warning">
-                        New Client – Buyer Approval Pending. This client will appear in the Buyer Approvals queue after this sale is approved.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ) : linkedClientId && !selectedClient ? (
-                // Fallback: client ID exists but not found in allClients yet
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  <span className="text-sm">{linkedClientName || displayName}</span>
-                  <Badge variant="outline" className="text-[10px] bg-success/10 text-success">Linked</Badge>
-                  {userNoLocked ? (
-                    <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-auto flex items-center gap-1">
-                      <Lock className="h-2.5 w-2.5" />
-                      User No Locked
-                    </Badge>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[10px] text-muted-foreground hover:text-destructive ml-auto"
-                      onClick={handleUnlinkClient}
-                    >
-                      Change
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {/* No client linked — show matching suggestions or create option */}
-                  {matchingClients.length > 0 ? (
-                    <div className="space-y-2">
-                      {matchingClients.filter(c => c.name.trim().toLowerCase() === displayName.trim().toLowerCase()).length > 1 && (
-                        <div className="flex items-center gap-2 rounded-md border border-warning bg-warning/10 dark:border-warning dark:bg-warning/30 px-3 py-2">
-                          <Users className="h-3.5 w-3.5 text-warning shrink-0" />
-                          <span className="text-[11px] font-medium text-warning dark:text-warning">
-                            Multiple clients exist with the same name. Please verify details (phone, state, PAN) and select the correct one.
-                          </span>
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Matching clients found for "<span className="font-medium text-foreground">{displayName}</span>". Select the correct client:
-                      </p>
-                      <div className="border border-border rounded-md bg-background max-h-48 overflow-y-auto">
-                        {matchingClients.map((client) => (
-                          <HoverCard key={client.id} openDelay={300} closeDelay={100} open={hoveredClientId === client.id} onOpenChange={(isOpen) => {
-                            setHoveredClientId(isOpen ? client.id : null);
-                          }}>
-                            <HoverCardTrigger asChild>
-                              <div
-                                className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 transition-colors select-none"
-                                onClick={() => {
-                                  if (longPressFiredRef.current) { longPressFiredRef.current = false; return; }
-                                  handleClientSelect(client);
-                                }}
-                                onTouchStart={() => startClientPreviewPress(client.id)}
-                                onTouchEnd={cancelClientPreviewPress}
-                                onTouchMove={cancelClientPreviewPress}
-                                onTouchCancel={cancelClientPreviewPress}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="font-medium text-sm truncate">{client.name}</span>
-                                  {client.name.trim().toLowerCase() === displayName.trim().toLowerCase() && (
-                                    <Badge className="text-[9px] h-4 bg-success/10 text-success border-success/20 dark:bg-success/30 dark:text-success">
-                                      Exact
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <Badge variant="secondary" className="text-[10px]">{client.client_id}</Badge>
-                                  {client.phone && (
-                                    <span className="text-[10px] text-muted-foreground">{client.phone}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </HoverCardTrigger>
-                            <HoverCardContent
-                              side={isMobile ? "bottom" : "right"}
-                              align={isMobile ? "center" : "start"}
-                              collisionPadding={12}
-                              avoidCollisions
-                              className="w-[calc(100vw-24px)] max-w-80 p-3 z-[9999] bg-popover border border-border shadow-sm"
-                              sideOffset={8}
-                            >
-                              <ClientOrderPreview
-                                clientId={client.id}
-                                clientName={client.name}
-                                clientData={{
-                                  client_id: client.client_id,
-                                  phone: client.phone,
-                                  date_of_onboarding: client.date_of_onboarding,
-                                  client_type: client.client_type,
-                                  is_buyer: client.is_buyer,
-                                  is_seller: client.is_seller,
-                                }}
-                                isOpen={hoveredClientId === client.id}
-                              />
-                            </HoverCardContent>
-                          </HoverCard>
-                        ))}
-                      </div>
-                      {/* Create new client option */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-xs text-muted-foreground">None of these?</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-[10px] gap-1"
-                          onClick={() => createClientMutation.mutate()}
-                          disabled={createClientMutation.isPending}
-                        >
-                          {createClientMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                          Create New Buyer Client
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-warning" />
-                      <span className="text-sm text-muted-foreground">No matching client found for "{displayName}"</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-[10px] gap-1"
-                        onClick={() => createClientMutation.mutate()}
-                        disabled={createClientMutation.isPending}
-                      >
-                        {createClientMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                        Create Buyer Client
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+              <Field label="Order date & time (UTC)" htmlFor="tsa-order-time" hint="Actual Binance order time (not editable)">
+                <Input
+                  id="tsa-order-time"
+                  type="datetime-local"
+                  value={settlementDate.slice(0, 16)}
+                  disabled
+                  className="h-9 text-sm bg-muted"
+                />
+              </Field>
+            </FieldGrid>
 
-          {/* Data Conflict Banner */}
-          <DataConflictBanner conflicts={salesConflicts} />
+            {isMultiplePayments && (
+              <SplitEditor
+                splits={paymentSplits}
+                methods={paymentMethods}
+                allocation={splitAllocation}
+                totalAmount={totalAmount}
+                methodLabel={splitMethodLabel}
+                onChange={updatePaymentSplit}
+                onAdd={addPaymentSplit}
+                onRemove={removePaymentSplit}
+              />
+            )}
+          </Section>
 
-          {/* Editable Fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center justify-between h-5 mb-1">
-                <Label className="text-xs">Payment Method</Label>
-                <div className="flex items-center gap-1.5">
-                  <Checkbox
-                    id="split-sales-payment"
-                    checked={isMultiplePayments}
-                    onCheckedChange={(checked) => {
-                      setIsMultiplePayments(!!checked);
-                      if (checked) {
-                         setPaymentSplits([{ payment_method_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
-                      } else {
-                         setPaymentSplits([{ payment_method_id: '', amount: '' }]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="split-sales-payment" className="text-[10px] text-muted-foreground cursor-pointer whitespace-nowrap">
-                    Split Payment
-                  </Label>
-                </div>
-              </div>
-              {!isMultiplePayments ? (
-                <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Select payment method" />
+          {/* Contact & state */}
+          <Section title={sectionHeading('Contact & state')} description="Saved with this sale and, when a client is linked, on the client record.">
+            <FieldGrid>
+              <Field label="Contact number" htmlFor="tsa-contact-number">
+                <Input
+                  id="tsa-contact-number"
+                  inputMode="tel"
+                  value={contactNumber}
+                  onChange={(e) => setContactNumber(e.target.value)}
+                  placeholder="Buyer contact number"
+                  className="h-9 text-sm"
+                  maxLength={15}
+                />
+              </Field>
+              <Field label="State" htmlFor="tsa-state">
+                <Select value={clientState} onValueChange={setClientState}>
+                  <SelectTrigger id="tsa-state" className="h-9 text-left text-sm">
+                    <SelectValue placeholder="Select state" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover border z-50 max-h-[250px]">
-                    {paymentMethods.map((m: any) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.nickname || `${m.type}${m.bank_accounts ? ` - ${m.bank_accounts.account_name}` : ''}`}
-                      </SelectItem>
+                  <SelectContent className="bg-popover border z-50 max-h-[260px]">
+                    {INDIAN_STATES_AND_UTS.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
-                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-9 flex items-center">
-                  Configure payment distribution below
-                </div>
-              )}
-            </div>
+              </Field>
+            </FieldGrid>
+          </Section>
 
-            <div>
-              <Label className="text-xs">Order Date & Time</Label>
-              <Input
-                type="datetime-local"
-                value={settlementDate.slice(0, 16)}
-                disabled
-                className="mt-1 h-9 text-sm bg-muted"
+          {/* Remarks */}
+          <Section title={sectionHeading('Remarks')}>
+            <Field label="Remarks" htmlFor="tsa-remarks" hint="Added to the sales order description." className="[&>div:first-child]:sr-only">
+              <Textarea
+                id="tsa-remarks"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Optional remarks..."
+                className="min-h-[64px] text-sm"
+                rows={2}
               />
-              <p className="text-xs text-muted-foreground mt-1">Actual Binance order time (not editable)</p>
-            </div>
+            </Field>
+          </Section>
+        </DialogBody>
 
-            <div>
-              <Label className="text-xs">Contact Number</Label>
-              <Input
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
-                placeholder="Buyer contact number"
-                className="mt-1 h-9 text-sm"
-                maxLength={15}
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs">State</Label>
-              <Select value={clientState} onValueChange={setClientState}>
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border z-50 max-h-[200px]">
-                  {INDIAN_STATES_AND_UTS.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Split Payment Distribution */}
-          {isMultiplePayments && (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="font-medium text-sm">Payment Distribution</Label>
-                    {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-[10px] mb-1">Total Amount</div>
-                    <div className="font-semibold text-xs">₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div className="text-center border-x">
-                    <div className="text-muted-foreground text-[10px] mb-1">Allocated</div>
-                    <div className="font-medium text-xs">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-[10px] mb-1">Remaining</div>
-                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
-                      ₹{splitAllocation.remaining.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
-                    <div className="col-span-4">Amount (₹)</div>
-                    <div className="col-span-7">Payment Method</div>
-                    <div className="col-span-1"></div>
-                  </div>
-                  {paymentSplits.map((split, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
-                      <div className="col-span-4">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={split.amount}
-                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
-                          placeholder="0.00"
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <div className="col-span-7">
-                        <Select
-                          value={split.payment_method_id}
-                          onValueChange={(value) => updatePaymentSplit(index, 'payment_method_id', value)}
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue placeholder="Select payment method" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
-                            {paymentMethods.map((method: any) => {
-                              const displayLabel = method.nickname 
-                                ? method.nickname
-                                : method.type === 'UPI' && method.upi_id 
-                                  ? `${method.upi_id} (${method.risk_category})` 
-                                  : method.bank_accounts 
-                                    ? `${method.bank_accounts.account_name} (${method.risk_category})` 
-                                    : `${method.type} (${method.risk_category})`;
-                              return (
-                                <SelectItem key={method.id} value={method.id}>
-                                  {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-1 flex justify-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removePaymentSplit(index)}
-                          disabled={paymentSplits.length === 1}
-                          className="h-8 w-8"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addPaymentSplit}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Another Payment Method
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          <div>
-            <Label className="text-xs">Remarks</Label>
-            <Textarea
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Optional remarks..."
-              className="mt-1 text-sm"
-              rows={2}
-            />
-          </div>
-        </div>
-
-        {userNoResolving && (
-          <p className="text-[11px] text-amber-500 mb-1">Inferring Binance User No for this order…</p>
-        )}
-        {!userNoResolving && !lockedUserNo && (
-          <div className="mb-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
-            <p className="text-[11px] text-destructive">
-              Binance User No could not be inferred for this order (proxy issue, rate-limit, or an older order past Binance's identity window). Approval is blocked until it resolves — retry shortly.
-            </p>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+        <DialogFoot
+          // On phones the note takes its own line above the buttons.
+          className="[&>div:first-child]:basis-full sm:[&>div:first-child]:basis-auto"
+          start={
+            footNote && (
+              <span className="inline-flex items-center gap-1.5">
+                {userNoResolving ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden /> : <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                {footNote}
+              </span>
+            )
+          }
+        >
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            size="sm"
+            type="button"
             onClick={() => approveMutation.mutate()}
             disabled={approveMutation.isPending || userNoResolving || !lockedUserNo || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
-            {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
-            Approve & Create Sale
+            {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            {approveMutation.isPending ? 'Approving…' : 'Approve & create sale'}
           </Button>
-        </DialogFooter>
+        </DialogFoot>
       </DialogContent>
     </Dialog>
   );
 }
 
-function LockedField({ label, value }: { label: string; value: string }) {
+/* ── Presentation helpers (private to this dialog) ─────────────────────── */
+
+/** Last 10 digits of a phone number, for a display-only comparison. */
+function phoneDigits(value?: string | null): string {
+  return String(value ?? '').replace(/\D/g, '').slice(-10);
+}
+
+/** Rupees with exactly two decimals (split totals): ₹52,000.00 */
+function inr2(value: number): string {
+  const n = Number.isFinite(value) && Math.abs(value) >= 0.005 ? value : 0;
+  return `${n < 0 ? '-' : ''}₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Where the money from the chosen method lands. */
+function settlementLine(method: any): string {
+  const account = method?.bank_accounts?.account_name;
+  if (method?.payment_gateway) {
+    return `Gateway payment · settles to ${account || 'the linked bank account'}${method.settlement_cycle ? ` (${method.settlement_cycle})` : ''}`;
+  }
+  return account ? `Direct payment · credited to ${account}` : 'Direct payment';
+}
+
+/** Why an invalid split allocation can't be approved yet. */
+function splitNote(remaining: number): string {
+  if (Math.abs(remaining) > 0.01) return `Remaining ${inr2(remaining)} must be ₹0.00`;
+  return 'Choose a payment method and an amount on every row';
+}
+
+/** Split row option: method name with its usage against the limit. */
+function splitMethodLabel(method: any): string {
+  const displayLabel = method.nickname
+    ? method.nickname
+    : method.type === 'UPI' && method.upi_id
+      ? `${method.upi_id} (${method.risk_category})`
+      : method.bank_accounts
+        ? `${method.bank_accounts.account_name} (${method.risk_category})`
+        : `${method.type} (${method.risk_category})`;
+  return `${displayLabel} · ${fmtInr(method.current_usage)} / ${fmtInr(method.payment_limit)}`;
+}
+
+/** Client code · phone · state under a client name. */
+function ClientMeta({ client }: { client: any }) {
+  const parts: ReactNode[] = [];
+  if (client.client_id) parts.push(<span key="code" className="font-mono text-[12px] text-foreground/80">{client.client_id}</span>);
+  if (client.phone) parts.push(<span key="phone" className="font-mono text-[12px]">{client.phone}</span>);
+  if (client.state) parts.push(<span key="state">{client.state}</span>);
+  if (parts.length === 0) return null;
   return (
-    <div>
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-      <p className="text-xs font-medium text-foreground">{value}</p>
+    <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+      {parts.map((part, i) => (
+        <span key={i} className="inline-flex items-center gap-1.5">
+          {i > 0 && <span aria-hidden>·</span>}
+          {part}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** One side of a data conflict; pressed when the form currently holds this value. */
+function ConflictOption({ source, value, active, onClick }: { source: string; value: string; active: boolean; onClick: () => void }) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn('h-8 gap-1.5 px-2.5 text-xs font-normal', active && 'border-primary bg-primary/10 hover:bg-primary/15')}
+    >
+      {active && <Check className="text-primary" aria-hidden />}
+      <span className="text-muted-foreground">{source}:</span>{' '}
+      <span className="font-mono text-[12px] text-foreground">{value}</span>
+    </Button>
+  );
+}
+
+/** Section heading text; sized here because a global mobile rule enlarges every h3 to 16px. */
+function sectionHeading(text: string) {
+  return <span className="text-[11px] leading-4">{text}</span>;
+}
+
+type ExchangeAccount = { id: string; account_name: string; color: string | null };
+
+/**
+ * The record's exchange account from the ["exchange-account-map"] cache that the Terminal sync /
+ * ERP entry lists already filled. It never fetches: when the cache is empty, no chip is shown.
+ */
+function cachedExchangeAccount(queryClient: ReturnType<typeof useQueryClient>, accountId?: string | null): ExchangeAccount | null {
+  if (!accountId) return null;
+  const map = queryClient.getQueryData<Map<string, ExchangeAccount>>(['exchange-account-map']);
+  return (map instanceof Map ? map.get(accountId) : undefined) ?? null;
+}
+
+/** Neutral exchange-account chip; the account's own colour only marks the dot (as in the purchase dialogs). */
+function AccountChip({ account }: { account: ExchangeAccount }) {
+  const label = account.account_name.replace(/\s*binance\s*$/i, '').trim() || account.account_name;
+  return (
+    <Chip tone="neutral" title={account.account_name} className="max-w-full">
+      {account.color ? (
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: account.color }} />
+      ) : (
+        <Building2 className="h-3 w-3 shrink-0" aria-hidden />
+      )}
+      <span className="truncate">{label}</span>
+    </Chip>
+  );
+}
+
+type SplitAllocation = { totalAllocated: number; remaining: number; isValid: boolean };
+
+/** Split payment rows with the running total. All state stays in the dialog. */
+function SplitEditor({
+  splits,
+  methods,
+  allocation,
+  totalAmount,
+  methodLabel,
+  onChange,
+  onAdd,
+  onRemove,
+}: {
+  splits: PaymentSplit[];
+  methods: any[];
+  allocation: SplitAllocation;
+  totalAmount: number;
+  methodLabel: (method: any) => ReactNode;
+  onChange: (index: number, field: keyof PaymentSplit, value: string) => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-card p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[13px] font-medium text-foreground">Payment distribution</p>
+        {allocation.isValid ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+            Fully allocated
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+            Not fully allocated
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="hidden gap-2 px-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground sm:grid sm:grid-cols-[9.5rem_minmax(0,1fr)_2.25rem]">
+          <span>Amount (₹)</span>
+          <span>Payment method</span>
+          <span className="sr-only">Remove</span>
+        </div>
+        {splits.map((split, index) => (
+          <div key={index} className="grid grid-cols-[minmax(0,1fr)_2.25rem] items-center gap-2 sm:grid-cols-[9.5rem_minmax(0,1fr)_2.25rem]">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={split.amount}
+              onChange={(e) => onChange(index, 'amount', e.target.value)}
+              placeholder="0.00"
+              className="col-start-1 row-start-1 h-9 text-sm tabular-nums"
+              aria-label={`Split ${index + 1} amount (₹)`}
+            />
+            <div className="col-span-2 col-start-1 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+              <Select value={split.payment_method_id} onValueChange={(value) => onChange(index, 'payment_method_id', value)}>
+                <SelectTrigger className="h-9 text-left text-sm" aria-label={`Split ${index + 1} payment method`}>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50 border border-border shadow-sm">
+                  {methods.map((method: any) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {methodLabel(method)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onRemove(index)}
+              disabled={splits.length === 1}
+              className="col-start-2 row-start-1 h-9 w-9 text-muted-foreground hover:text-foreground sm:col-start-3"
+              aria-label={`Remove split ${index + 1}`}
+              title="Remove split"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <Button type="button" variant="outline" size="sm" onClick={onAdd} className="h-8 gap-1.5">
+        <Plus className="h-4 w-4" />
+        Add payment method
+      </Button>
+
+      <div>
+        <SummaryRow label="Order total" value={inr2(totalAmount)} />
+        <SummaryRow label="Allocated" value={inr2(allocation.totalAllocated)} />
+        <SummaryRow strong label="Remaining" value={inr2(allocation.remaining)} tone={allocation.isValid ? 'positive' : 'negative'} />
+      </div>
     </div>
   );
 }

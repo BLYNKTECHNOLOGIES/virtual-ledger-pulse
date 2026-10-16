@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { KeyboardEvent, MouseEvent } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Building, Copy, Clock, CheckCircle } from "lucide-react";
+import { CreditCard, Building, Copy, Clock, CheckCircle, Check, WalletCards } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Chip, DialogBody, DialogFoot, DialogHead, PanelMessage, PanelSkeleton, dialogContentClass, fmtInr } from "@/components/orders-ui";
 
 interface PaymentMethodSelectionDialogProps {
   open: boolean;
@@ -89,145 +90,208 @@ export function PaymentMethodSelectionDialog({
     onOpenChange(false);
   };
 
-  const renderPaymentMethodCard = (method: any) => (
-    <Card 
-      key={method.id}
-      className={`cursor-pointer transition-all ${
-        selectedPaymentMethod?.id === method.id ? 'ring-2 ring-info' : 'hover:shadow-md'
-      }`}
-      onClick={() => setSelectedPaymentMethod(method)}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2">
-            {method.type === 'UPI' ? (
-              <CreditCard className="h-4 w-4 text-primary" />
-            ) : (
-              <Building className="h-4 w-4 text-info" />
+  /* ── Presentation ─────────────────────────────────────────────────────── */
+
+  // Roving focus: the selected row (or the first one) is the group's tab stop.
+  const selectedInList = !!paymentMethods?.some((m: any) => m.id === selectedPaymentMethod?.id);
+
+  const renderPaymentMethodCard = (method: any, index: number) => {
+    const checked = selectedPaymentMethod?.id === method.id;
+    const available = method.payment_limit - method.current_usage;
+    const usedPct = method.payment_limit > 0 ? Math.min(100, Math.max(0, (method.current_usage / method.payment_limit) * 100)) : 0;
+    const TypeIcon = method.type === 'UPI' ? CreditCard : Building;
+    return (
+      <div
+        key={method.id}
+        className={cn(
+          "cursor-pointer rounded-lg border bg-card transition-colors",
+          checked ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:border-ring/40 hover:bg-muted/30",
+        )}
+        onClick={() => setSelectedPaymentMethod(method)}
+      >
+        <button
+          type="button"
+          role="radio"
+          aria-checked={checked}
+          tabIndex={checked || (!selectedInList && index === 0) ? 0 : -1}
+          className="flex w-full min-w-0 items-start gap-3 rounded-lg px-3 pb-2 pt-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-4"
+        >
+          <span
+            className={cn(
+              "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+              checked ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40 bg-background",
             )}
-            <span className="font-medium">
+            aria-hidden
+          >
+            {checked && <Check className="h-3 w-3" strokeWidth={3} />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-semibold leading-5 text-foreground">
               {method.bank_accounts ? method.bank_accounts.account_name : method.type}
             </span>
-          </div>
-          <Badge variant="outline" className="text-success">
-            Available: ₹{(method.payment_limit - method.current_usage).toLocaleString('en-IN')}
-          </Badge>
-        </div>
+            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <TypeIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="truncate">
+                {method.type}
+                {method.nickname ? ` · ${method.nickname}` : ""}
+              </span>
+            </span>
+          </span>
+          <span className="shrink-0 text-right">
+            <span className="block text-[13px] font-semibold tabular-nums text-foreground">{fmtInr(available)}</span>
+            <span className="block text-[11px] text-muted-foreground">available</span>
+          </span>
+        </button>
 
-        {method.type === 'UPI' && method.upi_id && (
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">UPI ID</div>
-            <div className="flex items-center justify-between bg-muted/50 p-2 rounded">
-              <span className="font-mono text-sm">{method.upi_id}</span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+        <div className="space-y-2.5 px-3 pb-3 pl-10 sm:px-4 sm:pl-11">
+          {method.type === 'UPI' && method.upi_id && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 py-1 pl-2.5 pr-1">
+              <div className="min-w-0">
+                <span className="block text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">UPI ID</span>
+                <span className="block break-all font-mono text-[12px] text-foreground">{method.upi_id}</span>
+              </div>
+              <CopyIconButton
+                label="Copy UPI ID"
                 onClick={(e) => {
                   e.stopPropagation();
                   copyToClipboard(method.upi_id);
                 }}
-              >
-                <Copy className="h-3 w-3" />
-              </Button>
+              />
             </div>
-          </div>
-        )}
+          )}
 
-        {method.type === 'Bank Account' && method.bank_accounts && (
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-muted-foreground">Bank:</span>
-                <p className="font-medium">{method.bank_accounts.bank_name}</p>
+          {method.type === 'Bank Account' && method.bank_accounts && (
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-md border border-border bg-muted/30 px-2.5 py-2 sm:grid-cols-2">
+              <div className="min-w-0">
+                <dt className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Bank</dt>
+                <dd className="truncate text-[13px] font-medium text-foreground">{method.bank_accounts.bank_name}</dd>
               </div>
-              <div>
-                <span className="text-muted-foreground">Account:</span>
-                <div className="flex items-center gap-1">
-                  <span className="font-mono">{method.bank_accounts.account_number}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+              <div className="min-w-0">
+                <dt className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Name</dt>
+                <dd className="truncate text-[13px] font-medium text-foreground">{method.bank_accounts.bank_account_holder_name}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Account</dt>
+                <dd className="flex items-center gap-1">
+                  <span className="min-w-0 break-all font-mono text-[12px] text-foreground">{method.bank_accounts.account_number}</span>
+                  <CopyIconButton
+                    label="Copy account number"
                     onClick={(e) => {
                       e.stopPropagation();
                       copyToClipboard(method.bank_accounts.account_number);
                     }}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
+                  />
+                </dd>
               </div>
-              <div>
-                <span className="text-muted-foreground">IFSC:</span>
-                <div className="flex items-center gap-1">
-                  <span className="font-mono">{method.bank_accounts.IFSC}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+              <div className="min-w-0">
+                <dt className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">IFSC</dt>
+                <dd className="flex items-center gap-1">
+                  <span className="min-w-0 break-all font-mono text-[12px] text-foreground">{method.bank_accounts.IFSC}</span>
+                  <CopyIconButton
+                    label="Copy IFSC"
                     onClick={(e) => {
                       e.stopPropagation();
                       copyToClipboard(method.bank_accounts.IFSC);
                     }}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
+                  />
+                </dd>
               </div>
-              <div>
-                <span className="text-muted-foreground">Name:</span>
-                <p className="font-medium">{method.bank_accounts.bank_account_holder_name}</p>
-              </div>
+            </dl>
+          )}
+
+          <div className="flex items-center gap-3">
+            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/10" role="img" aria-label={`${Math.round(usedPct)}% of the limit used`}>
+              <div className="h-full rounded-full bg-primary/70" style={{ width: `${usedPct}%` }} />
             </div>
+            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+              Used {fmtInr(method.current_usage)} of {fmtInr(method.payment_limit)}
+            </span>
           </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            Select Payment Method - {clientName} (₹{orderAmount.toLocaleString('en-IN')})
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass("lg")}>
+        <DialogHead
+          icon={WalletCards}
+          title="Select payment method"
+          description={
+            <>
+              Choose the account {clientName ? <span className="font-medium text-foreground">{clientName}</span> : "the client"} pays{" "}
+              <span className="font-medium tabular-nums text-foreground">{fmtInr(orderAmount)}</span> into. User paying keeps the order
+              open while the client pays; payment done marks it paid.
+            </>
+          }
+          meta={
+            <>
+              <Chip tone="neutral">{paymentType}</Chip>
+              <Chip tone="neutral">Risk: {riskCategory}</Chip>
+            </>
+          }
+        />
 
-        <div className="space-y-4">
+        <DialogBody>
           {isLoading ? (
-            <div className="text-center py-8">Loading payment methods...</div>
+            <PanelSkeleton rows={3} label="Loading payment methods" />
           ) : paymentMethods && paymentMethods.length > 0 ? (
-            <div className="space-y-3">
+            <div role="radiogroup" aria-label="Payment methods" className="space-y-2.5" onKeyDown={moveRadioFocus}>
               {paymentMethods.map(renderPaymentMethodCard)}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No available payment methods found for this risk category and type.
-            </div>
+            <PanelMessage icon={WalletCards} title="No payment method available" className="rounded-lg border border-dashed border-border py-10">
+              No active {paymentType} method for risk category “{riskCategory}” has an active bank account and room under its limit.
+              Ask an admin to add one, then try again.
+            </PanelMessage>
           )}
+        </DialogBody>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUserPaying}
-              disabled={!selectedPaymentMethod}
-              className="bg-info hover:bg-info"
-            >
-              <Clock className="h-4 w-4 mr-2" />
-              User Paying
-            </Button>
-            <Button 
-              onClick={handlePaymentDone}
-              disabled={!selectedPaymentMethod}
-              className="bg-success hover:bg-success"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Payment Done
-            </Button>
-          </div>
-        </div>
+        <DialogFoot>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleUserPaying}
+            disabled={!selectedPaymentMethod}
+          >
+            <Clock className="h-4 w-4" />
+            Mark as user paying
+          </Button>
+          <Button
+            onClick={handlePaymentDone}
+            disabled={!selectedPaymentMethod}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Mark payment done
+          </Button>
+        </DialogFoot>
       </DialogContent>
     </Dialog>
   );
+}
+
+/* ── Presentation helpers (private) ───────────────────────────────────── */
+
+/** Icon-only copy button with a 32px tap target; runs the caller's own copy handler. */
+function CopyIconButton({ label, onClick }: { label: string; onClick: (e: MouseEvent<HTMLButtonElement>) => void }) {
+  return (
+    <Button type="button" variant="ghost" size="sm" className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-foreground" onClick={onClick} aria-label={label} title={label}>
+      <Copy className="h-3.5 w-3.5" />
+    </Button>
+  );
+}
+
+/** Arrow keys move between the radios of a group and select, like native radio buttons. */
+function moveRadioFocus(e: KeyboardEvent<HTMLDivElement>) {
+  if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(e.key)) return;
+  const radios = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]'));
+  const i = radios.indexOf(document.activeElement as HTMLElement);
+  if (i === -1) return;
+  e.preventDefault();
+  const next = radios[(i + (e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1) + radios.length) % radios.length];
+  next.focus();
+  next.click();
 }

@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { AlertCircle, UserPlus, Check, Clock } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
-import { matchesWordPrefix } from "@/lib/utils";
+import { cn, matchesWordPrefix } from "@/lib/utils";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { Chip, fmtInr, useDropdownFit } from "@/components/orders-ui";
 
 interface CustomerAutocompleteProps {
   value: string;
@@ -23,11 +23,13 @@ interface CustomerAutocompleteProps {
   selectedClientId?: string;
   label?: string;
   placeholder?: string;
+  /** Presentation only: the parent renders the label itself (e.g. a kit `Field` with htmlFor="customerName"). */
+  hideLabel?: boolean;
 }
 
-export function CustomerAutocomplete({ 
-  value, 
-  onChange, 
+export function CustomerAutocomplete({
+  value,
+  onChange,
   onRiskLevelChange,
   onPhoneChange,
   onStateChange,
@@ -36,7 +38,8 @@ export function CustomerAutocomplete({
   onApprovalSelect,
   selectedClientId,
   label = "Customer Name *",
-  placeholder = "Enter customer name"
+  placeholder = "Enter customer name",
+  hideLabel = false,
 }: CustomerAutocompleteProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasExactMatch, setHasExactMatch] = useState(false);
@@ -253,10 +256,29 @@ export function CustomerAutocomplete({
     setShowSuggestions(true);
   };
 
+  /* ── Presentation only (derived from the values above) ──────────────── */
+
+  // A suggestion found through its PAN shows that PAN, so the match is visible; other rows don't
+  // print PAN numbers.
+  const suggestionTerm = debouncedValue.toLowerCase().trim();
+  const matchedOnPan = (client: any) =>
+    !!client.pan_card_number &&
+    client.pan_card_number.toLowerCase().includes(suggestionTerm) &&
+    !matchesWordPrefix(suggestionTerm, client.name) &&
+    !(client.phone && client.phone.includes(suggestionTerm));
+  const showExactMatchWarning = hasExactMatch && !selectedClientId;
+  const showApprovalWarning = !!pendingApprovalMatch && !hasExactMatch && !selectedClientId;
+  const showNewBuyerNote = isNewClient && !hasExactMatch && !pendingApprovalMatch && value.trim().length > 0;
+  const hasStatus = showExactMatchWarning || showApprovalWarning || showNewBuyerNote || !!selectedClientId;
+  const listShown = showSuggestions && (filteredClients.length > 0 || filteredApprovals.length > 0);
+  const noMatchShown = showSuggestions && value.trim().length > 0 && filteredClients.length === 0 && filteredApprovals.length === 0 && !hasExactMatch;
+  // Inside a dialog, the list ends above the footer (it would otherwise run under it).
+  const { anchorRef, maxHeight: listMaxHeight } = useDropdownFit(listShown || noMatchShown, `${filteredClients.length}|${filteredApprovals.length}|${noMatchShown}`);
+
   return (
     <div className="relative">
-      <Label htmlFor="customerName">{label}</Label>
-      <div className="relative">
+      {!hideLabel && <Label htmlFor="customerName">{label}</Label>}
+      <div className="relative" ref={anchorRef}>
         <Input
           id="customerName"
           value={value}
@@ -265,133 +287,139 @@ export function CustomerAutocomplete({
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           placeholder={placeholder}
           required
-          className={hasExactMatch && !selectedClientId ? "border-destructive pr-10" : ""}
+          className={cn(
+            selectedClientId && "pr-9",
+            showExactMatchWarning && "border-warning pr-10 focus-visible:border-warning focus-visible:ring-warning/40",
+          )}
         />
         {selectedClientId && (
-          <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-        )}
-      </div>
-      
-      {/* Status indicators */}
-      <div className="mt-1.5 flex items-center gap-2">
-        {hasExactMatch && !selectedClientId && (
-          <div className="flex items-center gap-1.5 text-destructive text-sm">
-            <AlertCircle className="h-3.5 w-3.5" />
-            <span>Client exists - please select from suggestions</span>
-          </div>
-        )}
-        
-        {pendingApprovalMatch && !hasExactMatch && !selectedClientId && (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            Already in approval queue — don't create a duplicate
-          </Badge>
+          <Check className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-success" aria-hidden />
         )}
 
-        {isNewClient && !hasExactMatch && !pendingApprovalMatch && value.trim().length > 0 && (
-          <Badge variant="outline" className="bg-accent text-accent-foreground flex items-center gap-1">
-            <UserPlus className="h-3 w-3" />
-            New buyer will be created
-          </Badge>
-        )}
-
-        
-        {selectedClientId && (
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 flex items-center gap-1">
-            <Check className="h-3 w-3" />
-            Existing client selected
-          </Badge>
-        )}
-      </div>
-      
-      {/* Suggestions dropdown */}
-      {showSuggestions && (filteredClients.length > 0 || filteredApprovals.length > 0) && (
-        <div className="absolute z-50 min-w-[320px] w-max max-w-md mt-1 bg-background border border-border rounded-md shadow-md max-h-60 overflow-y-auto">
-          {filteredClients.map((client) => (
-            <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(open) => {
-              if (open) setHoveredClientId(client.id);
-            }}>
-              <HoverCardTrigger asChild>
-                <div
-                  className={`px-3 py-2 hover:bg-muted cursor-pointer ${
-                    client.id === selectedClientId ? 'bg-accent' : ''
-                  }`}
-                  onClick={() => handleClientSelect(client)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium whitespace-nowrap">{client.name}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {client.client_id}
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-0.5">
-                    {client.phone && `Phone: ${client.phone}`}
-                    {client.email && ` | Email: ${client.email}`}
-                    {client.pan_card_number && ` | PAN: ${client.pan_card_number}`}
-                  </div>
-                </div>
-              </HoverCardTrigger>
-              <HoverCardContent 
-                side="right" 
-                align="start" 
-                className="w-80 p-3 z-[200] bg-popover border border-border shadow-md"
-                sideOffset={8}
-              >
-                <ClientOrderPreview 
-                  clientId={client.id}
-                  clientName={client.name}
-                  clientData={{
-                    client_id: client.client_id,
-                    phone: client.phone,
-                    date_of_onboarding: client.date_of_onboarding,
-                    client_type: client.client_type,
-                    is_buyer: client.is_buyer,
-                    is_seller: client.is_seller
-                  }}
-                  isOpen={hoveredClientId === client.id}
-                />
-              </HoverCardContent>
-            </HoverCard>
-          ))}
-
-          {/* Pending onboarding approvals — not yet real clients */}
-          {filteredApprovals.length > 0 && (
-            <div className="border-t border-border">
-              <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600 bg-amber-500/5 flex items-center gap-1.5">
-                <Clock className="h-3 w-3" />
-                In approval queue (not yet onboarded)
-              </div>
-              {filteredApprovals.map((a: any) => (
-                <div
-                  key={a.id}
-                  className="px-3 py-2 hover:bg-muted cursor-pointer"
-                  onClick={() => handleApprovalSelect(a)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium whitespace-nowrap">{a.client_name}</span>
-                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">
-                      PENDING APPROVAL
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-0.5">
-                    {a.client_phone && `Phone: ${a.client_phone}`}
-                    {a.binance_nickname && ` | ${a.binance_nickname}`}
-                    {a.order_amount != null && ` | ₹${Number(a.order_amount).toLocaleString('en-IN')}`}
-                  </div>
-                </div>
+        {/* Suggestions: clients first, then counterparties still waiting in the onboarding queue */}
+        {showSuggestions && (filteredClients.length > 0 || filteredApprovals.length > 0) && (
+          <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[20rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md">
+            <div className="max-h-64 overflow-y-auto overscroll-contain py-1" style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}>
+              {filteredClients.map((client) => (
+                <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(open) => {
+                  if (open) setHoveredClientId(client.id);
+                }}>
+                  <HoverCardTrigger asChild>
+                    <div
+                      className={cn(
+                        "cursor-pointer px-3 py-2 transition-colors hover:bg-muted",
+                        client.id === selectedClientId && "bg-accent",
+                      )}
+                      onClick={() => handleClientSelect(client)}
+                    >
+                      <div className="flex min-w-0 items-center justify-between gap-3">
+                        <span className="truncate text-[13px] font-medium text-foreground">{client.name}</span>
+                        {client.client_id && (
+                          <span className="shrink-0 rounded border border-border bg-muted/60 px-1.5 font-mono text-[11px] leading-[18px] text-muted-foreground">
+                            {client.client_id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {[client.phone, client.state].filter(Boolean).join(" · ") || "No phone or state on file"}
+                        {matchedOnPan(client) && (
+                          <span className="font-mono text-[11px]"> · PAN {client.pan_card_number}</span>
+                        )}
+                      </div>
+                    </div>
+                  </HoverCardTrigger>
+                  <HoverCardContent
+                    side="right"
+                    align="start"
+                    className="w-80 p-3 z-[200] bg-popover border border-border shadow-md"
+                    sideOffset={8}
+                  >
+                    <ClientOrderPreview
+                      clientId={client.id}
+                      clientName={client.name}
+                      clientData={{
+                        client_id: client.client_id,
+                        phone: client.phone,
+                        date_of_onboarding: client.date_of_onboarding,
+                        client_type: client.client_type,
+                        is_buyer: client.is_buyer,
+                        is_seller: client.is_seller
+                      }}
+                      isOpen={hoveredClientId === client.id}
+                    />
+                  </HoverCardContent>
+                </HoverCard>
               ))}
+
+              {/* Pending onboarding approvals — not yet real clients */}
+              {filteredApprovals.length > 0 && (
+                <div className={cn(filteredClients.length > 0 && "mt-1 border-t border-border pt-1")}>
+                  <div className="flex items-center gap-1.5 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                    <Clock className="h-3 w-3 text-warning" aria-hidden />
+                    In approval queue · not yet onboarded
+                  </div>
+                  {filteredApprovals.map((a: any) => (
+                    <div
+                      key={a.id}
+                      className="cursor-pointer px-3 py-2 transition-colors hover:bg-muted"
+                      onClick={() => handleApprovalSelect(a)}
+                    >
+                      <div className="flex min-w-0 items-center justify-between gap-3">
+                        <span className="truncate text-[13px] font-medium text-foreground">{a.client_name}</span>
+                        <Chip tone="warning" className="shrink-0">Pending approval</Chip>
+                      </div>
+                      <div className="mt-0.5 truncate text-xs tabular-nums text-muted-foreground">
+                        {[a.client_phone, a.binance_nickname, a.order_amount != null ? fmtInr(a.order_amount) : null].filter(Boolean).join(" · ") || "—"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
-      
-      {/* No matches found */}
-      {showSuggestions && value.trim().length > 0 && filteredClients.length === 0 && filteredApprovals.length === 0 && !hasExactMatch && (
-        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-md p-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <UserPlus className="h-4 w-4 text-primary" />
-            <span>No existing clients found. A new buyer will be created on submission.</span>
           </div>
+        )}
+
+        {/* No matches found */}
+        {showSuggestions && value.trim().length > 0 && filteredClients.length === 0 && filteredApprovals.length === 0 && !hasExactMatch && (
+          <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[20rem] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-md">
+            <div className="flex items-start gap-2 text-[13px] leading-5 text-muted-foreground">
+              <UserPlus className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <span>No existing client matches. A new buyer goes to the approvals queue when the order is created.</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Status of the typed name */}
+      {hasStatus && (
+        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          {showExactMatchWarning && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
+              This client exists — select them from the suggestions
+            </p>
+          )}
+
+          {showApprovalWarning && (
+            <Chip tone="warning" className="max-w-full whitespace-normal">
+              <Clock className="h-3 w-3 shrink-0" aria-hidden />
+              Already in approval queue — don't create a duplicate
+            </Chip>
+          )}
+
+          {showNewBuyerNote && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              New buyer · goes to the approvals queue with this order
+            </p>
+          )}
+
+          {selectedClientId && (
+            <Chip tone="success">
+              <Check className="h-3 w-3" aria-hidden />
+              Existing client selected
+            </Chip>
+          )}
         </div>
       )}
     </div>

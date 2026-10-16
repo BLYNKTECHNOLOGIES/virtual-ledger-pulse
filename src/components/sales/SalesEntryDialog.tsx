@@ -1,22 +1,20 @@
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { forwardRef, useState, useEffect, useMemo, useRef, type ComponentPropsWithoutRef, type ElementRef, type ReactNode } from "react";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
+import { AlertTriangle, Plus, Minus, CheckCircle2, AlertCircle, Check, Loader2, Receipt, Wallet } from "lucide-react";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
@@ -24,6 +22,25 @@ import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCur
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
+import { cn } from "@/lib/utils";
+import { ShareBar } from "@/components/finance-ui/primitives";
+import {
+  Callout,
+  Chip,
+  DIALOG_FORM,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Field,
+  FieldGrid,
+  Section,
+  SummaryRow,
+  ToggleRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtInr,
+  fmtRate,
+} from "@/components/orders-ui";
 
 interface PaymentSplit {
   payment_method_id: string;
@@ -34,6 +51,62 @@ interface SalesEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+/* ── Presentation helpers (private; candidates for the orders-ui kit) ───── */
+
+/**
+ * Select option whose muted detail (a balance, a usage figure) shows in the open list only;
+ * the closed trigger shows just the option's main text.
+ */
+const DetailSelectItem = forwardRef<
+  ElementRef<typeof SelectPrimitive.Item>,
+  ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & { detail?: ReactNode }
+>(({ className, children, detail, ...props }, ref) => (
+  <SelectPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex w-full cursor-default select-none items-center gap-3 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className,
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-4 w-4" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
+    <span className="min-w-0 flex-1 truncate">
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </span>{" "}
+    {detail != null && detail !== "" && <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">{detail}</span>}
+  </SelectPrimitive.Item>
+));
+DetailSelectItem.displayName = "DetailSelectItem";
+
+/**
+ * Section heading text. The kit's Section renders its title in an <h3>, and a global phone rule
+ * (src/index.css, max-width 767px: `h3 { font-size: 1rem !important }`) would blow it up to 16px;
+ * this keeps the 11px label size on phones too.
+ */
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <span className="text-[11px] leading-4">{children}</span>;
+}
+
+/** "₹" in front of an amount input. */
+function RupeeAffix({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden>
+        ₹
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/** "₹25,000.00": two decimals, for split allocation figures (display only). */
+const money2 = (n: number) =>
+  `${n < 0 ? "-" : ""}₹${Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) {
   const { toast } = useToast();
@@ -660,462 +733,547 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   // Display quantity for UI
   const quantity = parseFloat(formData.quantity) || 0;
 
+  /* ── Presentation only: derived from the state above, never written back ── */
+  const assetCode = String(products?.find((p: any) => p.id === formData.product_id)?.code || 'USDT').toUpperCase();
+  const selectedWalletName = wallets?.find((w) => w.id === formData.wallet_id)?.wallet_name?.trim();
+  const orderTotal = parseFloat(formData.total_amount) || 0;
+  const walletDeduction = quantity + calculatedFee;
+  const balanceAfter = selectedWalletBalance !== null ? selectedWalletBalance - walletDeduction : null;
+  const paymentMethodLabel = (method: any) =>
+    method.nickname
+      ? method.nickname
+      : method.type === 'UPI' && method.upi_id
+        ? `${method.upi_id} (${method.risk_category})`
+        : method.bank_accounts
+          ? `${method.bank_accounts.account_name} (${method.risk_category})`
+          : `${method.type} (${method.risk_category})`;
+  const paymentMethodUsage = (method: any) => `${fmtInr(method.current_usage)} / ${fmtInr(method.payment_limit)}`;
+  const selectedPaymentMethod: any = isSplitPayment
+    ? undefined
+    : paymentMethods?.find((m: any) => m.id === formData.sales_payment_method_id);
+  const remainingIsZero = Math.abs(splitAllocation.remaining) < 0.005;
+  // The summary rounds stablecoin figures to 4 decimals so the column stays readable; inputs keep full precision.
+  const summaryDecimals = ['USDT', 'USDC'].includes(assetCode) ? 4 : 8;
+  const summaryQty = (value: number) => fmtAssetQty(value, assetCode, summaryDecimals);
+  const feeSummary = (() => {
+    if (isOffMarket) return { value: "None", hint: "Off-market order" };
+    if (selectedWalletFee > 0) return { value: quantity > 0 ? summaryQty(calculatedFee) : "—", hint: `${selectedWalletFee}% of quantity` };
+    return { value: formData.wallet_id ? "None" : "—", hint: undefined };
+  })();
+  const footAmount = orderTotal > 0 ? fmtInr(orderTotal) : null;
+  const footQuantity = quantity > 0 ? summaryQty(quantity) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Sales Order</DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass("xxl")}>
+        <DialogHead
+          icon={Receipt}
+          title="Create sales order"
+          description="Records a completed sale in the ERP. Wallet stock and the payment are posted as soon as you create it."
+          meta={
+            isOffMarket || isSplitPayment ? (
+              <>
+                {isOffMarket && <Chip tone="info">Off-market</Chip>}
+                {isSplitPayment && <Chip tone="neutral">Split payment</Chip>}
+              </>
+            ) : undefined
+          }
+        />
 
-        <form 
-          onSubmit={handleSubmit} 
-          className="space-y-4"
+        <form
+          onSubmit={handleSubmit}
+          className={DIALOG_FORM}
           noValidate
         >
-          {/* First Row - Order Number and Customer Phone */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Order Number *</Label>
-              <Input
-                autoFocus
-                value={formData.order_number}
-                onChange={(e) => handleInputChange('order_number', e.target.value)}
-                placeholder={isGeneratingOrderNumber ? "Generating..." : isOffMarket ? "Auto-generated" : "Enter order number"}
-                required
-                disabled={isOffMarket || isGeneratingOrderNumber}
-                className={isOffMarket ? "bg-muted" : ""}
-              />
-            </div>
-            <div>
-              <Label>Customer Phone</Label>
-              <Input
-                value={formData.client_phone}
-                onChange={(e) => handleInputChange('client_phone', e.target.value)}
-                placeholder="Enter phone"
-              />
-            </div>
-          </div>
-
-          {/* Second Row - Customer Name and State */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <CustomerAutocomplete
-                value={formData.client_name}
-                onChange={(value) => handleInputChange('client_name', value)}
-                onPhoneChange={(phone) => handleInputChange('client_phone', phone)}
-                onStateChange={(state) => handleInputChange('client_state', state)}
-                onClientSelect={(client) => {
-                  if (client) {
-                    setSelectedClientId(client.id);
-                    // Auto-fill is handled by CustomerAutocomplete via onPhoneChange and onStateChange
-                  } else {
-                    setSelectedClientId(undefined);
-                    // Clear auto-filled fields when client is deselected
-                    setFormData(prev => ({
-                      ...prev,
-                      client_phone: '',
-                      client_state: ''
-                    }));
-                  }
-                }}
-                onNewClient={(isNew) => setIsNewClient(isNew)}
-                selectedClientId={selectedClientId}
-              />
-            </div>
-
-            <div>
-              <Label>State</Label>
-              <Select
-                value={formData.client_state}
-                onValueChange={(value) => handleInputChange('client_state', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-sm z-[100] max-h-60">
-                  {INDIAN_STATES_AND_UTS.map((state) => (
-                    <SelectItem key={state} value={state}>
-                      {state}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Third Row - Product and Wallet */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Product</Label>
-              <Select
-                value={formData.product_id}
-                onValueChange={(value) => handleInputChange('product_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-sm z-[100]">
-                  {products?.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} - {product.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Wallet *</Label>
-              <Select
-                value={formData.wallet_id}
-                onValueChange={(value) => handleInputChange('wallet_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select wallet" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-sm z-[100]">
-                  {wallets?.map((wallet) => (
-                    <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} - Balance: {wallet.current_balance}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Pricing row */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label>Total Amount</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={formData.total_amount}
-                onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
-                min="0"
-                step="0.01"
-                placeholder="Enter total amount"
-              />
-            </div>
-
-            <div>
-              <Label>Price Per Unit *</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={formData.price_per_unit}
-                onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
-                required
-                min="0"
-                step="0.01"
-                placeholder="Enter price per unit"
-              />
-            </div>
-
-            <div>
-              <Label>Quantity *</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', e.target.value)}
-                required
-                min="0"
-                step="0.01"
-                placeholder="Enter quantity"
-                className={stockValidationError ? "border-destructive" : ""}
-              />
-            </div>
-          </div>
-
-          {/* Wallet balance warning */}
-          {stockValidationError && (
-            <Alert className="border-destructive bg-destructive/10">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              <AlertDescription className="text-destructive">
-                {stockValidationError}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Show wallet balance when wallet is selected */}
-          {selectedWalletBalance !== null && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Available Balance in Selected Wallet: <strong>{selectedWalletBalance.toLocaleString('en-IN')}</strong>
-                {selectedWalletFee > 0 && !isOffMarket && (
-                  <span className="ml-2 text-muted-foreground">
-                    (Platform Fee: {selectedWalletFee}%)
-                  </span>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Off Market Toggle Section */}
-          <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label className="text-base font-medium">Off Market Order</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enable to bypass platform fee deduction
-                </p>
-              </div>
-              <Switch 
-                checked={isOffMarket} 
-                onCheckedChange={async (checked) => {
-                  setIsOffMarket(checked);
-                  if (checked) {
-                    // Preview off-market order number (without consuming sequence)
-                    setIsGeneratingOrderNumber(true);
-                    try {
-                      const { data, error } = await supabase.rpc('preview_off_market_sales_order_number');
-                      if (!error && data) {
-                        handleInputChange('order_number', data);
-                      }
-                    } catch (err) {
-                      console.error('Failed to preview off-market order number:', err);
-                    } finally {
-                      setIsGeneratingOrderNumber(false);
-                    }
-                  } else {
-                    // Clear order number when turning off
-                    handleInputChange('order_number', '');
-                  }
-                }}
-              />
-            </div>
-            
-            {!isOffMarket && selectedWalletFee > 0 && quantity > 0 && (
-              <div className="space-y-2 bg-background p-3 rounded-md border">
-                <div className="flex justify-between text-sm">
-                  <span>Quantity Sold:</span>
-                  <span className="font-medium">{quantity.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between text-sm text-warning">
-                  <span>Platform Fee ({selectedWalletFee}%):</span>
-                  <span className="font-medium">+{calculatedFee.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between text-base font-bold border-t pt-2">
-                  <span>Total Deducted from Wallet:</span>
-                  <span className="text-primary">{(quantity + calculatedFee).toFixed(4)}</span>
-                </div>
-              </div>
-            )}
-            
-            {isOffMarket && (
-              <Badge variant="secondary" className="bg-success/10 text-success">
-                No platform fees will be applied
-              </Badge>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center justify-between h-6">
-                <Label>Payment Method</Label>
-                {(showSplitOption || isSplitPayment) ? (
-                  <div className="flex items-center gap-1.5">
-                    <Checkbox
-                      id="split-sales-payment-manual"
-                      checked={isSplitPayment}
-                      onCheckedChange={(checked) => {
-                        setIsSplitPayment(!!checked);
-                        if (checked) {
-                          const total = parseFloat(formData.total_amount) || 0;
-                          setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
-                        } else {
-                          setPaymentSplits([{ payment_method_id: '', amount: '' }]);
-                        }
-                      }}
-                    />
-                    <Label htmlFor="split-sales-payment-manual" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-                      Split Payment
-                    </Label>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowSplitOption(true)}
-                    className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline whitespace-nowrap"
-                  >
-                    More options
-                  </button>
-                )}
-              </div>
-              {!isSplitPayment ? (
-                <Select
-                  value={formData.sales_payment_method_id}
-                  onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border border-border shadow-sm z-50">
-                    {paymentMethods?.map((method) => {
-                      const displayLabel = (method as any).nickname 
-                        ? (method as any).nickname
-                        : method.type === 'UPI' && method.upi_id 
-                          ? `${method.upi_id} (${method.risk_category})` 
-                          : method.bank_accounts 
-                            ? `${method.bank_accounts.account_name} (${method.risk_category})` 
-                            : `${method.type} (${method.risk_category})`;
-                      
-                      return (
-                        <SelectItem key={method.id} value={method.id}>
-                          {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-10 flex items-center">
-                  Configure payment distribution below
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label>Order Date & Time</Label>
-              <Input
-                type="datetime-local"
-                value={formData.order_datetime}
-                onChange={(e) => handleInputChange('order_datetime', e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Split Payment Distribution */}
-          {isSplitPayment && (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="font-medium">Payment Distribution</Label>
-                    {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-xs mb-1">Total Amount</div>
-                    <div className="font-semibold">₹{(parseFloat(formData.total_amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div className="text-center border-x">
-                    <div className="text-muted-foreground text-xs mb-1">Allocated</div>
-                    <div className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-xs mb-1">Remaining</div>
-                    <div className={`font-semibold ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
-                      ₹{splitAllocation.remaining.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
-                    <div className="col-span-4">Amount (₹)</div>
-                    <div className="col-span-7">Payment Method</div>
-                    <div className="col-span-1"></div>
-                  </div>
-                  {paymentSplits.map((split, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
-                      <div className="col-span-4">
+          <DialogBody>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+              <div className="min-w-0 space-y-6">
+                {/* Order */}
+                <Section title={<SectionTitle>Order</SectionTitle>}>
+                  <div className="space-y-3.5">
+                    <FieldGrid>
+                      <Field
+                        label="Order number"
+                        htmlFor="se-order-number"
+                        required={!isOffMarket}
+                        hint={isOffMarket ? "Preview — the final OFS number is assigned when the order is created." : undefined}
+                      >
+                        <div className="relative">
+                          <Input
+                            id="se-order-number"
+                            autoFocus
+                            value={formData.order_number}
+                            onChange={(e) => handleInputChange('order_number', e.target.value)}
+                            placeholder={isGeneratingOrderNumber ? "Generating..." : isOffMarket ? "Auto-generated" : "Enter order number"}
+                            required
+                            disabled={isOffMarket || isGeneratingOrderNumber}
+                            className={cn(
+                              "font-mono placeholder:font-sans",
+                              isOffMarket && "bg-muted disabled:opacity-100",
+                              isGeneratingOrderNumber && "pr-9",
+                            )}
+                          />
+                          {isGeneratingOrderNumber && (
+                            <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />
+                          )}
+                        </div>
+                      </Field>
+                      <Field label="Order date & time" htmlFor="se-order-datetime">
                         <Input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          value={split.amount}
-                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
-                          placeholder="0.00"
+                          id="se-order-datetime"
+                          type="datetime-local"
+                          value={formData.order_datetime}
+                          onChange={(e) => handleInputChange('order_datetime', e.target.value)}
                         />
-                      </div>
-                      <div className="col-span-7">
+                      </Field>
+                    </FieldGrid>
+
+                    <ToggleRow
+                      title="Off-market order"
+                      description="No platform fee is deducted, and the order gets the next OFS order number."
+                      control={
+                        <Switch
+                          aria-label="Off-market order"
+                          checked={isOffMarket}
+                          onCheckedChange={async (checked) => {
+                            setIsOffMarket(checked);
+                            if (checked) {
+                              // Preview off-market order number (without consuming sequence)
+                              setIsGeneratingOrderNumber(true);
+                              try {
+                                const { data, error } = await supabase.rpc('preview_off_market_sales_order_number');
+                                if (!error && data) {
+                                  handleInputChange('order_number', data);
+                                }
+                              } catch (err) {
+                                console.error('Failed to preview off-market order number:', err);
+                              } finally {
+                                setIsGeneratingOrderNumber(false);
+                              }
+                            } else {
+                              // Clear order number when turning off
+                              handleInputChange('order_number', '');
+                            }
+                          }}
+                        />
+                      }
+                    />
+                  </div>
+                </Section>
+
+                {/* Customer */}
+                <Section title={<SectionTitle>Customer</SectionTitle>}>
+                  <div className="space-y-3.5">
+                    <Field label="Customer name" htmlFor="customerName" required>
+                      <CustomerAutocomplete
+                        hideLabel
+                        value={formData.client_name}
+                        onChange={(value) => handleInputChange('client_name', value)}
+                        onPhoneChange={(phone) => handleInputChange('client_phone', phone)}
+                        onStateChange={(state) => handleInputChange('client_state', state)}
+                        onClientSelect={(client) => {
+                          if (client) {
+                            setSelectedClientId(client.id);
+                            // Auto-fill is handled by CustomerAutocomplete via onPhoneChange and onStateChange
+                          } else {
+                            setSelectedClientId(undefined);
+                            // Clear auto-filled fields when client is deselected
+                            setFormData(prev => ({
+                              ...prev,
+                              client_phone: '',
+                              client_state: ''
+                            }));
+                          }
+                        }}
+                        onNewClient={(isNew) => setIsNewClient(isNew)}
+                        selectedClientId={selectedClientId}
+                      />
+                    </Field>
+
+                    <FieldGrid>
+                      <Field label="Phone" htmlFor="se-client-phone">
+                        <Input
+                          id="se-client-phone"
+                          inputMode="tel"
+                          value={formData.client_phone}
+                          onChange={(e) => handleInputChange('client_phone', e.target.value)}
+                          placeholder="Enter phone"
+                          className="tabular-nums"
+                        />
+                      </Field>
+                      <Field label="State" htmlFor="se-client-state">
                         <Select
-                          value={split.payment_method_id}
-                          onValueChange={(value) => updatePaymentSplit(index, 'payment_method_id', value)}
+                          value={formData.client_state}
+                          onValueChange={(value) => handleInputChange('client_state', value)}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select payment method" />
+                          <SelectTrigger id="se-client-state">
+                            <SelectValue placeholder="Select state" />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
-                            {paymentMethods?.map((method: any) => {
-                              const displayLabel = method.nickname 
-                                ? method.nickname
-                                : method.type === 'UPI' && method.upi_id 
-                                  ? `${method.upi_id} (${method.risk_category})` 
-                                  : method.bank_accounts 
-                                    ? `${method.bank_accounts.account_name} (${method.risk_category})` 
-                                    : `${method.type} (${method.risk_category})`;
-                              return (
-                                <SelectItem key={method.id} value={method.id}>
-                                  {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
-                                </SelectItem>
-                              );
-                            })}
+                          <SelectContent className="z-[100] max-h-60">
+                            {INDIAN_STATES_AND_UTS.map((state) => (
+                              <SelectItem key={state} value={state}>
+                                {state}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="col-span-1 flex justify-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removePaymentSplit(index)}
-                          disabled={paymentSplits.length === 1}
-                          className="h-8 w-8"
+                      </Field>
+                    </FieldGrid>
+                  </div>
+                </Section>
+
+                {/* Asset & pricing */}
+                <Section title={<SectionTitle>Asset & pricing</SectionTitle>}>
+                  <div className="space-y-3.5">
+                    <FieldGrid>
+                      <Field label="Product" htmlFor="se-product">
+                        <Select
+                          value={formData.product_id}
+                          onValueChange={(value) => handleInputChange('product_id', value)}
                         >
-                          <Minus className="h-4 w-4" />
-                        </Button>
+                          <SelectTrigger id="se-product">
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[100]">
+                            {products?.map((product) => (
+                              <DetailSelectItem
+                                key={product.id}
+                                value={product.id}
+                                detail={product.code && product.code !== product.name ? product.code : undefined}
+                              >
+                                {product.name}
+                              </DetailSelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+
+                      <Field label="Wallet" htmlFor="se-wallet" required>
+                        <Select
+                          value={formData.wallet_id}
+                          onValueChange={(value) => handleInputChange('wallet_id', value)}
+                        >
+                          <SelectTrigger id="se-wallet">
+                            <SelectValue placeholder="Select wallet" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[100]">
+                            {wallets?.map((wallet) => (
+                              <DetailSelectItem key={wallet.id} value={wallet.id} detail={fmtAssetQty(wallet.current_balance, 'USDT')}>
+                                {wallet.wallet_name}
+                              </DetailSelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </FieldGrid>
+
+                    <FieldGrid cols={3}>
+                      <Field label="Total amount" htmlFor="se-total-amount">
+                        <RupeeAffix>
+                          <Input
+                            id="se-total-amount"
+                            type="number"
+                            inputMode="decimal"
+                            value={formData.total_amount}
+                            onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
+                            min="0"
+                            step="0.01"
+                            placeholder="Enter total amount"
+                            className="pl-7 tabular-nums"
+                          />
+                        </RupeeAffix>
+                      </Field>
+
+                      <Field label="Price per unit" htmlFor="se-price-per-unit" required>
+                        <RupeeAffix>
+                          <Input
+                            id="se-price-per-unit"
+                            type="number"
+                            inputMode="decimal"
+                            value={formData.price_per_unit}
+                            onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
+                            required
+                            min="0"
+                            step="0.01"
+                            placeholder="Enter price per unit"
+                            className="pl-7 tabular-nums"
+                          />
+                        </RupeeAffix>
+                      </Field>
+
+                      <Field
+                        label="Quantity"
+                        htmlFor="se-quantity"
+                        required
+                        aside={<span className="font-mono text-[11px] font-medium text-muted-foreground">{assetCode}</span>}
+                      >
+                        <Input
+                          id="se-quantity"
+                          type="number"
+                          inputMode="decimal"
+                          value={formData.quantity}
+                          onChange={(e) => handleInputChange('quantity', e.target.value)}
+                          required
+                          min="0"
+                          step="0.01"
+                          placeholder="Enter quantity"
+                          className={cn("tabular-nums", stockValidationError && "border-destructive")}
+                        />
+                      </Field>
+                    </FieldGrid>
+
+                    {/* Wallet balance: neutral note, or the stock error when the quantity doesn't fit */}
+                    {(stockValidationError || selectedWalletBalance !== null) && (
+                      <Callout
+                        tone={stockValidationError ? "danger" : "neutral"}
+                        icon={stockValidationError ? AlertTriangle : Wallet}
+                        title={stockValidationError || undefined}
+                      >
+                        {selectedWalletBalance !== null && (
+                          <>
+                            Available in {selectedWalletName || "the selected wallet"}:{" "}
+                            <span className="font-semibold tabular-nums text-foreground">{fmtAssetQty(selectedWalletBalance, 'USDT')}</span>
+                            {selectedWalletFee > 0 && !isOffMarket && (
+                              <span className="text-muted-foreground"> · platform fee {selectedWalletFee}%</span>
+                            )}
+                          </>
+                        )}
+                      </Callout>
+                    )}
+                  </div>
+                </Section>
+
+                {/* Payment */}
+                <Section title={<SectionTitle>Payment</SectionTitle>}>
+                  <Field
+                    label="Payment method"
+                    htmlFor={isSplitPayment ? undefined : "se-payment-method"}
+                    hint={selectedPaymentMethod ? `${fmtInr(selectedPaymentMethod.current_usage)} of ${fmtInr(selectedPaymentMethod.payment_limit)} limit used` : undefined}
+                    aside={
+                      (showSplitOption || isSplitPayment) ? (
+                        <div className="flex items-center gap-1.5">
+                          <Checkbox
+                            id="split-sales-payment-manual"
+                            checked={isSplitPayment}
+                            onCheckedChange={(checked) => {
+                              setIsSplitPayment(!!checked);
+                              if (checked) {
+                                const total = parseFloat(formData.total_amount) || 0;
+                                setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
+                              } else {
+                                setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                              }
+                            }}
+                          />
+                          <Label htmlFor="split-sales-payment-manual" className="cursor-pointer whitespace-nowrap text-xs font-medium text-muted-foreground">
+                            Split payment
+                          </Label>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowSplitOption(true)}
+                          className="whitespace-nowrap rounded-sm text-xs font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          More options
+                        </button>
+                      )
+                    }
+                  >
+                    {!isSplitPayment ? (
+                      <Select
+                        value={formData.sales_payment_method_id}
+                        onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+                      >
+                        <SelectTrigger id="se-payment-method">
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[100]">
+                          {paymentMethods?.map((method) => (
+                            <DetailSelectItem key={method.id} value={method.id} detail={paymentMethodUsage(method)}>
+                              {paymentMethodLabel(method)}
+                            </DetailSelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      /* Split payment distribution: rows of amount + method, running total vs order total */
+                      <div className="overflow-hidden rounded-lg border border-border">
+                        <div className="space-y-2 border-b border-border bg-muted/30 px-3 py-2.5">
+                          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                            <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+                              {splitAllocation.isValid ? (
+                                <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-destructive" aria-hidden />
+                              )}
+                              Payment distribution
+                            </span>
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              Allocated <span className="font-semibold text-foreground">{money2(splitAllocation.totalAllocated)}</span> of {money2(orderTotal)}
+                            </span>
+                          </div>
+                          <ShareBar
+                            value={splitAllocation.totalAllocated}
+                            max={orderTotal}
+                            tone={splitAllocation.isValid ? "positive" : "warning"} className="bg-foreground/10"
+                            label={`Allocated ${money2(splitAllocation.totalAllocated)} of ${money2(orderTotal)}`}
+                          />
+                        </div>
+
+                        <div className="space-y-2 p-3">
+                          <div className="hidden grid-cols-[9rem_minmax(0,1fr)_2.25rem] gap-2 px-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground sm:grid">
+                            <span>Amount</span>
+                            <span>Payment method</span>
+                            <span />
+                          </div>
+                          {paymentSplits.map((split, index) => (
+                            <div key={index} className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2 sm:grid-cols-[9rem_minmax(0,1fr)_2.25rem]">
+                              <RupeeAffix>
+                                <Input
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.01"
+                                  min="0"
+                                  value={split.amount}
+                                  onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                                  placeholder="0.00"
+                                  aria-label={`Split ${index + 1} amount`}
+                                  className="pl-7 tabular-nums"
+                                />
+                              </RupeeAffix>
+                              <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                                <Select
+                                  value={split.payment_method_id}
+                                  onValueChange={(value) => updatePaymentSplit(index, 'payment_method_id', value)}
+                                >
+                                  <SelectTrigger aria-label={`Split ${index + 1} payment method`}>
+                                    <SelectValue placeholder="Select payment method" />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[100]">
+                                    {paymentMethods?.map((method: any) => (
+                                      <DetailSelectItem key={method.id} value={method.id} detail={paymentMethodUsage(method)}>
+                                        {paymentMethodLabel(method)}
+                                      </DetailSelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePaymentSplit(index)}
+                                disabled={paymentSplits.length === 1}
+                                className="col-start-2 row-start-1 h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:col-start-3"
+                                aria-label={`Remove split ${index + 1}`}
+                                title="Remove this payment"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addPaymentSplit}
+                            className="w-full"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add another payment method
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-[13px]">
+                          <span className="text-muted-foreground">
+                            {splitAllocation.remaining < 0 && !remainingIsZero ? "Over-allocated by" : "Remaining"}
+                          </span>
+                          <span className={cn("font-semibold tabular-nums", splitAllocation.isValid ? "text-success" : "text-destructive")}>
+                            {money2(remainingIsZero ? 0 : Math.abs(splitAllocation.remaining))}
+                          </span>
+                        </div>
+                        {remainingIsZero && !splitAllocation.isValid && (
+                          <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+                            Every row needs a payment method and an amount.
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </Field>
+                </Section>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addPaymentSplit}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Another Payment Method
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                {/* Notes */}
+                <Section title={<SectionTitle>Notes</SectionTitle>}>
+                  <Field label="Description" htmlFor="se-description">
+                    <Textarea
+                      id="se-description"
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      rows={3}
+                      placeholder="Optional — anything the team should know about this sale"
+                    />
+                  </Field>
+                </Section>
+              </div>
 
-          <div>
-            <Label>Description</Label>
-            <Textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              rows={3}
-            />
-          </div>
+              {/* Live summary: every figure is computed above or simple display math on it */}
+              <aside className="min-w-0 lg:sticky lg:top-0 lg:self-start" aria-label="Order summary">
+                <Section title={<SectionTitle>Summary</SectionTitle>} boxed bodyClassName="px-3 py-1 sm:px-4 sm:py-1.5">
+                  <SummaryRow label="Amount" value={fmtInr(formData.total_amount)} />
+                  <SummaryRow label="Price per unit" value={fmtRate(formData.price_per_unit)} />
+                  <SummaryRow label="Quantity" value={quantity > 0 ? summaryQty(quantity) : "—"} />
+                  <SummaryRow label="Platform fee" value={feeSummary.value} hint={feeSummary.hint} />
+                  <SummaryRow
+                    strong
+                    label="From wallet"
+                    hint="Quantity + fee"
+                    value={quantity > 0 ? summaryQty(walletDeduction) : "—"}
+                  />
+                  {balanceAfter !== null && assetCode === 'USDT' && quantity > 0 && (
+                    <SummaryRow
+                      label="Balance after"
+                      hint={selectedWalletName}
+                      value={summaryQty(balanceAfter)}
+                      tone={balanceAfter < 0 ? "negative" : "muted"}
+                    />
+                  )}
+                </Section>
+              </aside>
+            </div>
+          </DialogBody>
 
-          <div className="flex justify-end gap-2 pt-4">
+          {/* Below lg the summary sits under the form, so the footer repeats the order's size */}
+          <DialogFoot
+            start={
+              footAmount || footQuantity ? (
+                <span className="tabular-nums lg:hidden">
+                  {footAmount}
+                  {footAmount && footQuantity && <span className="hidden sm:inline"> · </span>}
+                  {footQuantity && <span className={cn(footAmount && "hidden sm:inline")}>{footQuantity}</span>}
+                </span>
+              ) : undefined
+            }
+          >
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={createSalesOrderMutation.isPending}
-              
+
             >
-              {createSalesOrderMutation.isPending ? "Creating..." : "Create Order"}
+              {createSalesOrderMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                "Create order"
+              )}
             </Button>
-          </div>
+          </DialogFoot>
         </form>
       </DialogContent>
     </Dialog>

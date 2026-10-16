@@ -1938,6 +1938,46 @@ export type Database = {
           },
         ]
       }
+      ats_job_requirements: {
+        Row: {
+          created_at: string
+          job_id: string
+          requirement_id: string
+        }
+        Insert: {
+          created_at?: string
+          job_id: string
+          requirement_id: string
+        }
+        Update: {
+          created_at?: string
+          job_id?: string
+          requirement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_job_requirements_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_job_summary"
+            referencedColumns: ["job_id"]
+          },
+          {
+            foreignKeyName: "ats_job_requirements_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_job_requirements_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "hr_hiring_requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ats_jobs: {
         Row: {
           aliases: string[]
@@ -35211,6 +35251,7 @@ export type Database = {
         Args: { p_attendee: string; p_interview_id: string; p_partstat: string }
         Returns: boolean
       }
+      ats_job_requirement_ids: { Args: { p_job: string }; Returns: string[] }
       ats_log_contact: {
         Args: {
           p_application_id: string

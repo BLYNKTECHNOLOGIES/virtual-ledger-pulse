@@ -1,8 +1,9 @@
 # Project architecture decisions
 
-- Tables fit; narrow settlements stack to stay readable; modal widths match base breakpoints. Only wide grids set minimums.
+- Tables fit; narrow settlements stack; modal widths match breakpoints. Only wide grids set minimums.
+- Settlement links use sales_view + Sales orderId; fetch missing linked orders to reach older sales.
 
-- Read subdirectory AGENTS.md before editing (ATS, workforce, Terminal, quiz, edge functions).
+- Read subdirectory AGENTS.md before edits (ATS, workforce, Terminal, quiz, edge functions).
 
 - Brand images resolve through BrandLogo/brandLogos; ERP/HRMS use ThemeContext and Terminal passes its own theme, so logo contrast follows the actual surface.
 

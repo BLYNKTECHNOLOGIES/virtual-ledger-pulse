@@ -93,6 +93,8 @@ export default function Sales() {
     return params.get('tab') || 'completed';
   });
 
+  const deepLinkOrderId = useMemo(() => new URLSearchParams(window.location.search).get("orderId"), []);
+
   const getSalesOrderAsset = (order: any) => String(
     order.product?.code || order.product?.name || 'USDT'
   ).trim().toUpperCase();
@@ -147,7 +149,7 @@ export default function Sales() {
   );
 
   const { data: salesOrders, isLoading } = useQuery({
-    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo, filterAssetType],
+    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo, filterAssetType, deepLinkOrderId],
     staleTime: 60_000,
     queryFn: async () => {
       let query = supabase
@@ -188,6 +190,16 @@ export default function Sales() {
         const { data: recent, error } = await query.range(0, 499);
         if (error) throw error;
         data = recent || [];
+        // Fetch an older linked order explicitly under the same RLS, once.
+        if (deepLinkOrderId && !data.some(order => order.id === deepLinkOrderId)) {
+          const { data: linkedOrder, error: linkedError } = await supabase
+            .from('sales_orders')
+            .select(`*, created_by_user:users!created_by(username, first_name, last_name), wallet:wallets!wallet_id(wallet_name), product:products!product_id(code, name)`)
+            .eq('id', deepLinkOrderId)
+            .maybeSingle();
+          if (linkedError) throw linkedError;
+          if (linkedOrder) data = [...data, linkedOrder];
+        }
       }
       
       // Sort: description-only matches go to bottom
@@ -569,7 +581,6 @@ export default function Sales() {
   );
 
   // A ?orderId= link lands on the page that holds the order (once), so the highlight can find it.
-  const deepLinkOrderId = useMemo(() => new URLSearchParams(window.location.search).get("orderId"), []);
   const deepLinkDone = useRef(false);
   useEffect(() => {
     if (deepLinkDone.current || !deepLinkOrderId || !salesOrders) return;

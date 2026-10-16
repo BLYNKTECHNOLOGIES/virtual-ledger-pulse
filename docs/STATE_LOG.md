@@ -608,3 +608,5 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-16: ATS mail threading — manual sends without a reply target and interview emails without an interview thread now continue the candidate's latest sent message (In-Reply-To/References), so all mail to one candidate stays in one mail thread.
 - 2026-10-16: ats-intake rejects website applications without preferred_shifts when the matched open job has >1 shifts; ats-public-jobs feed adds shift_required flag for the careers site.
 - 2026-10-16 23:30 IST: ATS per-job application form builder live (ats_jobs.application_form, ats_form_templates, applications form_snapshot/knockout_flags; feed + intake enforce it).
+
+2026-10-17 IST: Settlement order numbers now link to the exact Sales order, gated by sales_view, in table and stacked layouts. Sales explicitly reads a linked order outside the recent 500 under existing RLS, includes it once and navigates to its highlighted page. Sample clicks verified at 1280/833/390; 322 tests pass; signed-in live click unavailable with external unmanaged Supabase. No financial records changed.

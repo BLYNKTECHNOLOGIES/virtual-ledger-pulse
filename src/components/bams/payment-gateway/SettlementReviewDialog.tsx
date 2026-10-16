@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Loader2, FileDown, Eye, TrendingUp, DollarSign, Calendar, Building } from "lucide-react";
 import { generateSettlementPDF } from "@/utils/settlementPdfGenerator";
+import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface SettlementDetails {
   id: string;
@@ -59,6 +61,26 @@ export function SettlementReviewDialog({
   const [loading, setLoading] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canOpenSales = hasPermission('sales_view');
+  const openSale = (orderId: string) => {
+    if (!canOpenSales || !orderId) return;
+    onOpenChange(false);
+    navigate(`/sales?tab=completed&orderId=${encodeURIComponent(orderId)}`);
+  };
+  const orderLink = (order: SettlementDetails['settlement_items'][number]['sales_orders']) => (
+    canOpenSales ? (
+      <Button
+        variant="link"
+        className="h-auto min-w-0 justify-start whitespace-normal p-0 text-left [overflow-wrap:anywhere]"
+        aria-label={`Open sale ${order.order_number}`}
+        onClick={() => openSale(order.id)}
+      >
+        {order.order_number}
+      </Button>
+    ) : <span className="[overflow-wrap:anywhere]">{order.order_number}</span>
+  );
 
   useEffect(() => {
     if (open && settlementBatchId) {
@@ -314,7 +336,7 @@ export function SettlementReviewDialog({
                 {settlement.settlement_items.map((item) => (
                   <div key={item.id} className="space-y-3 py-4 first:pt-0 last:pb-0">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{item.sales_orders.order_number}</span>
+                      <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{orderLink(item.sales_orders)}</span>
                       <span className="whitespace-nowrap font-semibold tabular-nums">₹{item.amount.toLocaleString('en-IN')}</span>
                     </div>
                     <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -353,7 +375,7 @@ export function SettlementReviewDialog({
                   {settlement.settlement_items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium [overflow-wrap:anywhere]">
-                        {item.sales_orders.order_number}
+                        {orderLink(item.sales_orders)}
                       </TableCell>
                       <TableCell className="break-words">{item.sales_orders.client_name}</TableCell>
                       <TableCell className="whitespace-nowrap">

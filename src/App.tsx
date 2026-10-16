@@ -15,6 +15,7 @@ import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { RouteFallback } from './components/shared/RouteFallback';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -1029,6 +1030,7 @@ function App() {
   return (
     <React.StrictMode>
       <ThemeProvider>
+        <TooltipProvider>
         <AuthProvider>
           <Suspense fallback={<RouteFallback />}>
             <RouterProvider router={router} />
@@ -1037,6 +1039,7 @@ function App() {
           <SonnerToaster position="top-right" richColors closeButton />
 
         </AuthProvider>
+        </TooltipProvider>
       </ThemeProvider>
     </React.StrictMode>
   );

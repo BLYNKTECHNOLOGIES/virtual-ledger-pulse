@@ -129,4 +129,5 @@
 
 ## Settlement Sales links
 - [x] Link settlement order numbers to exact Sales IDs in both layouts and fetch older linked orders.
-- [ ] Verify navigation and highlight; authenticated live check blocked by external unmanaged Supabase.
+- [x] Verify sample-record clicks at 1280/833/390, exact older-sale fetch once, destination row highlight, 322 tests and clean preview build.
+- [ ] Verify signed-in real settlement click (blocked: external unmanaged Supabase authentication unavailable).

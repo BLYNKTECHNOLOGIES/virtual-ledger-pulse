@@ -368,7 +368,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       )}
 
       {enabled && (
-        <div className="max-h-[60%] shrink-0 overflow-y-auto border-t border-border p-3">
+        <div className="min-h-[260px] max-h-[78%] shrink-0 overflow-y-auto border-t border-border p-3">
           {!composing ? (
             <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => openComposer()}>Write an email…</Button>
           ) : !candidate.email ? (
@@ -706,13 +706,13 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
 
   useEffect(() => { if (focusNonce) setTimeout(() => bodyRef.current?.focus(), 0); }, [focusNonce]);
 
-  // Autosize 8–20 rows.
+  // Autosize 14–34 rows so the writing box opens large and grows with the text.
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
     el.style.height = "auto";
     const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
-    el.style.height = `${Math.min(Math.max(el.scrollHeight, line * 8 + 16), line * 20 + 16)}px`;
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, line * 14 + 16), line * 34 + 16)}px`;
   }, [body]);
 
   const hasPlaceholders = PLACEHOLDER_RE.test(`${subject}\n${body}`);
@@ -881,7 +881,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
           <Checkbox checked={reply} onCheckedChange={(v) => setReply(!!v)} /> Reply in this thread
         </label>
       )}
-      <Textarea ref={bodyRef} rows={5} maxLength={20000} value={body} onChange={(e) => { setBody(e.target.value); setAiNote(false); }} className="max-h-[40vh] min-h-[110px] resize-y text-foreground" aria-label="Message" />
+      <Textarea ref={bodyRef} rows={14} maxLength={20000} value={body} onChange={(e) => { setBody(e.target.value); setAiNote(false); }} className="max-h-[55vh] min-h-[280px] resize-y text-foreground" aria-label="Message" />
       {aiNote && <p className="text-xs text-muted-foreground">AI draft — check it before sending.</p>}
       <p className="text-xs text-muted-foreground">Your HR signature is added automatically.</p>
       {hasPlaceholders && <p className="text-xs text-destructive">Replace the {"{{placeholders}}"} first</p>}

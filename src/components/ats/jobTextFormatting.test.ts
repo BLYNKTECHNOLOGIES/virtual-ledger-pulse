@@ -34,7 +34,7 @@ describe("job list formatting", () => {
   test("preserves indented nested lists", () => {
     const text = "Travel & Field Operations\n\n• Travel regularly.\n  ◦ Visit government offices.\n\nDocumentation & Reporting\n\n• Maintain records.";
     expect(pasteJobList("", 0, 0, text)?.value).toBe(text);
-    expect(continueJobList("  ◦ Visit offices.", 17, 17)?.value).toBe("  ◦ Visit offices.\n  ◦ ");
+    expect(continueJobList("  ◦ Visit offices.", 18, 18)?.value).toBe("  ◦ Visit offices.\n  ◦ ");
   });
   test("pasting into an empty bullet does not duplicate its marker", () => {
     const edit = pasteJobList("• ", 2, 2, "Accuracy\nSpeed");

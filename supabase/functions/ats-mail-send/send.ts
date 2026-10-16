@@ -196,6 +196,16 @@ export async function handleSend(req: Request): Promise<Response> {
   return json({ id: row.id, status: result.ok ? 'sent' : 'failed', ...(result.ok ? {} : { error: result.code }) })
 }
 
+/** The newest sent message in the candidate's thread (either direction), used to keep all their mail together. */
+export async function latestThreadParent(
+  admin: any, candidateId: string,
+): Promise<{ message_id: string; references_header: string | null } | null> {
+  const { data } = await admin.from('ats_messages').select('message_id, references_header')
+    .eq('candidate_id', candidateId).eq('status', 'sent').not('message_id', 'is', null)
+    .order('created_at', { ascending: false }).limit(1)
+  return data?.[0]?.message_id ? data[0] : null
+}
+
 /** An interview email (with its calendar invite) is only resent while the interview is still as it describes. */
 /** A reminder (interview email without a calendar invite) is resent only while the interview is still ahead and unchanged. */
 export async function interviewEmailOutdated(admin: any, prev: any): Promise<boolean> {

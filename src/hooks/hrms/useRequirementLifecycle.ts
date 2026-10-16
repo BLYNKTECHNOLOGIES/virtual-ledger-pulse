@@ -43,11 +43,18 @@ export function useRequirementJobs() {
   return useQuery({
     queryKey: ["ats", "requirement-jobs"],
     queryFn: async () => {
+      const { data: links, error: e2 } = await supabase.from("ats_job_requirements" as any).select("job_id, requirement_id");
+      if (e2) throw e2;
+      const extraIds = [...new Set(((links ?? []) as any[]).map((l) => l.job_id as string))];
       const { data, error } = await supabase.from("ats_jobs")
-        .select("id, job_code, title, status, openings, is_published, requisition_id").not("requisition_id", "is", null).order("created_at");
+        .select("id, job_code, title, status, openings, is_published, requisition_id")
+        .or(`requisition_id.not.is.null,id.in.(${extraIds.join(",") || "00000000-0000-0000-0000-000000000000"})`).order("created_at");
       if (error) throw error;
+      const byId = new Map((data ?? []).map((j) => [j.id, j]));
       const m = new Map<string, any[]>();
-      for (const j of data ?? []) { const k = j.requisition_id as string; m.set(k, [...(m.get(k) ?? []), j]); }
+      const add = (k: string, j: any) => { const l = m.get(k) ?? []; if (!l.some((x) => x.id === j.id)) m.set(k, [...l, j]); };
+      for (const j of data ?? []) if (j.requisition_id) add(j.requisition_id as string, j);
+      for (const l of (links ?? []) as any[]) { const j = byId.get(l.job_id); if (j) add(l.requirement_id as string, j); }
       return m;
     },
     staleTime: 30_000,

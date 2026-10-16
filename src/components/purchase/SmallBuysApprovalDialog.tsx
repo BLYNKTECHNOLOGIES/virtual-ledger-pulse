@@ -1,23 +1,44 @@
 import { useState, useEffect, useMemo } from 'react';
 import { parseApprovalError } from '@/utils/approvalErrorParser';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle, XCircle, Package, Clock, Coins, Plus, Minus } from 'lucide-react';
+import { CheckCircle, XCircle, Package, Coins, Plus, Minus, Loader2, Info, Lock, Building2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { getCurrentUserId } from '@/lib/system-action-logger';
 import { fetchAndLockMarketRate, linkSnapshotToReference, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { useActiveBankAccounts } from '@/hooks/useActiveBankAccounts';
+import {
+  BatchStatusChip,
+  Chip,
+  CopyButton,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Facts,
+  Field,
+  FieldGrid,
+  OrderNo,
+  Section,
+  SummaryRow,
+  ToggleRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDate,
+  fmtDateTime,
+  fmtInr,
+  fmtRate,
+  fmtTime,
+  safeDate,
+} from '@/components/orders-ui';
+import { cn } from '@/lib/utils';
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 
@@ -370,140 +391,271 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
     (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId) ||
     (gatewayFeeEnabled && (!gatewayFeeAmount || parseFloat(gatewayFeeAmount) <= 0 || !gatewayFeeBankId));
 
+  // ── Presentation only: derived from the batch record and the state above; nothing here is saved ──
+  const orderNumbers: string[] = Array.isArray(record.order_numbers) ? record.order_numbers.filter(Boolean).map(String) : [];
+  const windowLabel = timeWindowLabel(record.time_window_start, record.time_window_end);
+  const feeIncomplete = gatewayFeeEnabled && (!gatewayFeeAmount || parseFloat(gatewayFeeAmount) <= 0 || !gatewayFeeBankId);
+  // Why Approve is disabled: the conditions of isSubmitDisabled, in the same order.
+  const blockingReason = approveMutation.isPending ? null
+    : isMultiplePayments && !splitAllocation.isValid
+      ? (Math.abs(splitAllocation.remaining) > 0.01 ? `Remaining ${inr2(splitAllocation.remaining)} must be ₹0.00` : 'Choose a bank and an amount on every row')
+      : !isMultiplePayments && !bankAccountId ? 'Select a bank account to approve'
+      : feeIncomplete ? 'Enter the gateway fee amount and its bank'
+      : null;
+
+  const bankOption = (ba: { account_name: string; balance: number }) => (
+    <>
+      {ba.account_name}
+      <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">{inr2(Number(ba.balance))}</span>
+    </>
+  );
+
+  const settlementField = (
+    <Field label="Settlement date" htmlFor="sb-settlement-date" hint="Used as the purchase order date and the fee date.">
+      <Input
+        id="sb-settlement-date"
+        type="date"
+        value={settlementDate}
+        onChange={(e) => setSettlementDate(e.target.value)}
+      />
+    </Field>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            Small Buys Bulk Approval
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass("lg")}>
+        <DialogHead
+          icon={Package}
+          title="Approve small buys batch"
+          description={`Creates one purchase order from ${record.order_count} small ${assetCode} buys.`}
+          meta={
+            <>
+              <BatchStatusChip status={record.sync_status} />
+              <CachedAccountChip accountId={record.exchange_account_id} />
+            </>
+          }
+        />
 
-        <div className="space-y-3">
+        <DialogBody>
           {/* Summary */}
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <span className="text-muted-foreground">Asset</span>
-              <p className="font-semibold text-lg">{record.asset_code}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Orders Clubbed</span>
-              <p className="font-semibold text-lg">{record.order_count}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Quantity</span>
-              <p className="font-medium">{Number(record.total_quantity).toFixed(4)}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Avg Price</span>
-              <p className="font-medium">₹{Number(record.avg_price).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Amount</span>
-              <p className="font-semibold text-primary">₹{Number(record.total_amount).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Fee</span>
-              <p className="font-medium">{Number(record.total_fee).toFixed(4)}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Wallet</span>
-              <p className="font-medium">{record.wallet_name || 'N/A'}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Time Window</span>
-              <div className="flex items-center gap-1 text-xs">
-                <Clock className="h-3 w-3" />
-                {record.time_window_start && format(new Date(record.time_window_start), 'HH:mm')} –{' '}
-                {record.time_window_end && format(new Date(record.time_window_end), 'HH:mm')}
-              </div>
-            </div>
-          </div>
+          <Section
+            title={sectionTitle("Batch")}
+            icon={Lock}
+            actions={<span className="text-[11px] text-muted-foreground">Read-only</span>}
+            boxed
+          >
+            <Facts
+              cols={3}
+              className="grid-cols-2"
+              items={[
+                {
+                  label: 'Total amount',
+                  value: <span className="text-lg font-semibold leading-7 tabular-nums">{fmtInr(record.total_amount)}</span>,
+                  className: 'col-span-2 sm:col-span-1',
+                },
+                { label: 'Total quantity', value: <span className="tabular-nums">{fmtAssetQty(record.total_quantity, assetCode)}</span> },
+                { label: `Avg price per ${assetCode}`, value: <span className="tabular-nums">{fmtRate(record.avg_price)}</span> },
+                { label: 'Orders clubbed', value: <span className="tabular-nums">{Number(record.order_count || 0).toLocaleString('en-IN')}</span> },
+                { label: 'Total fee', value: <span className="tabular-nums">{fmtAssetQty(record.total_fee, assetCode)}</span> },
+                { label: 'Wallet', value: record.wallet_name || '—' },
+                { label: 'Time window', value: <span className="tabular-nums">{windowLabel}</span>, className: 'col-span-2 sm:col-span-3' },
+              ]}
+            />
 
-          {/* USDT Equivalent */}
-          {isNonUsdt && coinUsdtRate && coinUsdtRate > 0 && (() => {
-            const qty = Number(record.total_quantity || 0);
-            const totalAmt = Number(record.total_amount || 0);
-            const usdtEquivQty = qty * coinUsdtRate;
-            const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
-            return (
-              <div className="p-2.5 bg-info/10 dark:bg-info/20 rounded-lg border border-info/20 dark:border-info">
-                <p className="text-xs font-semibold text-info dark:text-info mb-1.5 flex items-center gap-1">
-                  <Coins className="h-3.5 w-3.5" />
-                  USDT Equivalent (Live)
-                </p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <span className="text-info dark:text-info">{assetCode}/USDT</span>
-                    <p className="font-medium text-info dark:text-info">{formatSmartDecimal(coinUsdtRate, 6)}</p>
-                  </div>
-                  <div>
-                    <span className="text-info dark:text-info">USDT Qty</span>
-                    <p className="font-medium text-info dark:text-info">{formatSmartDecimal(usdtEquivQty, 4)}</p>
-                  </div>
-                  <div>
-                    <span className="text-info dark:text-info">USDT Rate</span>
-                    <p className="font-medium text-info dark:text-info">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
-                  </div>
+            {/* USDT Equivalent */}
+            {isNonUsdt && coinUsdtRate && coinUsdtRate > 0 && (() => {
+              const qty = Number(record.total_quantity || 0);
+              const totalAmt = Number(record.total_amount || 0);
+              const usdtEquivQty = qty * coinUsdtRate;
+              const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
+              return (
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    <Coins className="h-3.5 w-3.5" aria-hidden />
+                    USDT equivalent (live)
+                  </p>
+                  <Facts
+                    cols={3}
+                    className="grid-cols-3"
+                    items={[
+                      { label: `${assetCode}/USDT`, value: <span className="tabular-nums">{formatSmartDecimal(coinUsdtRate, 6)}</span> },
+                      { label: 'USDT qty', value: <span className="tabular-nums">{formatSmartDecimal(usdtEquivQty, 4)}</span> },
+                      { label: 'USDT rate', value: <span className="tabular-nums">₹{formatSmartDecimal(equivUsdtRate, 2)}</span> },
+                    ]}
+                  />
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
+          </Section>
 
-          <Separator />
-
-          {/* TDS Option */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>TDS Option</Label>
-              <Select value={tdsOption} onValueChange={(v) => setTdsOption(v as any)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No TDS</SelectItem>
-                  <SelectItem value="1%">1% TDS</SelectItem>
-                  <SelectItem value="20%">20% TDS</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {tdsOption !== 'none' && (
-              <div>
-                <Label>PAN Number {tdsOption === '1%' && '*'}</Label>
-                <Input
-                  value={panNumber}
-                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                  placeholder="ABCDE1234F"
-                  maxLength={10}
-                />
-              </div>
-            )}
-          </div>
-
-          {tdsOption !== 'none' && (
-            <div className="flex items-center gap-4 text-sm">
-              <span className="text-muted-foreground">TDS: ₹{tdsAmount.toLocaleString('en-IN')}</span>
-              <span className="font-semibold">Net Payable: ₹{netPayable.toLocaleString('en-IN')}</span>
-            </div>
+          {orderNumbers.length > 0 && (
+            <Section title={sectionTitle("Binance orders")} description={`${orderNumbers.length.toLocaleString('en-IN')} ${orderNumbers.length === 1 ? 'order' : 'orders'} in this batch`}>
+              <ol className="max-h-48 divide-y divide-border/60 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card">
+                {orderNumbers.map((orderNo, i) => (
+                  <li key={`${orderNo}-${i}`} className="flex min-w-0 items-center gap-3 px-3 py-1">
+                    <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{i + 1}</span>
+                    <OrderNo value={orderNo} className="min-w-0 truncate" />
+                    <CopyButton value={orderNo} label="Copy order number" className="ml-auto" />
+                  </li>
+                ))}
+              </ol>
+            </Section>
           )}
 
-          {/* Settlement Date */}
-          <div>
-            <Label>Settlement Date</Label>
-            <Input
-              type="date"
-              value={settlementDate}
-              onChange={(e) => setSettlementDate(e.target.value)}
-            />
-          </div>
+          {/* TDS Option */}
+          <Section title={sectionTitle("Tax")}>
+            <FieldGrid>
+              <Field label="TDS" htmlFor="sb-tds">
+                <Select value={tdsOption} onValueChange={(v) => setTdsOption(v as any)}>
+                  <SelectTrigger id="sb-tds">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No TDS</SelectItem>
+                    <SelectItem value="1%">1% TDS (with PAN)</SelectItem>
+                    <SelectItem value="20%">20% TDS (without PAN)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              {tdsOption !== 'none' && (
+                <Field label="PAN number" htmlFor="sb-pan" required={tdsOption === '1%'}>
+                  <Input
+                    id="sb-pan"
+                    value={panNumber}
+                    onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                    className="font-mono"
+                  />
+                </Field>
+              )}
+            </FieldGrid>
+            {tdsOption !== 'none' && (
+              <div className="mt-3 rounded-lg border border-border bg-card px-3 py-1">
+                <SummaryRow label="Total amount" value={fmtInr(totalAmount)} />
+                <SummaryRow label={`TDS at ${tdsOption}`} value={`−${fmtInr(tdsAmount)}`} />
+                <SummaryRow label="Net payable" value={fmtInr(netPayable)} strong />
+              </div>
+            )}
+          </Section>
 
-          <Separator />
+          {/* Bank Account / Split Payment */}
+          <Section
+            title={sectionTitle("Payment")}
+            actions={
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="split-payment"
+                  checked={isMultiplePayments}
+                  onCheckedChange={(checked) => {
+                    setIsMultiplePayments(!!checked);
+                    if (!checked) {
+                      setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                    }
+                  }}
+                />
+                <Label htmlFor="split-payment" className="cursor-pointer text-xs font-medium text-muted-foreground">
+                  Split payment
+                </Label>
+              </div>
+            }
+          >
+            {!isMultiplePayments ? (
+              <FieldGrid>
+                <Field label="Bank account" htmlFor="sb-bank">
+                  <Select value={bankAccountId} onValueChange={setBankAccountId}>
+                    <SelectTrigger id="sb-bank">
+                      <SelectValue placeholder="Select bank account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map((ba) => (
+                        <SelectItem key={ba.id} value={ba.id}>
+                          {bankOption(ba)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {settlementField}
+              </FieldGrid>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="hidden grid-cols-[9rem_minmax(0,1fr)_2.25rem] gap-2 px-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground sm:grid" aria-hidden>
+                    <span>Amount (₹)</span>
+                    <span>Bank account</span>
+                    <span />
+                  </div>
+
+                  {paymentSplits.map((split, index) => (
+                    <div key={index} className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2 rounded-lg border border-border/70 p-2 sm:grid-cols-[9rem_minmax(0,1fr)_2.25rem] sm:rounded-none sm:border-0 sm:p-0">
+                      <Input
+                        type="number"
+                        className="col-start-1 row-start-1 tabular-nums"
+                        value={split.amount}
+                        onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                        placeholder="0.00"
+                        aria-label={`Amount for bank ${index + 1} (₹)`}
+                      />
+                      <Select
+                        value={split.bank_account_id}
+                        onValueChange={(v) => updatePaymentSplit(index, 'bank_account_id', v)}
+                      >
+                        <SelectTrigger
+                          aria-label={`Bank account ${index + 1}`}
+                          className="col-span-2 row-start-2 sm:col-span-1 sm:col-start-2 sm:row-start-1"
+                        >
+                          <SelectValue placeholder="Select bank" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bankAccounts.map((ba) => (
+                            <SelectItem key={ba.id} value={ba.id}>
+                              {bankOption(ba)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="col-start-2 row-start-1 h-9 w-9 shrink-0 text-muted-foreground sm:col-start-3"
+                        onClick={() => removePaymentSplit(index)}
+                        disabled={paymentSplits.length <= 1}
+                        aria-label={`Remove bank ${index + 1}`}
+                        title="Remove this bank"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  <Button type="button" variant="outline" size="sm" onClick={addPaymentSplit} className="w-full">
+                    <Plus className="h-4 w-4" />
+                    Add another bank
+                  </Button>
+
+                  <div className="rounded-lg border border-border bg-card px-3 py-1">
+                    <SummaryRow label="Net payable" value={inr2(netPayable)} />
+                    <SummaryRow label="Allocated" value={inr2(splitAllocation.totalAllocated)} />
+                    <SummaryRow
+                      label="Remaining"
+                      value={inr2(splitAllocation.remaining)}
+                      tone={Math.abs(splitAllocation.remaining) <= 0.01 ? 'positive' : 'negative'}
+                      strong
+                    />
+                  </div>
+                </div>
+                <FieldGrid>{settlementField}</FieldGrid>
+              </div>
+            )}
+          </Section>
 
           {/* Payout Gateway Fee */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Payout Gateway Fee</Label>
+          <ToggleRow
+            title="Payout gateway fee"
+            description={gatewayFeeEnabled ? 'This fee will be recorded as a separate expense, not as a purchasing cost.' : undefined}
+            control={
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="gateway-fee"
@@ -516,185 +668,151 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
                     }
                   }}
                 />
-                <label htmlFor="gateway-fee" className="text-xs text-muted-foreground cursor-pointer">
-                  Apply Fee
-                </label>
+                <Label htmlFor="gateway-fee" className="cursor-pointer text-xs font-medium text-muted-foreground">
+                  Apply fee
+                </Label>
               </div>
-            </div>
+            }
+          >
             {gatewayFeeEnabled && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Fee Amount (₹)</Label>
+              <FieldGrid>
+                <Field label="Fee amount (₹)" htmlFor="sb-fee-amount">
                   <Input
+                    id="sb-fee-amount"
                     type="number"
                     value={gatewayFeeAmount}
                     onChange={(e) => setGatewayFeeAmount(e.target.value)}
                     placeholder="0.00"
-                    className="h-9 text-xs"
+                    className="tabular-nums"
                   />
-                </div>
-                <div>
-                  <Label className="text-xs">Fee Deducted From</Label>
+                </Field>
+                <Field label="Fee deducted from" htmlFor="sb-fee-bank">
                   <Select value={gatewayFeeBankId} onValueChange={setGatewayFeeBankId}>
-                    <SelectTrigger className="h-9 text-xs">
+                    <SelectTrigger id="sb-fee-bank">
                       <SelectValue placeholder="Select bank" />
                     </SelectTrigger>
                     <SelectContent>
                       {bankAccounts.map((ba) => (
-                        <SelectItem key={ba.id} value={ba.id} className="text-xs">
-                          {ba.account_name} ({ba.bank_name})
+                        <SelectItem key={ba.id} value={ba.id}>
+                          {bankOption(ba)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
+                </Field>
+              </FieldGrid>
             )}
-            {gatewayFeeEnabled && (
-              <p className="text-xs text-muted-foreground">
-                This fee will be recorded as a separate expense, not as a purchasing cost.
-              </p>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Bank Account / Split Payment */}
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Payment Method</Label>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="split-payment"
-                checked={isMultiplePayments}
-                onCheckedChange={(checked) => {
-                  setIsMultiplePayments(!!checked);
-                  if (!checked) {
-                    setPaymentSplits([{ bank_account_id: '', amount: '' }]);
-                  }
-                }}
-              />
-              <label htmlFor="split-payment" className="text-xs text-muted-foreground cursor-pointer">
-                Split Payment
-              </label>
-            </div>
-          </div>
-
-          {!isMultiplePayments ? (
-            <Select value={bankAccountId} onValueChange={setBankAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select bank account" />
-              </SelectTrigger>
-              <SelectContent>
-                {bankAccounts.map((ba) => (
-                  <SelectItem key={ba.id} value={ba.id}>
-                    {ba.account_name} ({ba.bank_name})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="p-3 space-y-3">
-                {/* Status bar */}
-                <div className="flex items-center justify-between text-xs">
-                  <span>Net Payable: <strong>₹{netPayable.toLocaleString('en-IN')}</strong></span>
-                  <span>Allocated: <strong>₹{splitAllocation.totalAllocated.toLocaleString('en-IN')}</strong></span>
-                  <Badge variant={Math.abs(splitAllocation.remaining) <= 0.01 ? 'default' : 'destructive'} className="text-xs">
-                    Remaining: ₹{splitAllocation.remaining.toFixed(2)}
-                  </Badge>
-                </div>
-
-                {paymentSplits.map((split, index) => (
-                  <div key={index} className="flex items-end gap-2">
-                    <div className="flex-1">
-                      {index === 0 && <Label className="text-xs">Bank Account</Label>}
-                      <Select
-                        value={split.bank_account_id}
-                        onValueChange={(v) => updatePaymentSplit(index, 'bank_account_id', v)}
-                      >
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Select bank" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {bankAccounts.map((ba) => (
-                            <SelectItem key={ba.id} value={ba.id} className="text-xs">
-                              {ba.account_name} ({ba.bank_name})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-32">
-                      {index === 0 && <Label className="text-xs">Amount (₹)</Label>}
-                      <Input
-                        type="number"
-                        className="h-9 text-xs"
-                        value={split.amount}
-                        onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0"
-                      onClick={() => removePaymentSplit(index)}
-                      disabled={paymentSplits.length <= 1}
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-
-                <Button variant="outline" size="sm" onClick={addPaymentSplit} className="w-full">
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Split
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          </ToggleRow>
 
           {/* Reject section */}
           {showReject && (
-            <div>
-              <Label>Rejection Reason</Label>
-              <textarea
-                className="w-full border rounded-md p-2 text-sm"
-                rows={2}
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Reason for rejection..."
-              />
-            </div>
+            <Section title={sectionTitle("Reject batch")} description="The batch is marked rejected and no purchase order is created.">
+              <Field
+                label="Rejection reason"
+                htmlFor="sb-reject-reason"
+                hint="Optional. Saved as “Rejected by operator” when left empty."
+              >
+                <Textarea
+                  id="sb-reject-reason"
+                  className="min-h-[64px]"
+                  rows={2}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Reason for rejection…"
+                  autoFocus
+                />
+              </Field>
+            </Section>
           )}
-        </div>
+        </DialogBody>
 
-        <DialogFooter className="gap-2">
-          {!showReject ? (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setShowReject(true)}>
-                <XCircle className="h-4 w-4 mr-1" />
+        {!showReject ? (
+          <DialogFoot
+            start={
+              <Button
+                type="button"
+                variant="outline"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setShowReject(true)}
+              >
+                <XCircle className="h-4 w-4" />
                 Reject
               </Button>
-              <Button
-                size="sm"
-                disabled={isSubmitDisabled}
-                onClick={() => approveMutation.mutate()}
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                {approveMutation.isPending ? 'Approving...' : 'Approve'}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setShowReject(false)}>Cancel</Button>
-              <Button variant="destructive" size="sm" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
-                Confirm Reject
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+            }
+          >
+            {blockingReason && (
+              <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {blockingReason}
+              </span>
+            )}
+            <Button
+              type="button"
+              disabled={isSubmitDisabled}
+              onClick={() => approveMutation.mutate()}
+            >
+              {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+              {approveMutation.isPending ? 'Approving…' : 'Approve & create purchase'}
+            </Button>
+          </DialogFoot>
+        ) : (
+          <DialogFoot>
+            <Button type="button" variant="outline" onClick={() => setShowReject(false)}>Back</Button>
+            <Button type="button" variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
+              {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+              {rejectMutation.isPending ? 'Rejecting…' : 'Confirm reject'}
+            </Button>
+          </DialogFoot>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ── Presentation helpers (private to this dialog) ─────────────────────── */
+
+/**
+ * Section heading text. Sized here too because a global phone rule in index.css
+ * (max-width 767px: h3 { font-size: 1rem !important }) would otherwise blow the kit's 11px label up to 16px.
+ */
+function sectionTitle(text: string) {
+  return <span className="text-[11px] leading-4">{text}</span>;
+}
+
+/** ₹ with Indian grouping and exactly two decimals (₹14,727.70, ₹0.00). Display only. */
+function inr2(value: number): string {
+  const n = Math.abs(value) < 0.005 ? 0 : value;
+  return `${n < 0 ? "-" : ""}₹${Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** "16 Oct 2026, 08:47 – 11:07", or both ends in full when the window spans days. Never throws. */
+function timeWindowLabel(start: unknown, end: unknown): string {
+  const s = safeDate(start);
+  const e = safeDate(end);
+  if (!s && !e) return "—";
+  if (s && e && fmtDate(s) === fmtDate(e)) return `${fmtDate(s)}, ${fmtTime(s)} – ${fmtTime(e)}`;
+  return `${s ? fmtDateTime(s) : "—"} – ${e ? fmtDateTime(e) : "—"}`;
+}
+
+/**
+ * Exchange-account chip read from the ['exchange-account-map'] cache that the lists' account badges
+ * fill. It never fetches, so it is simply absent when nothing has cached the map yet.
+ */
+function CachedAccountChip({ accountId, className }: { accountId?: string | null; className?: string }) {
+  const queryClient = useQueryClient();
+  if (!accountId) return null;
+  const map = queryClient.getQueryData(["exchange-account-map"]) as Map<string, { account_name?: string | null; color?: string | null }> | undefined;
+  const account = map instanceof Map ? map.get(accountId) : undefined;
+  if (!account?.account_name) return null;
+  const label = account.account_name.replace(/\s*binance\s*$/i, "").trim() || account.account_name;
+  return (
+    <Chip tone="neutral" title={account.account_name} className={cn("max-w-full", className)}>
+      {account.color ? (
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: account.color }} />
+      ) : (
+        <Building2 className="h-3 w-3 shrink-0" aria-hidden />
+      )}
+      <span className="truncate">{label}</span>
+    </Chip>
   );
 }

@@ -1,22 +1,43 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { parseApprovalError } from '@/utils/approvalErrorParser';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { CheckCircle, XCircle, Package, Clock, Coins, Plus, Minus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CheckCircle, XCircle, Package, Building2, Plus, Minus, AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { requireCurrentUserId } from '@/lib/system-action-logger';
 import { fetchAndLockMarketRate, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { isAdjustmentBank } from '@/lib/adjustment-accounts';
+import { cn } from '@/lib/utils';
+import {
+  BatchStatusChip,
+  Chip,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Facts,
+  Field,
+  LIST_DENSITY,
+  LIST_TABLE,
+  OrderNo,
+  Section,
+  SummaryRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDate,
+  fmtDateTime,
+  fmtInr,
+  fmtRate,
+  fmtTime,
+  safeDate,
+} from '@/components/orders-ui';
 
 interface Props {
   open: boolean;
@@ -540,279 +561,396 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
   if (!record) return null;
 
+  /* ── Presentation only: everything below is derived from the record and the state above ── */
+  const account = cachedExchangeAccount(queryClient, record.exchange_account_id);
+  const orderNumbers: string[] = Array.isArray(record.order_numbers) ? record.order_numbers : [];
+  const selectedMethodRow: any = isMultiplePayments ? null : paymentMethods?.find((m: any) => m.id === paymentMethodId);
+  const hasDuplicateSplitMethods = isMultiplePayments && new Set(paymentSplits.map((s) => s.payment_method_id)).size !== paymentSplits.length;
+  // Why Approve is disabled (same order as its disabled condition), or what would stop the approval.
+  const footNote = showReject || approveMutation.isPending
+    ? null
+    : isMultiplePayments
+      ? !splitAllocation.isValid
+        ? splitNote(splitAllocation.remaining)
+        : hasDuplicateSplitMethods
+          ? 'Use a different payment method on every row'
+          : null
+      : !paymentMethodId
+        ? 'Select a payment method to approve'
+        : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            Small Sales Bulk Approval
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass('lg')}>
+        <DialogHead
+          icon={Package}
+          title="Approve small sales batch"
+          description={`Creates one sales order from ${record.order_count} small ${assetCode} sales.`}
+          meta={
+            <>
+              <BatchStatusChip status={record.sync_status} />
+              {account && <AccountChip account={account} />}
+            </>
+          }
+        />
 
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <span className="text-muted-foreground">Asset</span>
-              <p className="font-semibold text-lg">{record.asset_code}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Orders Clubbed</span>
-              <p className="font-semibold text-lg">{record.order_count}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Quantity</span>
-              <p className="font-medium">{Number(record.total_quantity).toFixed(4)}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Avg Price</span>
-              <p className="font-medium">₹{Number(record.avg_price).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Amount</span>
-              <p className="font-semibold text-primary">₹{Number(record.total_amount).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Fee</span>
-              <p className="font-medium">{Number(record.total_fee).toFixed(4)}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Wallet</span>
-              <p className="font-medium">{record.wallet_name || 'N/A'}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Time Window</span>
-              <div className="flex items-center gap-1 text-xs">
-                <Clock className="h-3 w-3" />
-                {record.time_window_start && format(new Date(record.time_window_start), 'HH:mm')} –{' '}
-                {record.time_window_end && format(new Date(record.time_window_end), 'HH:mm')}
-              </div>
-            </div>
-          </div>
+        <DialogBody>
+          <Section title={sectionHeading('Batch')} boxed>
+            <Facts
+              cols={3}
+              className="grid-cols-2"
+              items={[
+                { label: 'Total amount', value: <span className="text-lg font-semibold leading-6 tabular-nums">{fmtInr(record.total_amount)}</span> },
+                { label: 'Asset', value: record.asset_code },
+                { label: 'Orders clubbed', value: <span className="tabular-nums">{record.order_count}</span> },
+                { label: 'Total quantity', value: <span className="tabular-nums">{fmtAssetQty(record.total_quantity, record.asset_code)}</span> },
+                { label: 'Avg price', value: <span className="tabular-nums">{fmtRate(record.avg_price)}</span> },
+                { label: 'Total fee', value: <span className="tabular-nums">{fmtAssetQty(record.total_fee, record.asset_code)}</span> },
+                { label: 'Wallet', value: record.wallet_name || '—' },
+                { label: 'Time window', value: timeWindowLabel(record.time_window_start, record.time_window_end), span: 2, className: 'col-span-2' },
+              ]}
+            />
+          </Section>
 
-          {/* USDT Equivalent for non-USDT assets */}
-          {isNonUsdt && coinUsdtRate && coinUsdtRate > 0 && (() => {
+          {/* USDT equivalent for non-USDT assets */}
+          {isNonUsdt && !!coinUsdtRate && coinUsdtRate > 0 && (() => {
             const qty = Number(record.total_quantity || 0);
             const totalAmt = Number(record.total_amount || 0);
             const usdtEquivQty = qty * coinUsdtRate;
             const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
             return (
-              <div className="p-2.5 bg-info/10 dark:bg-info/20 rounded-lg border border-info/20 dark:border-info">
-                <p className="text-xs font-semibold text-info dark:text-info mb-1.5 flex items-center gap-1">
-                  <Coins className="h-3.5 w-3.5" />
-                  USDT Equivalent (Live)
-                </p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <span className="text-info dark:text-info">{assetCode}/USDT</span>
-                    <p className="font-medium text-info dark:text-info">{formatSmartDecimal(coinUsdtRate, 6)}</p>
-                  </div>
-                  <div>
-                    <span className="text-info dark:text-info">USDT Qty</span>
-                    <p className="font-medium text-info dark:text-info">{formatSmartDecimal(usdtEquivQty, 4)}</p>
-                  </div>
-                  <div>
-                    <span className="text-info dark:text-info">USDT Rate</span>
-                    <p className="font-medium text-info dark:text-info">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
-                  </div>
-                </div>
-              </div>
+              <Section title={sectionHeading('USDT equivalent (live)')} description="Preview only. The rate is fetched again when you approve." boxed>
+                <Facts
+                  cols={3}
+                  className="grid-cols-3"
+                  items={[
+                    { label: `${assetCode}/USDT`, value: <span className="tabular-nums">{formatSmartDecimal(coinUsdtRate, 6)}</span> },
+                    { label: 'USDT qty', value: <span className="tabular-nums">{formatSmartDecimal(usdtEquivQty, 4)}</span> },
+                    { label: 'USDT rate', value: <span className="tabular-nums">₹{formatSmartDecimal(equivUsdtRate, 2)}</span> },
+                  ]}
+                />
+              </Section>
             );
           })()}
 
-          <Separator />
-
           {/* Payment Method + Split Toggle */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label>Payment Method *</Label>
-              <div className="flex items-center gap-1.5">
-                <Checkbox
-                  id="split-small-sales-payment"
-                  checked={isMultiplePayments}
-                  onCheckedChange={(checked) => {
-                    setIsMultiplePayments(!!checked);
-                    if (checked) {
-                      setPaymentSplits([
-                        { payment_method_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' },
-                      ]);
-                      setPaymentMethodId('');
-                    } else {
-                      setPaymentSplits([{ payment_method_id: '', amount: '' }]);
-                    }
-                  }}
-                />
-                <Label htmlFor="split-small-sales-payment" className="text-[10px] text-muted-foreground cursor-pointer whitespace-nowrap">
-                  Split Payment
-                </Label>
-              </div>
-            </div>
+          <Section title={sectionHeading('Payment')} bodyClassName="space-y-3">
+            <Field
+              label="Payment method"
+              required
+              htmlFor={isMultiplePayments ? undefined : 'ssa-payment-method'}
+              hint={selectedMethodRow && selectedMethodRow.bank_account_id ? settlementLine(selectedMethodRow) : undefined}
+              error={selectedMethodRow && !selectedMethodRow.bank_account_id ? 'No bank account is linked to this method, so the approval will stop with an error.' : undefined}
+              aside={
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="split-small-sales-payment"
+                    checked={isMultiplePayments}
+                    onCheckedChange={(checked) => {
+                      setIsMultiplePayments(!!checked);
+                      if (checked) {
+                        setPaymentSplits([
+                          { payment_method_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' },
+                        ]);
+                        setPaymentMethodId('');
+                      } else {
+                        setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="split-small-sales-payment" className="cursor-pointer whitespace-nowrap text-xs font-normal text-muted-foreground">
+                    Split payment
+                  </Label>
+                </div>
+              }
+            >
+              {!isMultiplePayments ? (
+                <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                  <SelectTrigger id="ssa-payment-method" className="h-9 text-left text-sm">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[260px]">
+                    {paymentMethods?.map(m => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.nickname || m.type} {m.payment_gateway ? '(Gateway)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex h-9 items-center rounded-lg border border-dashed border-border px-3 text-[13px] text-muted-foreground">
+                  Split across the methods below
+                </div>
+              )}
+            </Field>
 
-            {!isMultiplePayments ? (
-              <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-                <SelectTrigger>
+            {/* Split Payment Distribution */}
+            {isMultiplePayments && (
+              <SplitEditor
+                splits={paymentSplits}
+                methods={paymentMethods || []}
+                allocation={splitAllocation}
+                totalAmount={totalAmount}
+                methodLabel={(method: any) => `${method.nickname || method.type}${method.payment_gateway ? ' (Gateway)' : ''}`}
+                onChange={updatePaymentSplit}
+                onAdd={addPaymentSplit}
+                onRemove={removePaymentSplit}
+              />
+            )}
+          </Section>
+
+          {orderNumbers.length > 0 && (
+            <Section title={sectionHeading('Binance orders')}>
+              <div className="max-h-44 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card">
+                <table className={cn(LIST_TABLE, LIST_DENSITY.compact, 'table-fixed [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-[1] [&_thead_th]:bg-muted')}>
+                  <colgroup>
+                    <col className="w-14" />
+                    <col />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">Order number</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderNumbers.map((orderNumber, i) => (
+                      <tr key={`${orderNumber}-${i}`}>
+                        <td className="tabular-nums text-muted-foreground">{i + 1}</td>
+                        <td>
+                          <OrderNo value={orderNumber} className="block truncate" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+          )}
+
+          {showReject && (
+            <Section title={sectionHeading('Reject batch')} description="The batch is marked rejected and no sales order is created.">
+              <Field label="Rejection reason" htmlFor="ssa-reject-reason" hint='Optional. Saved as "Rejected by operator" when left empty.'>
+                <Textarea
+                  id="ssa-reject-reason"
+                  className="min-h-[64px] text-sm"
+                  rows={2}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Reason for rejection..."
+                  autoFocus
+                />
+              </Field>
+            </Section>
+          )}
+        </DialogBody>
+
+        {!showReject ? (
+          <DialogFoot
+            start={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowReject(true)}
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <XCircle className="h-4 w-4" />
+                Reject
+              </Button>
+            }
+          >
+            {footNote && (
+              // On phones the note takes its own line above the buttons.
+              <span className="order-first flex min-w-0 basis-full items-center gap-1.5 text-xs text-muted-foreground sm:order-none sm:basis-auto">
+                <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {footNote}
+              </span>
+            )}
+            <Button
+              type="button"
+              disabled={
+                approveMutation.isPending ||
+                (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)
+              }
+              onClick={() => approveMutation.mutate()}
+            >
+              {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+              {approveMutation.isPending ? 'Approving…' : 'Approve & create sale'}
+            </Button>
+          </DialogFoot>
+        ) : (
+          <DialogFoot>
+            <Button type="button" variant="outline" onClick={() => setShowReject(false)}>Back</Button>
+            <Button type="button" variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
+              {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+              {rejectMutation.isPending ? 'Rejecting…' : 'Confirm reject'}
+            </Button>
+          </DialogFoot>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── Presentation helpers (private to this dialog) ─────────────────────── */
+
+/** Section heading text; sized here because a global mobile rule enlarges every h3 to 16px. */
+function sectionHeading(text: string) {
+  return <span className="text-[11px] leading-4">{text}</span>;
+}
+
+/** "16 Oct 2026, 10:41 – 11:47", or both dates when the window spans days. */
+function timeWindowLabel(start: unknown, end: unknown): string {
+  const s = safeDate(start);
+  const e = safeDate(end);
+  if (s && e) return fmtDate(s) === fmtDate(e) ? `${fmtDate(s)}, ${fmtTime(s)} – ${fmtTime(e)}` : `${fmtDateTime(s)} – ${fmtDateTime(e)}`;
+  if (s) return `From ${fmtDateTime(s)}`;
+  if (e) return `Until ${fmtDateTime(e)}`;
+  return '—';
+}
+
+/** Rupees with exactly two decimals (split totals): ₹40,960.51 */
+function inr2(value: number): string {
+  const n = Number.isFinite(value) && Math.abs(value) >= 0.005 ? value : 0;
+  return `${n < 0 ? '-' : ''}₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Where the money from the chosen method lands. */
+function settlementLine(method: any): string {
+  const account = method?.bank_accounts?.account_name;
+  if (method?.payment_gateway) {
+    return `Gateway payment · settles to ${account || 'the linked bank account'}${method.settlement_cycle ? ` (${method.settlement_cycle})` : ''}`;
+  }
+  return account ? `Direct payment · credited to ${account}` : 'Direct payment';
+}
+
+/** Why an invalid split allocation can't be approved yet. */
+function splitNote(remaining: number): string {
+  if (Math.abs(remaining) > 0.01) return `Remaining ${inr2(remaining)} must be ₹0.00`;
+  return 'Choose a payment method and an amount on every row';
+}
+
+type ExchangeAccount = { id: string; account_name: string; color: string | null };
+
+/** The record's exchange account from the ["exchange-account-map"] cache the lists already filled (never fetches). */
+function cachedExchangeAccount(queryClient: ReturnType<typeof useQueryClient>, accountId?: string | null): ExchangeAccount | null {
+  if (!accountId) return null;
+  const map = queryClient.getQueryData<Map<string, ExchangeAccount>>(['exchange-account-map']);
+  return (map instanceof Map ? map.get(accountId) : undefined) ?? null;
+}
+
+/** Neutral exchange-account chip; the account's own colour only marks the dot (as in the purchase dialogs). */
+function AccountChip({ account }: { account: ExchangeAccount }) {
+  const label = account.account_name.replace(/\s*binance\s*$/i, '').trim() || account.account_name;
+  return (
+    <Chip tone="neutral" title={account.account_name} className="max-w-full">
+      {account.color ? (
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: account.color }} />
+      ) : (
+        <Building2 className="h-3 w-3 shrink-0" aria-hidden />
+      )}
+      <span className="truncate">{label}</span>
+    </Chip>
+  );
+}
+
+type SplitAllocation = { totalAllocated: number; remaining: number; isValid: boolean };
+
+/** Split payment rows with the running total. All state stays in the dialog. */
+function SplitEditor({
+  splits,
+  methods,
+  allocation,
+  totalAmount,
+  methodLabel,
+  onChange,
+  onAdd,
+  onRemove,
+}: {
+  splits: PaymentSplit[];
+  methods: any[];
+  allocation: SplitAllocation;
+  totalAmount: number;
+  methodLabel: (method: any) => ReactNode;
+  onChange: (index: number, field: keyof PaymentSplit, value: string) => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-card p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[13px] font-medium text-foreground">Payment distribution</p>
+        {allocation.isValid ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+            Fully allocated
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+            Not fully allocated
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="hidden gap-2 px-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground sm:grid sm:grid-cols-[9.5rem_minmax(0,1fr)_2.25rem]">
+          <span>Amount (₹)</span>
+          <span>Payment method</span>
+          <span className="sr-only">Remove</span>
+        </div>
+        {splits.map((split, index) => (
+          <div key={index} className="grid grid-cols-[minmax(0,1fr)_2.25rem] items-center gap-2 sm:grid-cols-[9.5rem_minmax(0,1fr)_2.25rem]">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={split.amount}
+              onChange={e => onChange(index, 'amount', e.target.value)}
+              placeholder="0.00"
+              className="col-start-1 row-start-1 h-9 text-sm tabular-nums"
+              aria-label={`Split ${index + 1} amount (₹)`}
+            />
+            <div className="col-span-2 col-start-1 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+              <Select value={split.payment_method_id} onValueChange={value => onChange(index, 'payment_method_id', value)}>
+                <SelectTrigger className="h-9 text-left text-sm" aria-label={`Split ${index + 1} payment method`}>
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods?.map(m => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.nickname || m.type} {m.payment_gateway ? '(Gateway)' : ''}
+                <SelectContent className="bg-popover z-50 border border-border shadow-sm">
+                  {methods.map((method: any) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {methodLabel(method)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            ) : (
-              <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-9 flex items-center">
-                Configure payment distribution below
-              </div>
-            )}
-          </div>
-
-          {/* Split Payment Distribution */}
-          {isMultiplePayments && (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="font-medium text-sm">Payment Distribution</Label>
-                    {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-[10px] mb-1">Total Amount</div>
-                    <div className="font-semibold text-xs">
-                      ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                  <div className="text-center border-x">
-                    <div className="text-muted-foreground text-[10px] mb-1">Allocated</div>
-                    <div className="font-medium text-xs">
-                      ₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-[10px] mb-1">Remaining</div>
-                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? 'text-success' : 'text-destructive'}`}>
-                      ₹{splitAllocation.remaining.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
-                    <div className="col-span-4">Amount (₹)</div>
-                    <div className="col-span-7">Payment Method</div>
-                    <div className="col-span-1"></div>
-                  </div>
-                  {paymentSplits.map((split, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
-                      <div className="col-span-4">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={split.amount}
-                          onChange={e => updatePaymentSplit(index, 'amount', e.target.value)}
-                          placeholder="0.00"
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <div className="col-span-7">
-                        <Select
-                          value={split.payment_method_id}
-                          onValueChange={value => updatePaymentSplit(index, 'payment_method_id', value)}
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue placeholder="Select payment method" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover z-50 border border-border shadow-sm">
-                            {paymentMethods?.map((method: any) => (
-                              <SelectItem key={method.id} value={method.id}>
-                                {method.nickname || method.type} {method.payment_gateway ? '(Gateway)' : ''}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-1 flex justify-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removePaymentSplit(index)}
-                          disabled={paymentSplits.length === 1}
-                          className="h-8 w-8"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addPaymentSplit}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Another Payment Method
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {showReject && (
-            <div>
-              <Label>Rejection Reason</Label>
-              <textarea
-                className="w-full border rounded-md p-2 text-sm"
-                rows={2}
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Reason for rejection..."
-              />
             </div>
-          )}
-        </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onRemove(index)}
+              disabled={splits.length === 1}
+              className="col-start-2 row-start-1 h-9 w-9 text-muted-foreground hover:text-foreground sm:col-start-3"
+              aria-label={`Remove split ${index + 1}`}
+              title="Remove split"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
 
-        <DialogFooter className="gap-2">
-          {!showReject ? (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setShowReject(true)}>
-                <XCircle className="h-4 w-4 mr-1" />
-                Reject
-              </Button>
-              <Button
-                size="sm"
-                disabled={
-                  approveMutation.isPending ||
-                  (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)
-                }
-                onClick={() => approveMutation.mutate()}
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                {approveMutation.isPending ? 'Approving...' : 'Approve'}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setShowReject(false)}>Cancel</Button>
-              <Button variant="destructive" size="sm" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
-                Confirm Reject
-              </Button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <Button type="button" variant="outline" size="sm" onClick={onAdd} className="h-8 gap-1.5">
+        <Plus className="h-4 w-4" />
+        Add payment method
+      </Button>
+
+      <div>
+        <SummaryRow label="Batch total" value={inr2(totalAmount)} />
+        <SummaryRow label="Allocated" value={inr2(allocation.totalAllocated)} />
+        <SummaryRow strong label="Remaining" value={inr2(allocation.remaining)} tone={allocation.isValid ? 'positive' : 'negative'} />
+      </div>
+    </div>
   );
 }

@@ -1,23 +1,13 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TableSkeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ClickableRow, useDeepLinkHighlight } from "@/components/transaction-detail";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield } from "lucide-react";
+import { CheckCircle2, Download, Edit, Eye, HandCoins, Link2, Package, Plus, Shield, ShoppingCart, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +22,32 @@ import { OrderCompletionForm } from "@/components/sales/OrderCompletionForm";
 import { PermissionGate } from "@/components/PermissionGate";
 import { TerminalSalesSyncTab } from "@/components/sales/TerminalSalesSyncTab";
 import { SmallSalesSyncTab } from "@/components/sales/SmallSalesSyncTab";
+import { TablePager } from "@/components/finance-ui/primitives";
+import {
+  DateRangeFilter,
+  LIST_DENSITY,
+  LIST_TABLE,
+  ListNote,
+  OrderNo,
+  PanelMessage,
+  PanelSkeleton,
+  PanelToolbar,
+  SUBNAV_LIST,
+  SUBNAV_TRIGGER,
+  SalesStatusChip,
+  SearchField,
+  TabCount,
+  fmtAssetQty,
+  fmtDate,
+  fmtInr,
+  fmtRate,
+  fmtTime,
+  personLabel,
+  rowOpenHandlers,
+  salesPaymentStatusMeta,
+  useListPages,
+  useNarrow,
+} from "@/components/orders-ui";
 
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +56,9 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useQuickAction } from "@/hooks/useQuickAction";
 import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+
+const PAGE_SIZE = 25;
+const STATUS_OPTIONS = ["PENDING", "USER_PAYING", "PAYMENT_DONE", "PARTIAL", "COMPLETED", "FAILED", "ORDER_CANCELLED"];
 
 export default function Sales() {
   const navigate = useNavigate();
@@ -67,6 +86,8 @@ export default function Sales() {
   const [selectedOrderForAlternativeMethod, setSelectedOrderForAlternativeMethod] = useState<any>(null);
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<any>(null);
   const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('tab') || 'completed';
@@ -500,26 +521,24 @@ export default function Sales() {
     window.URL.revokeObjectURL(url);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "COMPLETED":
-        return <Badge className="bg-success/10 text-success">Completed</Badge>;
-      case "PAYMENT_DONE":
-        return <Badge className="bg-success/10 text-success">Payment Done</Badge>;
-      case "USER_PAYING":
-        return <Badge className="bg-info/10 text-info">User Paying</Badge>;
-      case "PARTIAL":
-        return <Badge className="bg-warning/10 text-warning">Partial Payment</Badge>;
-      case "PENDING":
-        return <Badge className="bg-muted text-foreground">Pending</Badge>;
-      case "FAILED":
-        return <Badge className="bg-destructive/10 text-destructive">Failed</Badge>;
-      case "ORDER_CANCELLED":
-        return <Badge className="bg-destructive/10 text-destructive">Cancelled</Badge>;
-      default:
-        return <Badge variant="secondary">Unknown</Badge>;
+  /** Runs the export once at a time and shows that it is working. */
+  const runExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      await handleExportCSV();
+    } finally {
+      setIsExporting(false);
     }
   };
+
+  // The search box updates the query 300 ms after typing stops (one search per pause, not per keystroke).
+  useEffect(() => {
+    if (searchInput === searchTerm) return;
+    const t = window.setTimeout(() => setSearchTerm(searchInput), 300);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   const clearFilters = () => {
     setFilterPaymentStatus("");
@@ -527,6 +546,7 @@ export default function Sales() {
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
     setSearchTerm("");
+    setSearchInput("");
     setShowFilterDialog(false);
   };
 
@@ -534,487 +554,417 @@ export default function Sales() {
     setDeleteOrderId(orderId);
   };
 
-  // Mobile-friendly card view for orders
-  const renderMobileOrderCard = (order: any, isCompleted: boolean = false) => (
-    <Card key={order.id} className="mb-3">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <p className="font-mono text-sm font-medium">{order.order_number}</p>
-            <p className="font-semibold text-lg">{order.client_name}</p>
-          </div>
-          {getStatusBadge(order.payment_status)}
-        </div>
-        
-        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-          <div>
-            <span className="text-muted-foreground">Amount:</span>
-            <p className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Quantity:</span>
-            <p className="font-medium">{order.quantity || 1}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Platform:</span>
-            <p className="font-medium">{order.wallet?.wallet_name || order.platform || 'Off Market'}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Date:</span>
-            <p className="font-medium">
-              {format(new Date(order.order_date), 'MMM dd')}{' '}
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(order.created_at || order.order_date), 'HH:mm')}
-              </span>
-            </p>
-          </div>
-          <div className="col-span-2">
-            <span className="text-muted-foreground">Created By:</span>
-            <p className="font-medium">
-              {order.created_by_user 
-                ? (order.created_by_user.first_name || order.created_by_user.username)
-                : <span className="text-muted-foreground">N/A</span>}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2 pt-2 border-t flex-wrap">
-          {order.payment_status === 'USER_PAYING' ? (
-            <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedOrderForUserPaying(order)}
-                className="bg-info/10 hover:bg-info/10 text-info flex-1"
-              >
-                Take Action
-              </Button>
-            </PermissionGate>
-          ) : (
-            <>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setSelectedOrderForDetails(order)}
-                className="text-info flex-1"
-              >
-                <Eye className="h-4 w-4 mr-1" />
-                View
-              </Button>
-              <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                <Button 
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedOrderForEdit(order)}
-                  className="text-success flex-1"
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
-                {hasPermission('erp_destructive') && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleDeleteOrder(order.id)}
-                    disabled={deleteSalesOrderMutation.isPending}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </PermissionGate>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+  /* ── Presentation ─────────────────────────────────────────────────────── */
+
+  // One layout for the room the list really has: cards on phones, then progressively wider tables.
+  const { ref: listRef, narrow, width: listWidth } = useNarrow<HTMLDivElement>(600);
+  const wide = listWidth >= 1120; // separate "Created by" column
+  const merged = listWidth < 880; // order and customer share one column
+  const iconActions = listWidth < 1000; // View / Edit as icons only
+  // Keeps the page across deletes and refetches; back to page 1 when the search or a filter changes.
+  const paged = useListPages(
+    completedOrders,
+    PAGE_SIZE,
+    `${searchTerm}|${filterPaymentStatus}|${filterAssetType}|${filterDateFrom?.getTime() ?? ""}|${filterDateTo?.getTime() ?? ""}`,
   );
 
-  const renderOrdersTable = (orders: any[], isCompleted: boolean = false) => (
-    <>
-      {/* Mobile view - cards */}
-      <div className="md:hidden space-y-3">
-        {orders.map((order) => renderMobileOrderCard(order, isCompleted))}
-        {orders.length === 0 && (
-          <EmptyState icon={ShoppingCart} title="No orders found for this category." />
-        )}
-      </div>
-      
-      {/* Desktop view - table */}
-      <div className="hidden md:block overflow-x-auto">
-        <Table stickyHeader density={density} maxHeight="65vh">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order #</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Platform</TableHead>
-              <TableHead numeric>Amount</TableHead>
-              <TableHead numeric>Qty</TableHead>
-              <TableHead numeric>Price</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created By</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orders.map((order) => (
-              <ClickableRow key={order.id} txType="sales_order" txId={order.id}>
-                <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
-                <TableCell>
-                  <div
-                    className="font-medium text-info hover:text-info hover:underline cursor-pointer"
-                    onClick={() => navigateToClient(order.client_name)}
-                  >
-                    {order.client_name}
-                  </div>
+  // A ?orderId= link lands on the page that holds the order (once), so the highlight can find it.
+  const deepLinkOrderId = useMemo(() => new URLSearchParams(window.location.search).get("orderId"), []);
+  const deepLinkDone = useRef(false);
+  useEffect(() => {
+    if (deepLinkDone.current || !deepLinkOrderId || !salesOrders) return;
+    deepLinkDone.current = true;
+    const i = salesOrders.findIndex((o: any) => o.id === deepLinkOrderId);
+    if (i >= PAGE_SIZE) paged.setPage(Math.floor(i / PAGE_SIZE));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkOrderId, salesOrders]);
+
+  const completedCount = filterAssetType ? completedOrders.length : orderCounts?.completed ?? completedOrders.length;
+  const listTotal = completedOrders.reduce((sum: number, o: any) => sum + (Number(o.total_amount) || 0), 0);
+  const filtersOn = Boolean(searchTerm.trim() || filterPaymentStatus || filterAssetType || filterDateFrom || filterDateTo);
+  const orderToDelete: any = deleteOrderId ? completedOrders.find((o: any) => o.id === deleteOrderId) : null;
+  const platformOf = (order: any) => order.wallet?.wallet_name || order.platform || "Off Market";
+  const orderedAt = (order: any) => `${fmtDate(order.order_date)} · ${fmtTime(order.created_at || order.order_date)}`;
+  const metaLine = (order: any) => `${orderedAt(order)} · ${platformOf(order)} · by ${personLabel(order.created_by_user) ?? "—"}`;
+  const priceLine = (order: any) =>
+    `${fmtAssetQty(order.quantity || 1, getSalesOrderAsset(order))} @ ${fmtRate(order.price_per_unit || order.total_amount)}`;
+
+  const listNote = () => {
+    if (isLoading) return null;
+    const n = completedOrders.length;
+    const noun = n === 1 ? "order" : "orders";
+    if (hasActiveFilters) return `${n.toLocaleString("en-IN")} matching ${noun} · ${fmtInr(listTotal)}`;
+    if (n >= 500) {
+      const all = orderCounts?.completed;
+      return `Latest 500${all ? ` of ${all.toLocaleString("en-IN")}` : ""} orders. Search or filter to reach older ones.`;
+    }
+    return `${n.toLocaleString("en-IN")} ${noun} · ${fmtInr(listTotal)}`;
+  };
+
+  const customerButton = (order: any, className?: string) => (
+    <button
+      type="button"
+      onClick={() => navigateToClient(order.client_name)}
+      className={cn("max-w-full truncate text-left font-medium text-primary hover:underline focus-visible:underline focus-visible:outline-none", className)}
+      title={`Open ${order.client_name} in Clients`}
+    >
+      {order.client_name}
+    </button>
+  );
+
+  const rowActions = (order: any, iconOnly = false) =>
+    order.payment_status === 'USER_PAYING' ? (
+      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSelectedOrderForUserPaying(order)}
+          className="h-8 gap-1.5 border-info/40 bg-info/10 px-2.5 text-xs text-info hover:bg-info/15 hover:text-info"
+        >
+          <HandCoins className="h-3.5 w-3.5" />
+          Take action
+        </Button>
+      </PermissionGate>
+    ) : (
+      <>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSelectedOrderForDetails(order)}
+          className={cn("h-8 gap-1.5 text-xs", iconOnly ? "w-8 p-0" : "px-2.5")}
+          aria-label={`View order ${order.order_number}`}
+          title="View order"
+        >
+          <Eye className="h-3.5 w-3.5" />
+          {!iconOnly && "View"}
+        </Button>
+        <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedOrderForEdit(order)}
+            className={cn("h-8 gap-1.5 text-xs", iconOnly ? "w-8 p-0" : "px-2.5")}
+            aria-label={`Edit order ${order.order_number}`}
+            title="Edit order"
+          >
+            <Edit className="h-3.5 w-3.5" />
+            {!iconOnly && "Edit"}
+          </Button>
+          {hasPermission('erp_destructive') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeleteOrder(order.id)}
+              disabled={deleteSalesOrderMutation.isPending}
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              aria-label={`Delete order ${order.order_number}`}
+              title="Delete order"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </PermissionGate>
+      </>
+    );
+
+  const renderTable = () => (
+    <table className={cn(LIST_TABLE, LIST_DENSITY[density], "table-fixed")}>
+      <colgroup>
+        <col className={merged ? undefined : "w-[15rem]"} />
+        {!merged && <col />}
+        <col className="w-[12.5rem]" />
+        <col className="w-[8.5rem]" />
+        {wide && <col className="w-[8rem]" />}
+        <col className={iconActions ? "w-[7.25rem]" : "w-[12.5rem]"} />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">{merged ? "Order & customer" : "Order"}</th>
+          {!merged && <th scope="col">Customer</th>}
+          <th scope="col" className="text-right">Amount</th>
+          <th scope="col">Status</th>
+          {wide && <th scope="col">Created by</th>}
+          <th scope="col" className="text-right"><span className="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {paged.slice.map((order: any) => (
+          <ClickableRow
+            key={order.id}
+            txType="sales_order"
+            txId={order.id}
+            aria-label={`Order ${order.order_number}, ${order.client_name}, ${fmtInr(order.total_amount)}`}
+            {...rowOpenHandlers(() => setSelectedOrderForDetails(order))}
+          >
+            {merged ? (
+              <td>
+                <div className="flex min-w-0 flex-col">
+                  {customerButton(order)}
+                  {/* wraps instead of cutting: operators compare the last digits */}
+                  <OrderNo value={order.order_number} selectable className="block whitespace-normal break-all" />
+                  <span className="truncate text-xs text-muted-foreground" title={metaLine(order)}>
+                    {metaLine(order)}
+                  </span>
                   {order.description && (
-                    <div className="text-sm text-muted-foreground max-w-[200px] truncate">
+                    <span className="truncate text-xs text-muted-foreground" title={order.description}>
                       {order.description}
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>{order.wallet?.wallet_name || order.platform || 'Off Market'}</TableCell>
-                <TableCell numeric className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
-                <TableCell numeric>{order.quantity || 1}</TableCell>
-                <TableCell numeric>₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</TableCell>
-                <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
-                <TableCell>
-                  {order.created_by_user ? (
-                    <span className="font-medium text-foreground">
-                      {order.created_by_user.first_name || order.created_by_user.username}
                     </span>
-                  ) : (
-                    <span className="text-muted-foreground">N/A</span>
                   )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span>{format(new Date(order.order_date), 'MMM dd, yyyy')}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(order.created_at || order.order_date), 'HH:mm:ss')}
-                    </span>
+                </div>
+              </td>
+            ) : (
+              <>
+                <td>
+                  <OrderNo value={order.order_number} selectable className="block truncate" />
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground" title={`${orderedAt(order)} · ${platformOf(order)}`}>
+                    {orderedAt(order)} · {platformOf(order)}
                   </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    {order.payment_status === 'USER_PAYING' ? (
-                      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedOrderForUserPaying(order)}
-                          className="bg-info/10 hover:bg-info/10 text-info"
-                        >
-                          Take Action
-                        </Button>
-                      </PermissionGate>
-                    ) : (
-                      <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setSelectedOrderForDetails(order)}
-                          className="text-info hover:text-info hover:bg-info/10"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                          <Button 
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedOrderForEdit(order)}
-                            className="text-success hover:text-success hover:bg-success/10"
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          {hasPermission('erp_destructive') && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleDeleteOrder(order.id)}
-                              disabled={deleteSalesOrderMutation.isPending}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </PermissionGate>
-                      </>
+                  {!wide && (
+                    <div className="truncate text-xs text-muted-foreground">by {personLabel(order.created_by_user) ?? "—"}</div>
+                  )}
+                </td>
+                <td>
+                  <div className="flex min-w-0 flex-col">
+                    {customerButton(order)}
+                    {order.description && (
+                      <span className="truncate text-xs text-muted-foreground" title={order.description}>
+                        {order.description}
+                      </span>
                     )}
                   </div>
-                </TableCell>
-              </ClickableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {orders.length === 0 && (
-          <EmptyState icon={ShoppingCart} title="No orders found for this category." />
-        )}
-      </div>
-    </>
+                </td>
+              </>
+            )}
+            <td className="text-right">
+              <div className="truncate font-semibold tabular-nums text-foreground">{fmtInr(order.total_amount)}</div>
+              <div className="truncate text-xs tabular-nums text-muted-foreground" title={priceLine(order)}>{priceLine(order)}</div>
+            </td>
+            <td>
+              <SalesStatusChip status={order.payment_status} />
+            </td>
+            {wide && <td className="truncate text-muted-foreground">{personLabel(order.created_by_user) ?? "—"}</td>}
+            <td>
+              <div className="flex items-center justify-end gap-0.5">{rowActions(order, iconActions)}</div>
+            </td>
+          </ClickableRow>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  // Cards (narrow panels): the customer name is plain text, as on the old phone cards; the whole card opens the order.
+  const renderCards = () => (
+    <ul className="divide-y divide-border">
+      {paged.slice.map((order: any) => (
+        <li
+          key={order.id}
+          id={`tx-row-${order.id}`}
+          data-tx-id={order.id}
+          role="button"
+          tabIndex={0}
+          aria-label={`Order ${order.order_number}, ${order.client_name}, ${fmtInr(order.total_amount)}`}
+          className="cursor-pointer px-3 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
+          {...rowOpenHandlers(() => setSelectedOrderForDetails(order))}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[15px] font-medium text-foreground">{order.client_name}</span>
+              <OrderNo value={order.order_number} selectable className="break-all text-muted-foreground" />
+            </div>
+            <SalesStatusChip status={order.payment_status} className="mt-0.5 shrink-0" />
+          </div>
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span className="text-base font-semibold tabular-nums text-foreground">{fmtInr(order.total_amount)}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{priceLine(order)}</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{metaLine(order)}</p>
+          {order.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{order.description}</p>}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1">{rowActions(order)}</div>
+        </li>
+      ))}
+    </ul>
   );
 
   return (
     <PermissionGate
       permissions={["sales_view"]}
       fallback={
-        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center page-mount">
-          <Card className="w-full max-w-md">
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <Shield className="h-12 w-12 text-muted-foreground" />
-                <div>
-                  <h2 className="text-xl font-semibold">Access Denied</h2>
-                  <p className="text-muted-foreground mt-2">
-                    You don't have permission to access Sales Management.
-                  </p>
-                </div>
-                <Button onClick={() => navigate("/dashboard")}>
-                  Return to Dashboard
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex min-h-[60vh] items-center justify-center p-6 page-mount">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 text-center shadow-sm">
+            <Shield className="mx-auto h-10 w-10 text-muted-foreground" />
+            <h2 className="mt-3 text-lg font-semibold text-foreground">Access Denied</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You don't have permission to access Sales Management.
+            </p>
+            <Button className="mt-4" onClick={() => navigate("/dashboard")}>
+              Return to Dashboard
+            </Button>
+          </div>
         </div>
       }
     >
-    <div className="min-h-screen bg-muted/50 p-3 md:p-6">
-      {/* Header */}
-      <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
-        <div className="px-4 md:px-6 py-4 md:py-8">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-3">
-                <span className="p-2 md:p-3 bg-success/10 rounded-xl shadow-sm">
-                  <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 text-success" />
-                </span>
-                Sales Order Processing
-              </span>
-            }
-            description="Manage and process sales orders"
-            actions={
-              <>
-                <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0">
-                  <Download className="h-4 w-4 mr-1 md:mr-2" />
-                  <span className="hidden sm:inline">Export</span>
-                </Button>
-                <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                  <Button variant="outline" onClick={() => setShowManualSalesEntry(true)} size="sm" className="flex-shrink-0">
-                    <Plus className="h-4 w-4 mr-1" />
-                    <span className="whitespace-nowrap">Manual Entry</span>
-                  </Button>
-                  <Button 
-                    onClick={() => setShowStepByStepFlow(true)}
-                    className="bg-info hover:bg-info text-primary-foreground flex-shrink-0"
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    <span className="whitespace-nowrap">New Order</span>
-                  </Button>
-                </PermissionGate>
-              </>
-            }
-          />
-
-        </div>
-      </div>
-
-      {/* Search and Filter Bar */}
-      <Card className="mb-4">
-        <CardContent className="p-3 md:p-4">
-          <div className="flex gap-2 md:gap-4">
-            <div className="flex-1">
-              <Input 
-                placeholder="Search orders..." 
-                data-page-search
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-            <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-              <Button variant="outline" onClick={() => setShowFilterDialog(true)} size="sm">
-                <Filter className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Filter</span>
-              </Button>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Filter Sales Orders</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Payment Status</Label>
-                    <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select payment status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                        <SelectItem value="USER_PAYING">User Paying</SelectItem>
-                        <SelectItem value="PAYMENT_DONE">Payment Done</SelectItem>
-                        <SelectItem value="PARTIAL">Partial</SelectItem>
-                        <SelectItem value="COMPLETED">Completed</SelectItem>
-                        <SelectItem value="FAILED">Failed</SelectItem>
-                        <SelectItem value="ORDER_CANCELLED">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Asset Type</Label>
-                    <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All asset types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All asset types</SelectItem>
-                        {assetOptions.map((asset) => (
-                          <SelectItem key={asset} value={asset}>{asset}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Date From</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !filterDateFrom && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {filterDateFrom ? format(filterDateFrom, "PPP") : "Pick a date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={filterDateFrom}
-                            onSelect={setFilterDateFrom}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    
-                    <div>
-                      <Label>Date To</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !filterDateTo && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {filterDateTo ? format(filterDateTo, "PPP") : "Pick a date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={filterDateTo}
-                            onSelect={setFilterDateTo}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={clearFilters}>
-                      Clear Filters
-                    </Button>
-                    <Button onClick={() => setShowFilterDialog(false)}>
-                      Apply Filters
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Button variant="outline">
-              <Search className="h-4 w-4 mr-2" />
-              Search
+    <div className="mx-auto w-full max-w-[1440px] space-y-4 p-3 sm:space-y-5 sm:p-6">
+      <PageHeader
+        title="Sales orders"
+        description="ERP sales orders, Terminal sales waiting for approval, and clubbed small sales."
+        actions={
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+            <Button variant="outline" onClick={runExport} disabled={isExporting} size="sm" className="h-9 gap-1.5" aria-label="Export sales orders as CSV">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">{isExporting ? "Exporting…" : "Export"}</span>
             </Button>
-            <SegmentedControl
-              size="sm"
-              aria-label="Row density"
-              value={density}
-              onValueChange={(v) => setDensity(v as "comfortable" | "compact")}
-              options={[
-                { label: "Comfortable", value: "comfortable" },
-                { label: "Compact", value: "compact" },
-              ]}
-            />
+            <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+              <Button variant="outline" onClick={() => setShowManualSalesEntry(true)} size="sm" className="h-9 gap-1.5">
+                <Plus className="h-4 w-4" />
+                Manual entry
+              </Button>
+              <Button onClick={() => setShowStepByStepFlow(true)} size="sm" className="h-9 gap-1.5">
+                <Plus className="h-4 w-4" />
+                New order
+              </Button>
+            </PermissionGate>
           </div>
-          {(searchTerm.trim() || filterPaymentStatus || filterAssetType || filterDateFrom || filterDateTo) && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {searchTerm.trim() && (
-                <FilterChip label="Search:" value={searchTerm} onRemove={() => setSearchTerm("")} />
-              )}
-              {filterPaymentStatus && (
-                <FilterChip label="Status:" value={filterPaymentStatus} onRemove={() => setFilterPaymentStatus("")} />
-              )}
-              {filterAssetType && (
-                <FilterChip label="Asset:" value={filterAssetType} onRemove={() => setFilterAssetType("")} />
-              )}
-              {filterDateFrom && (
-                <FilterChip label="From:" value={format(filterDateFrom, "PP")} onRemove={() => setFilterDateFrom(undefined)} />
-              )}
-              {filterDateTo && (
-                <FilterChip label="To:" value={format(filterDateTo, "PP")} onRemove={() => setFilterDateTo(undefined)} />
+        }
+      />
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className={SUBNAV_LIST}>
+          <TabsTrigger value="completed" className={SUBNAV_TRIGGER}>
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Completed
+            {!isLoading && <TabCount value={completedCount} />}
+          </TabsTrigger>
+          <TabsTrigger value="terminal-sync" className={SUBNAV_TRIGGER}>
+            <Link2 className="h-3.5 w-3.5" />
+            Terminal sync
+          </TabsTrigger>
+          <TabsTrigger value="small-sales" className={SUBNAV_TRIGGER}>
+            <Package className="h-3.5 w-3.5" />
+            Small sales
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="completed" className="mt-0">
+          <section className="min-w-0 rounded-lg border border-border bg-card shadow-[var(--shadow-xs)]" aria-label="Sales orders">
+            <PanelToolbar>
+              <SearchField
+                value={searchInput}
+                onValueChange={setSearchInput}
+                label="Search sales orders"
+                placeholder="Order no., customer or description"
+                data-page-search
+                containerClassName="sm:min-w-[240px] sm:flex-1"
+              />
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                <Select value={filterPaymentStatus || "all"} onValueChange={(v) => setFilterPaymentStatus(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-9 sm:w-[170px]" aria-label="Filter by payment status">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    {STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s} value={s}>{salesPaymentStatusMeta(s).label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
+                  <SelectTrigger className="h-9 sm:w-[140px]" aria-label="Filter by asset">
+                    <SelectValue placeholder="All assets" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All assets</SelectItem>
+                    {assetOptions.map((asset) => (
+                      <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <DateRangeFilter
+                  from={filterDateFrom}
+                  to={filterDateTo}
+                  onFromChange={setFilterDateFrom}
+                  onToChange={setFilterDateTo}
+                  className="col-span-2 sm:col-span-1 sm:w-[210px]"
+                />
+              </div>
+            </PanelToolbar>
+
+            {filtersOn && (
+              <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-3 py-2.5 sm:px-5">
+                {searchTerm.trim() && (
+                  <FilterChip label="Search:" value={searchTerm} onRemove={() => { setSearchTerm(""); setSearchInput(""); }} />
+                )}
+                {filterPaymentStatus && (
+                  <FilterChip label="Status:" value={salesPaymentStatusMeta(filterPaymentStatus).label} onRemove={() => setFilterPaymentStatus("")} />
+                )}
+                {filterAssetType && (
+                  <FilterChip label="Asset:" value={filterAssetType} onRemove={() => setFilterAssetType("")} />
+                )}
+                {filterDateFrom && (
+                  <FilterChip label="From:" value={fmtDate(filterDateFrom)} onRemove={() => setFilterDateFrom(undefined)} />
+                )}
+                {filterDateTo && (
+                  <FilterChip label="To:" value={fmtDate(filterDateTo)} onRemove={() => setFilterDateTo(undefined)} />
+                )}
+                <Button variant="link" size="sm" className="h-auto px-1 py-0 text-xs" onClick={clearFilters}>
+                  Clear all
+                </Button>
+              </div>
+            )}
+
+            <div ref={listRef}>
+              {isLoading ? (
+                <PanelSkeleton rows={8} label="Loading sales orders" />
+              ) : completedOrders.length === 0 ? (
+                <PanelMessage icon={ShoppingCart} title={filtersOn ? "No orders match these filters" : "No sales orders yet"}>
+                  {filtersOn && (
+                    <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={clearFilters}>
+                      Clear filters
+                    </Button>
+                  )}
+                </PanelMessage>
+              ) : (
+                <>
+                  <div className="flex min-h-11 items-center justify-between gap-3 px-3 pb-1.5 pt-2 sm:px-5">
+                    <ListNote className="p-0 sm:p-0">{listNote()}</ListNote>
+                    {!narrow && (
+                      // md+ only: below 768px a global rule forces every role=tablist to full width
+                      <div className="hidden shrink-0 md:block">
+                        <SegmentedControl
+                          size="sm"
+                          aria-label="Row density"
+                          value={density}
+                          onValueChange={(v) => setDensity(v as "comfortable" | "compact")}
+                          options={[
+                            { label: "Comfortable", value: "comfortable" },
+                            { label: "Compact", value: "compact" },
+                          ]}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {narrow ? renderCards() : renderTable()}
+                  {paged.pages > 1 ? (
+                    <div className="px-3 pb-3 sm:px-5">
+                      <TablePager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} setPage={paged.setPage} noun="orders" />
+                    </div>
+                  ) : (
+                    <div className="h-2" aria-hidden />
+                  )}
+                </>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </section>
+        </TabsContent>
 
-      {/* Sales Orders Dashboard with Tabs */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sales Orders Dashboard</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <TableSkeleton rows={8} columns={10} />
-          ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="completed">
-                  Completed ({filterAssetType ? completedOrders.length : orderCounts?.completed ?? completedOrders.length})
-                </TabsTrigger>
-                <TabsTrigger value="terminal-sync">
-                  Terminal Sync
-                </TabsTrigger>
-                <TabsTrigger value="small-sales">
-                  Small Sales
-                </TabsTrigger>
-              </TabsList>
+        <TabsContent value="terminal-sync" className="mt-0">
+          <TerminalSalesSyncTab />
+        </TabsContent>
 
-              <TabsContent value="completed" className="mt-6">
-                {renderOrdersTable(completedOrders, true)}
-              </TabsContent>
+        <TabsContent value="small-sales" className="mt-0">
+          <SmallSalesSyncTab />
+        </TabsContent>
+      </Tabs>
 
-              <TabsContent value="terminal-sync" className="mt-6">
-                <TerminalSalesSyncTab />
-              </TabsContent>
-
-              <TabsContent value="small-sales" className="mt-6">
-                <SmallSalesSyncTab />
-              </TabsContent>
-            </Tabs>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Step-by-Step Sales Flow */}
       <PermissionGate permissions={["sales_manage"]} showFallback={false}>
@@ -1056,6 +1006,7 @@ export default function Sales() {
           onOpenChange={(open) => !open && setSelectedOrderForUserPaying(null)}
           clientName={selectedOrderForUserPaying?.client_name || ''}
           orderAmount={selectedOrderForUserPaying?.total_amount || 0}
+          orderNumber={selectedOrderForUserPaying?.order_number}
           onStatusChange={(status) => {
             // Capture the order reference immediately before any state changes
             const orderToUpdate = selectedOrderForUserPaying;
@@ -1120,15 +1071,29 @@ export default function Sales() {
           order={selectedOrderForCompletion}
         />
       </PermissionGate>
+
       <AlertDialog open={!!deleteOrderId} onOpenChange={() => setDeleteOrderId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Sales Order</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete this order? This will revert all related changes.</AlertDialogDescription>
+            <AlertDialogTitle>Delete this sales order?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                {orderToDelete && (
+                  <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-foreground">
+                    <span className="font-mono text-[12px]">{orderToDelete.order_number}</span>
+                    <span className="mx-1.5 text-muted-foreground">·</span>
+                    {orderToDelete.client_name}
+                    <span className="mx-1.5 text-muted-foreground">·</span>
+                    <span className="font-semibold tabular-nums">{fmtInr(orderToDelete.total_amount)}</span>
+                  </p>
+                )}
+                <p>The order is deleted and all related changes are reverted (stock, wallet, bank and client entries). This can't be undone.</p>
+              </div>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteOrderId) { deleteSalesOrderMutation.mutate(deleteOrderId); setDeleteOrderId(null); } }}>Delete</AlertDialogAction>
+            <AlertDialogAction className={buttonVariants({ variant: "destructive" })} onClick={() => { if (deleteOrderId) { deleteSalesOrderMutation.mutate(deleteOrderId); setDeleteOrderId(null); } }}>Delete order</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

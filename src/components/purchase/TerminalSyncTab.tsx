@@ -1,33 +1,67 @@
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle2, XCircle, Loader2, RefreshCw, Link2, User } from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle, Loader2, RefreshCw, Link2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
 import { TerminalPurchaseApprovalDialog } from "./TerminalPurchaseApprovalDialog";
 import { syncCompletedBuyOrders } from "@/hooks/useTerminalPurchaseSync";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { usePermissions } from "@/hooks/usePermissions";
 import { syncTerminalOrdersForErp } from "@/hooks/useBinanceOrderSync";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
+import { cn } from "@/lib/utils";
+import {
+  Chip,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Field,
+  LIST_DENSITY,
+  LIST_TABLE,
+  OrderNo,
+  PanelMessage,
+  PanelSkeleton,
+  PanelToolbar,
+  SyncStatusChip,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDateTime,
+  fmtInr,
+  fmtRate,
+  syncStatusMeta,
+  useNarrow,
+} from "@/components/orders-ui";
 
 import { usersDirectory } from "@/lib/usersDirectory";
-const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  synced_pending_approval: { label: "Pending Approval", variant: "default" },
-  approved: { label: "Approved", variant: "default" },
-  rejected: { label: "Rejected", variant: "destructive" },
-  duplicate_blocked: { label: "Duplicate", variant: "secondary" },
-  client_mapping_pending: { label: "Client Mapping", variant: "outline" },
-};
+
+/** Status filter: the values are the query's filter values; the labels follow the status chips. */
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "pending_queue", label: "All pending" },
+  ...["synced_pending_approval", "client_mapping_pending", "approved", "rejected", "duplicate_blocked"].map((value) => ({
+    value,
+    label: syncStatusMeta(value).label,
+  })),
+];
+
+/** Outline "Reject" in lists (no solid red buttons in rows). */
+const REJECT_OUTLINE = "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive";
+
+/** The record a confirmation acts on, in one quiet bordered line. */
+function RecordLine({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-md border border-border bg-muted/40 px-3 py-2 text-[13px] text-foreground">
+      {children}
+    </div>
+  );
+}
+
+const Dot = () => <span className="text-muted-foreground" aria-hidden>·</span>;
 
 const PENDING_SYNC_STATUSES = ['synced_pending_approval', 'client_mapping_pending'];
 
@@ -73,7 +107,7 @@ export function TerminalSyncTab() {
   const [bulkRejectReason, setBulkRejectReason] = useState("");
 
   // Fetch sync records + reviewer usernames
-  const { data: syncData = { records: [], userMap: {} as Record<string, string> }, isLoading, refetch } = useQuery({
+  const { data: syncData = { records: [], userMap: {} as Record<string, string> }, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ['terminal-purchase-sync', statusFilter],
     queryFn: async () => {
       // Show orders from the last 7 days to catch cross-day orders
@@ -326,223 +360,397 @@ export function TerminalSyncTab() {
     },
   });
 
-  return (
-    <div className="space-y-4">
-      {/* Bulk Actions Bar */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-          <Badge variant="secondary" className="text-xs">{selectedIds.size} selected</Badge>
-          {hasPermission('terminal_destructive') && (
-            <Button variant="destructive" size="sm" className="h-7 text-[10px]" onClick={() => setBulkRejectOpen(true)}>
-              <XCircle className="h-3 w-3 mr-1" />
-              Bulk Reject
-            </Button>
-          )}
-          <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setSelectedIds(new Set())}>
-            Clear Selection
-          </Button>
-        </div>
-      )}
+  /* ── Presentation ─────────────────────────────────────────────────────── */
 
-      {/* Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px] h-8 text-xs">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border z-50">
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending_queue">Pending Queue</SelectItem>
-              <SelectItem value="synced_pending_approval">Ready for Approval</SelectItem>
-              <SelectItem value="client_mapping_pending">Client Mapping</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="duplicate_blocked">Duplicate</SelectItem>
-            </SelectContent>
-          </Select>
-          {pendingCount > 0 && (
-            <Badge variant="default" className="text-xs">{pendingCount} Pending</Badge>
-          )}
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="gap-1">
-            {syncMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-            Sync Now
-          </Button>
-        </div>
-      </div>
+  // One layout for the room the list really has: cards on phones, then progressively wider tables.
+  const { ref: listRef, narrow, width: listWidth } = useNarrow<HTMLDivElement>(600);
+  const full = listWidth >= 1240; // separate PAN and Reviewed columns
+  const merged = listWidth < 860; // order and seller share one column; the status sits under the amount
+  const stackedActions = listWidth < 1000; // Approve above Reject
 
-      {/* Table */}
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : syncRecords.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">No terminal sync records found.</p>
-            <p className="text-xs text-muted-foreground mt-1">Completed BUY orders from Terminal will appear here.</p>
-          </CardContent>
-        </Card>
+  /** Display values for one queue row (the same naming and PAN rules the queue has always used). */
+  const rowView = (record: any) => {
+    const od = record.order_data as any;
+    const verifiedName = od?.verified_name;
+    const rawCounterparty = (record.counterparty_name || '').toString().trim();
+    const hasRealCounterparty = !!rawCounterparty && rawCounterparty !== 'Unknown' && !rawCounterparty.includes('*');
+    const sellerDisplay = verifiedName || (hasRealCounterparty ? rawCounterparty : null);
+    // A name is usable for approval if we have a Binance verified name OR a real (non-masked) counterparty name.
+    const hasUsableName = !!verifiedName || hasRealCounterparty;
+    const isPendingVerifiedName = !hasUsableName && PENDING_SYNC_STATUSES.includes(record.sync_status);
+    const isMaskedName = !hasUsableName && (isPendingVerifiedName || record.counterparty_name?.includes('***'));
+    const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
+    // Prefer the unmasked nickname (terminal stores real nickname here for ASEC + Blynk)
+    const nickRaw = (od?.counterparty_nickname_unmasked || od?.counterparty_nickname || record.counterparty_name || '').toString().trim();
+    // Only show the nickname when it is a separate signal from the displayed verified name
+    const nick = nickRaw && !nickRaw.includes('*') && nickRaw !== sellerDisplay ? nickRaw : null;
+    const mappedClientPan = (record.clients as any)?.pan_card_number?.trim?.() || null;
+    const terminalPan = record.pan_number?.trim?.() || null;
+    // If client is mapped, show ONLY client master PAN to avoid cross-client PAN bleed.
+    // Use terminal PAN only for unmapped rows.
+    const pan: string | null = record.client_id ? mappedClientPan : terminalPan;
+    return {
+      od,
+      sellerDisplay,
+      hasUsableName,
+      isMaskedName,
+      reviewerName,
+      nick,
+      pan,
+      asset: String(od?.asset || 'USDT').toUpperCase(),
+      orderedAt: od?.create_time ? Number(od.create_time) : (record.synced_at || null),
+    };
+  };
+  type RowView = ReturnType<typeof rowView>;
+
+  const listNote = `${syncRecords.length.toLocaleString("en-IN")} ${syncRecords.length === 1 ? "order" : "orders"} from the last 7 days`;
+  const selectedRecords = syncRecords.filter((r: any) => selectedIds.has(r.id));
+
+  const sellerBlock = (v: RowView, withPan = false) => (
+    <div className="flex min-w-0 flex-col items-start gap-0.5">
+      {v.isMaskedName ? (
+        <Chip tone="warning" title="Verified name required before approval">Awaiting verified name</Chip>
       ) : (
-        <div className="border rounded-lg overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8">
-                  <Checkbox
-                    checked={allPendingSelected && pendingRecordsList.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Select all pending"
-                  />
-                </TableHead>
-                <TableHead className="text-xs">Order #</TableHead>
-                <TableHead className="text-xs">Seller</TableHead>
-                <TableHead className="text-xs">Amount (₹)</TableHead>
-                <TableHead className="text-xs">Qty (USDT)</TableHead>
-                <TableHead className="text-xs">Price</TableHead>
-                <TableHead className="text-xs">PAN</TableHead>
-                <TableHead className="text-xs">Status</TableHead>
-                <TableHead className="text-xs">Reviewed By</TableHead>
-                <TableHead className="text-xs">Order Time</TableHead>
-                <TableHead className="text-xs">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {syncRecords.map((record: any) => {
-                const od = record.order_data as any;
-                const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
-                const verifiedName = od?.verified_name;
-                const rawCounterparty = (record.counterparty_name || '').toString().trim();
-                const hasRealCounterparty = !!rawCounterparty && rawCounterparty !== 'Unknown' && !rawCounterparty.includes('*');
-                const sellerDisplay = verifiedName || (hasRealCounterparty ? rawCounterparty : null);
-                // A name is usable for approval if we have a Binance verified name OR a real (non-masked) counterparty name.
-                const hasUsableName = !!verifiedName || hasRealCounterparty;
-                const isPendingVerifiedName = !hasUsableName && PENDING_SYNC_STATUSES.includes(record.sync_status);
-                const isMaskedName = !hasUsableName && (isPendingVerifiedName || record.counterparty_name?.includes('***'));
-                const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
-
-                return (
-                  <TableRow key={record.id}>
-                    <TableCell className="w-8">
-                      {PENDING_SYNC_STATUSES.includes(record.sync_status) ? (
-                        <Checkbox
-                          checked={selectedIds.has(record.id)}
-                          onCheckedChange={() => toggleSelect(record.id)}
-                          aria-label={`Select order ${record.binance_order_number}`}
-                        />
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono whitespace-nowrap">
-                      {record.binance_order_number || '—'}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {isMaskedName ? (
-                        <div className="flex flex-col items-start gap-0.5">
-                          <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20">
-                            Awaiting Verified Name
-                          </Badge>
-                          <ExchangeAccountBadge accountId={record.exchange_account_id} />
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-start gap-0.5">
-                          <span>{sellerDisplay}</span>
-                          {(() => {
-                            // Prefer the unmasked nickname (terminal stores real nickname here for ASEC + Blynk)
-                            const nick = (od?.counterparty_nickname_unmasked || od?.counterparty_nickname || record.counterparty_name || '').toString().trim();
-                            // Only show nickname row when nickname is a separate signal from the displayed verified name
-                            return nick && !nick.includes('*') && nick !== sellerDisplay ? (
-                              <span className="font-mono text-[10px] text-muted-foreground">@{nick}</span>
-                            ) : null;
-                          })()}
-                          <ExchangeAccountBadge accountId={record.exchange_account_id} />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-xs">
-                      {(() => {
-                        const mappedClientPan = (record.clients as any)?.pan_card_number?.trim?.() || null;
-                        const terminalPan = record.pan_number?.trim?.() || null;
-
-                        // If client is mapped, show ONLY client master PAN to avoid cross-client PAN bleed.
-                        // Use terminal PAN only for unmapped rows.
-                        const pan = record.client_id ? mappedClientPan : terminalPan;
-
-                        return pan ? (
-                          <span className="font-mono">{pan}</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <Badge variant={statusCfg.variant} className="text-[10px] w-fit">
-                          {statusCfg.label}
-                        </Badge>
-                        {record.sync_status === 'rejected' && record.rejection_reason && (
-                          <span className="text-[9px] text-muted-foreground max-w-[100px] truncate" title={record.rejection_reason}>
-                            {record.rejection_reason}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {reviewerName ? (
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">{reviewerName}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {od?.create_time ? format(new Date(Number(od.create_time)), 'dd MMM HH:mm') : (record.synced_at ? format(new Date(record.synced_at), 'dd MMM HH:mm') : '—')}
-                    </TableCell>
-                    <TableCell>
-                      {(record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending') && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="h-7 text-[10px] gap-1"
-                            onClick={() => setApprovalRecord(record)}
-                            disabled={isMaskedName || !hasUsableName}
-                            title={isMaskedName || !hasUsableName ? 'Verified name required before approval' : ''}
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                            Approve
-                          </Button>
-                          {hasPermission('terminal_destructive') && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="h-7 text-[10px] gap-1"
-                              onClick={() => setRejectRecord(record)}
-                            >
-                              <XCircle className="h-3 w-3" />
-                              Reject
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <span className="max-w-full truncate font-medium text-foreground" title={v.sellerDisplay || undefined}>
+          {v.sellerDisplay || "—"}
+        </span>
       )}
+      {!v.isMaskedName && v.nick && <span className="max-w-full truncate text-xs text-muted-foreground">@{v.nick}</span>}
+      {withPan && <PanLine pan={v.pan} />}
+    </div>
+  );
+
+  const orderBlock = (record: any, v: RowView) => (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <OrderNo value={record.binance_order_number} tail={6} className="block" />
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+        <span className="whitespace-nowrap tabular-nums">{fmtDateTime(v.orderedAt)}</span>
+        <ExchangeAccountBadge accountId={record.exchange_account_id} />
+      </div>
+    </div>
+  );
+
+  /** Narrow tables: seller, order number and order facts in one cell. */
+  const mergedBlock = (record: any, v: RowView) => (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 items-baseline gap-1.5">
+        {v.isMaskedName ? (
+          <Chip tone="warning" title="Verified name required before approval">Awaiting verified name</Chip>
+        ) : (
+          <span className="min-w-0 truncate font-medium text-foreground" title={v.sellerDisplay || undefined}>
+            {v.sellerDisplay || "—"}
+          </span>
+        )}
+        {!v.isMaskedName && v.nick && <span className="min-w-[3rem] shrink-[3] truncate text-xs text-muted-foreground">@{v.nick}</span>}
+      </div>
+      <OrderNo value={record.binance_order_number} tail={6} className="block" />
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+        <span className="whitespace-nowrap tabular-nums">{fmtDateTime(v.orderedAt)}</span>
+        <Dot />
+        <PanLine pan={v.pan} />
+        <ExchangeAccountBadge accountId={record.exchange_account_id} />
+      </div>
+    </div>
+  );
+
+  const amountBlock = (v: RowView) => (
+    <div className="min-w-0 text-right">
+      <div className="truncate font-semibold tabular-nums text-foreground">{fmtInr(v.od?.total_price)}</div>
+      <div className="flex flex-wrap justify-end gap-x-1 text-xs tabular-nums text-muted-foreground">
+        <span className="whitespace-nowrap">{fmtAssetQty(v.od?.amount, v.asset)}</span>
+        <span className="whitespace-nowrap">@ {fmtRate(v.od?.unit_price)}</span>
+      </div>
+    </div>
+  );
+
+  const reasonLine = (record: any, className?: string) =>
+    record.sync_status === 'rejected' && record.rejection_reason ? (
+      <span className={cn("max-w-full truncate text-xs text-muted-foreground", className)} title={record.rejection_reason}>
+        {record.rejection_reason}
+      </span>
+    ) : null;
+
+  const statusBlock = (record: any, v: RowView, opts: { withReviewer?: boolean; alignEnd?: boolean } = {}) => (
+    <div className={cn("flex min-w-0 flex-col gap-1", opts.alignEnd ? "items-end" : "items-start")}>
+      <SyncStatusChip status={record.sync_status} />
+      {reasonLine(record)}
+      {opts.withReviewer && v.reviewerName && (
+        <span className="max-w-full truncate text-xs text-muted-foreground" title={`Reviewed by ${v.reviewerName}`}>
+          by {v.reviewerName}
+        </span>
+      )}
+    </div>
+  );
+
+  const reviewedBlock = (record: any, v: RowView) =>
+    v.reviewerName ? (
+      <div className="min-w-0">
+        <div className="truncate text-foreground" title={v.reviewerName}>{v.reviewerName}</div>
+        {record.reviewed_at && <div className="truncate text-xs tabular-nums text-muted-foreground">{fmtDateTime(record.reviewed_at)}</div>}
+      </div>
+    ) : (
+      <span className="text-muted-foreground">—</span>
+    );
+
+  const rowActions = (record: any, v: RowView, layout: "row" | "stack" | "card") =>
+    (record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending') ? (
+      <div className={cn("flex gap-1.5", layout === "stack" ? "flex-col items-stretch" : "items-center", layout === "row" && "justify-end")}>
+        <Button
+          variant="default"
+          size="sm"
+          className={cn("gap-1.5 px-2.5 text-xs", layout === "card" ? "h-9 flex-1" : "h-8")}
+          onClick={() => setApprovalRecord(record)}
+          disabled={v.isMaskedName || !v.hasUsableName}
+          title={v.isMaskedName || !v.hasUsableName ? 'Verified name required before approval' : ''}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Approve
+        </Button>
+        {hasPermission('terminal_destructive') && (
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn("gap-1.5 px-2.5 text-xs", REJECT_OUTLINE, layout === "card" ? "h-9 flex-1" : "h-8")}
+            onClick={() => setRejectRecord(record)}
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            Reject
+          </Button>
+        )}
+      </div>
+    ) : null;
+
+  const rowCheckbox = (record: any, large = false) =>
+    PENDING_SYNC_STATUSES.includes(record.sync_status) ? (
+      <Checkbox
+        checked={selectedIds.has(record.id)}
+        onCheckedChange={() => toggleSelect(record.id)}
+        aria-label={`Select order ${record.binance_order_number}`}
+        className={cn(large && "relative h-5 w-5 before:absolute before:-inset-2 before:content-['']")}
+      />
+    ) : null;
+
+  const selectAllCheckbox = (id?: string) => (
+    <Checkbox
+      id={id}
+      checked={allPendingSelected && pendingRecordsList.length > 0}
+      onCheckedChange={toggleSelectAll}
+      aria-label="Select all pending"
+    />
+  );
+
+  const renderTable = () => (
+    <table className={cn(LIST_TABLE, LIST_DENSITY.comfortable, "table-fixed")}>
+      <colgroup>
+        <col className="w-12" />
+        {merged ? (
+          <>
+            <col />
+            <col className="w-[11.5rem]" />
+          </>
+        ) : (
+          <>
+            <col className="w-[12rem]" />
+            <col />
+            <col className={full ? "w-[11.5rem]" : "w-[10.5rem]"} />
+            {full && <col className="w-[7.5rem]" />}
+            <col className={full ? "w-[10.5rem]" : "w-[10rem]"} />
+            {full && <col className="w-[9rem]" />}
+          </>
+        )}
+        <col className={stackedActions ? "w-[7.75rem]" : "w-[13rem]"} />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">
+            <div className="flex items-center">{selectAllCheckbox()}</div>
+          </th>
+          <th scope="col">{merged ? "Order & seller" : "Order"}</th>
+          {!merged && <th scope="col">Seller</th>}
+          <th scope="col" className="text-right">{merged ? "Amount & status" : "Amount"}</th>
+          {full && <th scope="col">PAN</th>}
+          {!merged && <th scope="col">Status</th>}
+          {full && <th scope="col">Reviewed by</th>}
+          <th scope="col" className="text-right"><span className="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {syncRecords.map((record: any) => {
+          const v = rowView(record);
+          return (
+            <tr
+              key={record.id}
+              data-state={selectedIds.has(record.id) ? "selected" : undefined}
+              className="transition-colors hover:bg-muted/30 data-[state=selected]:bg-primary/[0.05]"
+            >
+              <td>
+                <div className="flex items-center">{rowCheckbox(record)}</div>
+              </td>
+              {merged ? (
+                <td>{mergedBlock(record, v)}</td>
+              ) : (
+                <>
+                  <td>{orderBlock(record, v)}</td>
+                  <td>{sellerBlock(v, !full)}</td>
+                </>
+              )}
+              <td className="text-right">
+                {amountBlock(v)}
+                {merged && <div className="mt-1.5">{statusBlock(record, v, { withReviewer: true, alignEnd: true })}</div>}
+              </td>
+              {full && (
+                <td>
+                  <span className={cn("font-mono text-[12px]", v.pan ? "text-foreground" : "text-muted-foreground")}>{v.pan || "—"}</span>
+                </td>
+              )}
+              {!merged && <td>{statusBlock(record, v, { withReviewer: !full })}</td>}
+              {full && <td>{reviewedBlock(record, v)}</td>}
+              <td>{rowActions(record, v, stackedActions ? "stack" : "row")}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+
+  const renderCards = () => (
+    <ul className="divide-y divide-border">
+      {syncRecords.map((record: any) => {
+        const v = rowView(record);
+        return (
+          <li
+            key={record.id}
+            data-state={selectedIds.has(record.id) ? "selected" : undefined}
+            className="flex gap-3 px-3 py-3 data-[state=selected]:bg-primary/[0.05] sm:px-5"
+          >
+            <div className="flex w-5 shrink-0 justify-center pt-0.5">{rowCheckbox(record, true)}</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                {sellerBlock(v)}
+                <SyncStatusChip status={record.sync_status} className="mt-0.5 shrink-0" />
+              </div>
+              <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <span className="text-base font-semibold tabular-nums text-foreground">{fmtInr(v.od?.total_price)}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {fmtAssetQty(v.od?.amount, v.asset)} @ {fmtRate(v.od?.unit_price)}
+                </span>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                <OrderNo value={record.binance_order_number} tail={6} />
+                <Dot />
+                <span className="tabular-nums">{fmtDateTime(v.orderedAt)}</span>
+                <ExchangeAccountBadge accountId={record.exchange_account_id} />
+              </div>
+              <div className="mt-1">
+                <PanLine pan={v.pan} />
+              </div>
+              {v.reviewerName && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Reviewed by {v.reviewerName}
+                  {record.reviewed_at ? `, ${fmtDateTime(record.reviewed_at)}` : ""}
+                </p>
+              )}
+              {record.sync_status === 'rejected' && record.rejection_reason && (
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{record.rejection_reason}</p>
+              )}
+              {(record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending') && (
+                <div className="mt-2.5">{rowActions(record, v, "card")}</div>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const rejectView = rejectRecord ? rowView(rejectRecord) : null;
+
+  return (
+    <>
+      <section className="min-w-0 rounded-lg border border-border bg-card shadow-[var(--shadow-xs)]" aria-label="Terminal purchases">
+        <PanelToolbar>
+          <div className="flex min-w-0 items-center gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 min-w-0 flex-1 sm:w-[190px] sm:flex-none" aria-label="Filter by status">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {pendingCount > 0 && (
+              <Chip tone="warning" className="shrink-0 tabular-nums">{pendingCount} pending</Chip>
+            )}
+          </div>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="h-9 flex-1 gap-1.5 sm:flex-none">
+              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="h-9 flex-1 gap-1.5 sm:flex-none"
+            >
+              {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+              {syncMutation.isPending ? "Syncing…" : "Sync now"}
+            </Button>
+          </div>
+        </PanelToolbar>
+
+        {/* Bulk actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-border/70 bg-muted/40 px-3 py-2 sm:px-5">
+            <span className="mr-1 text-[13px] font-medium tabular-nums text-foreground">{selectedIds.size} selected</span>
+            {hasPermission('terminal_destructive') && (
+              <Button variant="outline" size="sm" className={cn("h-8 gap-1.5 text-xs", REJECT_OUTLINE)} onClick={() => setBulkRejectOpen(true)}>
+                <XCircle className="h-3.5 w-3.5" />
+                Reject selected
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setSelectedIds(new Set())}>
+              Clear selection
+            </Button>
+          </div>
+        )}
+
+        <div ref={listRef}>
+          {isLoading ? (
+            <PanelSkeleton rows={6} label="Loading Terminal purchases" />
+          ) : syncRecords.length === 0 ? (
+            isError ? (
+              <PanelMessage icon={AlertTriangle} tone="danger" title="Couldn't load Terminal purchases">
+                {(error as any)?.message || "Try Refresh in a moment."}
+              </PanelMessage>
+            ) : (
+              <PanelMessage icon={Link2} title={statusFilter === "all" ? "No Terminal purchases to review" : "No orders with this status"}>
+                {statusFilter === "all"
+                  ? "Completed Binance buy orders from the last 7 days appear here."
+                  : "Only orders from the last 7 days are listed. Pick another status to see more."}
+              </PanelMessage>
+            )
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 pb-2 pt-3 sm:px-5">
+                <p className="text-xs text-muted-foreground">{listNote}</p>
+                {narrow && (
+                  <div className="flex items-center gap-2">
+                    {selectAllCheckbox("terminal-sync-select-all")}
+                    <label htmlFor="terminal-sync-select-all" className="cursor-pointer text-xs font-medium text-foreground">
+                      Select all pending
+                    </label>
+                  </div>
+                )}
+              </div>
+              {narrow ? renderCards() : renderTable()}
+            </>
+          )}
+        </div>
+      </section>
 
       {/* Approval Dialog */}
       {approvalRecord && (
@@ -559,67 +767,106 @@ export function TerminalSyncTab() {
 
       {/* Rejection Dialog */}
       <Dialog open={!!rejectRecord} onOpenChange={(open) => { if (!open) { setRejectRecord(null); setRejectionReason(""); } }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">Reject Terminal Order</DialogTitle>
-          </DialogHeader>
-          <div>
-            <Label className="text-xs">Rejection Reason</Label>
-            <Textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Enter reason for rejection..."
-              className="mt-1 text-sm"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => { setRejectRecord(null); setRejectionReason(""); }}>
+        <DialogContent className={dialogContentClass("sm")}>
+          <DialogHead title="Reject Terminal order" description="The order leaves the approval queue and no purchase is created." />
+          <DialogBody className="space-y-4">
+            {rejectRecord && rejectView && (
+              <RecordLine>
+                <OrderNo value={rejectRecord.binance_order_number} tail={6} />
+                <Dot />
+                <span className="min-w-0 truncate">{rejectView.isMaskedName ? "Awaiting verified name" : rejectView.sellerDisplay || "—"}</span>
+                <Dot />
+                <span className="font-semibold tabular-nums">{fmtInr(rejectView.od?.total_price)}</span>
+              </RecordLine>
+            )}
+            <Field label="Rejection reason" htmlFor="terminal-sync-reject-reason" required hint="Saved on the order and shown in the list.">
+              <Textarea
+                id="terminal-sync-reject-reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Why is this order being rejected?"
+                className="text-sm"
+              />
+            </Field>
+          </DialogBody>
+          <DialogFoot>
+            <Button variant="outline" onClick={() => { setRejectRecord(null); setRejectionReason(""); }}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              size="sm"
               onClick={() => rejectMutation.mutate({ id: rejectRecord.id, reason: rejectionReason })}
               disabled={!rejectionReason.trim() || rejectMutation.isPending}
             >
-              {rejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-              Reject
+              {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {rejectMutation.isPending ? "Rejecting…" : "Reject order"}
             </Button>
-          </DialogFooter>
+          </DialogFoot>
         </DialogContent>
       </Dialog>
 
       {/* Bulk Rejection Dialog */}
       <Dialog open={bulkRejectOpen} onOpenChange={(open) => { if (!open) { setBulkRejectOpen(false); setBulkRejectReason(""); } }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">Bulk Reject {selectedIds.size} Orders</DialogTitle>
-          </DialogHeader>
-          <div>
-            <Label className="text-xs">Rejection Reason (applies to all)</Label>
-            <Textarea
-              value={bulkRejectReason}
-              onChange={(e) => setBulkRejectReason(e.target.value)}
-              placeholder="Enter reason for rejection..."
-              className="mt-1 text-sm"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => { setBulkRejectOpen(false); setBulkRejectReason(""); }}>
+        <DialogContent className={dialogContentClass("sm")}>
+          <DialogHead
+            title={`Reject ${selectedIds.size} selected ${selectedIds.size === 1 ? "order" : "orders"}`}
+            description="Every selected order leaves the approval queue with the same reason. No purchases are created."
+          />
+          <DialogBody className="space-y-4">
+            {selectedRecords.length > 0 && (
+              <ul className="max-h-44 divide-y divide-border overflow-y-auto rounded-md border border-border bg-muted/30 text-[13px]">
+                {selectedRecords.map((record: any) => {
+                  const v = rowView(record);
+                  return (
+                    <li key={record.id} className="flex items-center gap-2 px-3 py-1.5">
+                      <OrderNo value={record.binance_order_number} tail={6} className="shrink-0" />
+                      <span className="min-w-0 flex-1 truncate text-foreground">{v.isMaskedName ? "Awaiting verified name" : v.sellerDisplay || "—"}</span>
+                      {!PENDING_SYNC_STATUSES.includes(record.sync_status) && <SyncStatusChip status={record.sync_status} className="shrink-0" />}
+                      <span className="shrink-0 font-medium tabular-nums text-foreground">{fmtInr(v.od?.total_price)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {selectedIds.size > selectedRecords.length && (
+              <p className="text-xs text-muted-foreground">
+                {selectedIds.size - selectedRecords.length} selected {selectedIds.size - selectedRecords.length === 1 ? "order is" : "orders are"} not in the current list.
+              </p>
+            )}
+            <Field label="Rejection reason" htmlFor="terminal-sync-bulk-reject-reason" required hint="Applies to every selected order.">
+              <Textarea
+                id="terminal-sync-bulk-reject-reason"
+                value={bulkRejectReason}
+                onChange={(e) => setBulkRejectReason(e.target.value)}
+                placeholder="Why are these orders being rejected?"
+                className="text-sm"
+              />
+            </Field>
+          </DialogBody>
+          <DialogFoot>
+            <Button variant="outline" onClick={() => { setBulkRejectOpen(false); setBulkRejectReason(""); }}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              size="sm"
               onClick={() => bulkRejectMutation.mutate({ ids: [...selectedIds], reason: bulkRejectReason })}
               disabled={!bulkRejectReason.trim() || bulkRejectMutation.isPending}
             >
-              {bulkRejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-              Reject {selectedIds.size} Orders
+              {bulkRejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {bulkRejectMutation.isPending ? "Rejecting…" : `Reject ${selectedIds.size} ${selectedIds.size === 1 ? "order" : "orders"}`}
             </Button>
-          </DialogFooter>
+          </DialogFoot>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
+  );
+}
+
+/** "PAN ABCDE1234F" (or "PAN —") as one muted line. */
+function PanLine({ pan }: { pan: string | null }) {
+  return (
+    <span className="whitespace-nowrap text-xs text-muted-foreground">
+      PAN <span className={cn("font-mono text-[12px]", pan ? "text-foreground/80" : undefined)}>{pan || "—"}</span>
+    </span>
   );
 }

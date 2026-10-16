@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
 import { useOrderActors, OrderActor } from "@/hooks/useOrderActors";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Clock, UserCheck, Banknote, FileText, CreditCard, CheckCircle, XCircle } from "lucide-react";
+import { User, UserCheck, Banknote, FileText, CreditCard, CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fmtDateTime } from "@/components/orders-ui";
 
 interface TransactionActorsCardProps {
   orderId: string | undefined;
@@ -23,53 +25,69 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   'manual_entry_created': User,
 };
 
-// Color mapping for action types
-const ACTION_COLORS: Record<string, string> = {
-  'order_created': 'text-info',
-  'banking_collected': 'text-primary',
-  'pan_collected': 'text-primary',
-  'added_to_bank': 'text-warning',
-  'payment_created': 'text-success',
+// Colour only where it carries meaning: the step that closed the order.
+const ACTION_TONE: Record<string, string> = {
   'payment_completed': 'text-success',
   'order_completed': 'text-success',
   'order_cancelled': 'text-destructive',
-  'order_edited': 'text-warning',
-  'manual_entry_created': 'text-info',
 };
 
-function ActorRow({ actor }: { actor: OrderActor }) {
+/** "Banking Collected By" → "Banking collected by"; acronyms (PAN) stay; raw action types read as words. */
+function sentenceCase(label: string) {
+  const words = String(label || "").replace(/_/g, " ").trim().split(/\s+/).filter(Boolean);
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : /^[A-Z0-9]{2,}$/.test(w) ? w : w.toLowerCase()))
+    .join(" ");
+}
+
+function ActorRow({ actor, last }: { actor: OrderActor; last: boolean }) {
   const Icon = ACTION_ICONS[actor.actionType] || UserCheck;
-  const colorClass = ACTION_COLORS[actor.actionType] || 'text-muted-foreground';
+  const tone = ACTION_TONE[actor.actionType] || 'text-muted-foreground';
+  const label = sentenceCase(actor.actionLabel);
+  const byLabel = / by$/i.test(label);
 
   return (
-    <div className="flex items-start gap-3 py-2">
-      <div className={cn("mt-0.5", colorClass)}>
-        <Icon className="h-4 w-4" />
+    <li className="relative flex gap-3 pb-3 last:pb-0">
+      {!last && <span aria-hidden className="absolute bottom-0 left-[11px] top-7 w-px bg-border" />}
+      <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card", tone)} aria-hidden>
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <div className="min-w-0 break-words text-[13px] leading-5 text-muted-foreground">
+            {label}
+            {byLabel ? " " : <span aria-hidden> · </span>}
+            {/* Username derived from User ID - primary display */}
+            <span className="font-medium text-foreground">{actor.actorName}</span>
+          </div>
+          <time dateTime={actor.recordedAt} className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {fmtDateTime(actor.recordedAt)}
+          </time>
+        </div>
+        {/* User ID kept as quiet secondary info for audit/traceability */}
+        {actor.actorUserId && (
+          <div className="text-[11px] leading-4 text-muted-foreground" title={actor.actorUserId}>
+            User ID <span className="font-mono">{actor.actorUserId.slice(0, 8)}</span>
+          </div>
+        )}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium">{actor.actionLabel}</span>
-        </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          {/* Username derived from User ID - primary display */}
-          <span className="text-sm text-foreground font-medium">
-            {actor.actorName}
+    </li>
+  );
+}
+
+function ActorsSection({ count, className, children }: { count?: number; className?: string; children: ReactNode }) {
+  return (
+    <section className={cn("min-w-0 space-y-2.5", className)}>
+      <h3 className="flex flex-wrap items-baseline gap-x-1.5 !text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        Transaction actors
+        {count !== undefined && (
+          <span className="text-xs font-normal normal-case tracking-normal">
+            · {count} {count === 1 ? 'action' : 'actions'}
           </span>
-          {/* User ID shown as subtle secondary info for audit/traceability */}
-          {actor.actorUserId && (
-            <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded" title={actor.actorUserId}>
-              ID: {actor.actorUserId.slice(0, 8)}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1 mt-0.5">
-          <Clock className="h-3 w-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
-            {actor.formattedTime}
-          </span>
-        </div>
-      </div>
-    </div>
+        )}
+      </h3>
+      {children}
+    </section>
   );
 }
 
@@ -90,31 +108,23 @@ export function TransactionActorsCard({ orderId, orderStatus, className }: Trans
 
   if (isLoading) {
     return (
-      <div className={cn("border rounded-lg p-4 bg-muted/30 space-y-3", className)}>
-        <div className="flex items-center gap-2">
-          <UserCheck className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium text-sm">Transaction Actors</span>
+      <ActorsSection className={className}>
+        <div className="space-y-2" role="status" aria-busy="true" aria-label="Loading transaction actors">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
         </div>
-        <div className="space-y-2">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      </div>
+      </ActorsSection>
     );
   }
 
   if (error || !actors || actors.allActors.length === 0) {
     return (
-      <div className={cn("border rounded-lg p-4 bg-muted/30", className)}>
-        <div className="flex items-center gap-2">
-          <UserCheck className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium text-sm">Transaction Actors</span>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">
+      <ActorsSection className={className}>
+        <div className="text-xs text-muted-foreground">
           No actor information recorded for this transaction.
-        </p>
-      </div>
+        </div>
+      </ActorsSection>
     );
   }
 
@@ -146,20 +156,12 @@ export function TransactionActorsCard({ orderId, orderStatus, className }: Trans
   });
 
   return (
-    <div className={cn("border rounded-lg p-4 bg-muted/30", className)}>
-      <div className="flex items-center gap-2 mb-2">
-        <UserCheck className="h-4 w-4 text-primary" />
-        <span className="font-medium text-sm">Transaction Actors</span>
-        <span className="text-xs text-muted-foreground">
-          ({sortedActors.length} {sortedActors.length === 1 ? 'action' : 'actions'})
-        </span>
-      </div>
-
-      <div className="divide-y divide-border">
+    <ActorsSection count={sortedActors.length} className={className}>
+      <ol className="min-w-0">
         {sortedActors.map((actor, index) => (
-          <ActorRow key={`${actor.actionType}-${index}`} actor={actor} />
+          <ActorRow key={`${actor.actionType}-${index}`} actor={actor} last={index === sortedActors.length - 1} />
         ))}
-      </div>
-    </div>
+      </ol>
+    </ActorsSection>
   );
 }

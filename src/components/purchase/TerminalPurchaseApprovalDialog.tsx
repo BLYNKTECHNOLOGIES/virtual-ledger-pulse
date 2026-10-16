@@ -2,26 +2,43 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, Plus, Minus, Users } from "lucide-react";
+import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, Plus, Minus, Users, Info, ShoppingBag, Building2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
 import { resolveOrderUserNo, sanitizeVerifiedName, linkClientUserNo } from "@/lib/clientIdentityResolver";
-import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
+import {
+  Callout,
+  Chip,
+  CopyButton,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Facts,
+  Field,
+  FieldGrid,
+  OrderNo,
+  Section,
+  SummaryRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDateTime,
+  fmtInr,
+  fmtRate,
+} from "@/components/orders-ui";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -602,352 +619,349 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     },
   });
 
-  const orderDate = od.create_time ? format(new Date(od.create_time), 'dd MMM yyyy, HH:mm') : '—';
+  const orderDate = od.create_time ? fmtDateTime(od.create_time) : '—';
 
   const isSubmitDisabled = approveMutation.isPending || 
     userNoResolving || !lockedUserNo ||
     !linkedClientId ||
     (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId);
 
+  // ── Presentation only: derived from this record and the state above; nothing here is saved ──
+  const accountId = syncRecord?.exchange_account_id ?? od?.exchange_account_id ?? null;
+  const paymentDetails = od.seller_payment_details && typeof od.seller_payment_details === 'object' ? od.seller_payment_details : null;
+  const paidToName = str(paymentDetails?.accountName);
+  const paidToBank = str(paymentDetails?.bankName);
+  const paidToAccount = str(paymentDetails?.accountNo);
+  const paidToIfsc = str(paymentDetails?.ifscCode);
+  const paidToIsUpi = isUpiPayment || paidToAccount.includes('@');
+  const payMethodLabel = str(paymentDetails?.payType) || od.pay_method || '—';
+  const creditedQty = (parseFloat(od.amount) || 0) - (parseFloat(od.commission) || 0);
+  const feeUsdtHint = isNonUsdt && coinUsdtRate && coinUsdtRate > 0
+    ? `≈ ${formatSmartDecimal(Number(od.commission || 0) * coinUsdtRate, 4)} USDT`
+    : null;
+  // Why Approve is disabled: the conditions of isSubmitDisabled, in the same order.
+  const blockingReason = approveMutation.isPending ? null
+    : userNoResolving ? 'Waiting for the Binance User No…'
+    : !lockedUserNo ? 'Blocked until the Binance User No is inferred'
+    : !linkedClientId ? (duplicateClients.length > 1 ? 'Select the seller client to approve' : 'Create the seller client to approve')
+    : isMultiplePayments
+      ? (!splitAllocation.isValid
+        ? (Math.abs(splitAllocation.remaining) > 0.01 ? `Remaining ${inr2(splitAllocation.remaining)} must be ₹0.00` : 'Choose a bank and an amount on every row')
+        : null)
+      : (!bankAccountId ? 'Select a bank account to approve' : null);
+
+  const bankOption = (b: any) => (
+    <>
+      {b.account_name}
+      <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">{inr2(Number(b.balance))}</span>
+    </>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-base">Approve Terminal Purchase</DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogContentClass("xl")}>
+        <DialogHead
+          icon={ShoppingBag}
+          title="Approve terminal purchase"
+          description="Books this Binance buy as an ERP purchase order and records the bank payment."
+          meta={
+            <>
+              <span className="inline-flex items-center gap-0.5">
+                <OrderNo value={od.order_number} />
+                <CopyButton value={od.order_number} label="Copy order number" />
+              </span>
+              <CachedAccountChip accountId={accountId} />
+            </>
+          }
+        />
 
-        <div className="space-y-4">
-          {/* Read-only Terminal Data */}
-          <Card className="bg-muted/30 border-dashed">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                <Lock className="h-3 w-3" />
-                Terminal Data (Read-Only)
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <LockedField label="Order Number" value={od.order_number} />
-                <LockedField label="Order Date" value={orderDate} />
-                <LockedField label="Asset" value={od.asset || 'USDT'} />
-                <LockedField label="Quantity" value={`${Number(od.amount || 0).toLocaleString('en-IN')} ${assetCode}`} />
-                <LockedField label="Price Per Unit" value={`₹${Number(od.unit_price || 0).toLocaleString('en-IN')}`} />
-                <LockedField label="Total Amount" value={`₹${totalAmount.toLocaleString('en-IN')}`} />
-                <LockedField
-                  label="Commission/Fee"
-                  value={
-                    isNonUsdt && coinUsdtRate && coinUsdtRate > 0
-                      ? `${Number(od.commission || 0).toLocaleString('en-IN')} ${assetCode} ≈ ${formatSmartDecimal(Number(od.commission || 0) * coinUsdtRate, 4)} USDT`
-                      : `${Number(od.commission || 0).toLocaleString('en-IN')} USDT`
-                  }
-                />
-                <LockedField label="Wallet" value={od.wallet_name || '—'} />
-                <LockedField label="Seller Name" value={syncRecord?.counterparty_name || '—'} />
-                <LockedField label="Payment Method" value={od.pay_method || '—'} />
-              </div>
-            </CardContent>
-          </Card>
+        <DialogBody>
+          {/* Read-only Terminal data */}
+          <Section
+            title={sectionTitle("Binance order")}
+            icon={Lock}
+            actions={<span className="text-[11px] text-muted-foreground">Read-only</span>}
+            boxed
+          >
+            <Facts
+              cols={3}
+              className="grid-cols-2"
+              items={[
+                {
+                  label: 'Amount',
+                  value: <span className="text-lg font-semibold leading-7 tabular-nums">{fmtInr(totalAmount)}</span>,
+                  className: 'col-span-2 sm:col-span-1',
+                },
+                { label: 'Quantity', value: <span className="tabular-nums">{fmtAssetQty(od.amount, assetCode)}</span> },
+                { label: `Price per ${assetCode}`, value: <span className="tabular-nums">{fmtRate(od.unit_price)}</span> },
+                { label: 'Fee', value: <span className="tabular-nums">{fmtAssetQty(od.commission, assetCode)}</span>, hint: feeUsdtHint },
+                { label: 'Seller', value: syncRecord?.counterparty_name || '—' },
+                { label: 'Order time', value: orderDate },
+                { label: 'Payment method', value: payMethodLabel },
+                paidToName || paidToBank ? { label: 'Paid to', value: paidToName || '—', hint: paidToBank || undefined } : null,
+                paidToAccount
+                  ? {
+                      label: paidToIsUpi ? 'UPI ID' : 'Account number',
+                      value: paidToAccount,
+                      mono: true,
+                      hint: paidToIfsc ? <span className="font-mono">IFSC {paidToIfsc}</span> : undefined,
+                    }
+                  : null,
+              ]}
+            />
+          </Section>
 
-          {/* Client Mapping */}
-          <Card className="border-info/20 bg-info/10">
-            <CardContent className="p-4 space-y-2">
-              <Label className="text-xs font-semibold">Client Mapping</Label>
+          {/* Client mapping */}
+          <Section title={sectionTitle("Seller client")}>
+            <div className="space-y-3">
+              {userNoResolving && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  Inferring Binance User No for this order…
+                </p>
+              )}
+              {!userNoResolving && !lockedUserNo && (
+                <Callout tone="danger" title="Binance User No not inferred">
+                  Binance User No could not be inferred for this order (proxy issue, rate-limit, or an older order past Binance's identity window). Approval is blocked until it resolves — retry shortly.
+                </Callout>
+              )}
+
               {linkedClientId ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
-                    <Badge variant="outline" className="text-[10px] bg-success/10 text-success">Linked</Badge>
-                    {userNoLocked ? (
-                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-auto flex items-center gap-1">
-                        <Lock className="h-2.5 w-2.5" />
-                        User No Locked
-                      </Badge>
-                    ) : (duplicateClients.length > 1 || autoMatchVia) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-[10px]"
-                        onClick={() => { manualSelectionRef.current = true; setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); }}
-                      >
-                        Change
-                      </Button>
-                    )}
-                  </div>
-                  {(userNoLocked || autoMatchVia === 'userno') && (
-                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                      {userNoLocked && (
-                        <span className="flex items-center gap-1 text-primary" title={`Locked via Binance User No${lockedUserNo ? ` (${lockedUserNo})` : ''}`}>
-                          <Lock className="h-3 w-3" />
-                          Locked
-                        </span>
-                      )}
-                      {autoMatchVia === 'userno' && (
-                        <span className="flex items-center gap-1 text-info" title="Auto-linked by Binance userNo">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Auto-linked
-                        </span>
+                <div className="flex items-start gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <span className="break-words text-[13px] font-medium text-foreground">{linkedClientName || syncRecord?.counterparty_name}</span>
+                      <Chip tone="success">Linked</Chip>
+                      {userNoLocked ? (
+                        <Chip tone="info" className="ml-auto" title={`Locked via Binance User No${lockedUserNo ? ` (${lockedUserNo})` : ''}`}>
+                          <Lock className="h-3 w-3" aria-hidden />
+                          User No locked
+                        </Chip>
+                      ) : (duplicateClients.length > 1 || autoMatchVia) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto h-8"
+                          onClick={() => { manualSelectionRef.current = true; setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); }}
+                        >
+                          Change
+                        </Button>
                       )}
                     </div>
-                  )}
-
+                    {autoMatchVia === 'userno' && (
+                      <p className="mt-0.5 text-xs text-muted-foreground" title="Auto-linked by Binance userNo">
+                        Auto-linked by Binance User No
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : duplicateClients.length > 1 ? (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-warning">
-                    <Users className="h-4 w-4" />
-                    <span className="text-sm font-medium">Multiple clients found with name "{syncRecord?.counterparty_name}" — select the correct one</span>
-                  </div>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  <Callout tone="warning" icon={Users} title={`Multiple clients found with name "${syncRecord?.counterparty_name}" — select the correct one`} />
+                  <div className="max-h-40 space-y-1.5 overflow-y-auto">
                     {duplicateClients.map((client) => (
                       <button
+                        type="button"
                         key={client.id}
                         onClick={() => { manualSelectionRef.current = true; setLinkedClientId(client.id); setLinkedClientName(client.name); setDuplicateClients(duplicateClients); }}
-                        className="w-full text-left p-2 rounded border hover:bg-accent/50 transition-colors text-sm"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{client.name}</span>
-                          <Badge variant="outline" className="text-[9px]">{client.client_id}</Badge>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[13px] font-medium text-foreground">{client.name}</span>
+                          <OrderNo value={client.client_id} className="text-muted-foreground" />
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5 flex gap-3">
-                          <span>📱 {client.phone || 'No phone'}</span>
-                          <span>📍 {client.state || 'No state'}</span>
-                          <span>🆔 PAN: {client.pan_card_number || 'N/A'}</span>
-                          <span>{client.is_seller ? '✅ Seller' : ''} {client.is_buyer ? '✅ Buyer' : ''}</span>
+                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                          <span>Phone {client.phone || '—'}</span>
+                          <span>State {client.state || '—'}</span>
+                          <span>PAN <span className="font-mono">{client.pan_card_number || '—'}</span></span>
+                          {(client.is_seller || client.is_buyer) && (
+                            <span>{[client.is_seller && 'Seller', client.is_buyer && 'Buyer'].filter(Boolean).join(' · ')}</span>
+                          )}
                         </div>
                       </button>
                     ))}
                   </div>
-                  <p className="text-[10px] text-destructive font-medium">⚠ Approval blocked until client is selected</p>
+                  <p className="text-xs font-medium text-destructive">Approval blocked until client is selected</p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-warning" />
-                    <span className="text-sm text-muted-foreground">No matching client found — create to approve</span>
+                <Callout tone="warning" icon={AlertCircle} title="No matching client found — create to approve">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                    <span>Approval blocked until client is created.</span>
                     <Button
+                      type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 text-[10px] gap-1"
+                      className="h-8 gap-1.5"
                       onClick={() => createClientMutation.mutate()}
                       disabled={createClientMutation.isPending}
                     >
-                      {createClientMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                      Create Client
+                      {createClientMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                      Create client
                     </Button>
                   </div>
-                  <p className="text-[10px] text-destructive font-medium">⚠ Approval blocked until client is created</p>
-                </div>
+                </Callout>
               )}
-            </CardContent>
-          </Card>
+
+              <FieldGrid>
+                <Field label="Contact number" htmlFor="tpa-contact">
+                  <Input
+                    id="tpa-contact"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    placeholder="Seller contact number"
+                    maxLength={15}
+                    inputMode="tel"
+                  />
+                </Field>
+                <Field label="State" htmlFor="tpa-state">
+                  <Select value={clientState} onValueChange={setClientState}>
+                    <SelectTrigger id="tpa-state">
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {INDIAN_STATES_AND_UTS.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </FieldGrid>
+            </div>
+          </Section>
 
           {/* Data Conflict Banner */}
           <DataConflictBanner conflicts={dataConflicts} />
 
           {/* TDS & PAN */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs">TDS Option</Label>
-              <Select value={tdsOption} onValueChange={(v) => setTdsOption(v as any)}>
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border border-border shadow-sm z-50">
-                  <SelectItem value="none">No TDS</SelectItem>
-                  <SelectItem value="1%">1% TDS (PAN available)</SelectItem>
-                  <SelectItem value="20%">20% TDS (No PAN)</SelectItem>
-                </SelectContent>
-              </Select>
-              {tdsOption !== 'none' && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  TDS: ₹{tdsAmount.toLocaleString('en-IN')} | Net Payable: ₹{netPayable.toLocaleString('en-IN')}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <Label className="text-xs">PAN Number</Label>
-              <Input
-                value={panNumber}
-                onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                placeholder="ABCDE1234F"
-                className="mt-1 h-9 text-sm font-mono"
-                maxLength={10}
-              />
-            </div>
-          </div>
-
-          {/* Contact Number & State */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs">Contact Number</Label>
-              <Input
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
-                placeholder="Seller contact number"
-                className="mt-1 h-9 text-sm"
-                maxLength={15}
-              />
-            </div>
-            <div>
-              <Label className="text-xs">State</Label>
-              <Select value={clientState} onValueChange={setClientState}>
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border z-50 max-h-[200px]">
-                  {INDIAN_STATES_AND_UTS.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Bank Account with Split Payment Toggle */}
-          <div className="grid grid-cols-2 gap-4 items-start">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label className="text-xs">Bank Account (Deduction)</Label>
-                <div className="flex items-center gap-1.5">
-                  <Checkbox
-                    id="split_payment_toggle"
-                    checked={isMultiplePayments}
-                    onCheckedChange={(checked) => {
-                      setIsMultiplePayments(checked === true);
-                      if (checked) {
-                        setPaymentSplits([{
-                          bank_account_id: bankAccountId || '',
-                          amount: netPayable > 0 ? netPayable.toFixed(2) : ''
-                        }]);
-                      } else {
-                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="split_payment_toggle" className="text-[10px] text-muted-foreground cursor-pointer whitespace-nowrap">
-                    Split Payment
-                  </Label>
-                </div>
+          <Section title={sectionTitle("Tax")}>
+            <FieldGrid>
+              <Field label="TDS" htmlFor="tpa-tds">
+                <Select value={tdsOption} onValueChange={(v) => setTdsOption(v as any)}>
+                  <SelectTrigger id="tpa-tds">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No TDS</SelectItem>
+                    <SelectItem value="1%">1% TDS (with PAN)</SelectItem>
+                    <SelectItem value="20%">20% TDS (without PAN)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="PAN number" htmlFor="tpa-pan" required={tdsOption === '1%'}>
+                <Input
+                  id="tpa-pan"
+                  value={panNumber}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                  placeholder="ABCDE1234F"
+                  className="font-mono"
+                  maxLength={10}
+                />
+              </Field>
+            </FieldGrid>
+            {tdsOption !== 'none' && (
+              <div className="mt-3 rounded-lg border border-border bg-card px-3 py-1">
+                <SummaryRow label="Order amount" value={fmtInr(totalAmount)} />
+                <SummaryRow label={`TDS at ${tdsOption}`} value={`−${fmtInr(tdsAmount)}`} />
+                <SummaryRow label="Net payable" value={fmtInr(netPayable)} strong />
               </div>
-              {!isMultiplePayments ? (
+            )}
+          </Section>
+
+          {/* Bank account with split payment toggle */}
+          <Section
+            title={sectionTitle("Payment")}
+            actions={
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="split_payment_toggle"
+                  checked={isMultiplePayments}
+                  onCheckedChange={(checked) => {
+                    setIsMultiplePayments(checked === true);
+                    if (checked) {
+                      setPaymentSplits([{
+                        bank_account_id: bankAccountId || '',
+                        amount: netPayable > 0 ? netPayable.toFixed(2) : ''
+                      }]);
+                    } else {
+                      setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                    }
+                  }}
+                />
+                <Label htmlFor="split_payment_toggle" className="cursor-pointer text-xs font-medium text-muted-foreground">
+                  Split payment
+                </Label>
+              </div>
+            }
+          >
+            {!isMultiplePayments ? (
+              <Field label="Bank account" htmlFor="tpa-bank" hint={`The net payable of ${fmtInr(netPayable)} is deducted from this account.`}>
                 <Select value={bankAccountId} onValueChange={setBankAccountId}>
-                  <SelectTrigger className="h-9 text-sm">
+                  <SelectTrigger id="tpa-bank">
                     <SelectValue placeholder="Select bank" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover border border-border shadow-sm z-50">
+                  <SelectContent>
                     {bankAccounts.map((b: any) => (
                       <SelectItem key={b.id} value={b.id}>
-                        {b.account_name} - ₹{Number(b.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {bankOption(b)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
-                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-9 flex items-center">
-                  Configure below
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label className="text-xs">Order Date & Time</Label>
-              <Input
-                type="datetime-local"
-                value={settlementDate.slice(0, 16)}
-                disabled
-                className="mt-1 h-9 text-sm bg-muted"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Actual Binance order time (not editable)</p>
-            </div>
-          </div>
-
-          {/* Split Payment Distribution */}
-          {isMultiplePayments && (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="font-medium text-sm">Payment Distribution</Label>
-                    {splitAllocation.isValid ? (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
+              </Field>
+            ) : (
+              <div className="space-y-2">
+                <div className="hidden grid-cols-[9rem_minmax(0,1fr)_2.25rem] gap-2 px-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground sm:grid" aria-hidden>
+                  <span>Amount (₹)</span>
+                  <span>Bank account</span>
+                  <span />
                 </div>
 
-                {/* Status Bar */}
-                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-[10px] mb-1">Net Payable</div>
-                    <div className="font-semibold text-xs">₹{netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                {paymentSplits.map((split, index) => (
+                  <div key={index} className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2 rounded-lg border border-border/70 p-2 sm:grid-cols-[9rem_minmax(0,1fr)_2.25rem] sm:rounded-none sm:border-0 sm:p-0">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={split.amount}
+                      onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                      placeholder="0.00"
+                      aria-label={`Amount for bank ${index + 1} (₹)`}
+                      className="col-start-1 row-start-1 tabular-nums"
+                    />
+                    <Select
+                      value={split.bank_account_id}
+                      onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                    >
+                      <SelectTrigger
+                        aria-label={`Bank account ${index + 1}`}
+                        className="col-span-2 row-start-2 sm:col-span-1 sm:col-start-2 sm:row-start-1"
+                      >
+                        <SelectValue placeholder="Select bank" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bankAccounts.map((account: any) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {bankOption(account)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removePaymentSplit(index)}
+                      disabled={paymentSplits.length === 1}
+                      aria-label={`Remove bank ${index + 1}`}
+                      title="Remove this bank"
+                      className="col-start-2 row-start-1 h-9 w-9 text-muted-foreground sm:col-start-3"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="text-center border-x">
-                    <div className="text-muted-foreground text-[10px] mb-1">Allocated</div>
-                    <div className="font-medium text-xs">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-[10px] mb-1">Remaining</div>
-                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? "text-success" : "text-destructive"}`}>
-                      ₹{splitAllocation.remaining.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Rows */}
-                <div className="space-y-2">
-                  <div className="grid grid-cols-12 gap-2 text-[10px] text-muted-foreground px-1">
-                    <div className="col-span-4">Amount (₹)</div>
-                    <div className="col-span-7">Bank Account</div>
-                    <div className="col-span-1"></div>
-                  </div>
-
-                  {paymentSplits.map((split, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-4">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={split.amount}
-                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
-                          placeholder="0.00"
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <div className="col-span-7">
-                        <Select
-                          value={split.bank_account_id}
-                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue placeholder="Select bank" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover border border-border shadow-sm z-50">
-                            {bankAccounts.map((account: any) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-1 flex justify-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removePaymentSplit(index)}
-                          disabled={paymentSplits.length === 1}
-                          className="h-8 w-8"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                ))}
 
                 <Button
                   type="button"
@@ -956,60 +970,126 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                   onClick={addPaymentSplit}
                   className="w-full"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Another Bank
+                  <Plus className="h-4 w-4" />
+                  Add another bank
                 </Button>
-              </CardContent>
-            </Card>
-          )}
 
+                <div className="rounded-lg border border-border bg-card px-3 py-1">
+                  <SummaryRow label="Net payable" value={inr2(netPayable)} />
+                  <SummaryRow label="Allocated" value={inr2(splitAllocation.totalAllocated)} />
+                  <SummaryRow
+                    label="Remaining"
+                    value={inr2(splitAllocation.remaining)}
+                    tone={splitAllocation.isValid ? 'positive' : 'negative'}
+                    strong
+                  />
+                </div>
+              </div>
+            )}
+          </Section>
 
-          <div>
-            <Label className="text-xs">Remarks</Label>
+          {/* Wallet and the (read-only) Binance order time */}
+          <Section title={sectionTitle("Wallet and date")}>
+            <FieldGrid>
+              <Field
+                label="Credit wallet"
+                hint={creditedQty > 0 ? `Receives ${fmtAssetQty(creditedQty, assetCode)} (quantity minus fee)` : undefined}
+              >
+                <div className="flex h-9 min-w-0 items-center rounded-lg border border-dashed border-border bg-muted/40 px-3 text-sm text-foreground">
+                  <span className="truncate">{od.wallet_name || '—'}</span>
+                </div>
+              </Field>
+              <Field label="Order date & time (UTC)" htmlFor="tpa-order-time" hint="Actual Binance order time (not editable)">
+                <Input
+                  id="tpa-order-time"
+                  type="datetime-local"
+                  value={settlementDate.slice(0, 16)}
+                  disabled
+                  className="border-dashed bg-muted/40 tabular-nums disabled:cursor-default disabled:opacity-100"
+                />
+              </Field>
+            </FieldGrid>
+          </Section>
+
+          <Field label="Remarks" htmlFor="tpa-remarks" hint="Added to the purchase order description.">
             <Textarea
+              id="tpa-remarks"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Optional remarks..."
-              className="mt-1 text-sm"
+              placeholder="Optional remarks…"
+              className="min-h-[64px]"
               rows={2}
             />
-          </div>
-        </div>
+          </Field>
+        </DialogBody>
 
-        {userNoResolving && (
-          <p className="text-[11px] text-amber-500 mb-1">Inferring Binance User No for this order…</p>
-        )}
-        {!userNoResolving && !lockedUserNo && (
-          <div className="mb-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
-            <p className="text-[11px] text-destructive">
-              Binance User No could not be inferred for this order (proxy issue, rate-limit, or an older order past Binance's identity window). Approval is blocked until it resolves — retry shortly.
-            </p>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+        <DialogFoot
+          start={
+            blockingReason ? (
+              <span className="flex items-center gap-1.5">
+                {userNoResolving ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden /> : <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                {blockingReason}
+              </span>
+            ) : undefined
+          }
+        >
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            size="sm"
+            type="button"
             onClick={() => approveMutation.mutate()}
             disabled={isSubmitDisabled}
           >
-            {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
-            Approve & Create Purchase
+            {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            {approveMutation.isPending ? 'Approving…' : 'Approve & create purchase'}
           </Button>
-        </DialogFooter>
+        </DialogFoot>
       </DialogContent>
     </Dialog>
   );
 }
 
-function LockedField({ label, value }: { label: string; value: string }) {
+/* ── Presentation helpers (private to this dialog) ─────────────────────── */
+
+/**
+ * Section heading text. Sized here too because a global phone rule in index.css
+ * (max-width 767px: h3 { font-size: 1rem !important }) would otherwise blow the kit's 11px label up to 16px.
+ */
+function sectionTitle(text: string) {
+  return <span className="text-[11px] leading-4">{text}</span>;
+}
+
+/** Trimmed display string ("" for null / undefined). */
+function str(value: unknown): string {
+  return value === null || value === undefined ? "" : String(value).trim();
+}
+
+/** ₹ with Indian grouping and exactly two decimals (₹47,768.24, ₹0.00). Display only. */
+function inr2(value: number): string {
+  const n = Math.abs(value) < 0.005 ? 0 : value;
+  return `${n < 0 ? "-" : ""}₹${Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Exchange-account chip read from the ['exchange-account-map'] cache that the lists' account badges
+ * fill. It never fetches, so it is simply absent when nothing has cached the map yet.
+ */
+function CachedAccountChip({ accountId, className }: { accountId?: string | null; className?: string }) {
+  const queryClient = useQueryClient();
+  if (!accountId) return null;
+  const map = queryClient.getQueryData(["exchange-account-map"]) as Map<string, { account_name?: string | null; color?: string | null }> | undefined;
+  const account = map instanceof Map ? map.get(accountId) : undefined;
+  if (!account?.account_name) return null;
+  const label = account.account_name.replace(/\s*binance\s*$/i, "").trim() || account.account_name;
   return (
-    <div>
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-      <p className="text-xs font-medium text-foreground">{value}</p>
-    </div>
+    <Chip tone="neutral" title={account.account_name} className={cn("max-w-full", className)}>
+      {account.color ? (
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: account.color }} />
+      ) : (
+        <Building2 className="h-3 w-3 shrink-0" aria-hidden />
+      )}
+      <span className="truncate">{label}</span>
+    </Chip>
   );
 }

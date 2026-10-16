@@ -1,13 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, ShoppingBag, Filter, Search, Link2, Package } from "lucide-react";
+import { Download, CheckCircle2, Link2, Package, Shield } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { FilterChip } from "@/components/ui/filter-chip";
 import { format } from "date-fns";
 import { TerminalSyncTab } from "@/components/purchase/TerminalSyncTab";
 import { SmallBuysSyncTab } from "@/components/purchase/SmallBuysSyncTab";
@@ -18,12 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompletedPurchaseOrders } from "@/components/purchase/CompletedPurchaseOrders";
 import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseEntryDialog";
 import { PermissionGate } from "@/components/PermissionGate";
-import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
+import { DateRangeFilter, PanelToolbar, SUBNAV_LIST, SUBNAV_TRIGGER, SearchField, TabCount, fmtDate } from "@/components/orders-ui";
 
+/** The purchase date filter has always held the picked day at UTC midnight (new Date("yyyy-MM-dd")). */
+const toUtcDay = (d: Date | undefined) => (d ? new Date(format(d, "yyyy-MM-dd")) : undefined);
 
 export default function Purchase() {
   const navigate = useNavigate();
@@ -37,6 +35,7 @@ export default function Purchase() {
   const [isExporting, setIsExporting] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [filterAssetType, setFilterAssetType] = useState<string>("");
@@ -427,179 +426,146 @@ export default function Purchase() {
     }
   };
 
+  // The search box updates the list 300 ms after typing stops (one search per pause, not per keystroke).
+  useEffect(() => {
+    if (searchInput === searchTerm) return;
+    const t = window.setTimeout(() => setSearchTerm(searchInput), 300);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   const clearFilters = () => {
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
     setFilterAssetType("");
     setSearchTerm("");
+    setSearchInput("");
     setShowFilterDialog(false);
   };
+
+  const filtersOn = Boolean(searchTerm.trim() || filterDateFrom || filterDateTo || filterAssetType);
+
+  const toolbar = (
+    <>
+      <PanelToolbar>
+        <SearchField
+          value={searchInput}
+          onValueChange={setSearchInput}
+          label="Search purchase orders"
+          placeholder="Order no., supplier, phone, description"
+          data-page-search
+          containerClassName="sm:min-w-[240px] sm:flex-1"
+        />
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
+            <SelectTrigger className="h-9 sm:w-[140px]" aria-label="Filter by asset">
+              <SelectValue placeholder="All assets" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All assets</SelectItem>
+              {assetOptions.map((asset) => (
+                <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DateRangeFilter
+            from={filterDateFrom}
+            to={filterDateTo}
+            onFromChange={(d) => setFilterDateFrom(toUtcDay(d))}
+            onToChange={(d) => setFilterDateTo(toUtcDay(d))}
+            className="sm:w-[210px]"
+          />
+        </div>
+      </PanelToolbar>
+      {filtersOn && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border/70 px-3 py-2.5 sm:px-5">
+          {searchTerm.trim() && (
+            <FilterChip label="Search:" value={searchTerm} onRemove={() => { setSearchTerm(""); setSearchInput(""); }} />
+          )}
+          {filterAssetType && <FilterChip label="Asset:" value={filterAssetType} onRemove={() => setFilterAssetType("")} />}
+          {filterDateFrom && <FilterChip label="From:" value={fmtDate(filterDateFrom)} onRemove={() => setFilterDateFrom(undefined)} />}
+          {filterDateTo && <FilterChip label="To:" value={fmtDate(filterDateTo)} onRemove={() => setFilterDateTo(undefined)} />}
+          <Button variant="link" size="sm" className="h-auto px-1 py-0 text-xs" onClick={clearFilters}>
+            Clear all
+          </Button>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <PermissionGate
       permissions={["purchase_view"]}
       fallback={
-        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center page-mount">
-          <Card className="w-full max-w-md">
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <Shield className="h-12 w-12 text-muted-foreground" />
-                <div>
-                  <h2 className="text-xl font-semibold">Access Denied</h2>
-                  <p className="text-muted-foreground mt-2">
-                    You don't have permission to access Purchase Management.
-                  </p>
-                </div>
-                <Button onClick={() => navigate("/dashboard")}>
-                  Return to Dashboard
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex min-h-[60vh] items-center justify-center p-6 page-mount">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 text-center shadow-sm">
+            <Shield className="mx-auto h-10 w-10 text-muted-foreground" />
+            <h2 className="mt-3 text-lg font-semibold text-foreground">Access Denied</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You don't have permission to access Purchase Management.
+            </p>
+            <Button className="mt-4" onClick={() => navigate("/dashboard")}>
+              Return to Dashboard
+            </Button>
+          </div>
         </div>
       }
     >
-    <div className="min-h-screen bg-muted/50 p-3 md:p-6">
-      <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
-        <div className="px-4 md:px-6 py-4 md:py-8">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-3">
-                <span className="p-2 md:p-3 bg-primary/10 rounded-xl shadow-sm">
-                  <ShoppingBag className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-                </span>
-                Purchase Order Management
-              </span>
-            }
-            description="Manage purchases and orders"
-            actions={
-              <>
-                <Button variant="outline" onClick={handleExportCSV} disabled={isExporting} size="sm" className="flex-shrink-0 whitespace-nowrap">
-                  <Download className="h-4 w-4 mr-1 md:mr-2" />
-                  <span className="hidden sm:inline">{isExporting ? 'Exporting…' : 'Export CSV'}</span>
-                </Button>
+    <div className="mx-auto w-full max-w-[1440px] space-y-4 p-3 sm:space-y-5 sm:p-6">
+      <PageHeader
+        title="Purchase orders"
+        description="ERP purchase orders, Terminal purchases waiting for approval, and clubbed small buys."
+        actions={
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+            <Button variant="outline" onClick={handleExportCSV} disabled={isExporting} size="sm" className="h-9 gap-1.5" aria-label="Export purchase orders as CSV">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">{isExporting ? 'Exporting…' : 'Export CSV'}</span>
+            </Button>
+            <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
+              <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
+            </PermissionGate>
+          </div>
+        }
+      />
 
-                <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
-                  <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-                </PermissionGate>
-              </>
-            }
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className={SUBNAV_LIST}>
+          <TabsTrigger value="completed" className={SUBNAV_TRIGGER}>
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Completed
+            {ordersSummary?.completed ? <TabCount value={ordersSummary.completed} /> : null}
+          </TabsTrigger>
+          <TabsTrigger value="terminal_sync" className={SUBNAV_TRIGGER}>
+            <Link2 className="h-3.5 w-3.5" />
+            Terminal sync
+            {terminalSyncCount > 0 ? <TabCount value={terminalSyncCount} attention /> : null}
+          </TabsTrigger>
+          <TabsTrigger value="small_buys" className={SUBNAV_TRIGGER}>
+            <Package className="h-3.5 w-3.5" />
+            Small buys
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="completed" className="mt-0">
+          <CompletedPurchaseOrders
+            searchTerm={searchTerm}
+            dateFrom={filterDateFrom}
+            dateTo={filterDateTo}
+            assetType={filterAssetType}
+            toolbar={toolbar}
+            totalCount={ordersSummary?.completed}
+            onClearFilters={clearFilters}
           />
+        </TabsContent>
 
-        </div>
-      </div>
+        <TabsContent value="terminal_sync" className="mt-0">
+          <TerminalSyncTab />
+        </TabsContent>
 
-      {/* Search and Filter */}
-      <Card className="mb-4">
-        <CardContent className="p-3 md:p-4">
-          <div className="flex gap-2 md:gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted-foreground hidden md:block" />
-                <Input 
-                  placeholder="Search orders..." 
-                  data-page-search
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-            </div>
-            <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-              <Button variant="outline" onClick={() => setShowFilterDialog(true)} size="sm">
-                <Filter className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Filter</span>
-              </Button>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Filter Purchase Orders</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Date From</Label>
-                      <Input 
-                        type="date" 
-                        value={filterDateFrom ? format(filterDateFrom, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => setFilterDateFrom(e.target.value ? new Date(e.target.value) : undefined)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Date To</Label>
-                      <Input 
-                        type="date" 
-                        value={filterDateTo ? format(filterDateTo, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => setFilterDateTo(e.target.value ? new Date(e.target.value) : undefined)}
-                      />
-                    </div>
-                  </div>
-                   <div>
-                     <Label>Asset Type</Label>
-                     <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
-                       <SelectTrigger>
-                         <SelectValue placeholder="All asset types" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="all">All asset types</SelectItem>
-                         {assetOptions.map((asset) => (
-                           <SelectItem key={asset} value={asset}>{asset}</SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                  <div className="flex justify-between pt-2">
-                    <Button variant="outline" onClick={clearFilters}>Clear</Button>
-                    <Button onClick={() => setShowFilterDialog(false)}>Apply</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Purchase Orders Tabs */}
-        <Card className="w-full">
-        <CardContent className="p-3 md:p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4 md:mb-6 h-auto">
-              <TabsTrigger value="completed" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
-                <span className="truncate">Completed</span>
-                {ordersSummary?.completed ? (
-                  <Badge variant="default" className="text-xs">{ordersSummary.completed}</Badge>
-                ) : null}
-              </TabsTrigger>
-              <TabsTrigger value="terminal_sync" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
-                <Link2 className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="truncate">Terminal Sync</span>
-                {terminalSyncCount > 0 ? (
-                  <Badge variant="default" className="text-xs">{terminalSyncCount}</Badge>
-                ) : null}
-              </TabsTrigger>
-              <TabsTrigger value="small_buys" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
-                <Package className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="truncate">Small Buys</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="completed">
-              <CompletedPurchaseOrders 
-                searchTerm={searchTerm}
-                dateFrom={filterDateFrom}
-                dateTo={filterDateTo}
-                assetType={filterAssetType}
-              />
-            </TabsContent>
-
-            <TabsContent value="terminal_sync">
-              <TerminalSyncTab />
-            </TabsContent>
-
-            <TabsContent value="small_buys">
-              <SmallBuysSyncTab />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+        <TabsContent value="small_buys" className="mt-0">
+          <SmallBuysSyncTab />
+        </TabsContent>
+      </Tabs>
     </div>
     </PermissionGate>
   );

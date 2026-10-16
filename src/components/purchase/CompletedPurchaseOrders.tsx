@@ -1,21 +1,36 @@
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClickableRow } from "@/components/transaction-detail";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { format } from "date-fns";
-import { CheckCircle, Eye, Edit, Trash2 } from "lucide-react";
+import { AlertTriangle, Edit, Eye, ShoppingBag, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { useNavigateToClient } from "@/hooks/useNavigateToClient";
 import { usePermissions } from "@/hooks/usePermissions";
+import { TablePager } from "@/components/finance-ui/primitives";
+import { cn } from "@/lib/utils";
+import {
+  LIST_TABLE,
+  ListNote,
+  OrderNo,
+  PanelMessage,
+  PanelSkeleton,
+  fmtAssetQty,
+  fmtDate,
+  fmtInr,
+  fmtRate,
+  fmtTime,
+  personLabel,
+  rowOpenHandlers,
+  useListPages,
+  useNarrow,
+} from "@/components/orders-ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,8 +78,17 @@ const escapePostgrestOrValue = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-
-export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetType }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date; assetType?: string }) {
+export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetType, toolbar, totalCount, onClearFilters }: {
+  searchTerm?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  assetType?: string;
+  /** Search and filter controls, shown at the top of the list panel (presentation only). */
+  toolbar?: ReactNode;
+  /** All-time count of completed orders, for the "latest 100 of N" note. */
+  totalCount?: number;
+  onClearFilters?: () => void;
+}) {
   const normalizedSearch = normalizeSearch(searchTerm);
   const normalizedAsset = (assetType || '').trim();
   // Asset filtering is applied client-side (derived from joined product fields),
@@ -228,30 +252,6 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
   const displayError = hasServerFilter ? searchError : completedError;
   const displayIsError = hasServerFilter ? isSearchError : isCompletedError;
 
-  if (displayIsLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center py-8 text-muted-foreground">
-            {hasServerFilter ? 'Searching completed orders...' : 'Loading recent completed orders...'}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (displayIsError) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center py-8 text-destructive">
-            {(displayError as Error)?.message || 'Unable to load completed purchase orders.'}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const filteredOrders = sourceOrders.filter((order: any) => {
     const term = normalizedSearch.toLowerCase();
     const selectedAsset = (assetType || '').toUpperCase();
@@ -302,226 +302,290 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
     return '-';
   };
 
-  // Mobile card view
-  const renderMobileCard = (order: any) => (
-    <Card key={order.id} className="mb-3">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <p className="font-mono text-sm font-medium">{order.order_number}</p>
-            <p className="font-semibold text-lg">{order.supplier_name}</p>
-          </div>
-          <Badge className="bg-success/10 text-success">Completed</Badge>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-          <div>
-            <span className="text-muted-foreground">Amount:</span>
-            <p className="font-medium">₹{order.total_amount?.toLocaleString('en-IN')}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Quantity:</span>
-            <p className="font-medium">{order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || 0}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Platform:</span>
-            <p className="font-medium">{getWalletName(order)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Date:</span>
-            <p className="font-medium">
-              {format(new Date(order.order_date), 'MMM dd')}{' '}
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(order.created_at || order.order_date), 'HH:mm')}
-              </span>
-            </p>
-          </div>
-          <div className="col-span-2">
-            <span className="text-muted-foreground">Created By:</span>
-            <p className="font-medium">
-              {(order as any).created_by_user 
-                ? ((order as any).created_by_user.first_name || (order as any).created_by_user.username)
-                : <span className="text-muted-foreground">N/A</span>}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2 pt-2 border-t flex-wrap">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => setSelectedOrderForDetails(order)}
-            className="text-info flex-1"
+  /* ── Presentation ─────────────────────────────────────────────────────── */
+
+  const PAGE_SIZE = 25;
+  // One layout for the room the list really has: cards on phones, then progressively wider tables.
+  const { ref: listRef, narrow, width: listWidth } = useNarrow<HTMLDivElement>(600);
+  const wide = listWidth >= 1120; // separate "Created by" column
+  const merged = listWidth < 880; // order and supplier share one column
+  const iconActions = listWidth < 1000; // View / Edit as icons only
+
+  // Keeps the page across deletes and refetches; back to page 1 when the search or a filter changes.
+  const paged = useListPages(
+    filteredOrders,
+    PAGE_SIZE,
+    `${normalizedSearch}|${normalizedAsset}|${dateFrom?.getTime() ?? ""}|${dateTo?.getTime() ?? ""}`,
+  );
+
+  // A ?orderId= link lands on the page that holds the order (once), so the page's highlight can find it.
+  const deepLinkOrderId = useMemo(() => new URLSearchParams(window.location.search).get("orderId"), []);
+  const sourceLength = sourceOrders.length;
+  const deepLinkDone = useRef(false);
+  useEffect(() => {
+    if (deepLinkDone.current || !deepLinkOrderId || !sourceLength) return;
+    deepLinkDone.current = true;
+    const i = filteredOrders.findIndex((o: any) => o.id === deepLinkOrderId);
+    if (i >= PAGE_SIZE) paged.setPage(Math.floor(i / PAGE_SIZE));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkOrderId, sourceLength]);
+
+  const assetOf = (order: any) =>
+    String(order.purchase_order_items?.[0]?.products?.code || order.product_category || order.product_name || 'USDT').trim().toUpperCase();
+  const qtyOf = (order: any) =>
+    order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || order.quantity || 0;
+  const unitPriceOf = (order: any) => order.purchase_order_items?.[0]?.unit_price || Number(order.price_per_unit || order.total_amount);
+  const priceLine = (order: any) => `${fmtAssetQty(formatSmartDecimal(qtyOf(order)), assetOf(order))} @ ${fmtRate(unitPriceOf(order))}`;
+  const orderedAt = (order: any) => `${fmtDate(order.order_date)} · ${fmtTime(order.created_at || order.order_date)}`;
+  const metaLine = (order: any) => `${orderedAt(order)} · ${getWalletName(order)} · by ${personLabel(order.created_by_user) ?? "—"}`;
+  const tdsLine = (order: any) =>
+    order.tds_applied && Number(order.tds_amount) > 0
+      ? `TDS ${fmtInr(order.tds_amount)} · paid ${fmtInr(order.net_payable_amount ?? order.total_amount)}`
+      : null;
+  const listTotal = filteredOrders.reduce((sum: number, o: any) => sum + (Number(o.total_amount) || 0), 0);
+
+  const listNote = () => {
+    const n = filteredOrders.length;
+    const noun = n === 1 ? "order" : "orders";
+    if (hasServerFilter) return `${n.toLocaleString("en-IN")} matching ${noun} · ${fmtInr(listTotal)}`;
+    if (sourceOrders.length >= DEFAULT_COMPLETED_LIMIT) {
+      return `Latest ${DEFAULT_COMPLETED_LIMIT}${totalCount ? ` of ${totalCount.toLocaleString("en-IN")}` : ""} completed orders. Search or filter to reach older ones.`;
+    }
+    return `${n.toLocaleString("en-IN")} ${noun} · ${fmtInr(listTotal)}`;
+  };
+
+  const supplierButton = (order: any, className?: string) => (
+    <button
+      type="button"
+      onClick={() => navigateToClient(order.supplier_name)}
+      className={cn("max-w-full truncate text-left font-medium text-primary hover:underline focus-visible:underline focus-visible:outline-none", className)}
+      title={`Open ${order.supplier_name} in Clients`}
+    >
+      {order.supplier_name}
+    </button>
+  );
+
+  /** View / Edit / Delete. */
+  const rowActions = (order: any, { iconOnly = false } = {}) => (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setSelectedOrderForDetails(order)}
+        className={cn("h-8 gap-1.5 text-xs", iconOnly ? "w-8 p-0" : "px-2.5")}
+        aria-label={`View order ${order.order_number}`}
+        title="View order"
+      >
+        <Eye className="h-3.5 w-3.5" />
+        {!iconOnly && "View"}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setSelectedOrderForEdit(order)}
+        className={cn("h-8 gap-1.5 text-xs", iconOnly ? "w-8 p-0" : "px-2.5")}
+        aria-label={`Edit order ${order.order_number}`}
+        title="Edit order"
+      >
+        <Edit className="h-3.5 w-3.5" />
+        {!iconOnly && "Edit"}
+      </Button>
+      {hasPermission('erp_destructive') && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setOrderToDelete(order);
+            // As before: the old page showed this toast from its desktop table (md and up) only, not from the phone cards.
+            if (window.matchMedia("(min-width: 768px)").matches) {
+              toast({
+                title: "Delete requested",
+                description: `Confirm deletion for order ${order.order_number}.`,
+              });
+            }
+          }}
+          disabled={deleteMutation.isPending}
+          className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`Delete order ${order.order_number}`}
+          title="Delete order"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </>
+  );
+
+  const renderTable = () => (
+    <table className={cn(LIST_TABLE, "table-fixed [&_tbody_td]:py-3")}>
+      <colgroup>
+        <col className={merged ? undefined : "w-[14rem]"} />
+        {!merged && <col />}
+        <col className="w-[14rem]" />
+        {wide && <col className="w-[8rem]" />}
+        <col className={iconActions ? "w-[7.25rem]" : "w-[12.5rem]"} />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">{merged ? "Order & supplier" : "Order"}</th>
+          {!merged && <th scope="col">Supplier</th>}
+          <th scope="col" className="text-right">Amount</th>
+          {wide && <th scope="col">Created by</th>}
+          <th scope="col" className="text-right"><span className="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {paged.slice.map((order: any) => (
+          <ClickableRow
+            key={order.id}
+            txType="purchase_order"
+            txId={order.id}
+            aria-label={`Order ${order.order_number}, ${order.supplier_name}, ${fmtInr(order.total_amount)}`}
+            {...rowOpenHandlers(() => setSelectedOrderForDetails(order))}
           >
-            <Eye className="h-4 w-4 mr-1" />
-            View
-          </Button>
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedOrderForEdit(order)}
-            className="text-success flex-1"
-          >
-            <Edit className="h-4 w-4 mr-1" />
-            Edit
-          </Button>
-          {hasPermission('erp_destructive') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setOrderToDelete(order)}
-              disabled={deleteMutation.isPending}
-              className="text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            {merged ? (
+              <td>
+                <div className="flex min-w-0 flex-col">
+                  {supplierButton(order)}
+                  {/* wraps instead of cutting: operators compare the last digits */}
+                  <OrderNo value={order.order_number} selectable className="block whitespace-normal break-all" />
+                  <span className="truncate text-xs text-muted-foreground" title={metaLine(order)}>
+                    {metaLine(order)}
+                  </span>
+                  {order.description && (
+                    <span className="truncate text-xs text-muted-foreground" title={order.description}>
+                      {order.description}
+                    </span>
+                  )}
+                </div>
+              </td>
+            ) : (
+              <>
+                <td>
+                  <OrderNo value={order.order_number} selectable className="block truncate" />
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground">{orderedAt(order)}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {getWalletName(order)}{!wide && <> · by {personLabel(order.created_by_user) ?? "—"}</>}
+                  </div>
+                </td>
+                <td>
+                  <div className="flex min-w-0 flex-col">
+                    {supplierButton(order)}
+                    {order.description && (
+                      <span className="truncate text-xs text-muted-foreground" title={order.description}>
+                        {order.description}
+                      </span>
+                    )}
+                  </div>
+                </td>
+              </>
+            )}
+            <td className="text-right">
+              <div className="truncate font-semibold tabular-nums text-foreground">{fmtInr(order.total_amount)}</div>
+              <div className="truncate text-xs tabular-nums text-muted-foreground" title={priceLine(order)}>{priceLine(order)}</div>
+              {tdsLine(order) && <div className="truncate text-xs tabular-nums text-muted-foreground" title={tdsLine(order) ?? undefined}>{tdsLine(order)}</div>}
+            </td>
+            {wide && <td className="truncate text-muted-foreground">{personLabel(order.created_by_user) ?? "—"}</td>}
+            <td>
+              <div className="flex items-center justify-end gap-0.5">{rowActions(order, { iconOnly: iconActions })}</div>
+            </td>
+          </ClickableRow>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  // Cards (narrow panels): the supplier name is plain text, as on the old phone cards; the whole card opens the order.
+  const renderCards = () => (
+    <ul className="divide-y divide-border">
+      {paged.slice.map((order: any) => (
+        <li
+          key={order.id}
+          id={`tx-row-${order.id}`}
+          data-tx-id={order.id}
+          role="button"
+          tabIndex={0}
+          aria-label={`Order ${order.order_number}, ${order.supplier_name}, ${fmtInr(order.total_amount)}`}
+          className="cursor-pointer px-3 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
+          {...rowOpenHandlers(() => setSelectedOrderForDetails(order))}
+        >
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-[15px] font-medium text-foreground">{order.supplier_name}</span>
+            <OrderNo value={order.order_number} selectable className="break-all text-muted-foreground" />
+          </div>
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span className="text-base font-semibold tabular-nums text-foreground">{fmtInr(order.total_amount)}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{priceLine(order)}</span>
+          </div>
+          {tdsLine(order) && <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{tdsLine(order)}</p>}
+          <p className="mt-1 text-xs text-muted-foreground">{metaLine(order)}</p>
+          {order.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{order.description}</p>}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1">{rowActions(order)}</div>
+        </li>
+      ))}
+    </ul>
   );
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="p-4 md:p-6">
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-            <CheckCircle className="h-5 w-5 text-success" />
-            Completed Purchase Orders
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 md:p-6 pt-0">
-          {!filteredOrders || filteredOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No completed orders found.
-            </div>
+      <section className="min-w-0 rounded-lg border border-border bg-card shadow-[var(--shadow-xs)]" aria-label="Completed purchase orders">
+        {toolbar}
+        <div ref={listRef}>
+          {displayIsLoading ? (
+            <PanelSkeleton rows={8} label={hasServerFilter ? 'Searching completed orders...' : 'Loading recent completed orders...'} />
+          ) : displayIsError ? (
+            <PanelMessage icon={AlertTriangle} tone="danger" title="Couldn't load completed purchase orders">
+              {(displayError as Error)?.message || 'Unable to load completed purchase orders.'}
+            </PanelMessage>
+          ) : !filteredOrders || filteredOrders.length === 0 ? (
+            <PanelMessage icon={ShoppingBag} title={hasServerFilter ? "No purchase orders match these filters" : "No completed orders found."}>
+              {hasServerFilter && onClearFilters && (
+                <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onClearFilters}>
+                  Clear filters
+                </Button>
+              )}
+            </PanelMessage>
           ) : (
             <>
-              {/* Mobile view - cards */}
-              <div className="md:hidden">
-                {filteredOrders.map((order) => renderMobileCard(order))}
-              </div>
-              
-              {/* Desktop view - table */}
-              <div className="hidden md:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order #</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Platform</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Qty</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created By</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.map((order) => (
-                      <ClickableRow key={order.id} txType="purchase_order" txId={order.id}>
-                        <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
-                        <TableCell>
-                          <div
-                            className="font-medium text-info hover:text-info hover:underline cursor-pointer"
-                            onClick={() => navigateToClient(order.supplier_name)}
-                          >
-                            {order.supplier_name}
-                          </div>
-                          {order.description && (
-                            <div className="text-sm text-muted-foreground max-w-[200px] truncate">
-                              {order.description}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>{getWalletName(order)}</TableCell>
-                        <TableCell className="font-medium">₹{order.total_amount?.toLocaleString('en-IN')}</TableCell>
-                        <TableCell>
-                          {formatSmartDecimal(order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || order.quantity || 0)}
-                        </TableCell>
-                        <TableCell>
-                          ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString('en-IN') || Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="bg-success/10 text-success">Completed</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {(order as any).created_by_user ? (
-                            <span className="font-medium text-foreground">
-                              {(order as any).created_by_user.first_name || (order as any).created_by_user.username}
-                            </span>
-                          ) : <span className="text-muted-foreground">N/A</span>}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span>{format(new Date(order.order_date), 'MMM dd, yyyy')}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(order.created_at || order.order_date), 'HH:mm:ss')}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setSelectedOrderForDetails(order)}
-                              className="text-info hover:text-info hover:bg-info/10"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setSelectedOrderForEdit(order)}
-                              className="text-success hover:text-success hover:bg-success/10"
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            {hasPermission('erp_destructive') && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setOrderToDelete(order);
-                                  toast({
-                                    title: "Delete requested",
-                                    description: `Confirm deletion for order ${order.order_number}.`,
-                                  });
-                                }}
-                                disabled={deleteMutation.isPending}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </ClickableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <ListNote className="pb-2">{listNote()}</ListNote>
+              {narrow ? renderCards() : renderTable()}
+              {paged.pages > 1 ? (
+                <div className="px-3 pb-3 sm:px-5">
+                  <TablePager page={paged.page} pages={paged.pages} total={paged.total} pageSize={paged.pageSize} setPage={paged.setPage} noun="orders" />
+                </div>
+              ) : (
+                <div className="h-2" aria-hidden />
+              )}
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete purchase order?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete <span className="font-medium">{orderToDelete?.order_number}</span> and reverse related
-              transactions (bank, wallet, stock). Balances may go negative during reversal.
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                {orderToDelete && (
+                  <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-foreground">
+                    <span className="font-mono text-[12px]">{orderToDelete.order_number}</span>
+                    <span className="mx-1.5 text-muted-foreground">·</span>
+                    {orderToDelete.supplier_name}
+                    <span className="mx-1.5 text-muted-foreground">·</span>
+                    <span className="font-semibold tabular-nums">{fmtInr(orderToDelete.total_amount)}</span>
+                  </p>
+                )}
+                <p>
+                  This will permanently delete <span className="font-medium text-foreground">{orderToDelete?.order_number}</span> and reverse related
+                  transactions (bank, wallet, stock). Balances may go negative during reversal.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
               disabled={deleteMutation.isPending}
               onClick={() => {
                 if (!orderToDelete?.id) return;

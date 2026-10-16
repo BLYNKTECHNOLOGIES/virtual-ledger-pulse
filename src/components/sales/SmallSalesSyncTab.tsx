@@ -1,19 +1,80 @@
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { RefreshCw, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Loader2, Package, RefreshCw, XCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { syncSmallSales } from '@/hooks/useSmallSalesSync';
 import { SmallSalesApprovalDialog } from './SmallSalesApprovalDialog';
 import { requireCurrentUserId } from '@/lib/system-action-logger';
 import { ExchangeAccountBadge } from '@/components/shared/ExchangeAccountBadge';
+import { cn } from '@/lib/utils';
+import {
+  BatchStatusChip,
+  Chip,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Field,
+  ListNote,
+  OrderNo,
+  PanelMessage,
+  PanelSkeleton,
+  PanelToolbar,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDate,
+  fmtDateTime,
+  fmtInr,
+  fmtRate,
+  fmtTime,
+  safeDate,
+  useNarrow,
+} from '@/components/orders-ui';
+
+/** Reject in a list: outlined, red text — never a solid red button in a row. */
+const REJECT_BTN = 'border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive';
+
+/** Keeps the last value while a dialog animates closed, so its text doesn't jump (display only). */
+function useLastWhile<T>(value: T, active: boolean): T {
+  const last = useRef(value);
+  if (active) last.current = value;
+  return active ? value : last.current;
+}
+
+/** The record a confirmation acts on: what it is on the left, its amount on the right. */
+function RecordLine({ title, detail, value, valueDetail }: { title: ReactNode; detail?: ReactNode; value: ReactNode; valueDetail?: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-[13px] text-foreground">
+      <div className="min-w-0">
+        <div className="truncate font-medium">{title}</div>
+        {detail && <div className="mt-0.5 min-w-0 text-xs tabular-nums text-muted-foreground">{detail}</div>}
+      </div>
+      <div className="shrink-0 text-right">
+        <div className="font-semibold tabular-nums">{value}</div>
+        {valueDetail && <div className="mt-0.5 text-xs tabular-nums text-muted-foreground">{valueDetail}</div>}
+      </div>
+    </div>
+  );
+}
+
+const plural = (n: number, one: string, many: string) => `${Number(n || 0).toLocaleString('en-IN')} ${Number(n) === 1 ? one : many}`;
+
+/** "16 Oct 2026, 10:41 – 11:47", or with both dates when the window crosses midnight. */
+function windowLabel(start: unknown, end: unknown) {
+  const s = safeDate(start);
+  const e = safeDate(end);
+  if (s && e) {
+    if (fmtDate(s) === fmtDate(e)) return `${fmtDate(s)}, ${fmtTime(s)} – ${fmtTime(e)}`;
+    const sameYear = s.getFullYear() === e.getFullYear();
+    return `${fmtDate(s, sameYear ? 'd MMM' : 'd MMM yyyy')}, ${fmtTime(s)} – ${fmtDateTime(e)}`;
+  }
+  if (s) return `From ${fmtDateTime(s)}`;
+  if (e) return `Until ${fmtDateTime(e)}`;
+  return '—';
+}
 
 export function SmallSalesSyncTab() {
   const { toast } = useToast();
@@ -102,19 +163,6 @@ export function SmallSalesSyncTab() {
     },
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending_approval':
-        return <Badge className="bg-warning/10 text-warning"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
-      case 'approved':
-        return <Badge className="bg-success/10 text-success"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
-      case 'rejected':
-        return <Badge className="bg-destructive/10 text-destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
   const sortedSyncRecords = [...(syncRecords || [])].sort((a, b) => {
     const aPriority = a.sync_status === 'pending_approval' ? 0 : 1;
     const bPriority = b.sync_status === 'pending_approval' ? 0 : 1;
@@ -126,121 +174,143 @@ export function SmallSalesSyncTab() {
 
   const pendingCount = sortedSyncRecords.filter((record) => record.sync_status === 'pending_approval').length;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Package className="h-5 w-5 text-primary" />
-          <div>
-            <h3 className="font-semibold">Small Sales Sync</h3>
-            <div className="space-y-0.5">
-              {pendingCount > 0 && (
-                <p className="text-xs text-warning">
-                  {pendingCount} pending approval{pendingCount > 1 ? 's' : ''} shown first
-                </p>
-              )}
-              {lastSync && (
-                <p className="text-xs text-muted-foreground">
-                  Last sync: {format(new Date(lastSync.sync_started_at), 'dd MMM yyyy HH:mm')} •{' '}
-                  {lastSync.total_orders_processed} orders → {lastSync.entries_created} entries
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-        <Button onClick={handleSync} disabled={syncing} size="sm">
-          <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing...' : 'Sync Small Sales'}
-        </Button>
+  /* ── Presentation ─────────────────────────────────────────────────────── */
+
+  // The included-orders table folds Quantity under Amount when the panel is phone-narrow.
+  const { ref: panelRef, narrow } = useNarrow<HTMLElement>(600);
+  const shownReject = useLastWhile<any>(rejectRecord, !!rejectRecord);
+
+  const renderOrders = (record: any) => (
+    <div className="border-t border-border/60 bg-muted/20 px-3 py-3 sm:px-5 sm:pl-20">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        Included orders ({record.order_numbers?.length || 0})
       </div>
+      {orderMaps && orderMaps.length > 0 ? (
+        <div className="max-h-64 max-w-2xl overflow-y-auto overscroll-contain rounded-md border border-border bg-card">
+          <table className="w-full table-fixed border-separate border-spacing-0 text-left text-[13px] [&_td]:border-b [&_td]:border-border/60 [&_td]:px-3 [&_td]:py-1.5 [&_th]:sticky [&_th]:top-0 [&_th]:z-[1] [&_th]:border-b [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-1.5 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.05em] [&_th]:text-muted-foreground [&_tbody_tr:last-child>td]:border-b-0">
+            <colgroup>
+              <col />
+              {!narrow && <col className="w-[9rem]" />}
+              <col className={narrow ? 'w-[8rem]' : 'w-[8.5rem]'} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Order number</th>
+                {!narrow && <th scope="col" className="text-right">Quantity</th>}
+                <th scope="col" className="text-right">{narrow ? 'Amount & qty' : 'Amount'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orderMaps.map((m) => {
+                const od = m.order_data as any;
+                return (
+                  <tr key={m.id}>
+                    <td><OrderNo value={m.binance_order_number} tail={6} className="block truncate" /></td>
+                    {!narrow && <td className="truncate text-right tabular-nums text-muted-foreground">{fmtAssetQty(od?.amount, od?.asset)}</td>}
+                    <td className="text-right tabular-nums">
+                      <div className="truncate font-medium text-foreground">{fmtInr(od?.total_price || 0)}</div>
+                      {narrow && <div className="truncate text-xs text-muted-foreground">{fmtAssetQty(od?.amount, od?.asset)}</div>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="max-w-2xl rounded-md border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">Loading order details...</div>
+      )}
+    </div>
+  );
+
+  return (
+    <section ref={panelRef} className="min-w-0 rounded-lg border border-border bg-card shadow-[var(--shadow-xs)]" aria-label="Small sales batches">
+      <PanelToolbar>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="!text-sm font-semibold text-foreground">Small sales batches</h2>
+            {pendingCount > 0 && <Chip tone="warning" className="tabular-nums">{pendingCount} pending</Chip>}
+          </div>
+          {lastSync && (
+            <p className="t-secondary mt-0.5">
+              Last sync {fmtDateTime(lastSync.sync_started_at)} · {plural(lastSync.total_orders_processed, 'order', 'orders')} clubbed into{' '}
+              {plural(lastSync.entries_created, 'batch', 'batches')}
+            </p>
+          )}
+        </div>
+        <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing} className="h-9 gap-1.5 self-start sm:ml-auto sm:self-auto">
+          <RefreshCw className={cn(syncing && 'animate-spin')} aria-hidden />
+          {syncing ? 'Syncing…' : 'Sync small sales'}
+        </Button>
+      </PanelToolbar>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
+        <PanelSkeleton rows={5} label="Loading small sales batches" />
       ) : !syncRecords || syncRecords.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No small sales sync records yet</p>
-            <p className="text-xs mt-1">Click "Sync Small Sales" to fetch and club eligible orders</p>
-          </CardContent>
-        </Card>
+        <PanelMessage icon={Package} title="No small sales batches yet">
+          Use “Sync small sales” to fetch and club eligible orders.
+        </PanelMessage>
       ) : (
-        <div className="space-y-2">
-          {sortedSyncRecords.map((record) => (
-            <Card key={record.id} className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <span className="text-sm font-bold text-primary">{record.asset_code}</span>
+        <>
+          <ListNote className="pb-2">
+            {plural(sortedSyncRecords.length, 'batch', 'batches')} · pending batches are listed first.
+          </ListNote>
+          <ul className="divide-y divide-border border-t border-border/60">
+            {sortedSyncRecords.map((record) => {
+              const expanded = expandedId === record.id;
+              return (
+                <li key={record.id}>
+                  <div className="flex items-start gap-3 px-3 py-3 sm:items-center sm:px-5">
+                    <span className="mt-0.5 flex h-9 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50 text-[11px] font-semibold tracking-wide text-foreground sm:mt-0">
+                      {record.asset_code}
+                    </span>
+                    <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="text-[15px] font-semibold tabular-nums text-foreground">
+                            {fmtAssetQty(record.total_quantity, record.asset_code)}
+                          </span>
+                          <BatchStatusChip status={record.sync_status} />
+                          <ExchangeAccountBadge accountId={(record as any).exchange_account_id} />
+                        </div>
+                        <div className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">
+                          {plural(record.order_count, 'order', 'orders')} · {fmtInr(record.total_amount)} · avg {fmtRate(record.avg_price)}
+                        </div>
+                        <div className="text-xs tabular-nums text-muted-foreground">
+                          {windowLabel(record.time_window_start, record.time_window_end)} · {record.wallet_name || '—'}
+                        </div>
+                      </div>
+                      {record.sync_status === 'pending_approval' && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:mt-0 sm:shrink-0">
+                          <Button size="sm" className="h-8 gap-1.5 px-2.5" onClick={() => setSelectedRecord(record)}>
+                            <CheckCircle2 aria-hidden />
+                            Approve
+                          </Button>
+                          <Button size="sm" variant="outline" className={cn('h-8 gap-1.5 px-2.5', REJECT_BTN)} onClick={() => setRejectRecord(record)}>
+                            <XCircle aria-hidden />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">
-                          {Number(record.total_quantity).toFixed(4)} {record.asset_code}
-                        </span>
-                        {getStatusBadge(record.sync_status)}
-                        <ExchangeAccountBadge accountId={(record as any).exchange_account_id} />
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {record.order_count} orders • ₹{Number(record.total_amount).toLocaleString('en-IN')} •
-                        Avg ₹{Number(record.avg_price).toLocaleString('en-IN')}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {record.time_window_start && format(new Date(record.time_window_start), 'dd MMM HH:mm')} –{' '}
-                        {record.time_window_end && format(new Date(record.time_window_end), 'HH:mm')}
-                        {' • '}{record.wallet_name || 'N/A'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {record.sync_status === 'pending_approval' && (
-                      <>
-                        <Button size="sm" onClick={() => setSelectedRecord(record)}>
-                          Approve
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => setRejectRecord(record)}>
-                          <XCircle className="h-3.5 w-3.5 mr-1" />
-                          Reject
-                        </Button>
-                      </>
-                    )}
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                      aria-expanded={expanded}
+                      aria-label="Show orders in this batch"
+                      title={expanded ? 'Hide orders' : 'Show orders'}
                       onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
                     >
-                      {expandedId === record.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      <ChevronDown className={cn('transition-transform duration-150', expanded && 'rotate-180')} aria-hidden />
                     </Button>
                   </div>
-                </div>
-
-                {expandedId === record.id && (
-                  <div className="border-t px-4 py-3 bg-muted/30">
-                    <p className="text-xs font-medium mb-2">Included Orders ({record.order_numbers?.length || 0})</p>
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {orderMaps?.map((m) => {
-                        const od = m.order_data as any;
-                        return (
-                          <div key={m.id} className="flex items-center justify-between text-xs p-2 bg-background rounded">
-                            <span className="font-mono">{m.binance_order_number}</span>
-                            <span>{od?.amount} {od?.asset}</span>
-                            <span>₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</span>
-                          </div>
-                        );
-                      })}
-                      {(!orderMaps || orderMaps.length === 0) && (
-                        <p className="text-xs text-muted-foreground">Loading order details...</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  {expanded && renderOrders(record)}
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       <SmallSalesApprovalDialog
@@ -250,34 +320,44 @@ export function SmallSalesSyncTab() {
       />
 
       <Dialog open={!!rejectRecord} onOpenChange={(open) => { if (!open) { setRejectRecord(null); setRejectionReason(''); } }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">Reject Small Sales Entry</DialogTitle>
-          </DialogHeader>
-          <div>
-            <Label className="text-xs">Rejection Reason</Label>
-            <Textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Enter reason for rejection..."
-              className="mt-1 text-sm"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => { setRejectRecord(null); setRejectionReason(''); }}>
+        <DialogContent className={dialogContentClass('sm')}>
+          <DialogHead
+            title="Reject small sales batch"
+            description="Use this when the batch should not be posted as a sales order. Your reason is saved with it."
+          />
+          <DialogBody className="space-y-4">
+            {shownReject && (
+              <RecordLine
+                title={<span className="tabular-nums">{fmtAssetQty(shownReject.total_quantity, shownReject.asset_code)}</span>}
+                detail={windowLabel(shownReject.time_window_start, shownReject.time_window_end)}
+                value={fmtInr(shownReject.total_amount)}
+                valueDetail={plural(shownReject.order_count, 'order', 'orders')}
+              />
+            )}
+            <Field label="Rejection reason" htmlFor="small-sales-reject-reason" required>
+              <Textarea
+                id="small-sales-reject-reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter reason for rejection..."
+              />
+            </Field>
+          </DialogBody>
+          <DialogFoot>
+            <Button variant="outline" onClick={() => { setRejectRecord(null); setRejectionReason(''); }}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              size="sm"
               onClick={() => rejectMutation.mutate({ id: rejectRecord.id, reason: rejectionReason })}
               disabled={!rejectionReason.trim() || rejectMutation.isPending}
             >
-              Reject
+              {rejectMutation.isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {rejectMutation.isPending ? 'Rejecting…' : 'Reject batch'}
             </Button>
-          </DialogFooter>
+          </DialogFoot>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 }

@@ -1,19 +1,41 @@
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, User, Coins } from "lucide-react";
+import { ArrowUpRight, Download, Landmark, Printer, Receipt, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
-import { formatSmartDecimal } from "@/lib/format-smart-decimal";
+import {
+  Callout,
+  Chip,
+  CopyButton,
+  DialogBody,
+  DialogFoot,
+  DialogHead,
+  Facts,
+  OrderNo,
+  SalesStatusChip,
+  Section,
+  SummaryRow,
+  dialogContentClass,
+  fmtAssetQty,
+  fmtDate,
+  fmtDateTime,
+  fmtInr,
+  fmtQty,
+  fmtRate,
+} from "@/components/orders-ui";
 
 import { usersDirectory } from "@/lib/usersDirectory";
+
+// Below 768px the app's global CSS forces every <h3> to 16px (index.css, mobile text block);
+// keep the kit's 11px section headings inside this dialog. Presentation only.
+const DETAILS_BODY = "[&_h3]:!text-[11px]";
+
 interface SalesOrderDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -145,237 +167,204 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "COMPLETED":
-        return <Badge className="bg-success/10 text-success">Payment Received</Badge>;
-      case "PARTIAL":
-        return <Badge className="bg-warning/10 text-warning">Partial Payment</Badge>;
-      case "PENDING":
-        return <Badge className="bg-info/10 text-info">Pending</Badge>;
-      case "FAILED":
-        return <Badge className="bg-destructive/10 text-destructive">Failed</Badge>;
-      default:
-        return <Badge variant="secondary">Unknown</Badge>;
-    }
-  };
+  /* ── Presentation only ─────────────────────────────────────────────────── */
+
+  // While the lookups above load, show what the order row already carries (the list's
+  // embeds) instead of a placeholder; once loaded, the lookups win exactly as before.
+  // Undefined data = the lookup is still running; null = it found nothing.
+  const assetLabel = productData?.code || order.product?.code || assetCode;
+  const productLabel = productData?.name || order.product?.name || assetLabel;
+  const walletLabel =
+    walletData?.wallet_name || order.wallet?.wallet_name || (order.wallet_id && walletData === undefined ? "Loading…" : "—");
+  const creatorLabel =
+    creatorData?.username || order.created_by_user?.username || (order.created_by && creatorData === undefined ? "Loading…" : "—");
+  const orderNumberText = String(order.order_number ?? "").trim();
+
+  const customerName = canViewClient && order.client_id ? (
+    <button
+      type="button"
+      onClick={openClientPage}
+      title="Open client page"
+      className="inline-flex max-w-full items-start gap-1 text-left font-medium text-primary hover:underline focus-visible:underline focus-visible:outline-none"
+    >
+      <span className="min-w-0 break-words">{order.client_name}</span>
+      <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+    </button>
+  ) : (
+    order.client_name || "—"
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Sales Order Details - {order.order_number}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Order Number</label>
-              <p className="text-sm font-mono">{order.order_number}</p>
+      <DialogContent className={dialogContentClass("lg")}>
+        <DialogHead
+          icon={Receipt}
+          title="Sales order details"
+          description={order.client_name || "Customer not recorded"}
+          meta={
+            <>
+              <SalesStatusChip status={order.payment_status} />
+              <span className="inline-flex min-w-0 items-center gap-0.5">
+                <span className="sr-only">Order number</span>
+                <OrderNo value={order.order_number} className="break-all" />
+                <CopyButton value={orderNumberText} label="Copy order number" />
+              </span>
+            </>
+          }
+        />
+
+        <DialogBody className={DETAILS_BODY}>
+          {/* What was sold, at what price */}
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Order total</div>
+            <div className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight tabular-nums text-foreground">
+              {fmtInr(order.total_amount)}
             </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Customer</label>
-              {canViewClient && order.client_id ? (
-                <p
-                  className="text-sm cursor-pointer"
-                  onClick={openClientPage}
-                  role="link"
-                  title="Open client page"
-                >
-                  {order.client_name}
-                </p>
-              ) : (
-                <p className="text-sm">{order.client_name}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Phone</label>
-              <p className="text-sm">{order.client_phone || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Wallet</label>
-              <p className="text-sm">
-                {walletData ? `${walletData.wallet_name}` : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Total Amount</label>
-              <p className="text-sm font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Quantity</label>
-              <p className="text-sm">{order.quantity || 1}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Price per Unit</label>
-              <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Product</label>
-              <p className="text-sm">{productData?.name || assetCode}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Payment Status</label>
-              <div className="mt-1">{getStatusBadge(order.payment_status)}</div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Order Date</label>
-              <p className="text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy HH:mm:ss')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Created At</label>
-              <p className="text-sm">{format(new Date(order.created_at), 'MMM dd, yyyy HH:mm:ss')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Created By</label>
-              <p className="text-sm flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {creatorData?.username || 'N/A'}
-              </p>
+            <div className="text-[13px] tabular-nums text-muted-foreground">
+              {fmtAssetQty(order.quantity || 1, assetLabel)} @ {fmtRate(order.price_per_unit || order.total_amount)}
             </div>
           </div>
 
-          {/* USDT Equivalent Section for non-USDT coins */}
+          {order.cosmos_alert && (
+            <Callout tone="danger" icon={ShieldAlert}>
+              COSMOS alert was triggered for this order.
+            </Callout>
+          )}
+
+          <Section title="Order">
+            <Facts
+              cols={3}
+              items={[
+                { label: "Order number", value: <OrderNo value={order.order_number} className="break-all" /> },
+                { label: "Order date", value: fmtDate(order.order_date) },
+                { label: "Wallet", value: walletLabel },
+                { label: "Product", value: productLabel },
+                { label: "Created by", value: creatorLabel },
+                { label: "Created at", value: <span className="tabular-nums">{fmtDateTime(order.created_at)}</span> },
+              ]}
+            />
+          </Section>
+
+          <Section title="Customer">
+            <Facts
+              cols={3}
+              items={[
+                { label: "Name", value: customerName },
+                { label: "Phone", value: <span className="tabular-nums">{order.client_phone || "—"}</span> },
+                order.client_state ? { label: "State", value: order.client_state } : null,
+              ]}
+            />
+          </Section>
+
+          {(order.fee_amount > 0 || order.fee_percentage > 0) && (
+            <Section title="Amounts" boxed bodyClassName="py-1.5 sm:py-2">
+              <SummaryRow label="Platform fee" value={fmtAssetQty(order.fee_amount || 0, "USDT", 4)} />
+              <SummaryRow label="Fee rate" value={`${Number(order.fee_percentage || 0).toFixed(2)}%`} />
+            </Section>
+          )}
+
+          {/* USDT equivalent for non-USDT coins (rate stored when the order was approved) */}
           {isNonUsdt && storedMarketRate && storedMarketRate > 0 && (() => {
             const qty = Number(order.quantity || 1);
             const totalAmt = Number(order.total_amount || 0);
             const usdtEquivQty = qty * storedMarketRate;
             const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
             return (
-              <div className="p-3 bg-info/10 dark:bg-info/20 rounded-lg border border-info/20 dark:border-info">
-                <h3 className="text-sm font-semibold text-info dark:text-info mb-2 flex items-center gap-2">
-                  <Coins className="h-4 w-4" />
-                  USDT Equivalent (Snapshot)
-                </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-info dark:text-info">{assetCode}/USDT Rate</label>
-                    <p className="text-sm font-medium text-info dark:text-info">{formatSmartDecimal(storedMarketRate, 6)}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-info dark:text-info">Equiv. USDT Qty</label>
-                    <p className="text-sm font-medium text-info dark:text-info">{formatSmartDecimal(usdtEquivQty, 4)}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-info dark:text-info">Equiv. USDT Rate</label>
-                    <p className="text-sm font-medium text-info dark:text-info">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
-                  </div>
-                </div>
-              </div>
+              <Section title="USDT equivalent" actions={<Chip tone="neutral">Snapshot</Chip>}>
+                <Facts
+                  cols={3}
+                  items={[
+                    { label: `${assetCode}/USDT rate`, value: <span className="tabular-nums">{fmtQty(storedMarketRate, 6)}</span> },
+                    { label: "Equivalent USDT qty", value: <span className="tabular-nums">{fmtQty(usdtEquivQty, 4)}</span> },
+                    { label: "Equivalent USDT rate", value: <span className="tabular-nums">{fmtRate(equivUsdtRate)}</span> },
+                  ]}
+                />
+              </Section>
             );
           })()}
 
-          {/* Platform Fee Information */}
-          {(order.fee_amount > 0 || order.fee_percentage > 0) && (
-            <div className="p-4 bg-warning/10 rounded-lg border border-warning/20 dark:bg-warning/20 dark:border-warning">
-              <h3 className="text-sm font-semibold text-warning dark:text-warning mb-3 flex items-center gap-2">
-                <Coins className="h-4 w-4" />
-                Platform Fee Details
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-warning dark:text-warning">Fee Percentage</label>
-                  <p className="text-sm text-warning dark:text-warning">{Number(order.fee_percentage || 0).toFixed(2)}%</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-warning dark:text-warning">Fee Amount (USDT)</label>
-                  <p className="text-sm text-warning dark:text-warning font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bank Account Information */}
-          {bankAccountData && (
-            <div className="p-4 bg-info/10 rounded-lg border border-info/20 dark:bg-info/20 dark:border-info">
-              <h3 className="text-sm font-semibold text-info dark:text-info mb-3">Payment Received In</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-info dark:text-info">Bank Account</label>
-                  <p className="text-sm text-info dark:text-info">{bankAccountData.account_name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-info dark:text-info">Bank Name</label>
-                  <p className="text-sm text-info dark:text-info">{bankAccountData.bank_name}</p>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm font-medium text-info dark:text-info">Account Number</label>
-                  <p className="text-sm text-info dark:text-info font-mono">
-                    {bankAccountData.account_number ? 
-                      `****${bankAccountData.account_number.slice(-4)}` : 
-                      'N/A'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Split Payment Breakdown */}
-          {order.is_split_payment && paymentSplits && paymentSplits.length > 0 && (
-            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Coins className="h-4 w-4" />
-                Split Payment Breakdown
-              </h3>
-              <div className="space-y-2">
-                {paymentSplits.map((split: any, index: number) => (
-                  <div key={split.id} className="flex items-center justify-between p-2 bg-background rounded border">
-                    <div className="text-sm">
-                      <span className="font-medium">
-                        {split.sales_payment_methods?.nickname || split.bank_accounts?.account_name || 'Unknown'}
-                      </span>
-                      {!split.sales_payment_methods?.nickname && split.bank_accounts?.bank_name && (
-                        <span className="text-muted-foreground ml-1">({split.bank_accounts?.bank_name})</span>
-                      )}
-                      {split.is_gateway && (
-                        <Badge variant="outline" className="ml-2 text-xs">POS/Gateway</Badge>
-                      )}
+          {(bankAccountData || (order.is_split_payment && paymentSplits && paymentSplits.length > 0)) && (
+            <Section title="Payment">
+              <div className="space-y-4">
+                {bankAccountData && (
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">Received in</div>
+                    <div className="flex min-w-0 items-start gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5">
+                      <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <div className="min-w-0">
+                        <div className="break-words text-[13px] font-medium leading-5 text-foreground">{bankAccountData.account_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {bankAccountData.bank_name}
+                          <span className="mx-1.5" aria-hidden>·</span>
+                          <span className="font-mono text-[12px] tabular-nums text-foreground/80">
+                            {bankAccountData.account_number ? `****${bankAccountData.account_number.slice(-4)}` : "—"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-sm font-semibold">₹{Number(split.amount).toLocaleString('en-IN')}</span>
                   </div>
-                ))}
-                <div className="flex justify-between pt-2 border-t text-sm font-bold">
-                  <span>Total</span>
-                  <span>₹{paymentSplits.reduce((sum: number, s: any) => sum + Number(s.amount), 0).toLocaleString('en-IN')}</span>
-                </div>
+                )}
+
+                {order.is_split_payment && paymentSplits && paymentSplits.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Split payment · {paymentSplits.length} {paymentSplits.length === 1 ? "part" : "parts"}
+                    </div>
+                    <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+                      {paymentSplits.map((split: any) => (
+                        <li key={split.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="break-words text-[13px] font-medium text-foreground">
+                              {split.sales_payment_methods?.nickname || split.bank_accounts?.account_name || 'Unknown'}
+                            </span>
+                            {!split.sales_payment_methods?.nickname && split.bank_accounts?.bank_name && (
+                              <span className="text-xs text-muted-foreground">{split.bank_accounts?.bank_name}</span>
+                            )}
+                            {split.is_gateway && <Chip tone="neutral">POS/Gateway</Chip>}
+                          </div>
+                          <span className="shrink-0 font-mono text-[13px] font-medium tabular-nums text-foreground">{fmtInr(split.amount)}</span>
+                        </li>
+                      ))}
+                      <li className="flex items-center justify-between gap-3 bg-muted/30 px-3 py-2">
+                        <span className="text-[13px] font-semibold text-foreground">Total</span>
+                        <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">
+                          {fmtInr(paymentSplits.reduce((sum: number, s: any) => sum + Number(s.amount), 0))}
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </div>
-            </div>
+            </Section>
           )}
-          
+
           {order.description && (
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Description</label>
-              <p className="text-sm mt-1 p-3 bg-muted rounded-lg">{order.description}</p>
-            </div>
+            <Section title="Description">
+              <p className="whitespace-pre-wrap text-[13px] leading-5 text-foreground [overflow-wrap:anywhere]">{order.description}</p>
+            </Section>
           )}
 
-          {order.cosmos_alert && (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg dark:bg-destructive/20 dark:border-destructive">
-              <p className="text-sm text-destructive dark:text-destructive font-medium">⚠️ COSMOS Alert was triggered for this order</p>
-            </div>
-          )}
-
-          {/* Activity Timeline for completed/cancelled orders */}
+          {/* Activity timeline for completed/cancelled orders */}
           {(order.payment_status === 'COMPLETED' || order.status === 'CANCELLED') && (
-            <ActivityTimeline 
-              entityId={order.id} 
+            <ActivityTimeline
+              entityId={order.id}
               entityType="sales_order"
+              title="Activity history"
+              className="bg-card"
             />
           )}
-          
-          {/* PDF Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t">
-            <Button onClick={handleDownloadPDF} className="flex-1">
-              <Download className="h-4 w-4 mr-2" />
-              Download Invoice PDF
-            </Button>
-            <Button onClick={handlePrintPDF} variant="outline" className="flex-1">
-              <Printer className="h-4 w-4 mr-2" />
-              Print Invoice
-            </Button>
-          </div>
-        </div>
+        </DialogBody>
+
+        <DialogFoot>
+          <Button type="button" variant="outline" onClick={handlePrintPDF} className="flex-auto sm:flex-none">
+            <Printer className="h-4 w-4" />
+            Print invoice
+          </Button>
+          <Button type="button" onClick={handleDownloadPDF} className="flex-auto sm:flex-none">
+            <Download className="h-4 w-4" />
+            Download invoice PDF
+          </Button>
+        </DialogFoot>
       </DialogContent>
     </Dialog>
   );

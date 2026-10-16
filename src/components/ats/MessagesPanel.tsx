@@ -90,6 +90,7 @@ const ACTIVITY_ICON: Record<string, typeof Mail> = {
 };
 const ACTIVITY_KEY = "ats-msg-activity";
 const readActivityPref = () => { try { return localStorage.getItem(ACTIVITY_KEY) !== "off"; } catch { return true; } };
+const WIDE_KEY = "ats-msg-compose-large";
 
 export interface ComposerPreset { nonce: number; code?: string; interviewId?: string | null; ai?: boolean }
 interface SchedReq { interview: InterviewRow | null; time: ProposedTime | null; handled?: string; msgId?: string }

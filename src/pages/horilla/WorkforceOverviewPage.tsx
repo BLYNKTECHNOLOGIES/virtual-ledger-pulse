@@ -1,38 +1,41 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  ArrowLeftRight, ArrowRight, Briefcase, CalendarClock, ClipboardList, GraduationCap, LayoutGrid,
-  ThumbsDown, ThumbsUp, UserCheck, UserMinus, UserPlus, Users,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowRight, ChevronDown, ClipboardList, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { MetricStrip } from "@/components/ats/AtsUi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { WorkforceFilters } from "@/components/horilla/workforce/WorkforceFilters";
-import { WorkforceKpiCard } from "@/components/horilla/workforce/WorkforceKpiCard";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
-import { WorkforceTimingAlerts } from "@/components/horilla/workforce/WorkforceTimingAlerts";
-import { WorkforceAlertsStrip } from "@/components/horilla/workforce/WorkforceAlertsStrip";
-import { RequirementReasonDialog, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
+import { WorkforceAttention } from "@/components/horilla/workforce/WorkforceAttention";
+import { ShortLinesTable } from "@/components/horilla/workforce/ShortLinesTable";
+import { StaffingBreakdown, type BreakdownRow } from "@/components/horilla/workforce/StaffingBreakdown";
+import { RequirementReasonDialog, declineConsequence, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
+import { WorkforceBudgetCard } from "@/components/horilla/workforce/WorkforceBudgetCard";
 import {
-  useHiringRequirements, useRequirementTransition, useStaffingMatrix, useCompanyActiveCount, useWorkforceLookups, useForecastEvents,
+  useHiringRequirements, useRequirementTransition, useStaffingMatrix, useWorkforceLookups, useForecastEvents,
 } from "@/hooks/hrms/useWorkforcePlanning";
+import { useRequirementJobs } from "@/hooks/hrms/useRequirementLifecycle";
+import { useHiringLinkableJobs } from "@/hooks/hrms/useWorkforceAttention";
+import { useLeavingSoon } from "@/hooks/hrms/useWorkforceRepair";
 import { buildForecast, horizonEndFor } from "@/lib/hrms/workforceForecast";
 import {
-  EMPTY_FILTERS, PRIORITY_CLASS, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL, daysUntil, findRebalances,
-  formatIstDate, istToday, matchesFilters, planningShifts, requirementMatchesFilters, sortByOperatingOrder, sumLines, type StaffingDerived, type WorkforceFilterState,
+  EMPTY_FILTERS, WF_DEFINITIONS, formatIstDate, istToday, matchesFilters, planningShifts, requirementMatchesFilters,
+  rotaOrder, sumLines, type StaffingDerived, type WorkforceFilterState,
 } from "@/lib/hrms/workforce";
-import { useLeavingSoon } from "@/hooks/hrms/useWorkforceRepair";
-import { WorkforceBudgetCard } from "@/components/horilla/workforce/WorkforceBudgetCard";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
+import { cn } from "@/lib/utils";
 
 const OPEN = new Set(["pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
 const OPEN_OR_DRAFT = new Set(["draft", ...OPEN]);
-const PRIORITY_ORDER = ["critical", "high", "medium", "low"];
 
 export default function WorkforceOverviewPage() {
   const { hasPermission } = usePermissions();
@@ -41,28 +44,20 @@ export default function WorkforceOverviewPage() {
   const [filters, setFilters] = useState<WorkforceFilterState>({ ...EMPTY_FILTERS });
   const [seed, setSeed] = useState<any | null>(null);
   const [reasonTarget, setReasonTarget] = useState<ReasonTarget | null>(null);
+  const [approving, setApproving] = useState<any | null>(null);
+  const [approveNote, setApproveNote] = useState("");
 
   const matrix = useStaffingMatrix();
   const { rows } = matrix;
   const { data: lookups } = useWorkforceLookups();
   const reqs = useHiringRequirements();
   const requirements = (reqs.data || []) as any[];
-  const { data: companyActive } = useCompanyActiveCount();
+  const reqJobs = useRequirementJobs();
+  const linkable = useHiringLinkableJobs();
   const transition = useRequirementTransition();
+  const shifts = (lookups?.shifts || []) as any[];
 
-  const title = (id: string) => (lookups?.positions || []).find((p) => p.id === id)?.title;
   // Lines carry no target date of their own; the date filter uses their open requirements' target joining dates.
-  const reqDates = useMemo(() => {
-    const m = new Map<string, (string | null)[]>();
-    requirements.filter((r) => OPEN_OR_DRAFT.has(r.status) && r.staffing_plan_id).forEach((r) => {
-      m.set(r.staffing_plan_id, [...(m.get(r.staffing_plan_id) || []), r.target_joining_date]);
-    });
-    return m;
-  }, [requirements]);
-  const filtered = useMemo(() => rows.filter((r) => matchesFilters(r, filters, reqDates)), [rows, filters, reqDates]);
-  const t = useMemo(() => sumLines(filtered), [filtered]);
-  const lineById = useMemo(() => new Map(rows.map((r) => [r.plan_id, r])), [rows]);
-
   const reqsByLine = useMemo(() => {
     const m = new Map<string, any[]>();
     requirements.filter((r) => OPEN_OR_DRAFT.has(r.status) && r.staffing_plan_id).forEach((r) => {
@@ -70,28 +65,32 @@ export default function WorkforceOverviewPage() {
     });
     return m;
   }, [requirements]);
+  const reqDates = useMemo(() => {
+    const m = new Map<string, (string | null)[]>();
+    reqsByLine.forEach((list, k) => m.set(k, list.map((r) => r.target_joining_date)));
+    return m;
+  }, [reqsByLine]);
+  const filtered = useMemo(() => rows.filter((r) => matchesFilters(r, filters, reqDates)), [rows, filters, reqDates]);
+  const t = useMemo(() => sumLines(filtered), [filtered]);
+  const lineById = useMemo(() => new Map(rows.map((r) => [r.plan_id, r])), [rows]);
   const inFilters = (r: any) => requirementMatchesFilters(r, lineById, filters);
-  const pending = requirements.filter((r) => r.status === "pending_approval" && inFilters(r));
   const openReqs = requirements.filter((r) => OPEN.has(r.status) && inFilters(r));
-  // Approving needs a target joining date (forecast) and, for "adds headcount" requests, the line check — both live in the details.
-  const quickApprove = (q: any) => !!q.target_joining_date && !(q.adds_headcount > 0);
+  const pending = openReqs.filter((r) => r.status === "pending_approval");
 
-  // Projected gap at the end of the next 90 days — same calculation as the Forecast page (approved hiring only, no attrition).
+  // Projected shortfall at day 90 — same calculation as the Forecast page (approved hiring only, no attrition).
   const events = useForecastEvents();
   const projectedGap = useMemo(() => {
     if (!events.data) return null;
     const today = istToday();
-    const f = buildForecast({
+    return buildForecast({
       today, end: horizonEndFor(today, "90"), includePending: false, attritionPct: 0,
       lines: filtered.map((r) => ({ plan_id: r.plan_id, required_hc: r.required_hc, current_hc: r.current_hc })),
       events: events.data,
-    });
-    return f.totals.lineGap;
+    }).totals.lineGap;
   }, [events.data, filtered]);
 
   // People on notice in planned roles — including those who sit on no staffing line.
   const leavingQ = useLeavingSoon();
-  // On a line: the line must match every filter. Off any line: department / role only, and not when a shift is chosen.
   const leaving = useMemo(() => (leavingQ.data || []).filter((p) => {
     const line = p.plan_id ? lineById.get(p.plan_id) : undefined;
     if (line) return matchesFilters(line, { ...filters, fromDate: "", toDate: "" });
@@ -99,75 +98,60 @@ export default function WorkforceOverviewPage() {
       (filters.departmentId === "all" || p.department_id === filters.departmentId) &&
       (filters.positionId === "all" || p.position_id === filters.positionId);
   }), [leavingQ.data, filters, lineById]);
-  const offLine = leaving.filter((p) => !p.plan_id).length;
   const nextLeaving = useMemo(() => leaving.map((n) => n.last_working_day).filter(Boolean).sort()[0] ?? null, [leaving]);
 
-  const actionRows = useMemo(
-    () =>
-      filtered
-        .filter((r) => r.netHiringRequirement > 0)
-        .sort((a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority) || b.netHiringRequirement - a.netHiringRequirement),
-    [filtered],
-  );
-  const rebalances = useMemo(() => findRebalances(filtered), [filtered]);
-
-  const deptChart = useMemo(() => {
-    const m = new Map<string, { name: string; current: number; required: number; approved: number }>();
+  const byShift = useMemo<BreakdownRow[]>(() => {
+    const m = new Map<string, BreakdownRow>();
     filtered.forEach((r) => {
-      const name = r.department_name || "Unassigned";
-      const e = m.get(name) || { name, current: 0, required: 0, approved: 0 };
-      e.current += r.current_hc; e.required += r.required_hc; e.approved += r.approved_hc;
+      const e = m.get(r.shiftLabel) || { key: r.shiftLabel, label: r.shiftLabel, required: 0, current: 0, short: 0, over: 0 };
+      e.required += r.required_hc; e.current += r.current_hc;
+      e.short += Math.max(0, r.staffingGap); e.over += Math.max(0, -r.staffingGap);
+      m.set(r.shiftLabel, e);
+    });
+    const order = rotaOrder(planningShifts(shifts)).map((s: any) => s.name);
+    return Array.from(m.values()).sort((a, b) => (order.indexOf(a.label) + 1 || 99) - (order.indexOf(b.label) + 1 || 99));
+  }, [filtered, shifts]);
+  const byDept = useMemo<BreakdownRow[]>(() => {
+    const m = new Map<string, BreakdownRow & { id: string | null }>();
+    filtered.forEach((r) => {
+      const name = r.department_name || "No department";
+      const e = m.get(name) || { key: r.department_id ?? name, id: r.department_id, label: name, required: 0, current: 0, short: 0, over: 0 };
+      e.required += r.required_hc; e.current += r.current_hc;
+      e.short += Math.max(0, r.staffingGap); e.over += Math.max(0, -r.staffingGap);
       m.set(name, e);
     });
     return Array.from(m.values()).sort((a, b) => b.required - a.required);
   }, [filtered]);
 
-  const shiftRows = useMemo(() => {
-    const starts = new Map(((lookups?.shifts || []) as any[]).map((s) => [s.name, s.start_time]));
-    const m = new Map<string, { name: string; start_time: string | null; required: number; current: number; short: number; over: number }>();
-    filtered.forEach((r) => {
-      const e = m.get(r.shiftLabel) || { name: r.shiftLabel, start_time: starts.get(r.shiftLabel) ?? null, required: 0, current: 0, short: 0, over: 0 };
-      e.required += r.required_hc; e.current += r.current_hc;
-      e.short += Math.max(0, r.staffingGap); e.over += Math.max(0, -r.staffingGap);
-      m.set(r.shiftLabel, e);
-    });
-    return sortByOperatingOrder(Array.from(m.values()));
-  }, [filtered, lookups?.shifts]);
-
-  /** Per-line alerts; the deadline uses the requirement's date when the line has none. */
-  const lineAlerts = useMemo(
-    () =>
-      filtered
-        .map((r) => {
-          const alerts = r.alerts.filter((a) => !a.endsWith("on notice period"));
-          if (!r.target_date && r.netHiringRequirement > 0) {
-            const soon = (reqsByLine.get(r.plan_id) || []).some((q) => q.target_joining_date && daysUntil(q.target_joining_date) <= 15);
-            if (soon) alerts.push("Hiring deadline approaching");
-          }
-          return { r, alerts };
-        })
-        .filter((x) => x.alerts.length > 0),
-    [filtered, reqsByLine],
-  );
-
-  const create = (r: StaffingDerived) =>
+  const create = (r: StaffingDerived, people: number) =>
     setSeed({
       department_id: r.department_id!, position_id: r.position_id!, shift_id: r.shift_id,
       shift_label: r.shiftLabel === "Any shift" ? null : r.shiftLabel, employment_type: r.employment_type,
-      number_required: r.uncoveredHiringRequirement, target_joining_date: r.target_date, priority: r.priority,
-      staffing_plan_id: r.plan_id,
+      number_required: people, target_joining_date: r.target_date, priority: r.priority, staffing_plan_id: r.plan_id,
     });
   const openReq = (id: string) => navigate(`/hrms/workforce-planning/hiring-requirements?req=${id}`);
+  // Approving needs a target joining date (forecast) and, for "adds headcount" requests, the line check — both live in the details.
+  // Otherwise a short confirmation here is enough.
+  const approve = (q: any) => (q.target_joining_date && !(q.adds_headcount > 0) ? (setApproveNote(""), setApproving(q)) : openReq(q.id));
+  const reject = (q: any) => setReasonTarget({ id: q.id, requirement_no: q.requirement_no, action: "reject", consequence: declineConsequence(q, null) });
+
+  const staffedPct = t.required > 0 ? Math.round((t.current / t.required) * 100) : 0;
+  const loading = matrix.isLoading;
 
   return (
-    <div className="space-y-4 p-3 md:p-6">
+    <div className="hrms-page space-y-4">
       <PageHeader
-        title="Workforce planning overview"
-        description="Who we need to hire, how many, where, for which shift and by when. Every figure is a sum of the staffing lines."
+        title="Workforce planning"
+        description="Who we need to hire, where, for which shift and by when. Every figure adds up the staffing lines."
         actions={
-          <Button asChild variant="outline">
-            <Link to="/hrms/workforce-planning/staffing-plan">Open staffing plan <ArrowRight className="h-4 w-4" /></Link>
-          </Button>
+          <div className={cn("grid w-full gap-2 sm:flex sm:w-auto", canManage && "grid-cols-[repeat(2,minmax(0,1fr))]")}>
+            {canManage && (
+              <Button variant="outline" onClick={() => setSeed({})}><Plus className="h-4 w-4" /> Requirement</Button>
+            )}
+            <Button asChild>
+              <Link to="/hrms/workforce-planning/staffing-plan">Staffing plan <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
+          </div>
         }
       />
 
@@ -176,236 +160,149 @@ export default function WorkforceOverviewPage() {
         onChange={setFilters}
         departments={lookups?.departments || []}
         positions={lookups?.positions || []}
-        shifts={planningShifts((lookups?.shifts || []) as any[])}
+        shifts={rotaOrder(planningShifts(shifts))}
       />
 
-      {matrix.isLoading ? (
-        <TableSkeleton />
-      ) : matrix.isError ? (
+      {loading ? (
+        <>
+          <MetricStrip>{Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-card px-4 py-3.5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-7 w-14" /><Skeleton className="mt-2 h-3 w-28" /></div>
+          ))}</MetricStrip>
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-80 w-full rounded-xl" />
+        </>
+      ) : matrix.isError && rows.length === 0 ? (
         <ErrorState title="Couldn't load staffing figures" error={matrix.error} onRetry={() => matrix.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="No staffing lines yet" description="Add lines in the staffing plan to see who needs to be hired." />
+        <EmptyState icon={ClipboardList} title="No staffing lines yet"
+          description="Add a line for each role and shift in the staffing plan. People on roll and the pipeline are then counted for you."
+          action={<Button asChild><Link to="/hrms/workforce-planning/staffing-plan">Open the staffing plan</Link></Button>} />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
+          description="Change or clear the filters to see the figures again."
+          action={<Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <WorkforceKpiCard label="On roll" value={t.current} icon={Users}
-              hint={companyActive != null ? `Planned roles · ${companyActive} company-wide incl. leadership outside planning` : "Planned roles"} />
-            <WorkforceKpiCard label="Required" value={t.required} icon={Briefcase} hint={`Approved ${t.approved} · vacant ${t.vacant}`} />
-            <WorkforceKpiCard label="Short now" value={t.shortNow} icon={UserPlus} tone={t.shortNow > 0 ? "danger" : "success"}
-              hint={`Net need ${t.netNeed} after pipeline and trainees`} />
-            <WorkforceKpiCard label="In training" value={t.inTraining} icon={GraduationCap}
-              hint={t.nextReadyDate ? `Next ready ${formatIstDate(t.nextReadyDate)}` : "Nobody in training"} />
-            <WorkforceKpiCard label="Hiring in progress" value={t.requested} icon={ClipboardList}
-              hint={`${pending.length} awaiting approval · ${t.uncovered} not yet requested`} />
-            <WorkforceKpiCard label="Projected gap (90 days)" value={projectedGap ?? "—"} icon={CalendarClock}
-              tone={(projectedGap ?? 0) > 0 ? "warning" : "default"}
-              hint={<Link className="text-primary hover:underline" to="/hrms/workforce-planning/forecast">Sum of line shortfalls · open forecast</Link>} />
-            <WorkforceKpiCard label="Pipeline" value={t.pipeline} icon={CalendarClock} hint={`${t.selected} selected · ${t.joining} joining`} />
-            <WorkforceKpiCard label="Approved" value={t.approved} icon={UserCheck} hint={`Vacant seats ${t.vacant} (approved − on roll per line)`} />
-            <WorkforceKpiCard label="Leaving soon (on notice)" value={leaving.length} icon={UserMinus} tone={leaving.length > 0 ? "warning" : "default"}
-              hint={leaving.length === 0 ? "Nobody on notice"
-                : `${offLine ? `${offLine} on no line · ` : ""}${nextLeaving ? `next last day ${formatIstDate(nextLeaving)}` : "last day not set"}`} />
+          <div className="space-y-1.5">
+            <MetricStrip>
+              <Metric label="On roll" to="/hrms/workforce-planning/staffing-plan"
+                value={<>{t.current}<span className="text-lg font-medium text-muted-foreground"> / {t.required}</span></>}
+                helper={`${staffedPct}% staffed${t.inTraining ? ` · ${t.inTraining} in training` : ""}`} />
+              <Metric label="Short now" to="/hrms/workforce-planning/staffing-plan" tone={t.shortNow > 0 ? "danger" : "success"}
+                value={t.shortNow} helper={t.netNeed !== t.shortNow ? `${t.netNeed} after trainees and joiners` : `across ${filtered.filter((r) => r.staffingGap > 0).length} lines`} />
+              <Metric label="Being hired" to="/hrms/workforce-planning/hiring-requirements"
+                value={t.requested} helper={`${openReqs.length} request${openReqs.length === 1 ? "" : "s"}${pending.length ? ` · ${pending.length} awaiting approval` : ""}`} />
+              <Metric label="Not yet requested" to="/hrms/workforce-planning/staffing-plan" tone={t.uncovered > 0 ? "warning" : "default"}
+                value={t.uncovered} helper={t.uncovered > 0 ? "short with no hiring request" : "every shortage has a request"} />
+              <Metric label="In 90 days" to="/hrms/workforce-planning/forecast" tone={(projectedGap ?? 0) > 0 ? "warning" : "default"}
+                value={projectedGap == null ? "…" : projectedGap} helper="short after approved hiring" />
+              <Metric label="Leaving soon" to="/hrms/workforce-planning/forecast" tone={leaving.length > 0 ? "warning" : "default"}
+                value={leaving.length} helper={leaving.length ? (nextLeaving ? `next last day ${formatIstDate(nextLeaving)}` : "last day not set") : "nobody on notice"} />
+            </MetricStrip>
+            <HowCounted />
           </div>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Hiring action required</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {actionRows.length === 0 ? (
-                <EmptyState icon={UserCheck} title="No hiring needed right now"
-                  description="Every line is staffed, or its shortage is covered by selected candidates, joiners and trainees." />
-              ) : (
-                actionRows.map((r) => {
-                  const lineReqs = reqsByLine.get(r.plan_id) || [];
-                  const pendingReq = lineReqs.find((q) => q.status === "pending_approval");
-                  const drafts = lineReqs.filter((q) => q.status === "draft");
-                  const draftHc = drafts.reduce((a, q) => a + (Number(q.number_required) || 0), 0);
-                  const notRequested = Math.max(0, r.uncoveredHiringRequirement - draftHc);
-                  return (
-                    <div key={r.plan_id} className="rounded-lg border border-border p-3">
-                      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0 space-y-1">
-                          <p className="text-sm font-semibold text-foreground">
-                            {r.department_name} · {r.position_title} · {r.shiftLabel}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Required {r.required_hc} · On roll {r.current_hc} · Approved {r.approved_hc} · Pipeline {r.pipeline_hc} · Joining {r.pending_joining_hc} · In training {r.in_training_hc} · Target {formatIstDate(r.target_date ?? lineReqs[0]?.target_joining_date)}
-                          </p>
-                          {lineReqs.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {lineReqs.map((q) => (
-                                <button key={q.id} type="button" onClick={() => openReq(q.id)}>
-                                  <Badge variant="outline" className={REQ_STATUS_CLASS[q.status]}>
-                                    {q.requirement_no} · {q.number_required} · {REQ_STATUS_LABEL[q.status]}
-                                  </Badge>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 flex-wrap items-center gap-2">
-                          <Badge variant="outline" className={PRIORITY_CLASS[r.priority]}>{PRIORITY_LABEL[r.priority]}</Badge>
-                          <div className="text-right">
-                            <span className="block text-lg font-semibold tabular-nums text-destructive">Need {r.netHiringRequirement}</span>
-                            <span className="block text-xs text-muted-foreground">
-                              {notRequested > 0 ? `${notRequested} not requested` : `${r.open_requirement_hc} requested`}
-                              {draftHc > 0 ? ` · ${draftHc} in draft` : ""}
-                            </span>
-                          </div>
-                          {canManage && pendingReq && (
-                            <>
-                              <Button size="sm" variant="outline" className="text-destructive"
-                                onClick={() => setReasonTarget({ id: pendingReq.id, requirement_no: pendingReq.requirement_no, action: "reject" })}>
-                                <ThumbsDown className="h-3.5 w-3.5" /> Reject
-                              </Button>
-                              <Button size="sm" disabled={transition.isPending}
-                                onClick={() => quickApprove(pendingReq) ? transition.mutate({ id: pendingReq.id, action: "approve" }) : openReq(pendingReq.id)}>
-                                <ThumbsUp className="h-3.5 w-3.5" /> Approve
-                              </Button>
-                            </>
-                          )}
-                          {lineReqs[0] && !pendingReq && (
-                            <Button size="sm" variant="outline" onClick={() => openReq(lineReqs[0].id)}>Open requirement</Button>
-                          )}
-                          {drafts[0] && (
-                            <Button size="sm" variant="outline" onClick={() => openReq(drafts[0].id)}>Open draft</Button>
-                          )}
-                          {canManage && notRequested > 0 && (
-                            <Button size="sm" onClick={() => create({ ...r, uncoveredHiringRequirement: notRequested })}>Create requirement</Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
+          <WorkforceAttention
+            rows={filtered}
+            canManage={canManage}
+            columns={2}
+            scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
+            shiftFiltered={filters.shift !== "all"}
+            onOpenRequirement={openReq}
+          />
 
-          <WorkforceBudgetCard canManage={canManage} />
+          <ShortLinesTable
+            rows={filtered}
+            reqsByLine={reqsByLine}
+            jobsByReq={reqJobs.data}
+            linkable={linkable.data}
+            canManage={canManage}
+            busy={transition.isPending}
+            onApprove={approve}
+            onReject={reject}
+            onCreate={create}
+            onOpenRequirement={openReq}
+          />
 
-          {rebalances.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base"><ArrowLeftRight className="h-4 w-4 text-primary" /> Rebalance before hiring</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-1.5 text-sm text-foreground">
-                  {rebalances.map((h) => <li key={h.key} className="rounded-md border border-border p-2.5">{h.message}</li>)}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-2"><CardTitle className="text-base">Waiting for approval</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {reqs.isError ? (
-                  <p className="text-sm text-destructive">Couldn't load hiring requirements.</p>
-                ) : pending.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nothing is waiting for approval.</p>
-                ) : (
-                  pending.map((q) => (
-                    <div key={q.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-2.5">
-                      <button type="button" className="min-w-0 text-left" onClick={() => openReq(q.id)}>
-                        <p className="truncate text-sm font-medium text-foreground">
-                          {q.requirement_no} · {q.positions?.title} · {q.shift_label || (q.staffing_plan_id ? lineById.get(q.staffing_plan_id)?.shiftLabel : null) || "Any shift"} · {(q.adds_headcount ?? 0) > 0 ? `adds +${q.adds_headcount}` : q.number_required}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {q.departments?.name} · target {formatIstDate(q.target_joining_date)} · {q.source === "capacity_occupancy" ? "raised by the system" : `raised by ${q.requested_by_name || "—"}`}
-                        </p>
-                      </button>
-                      {canManage && (
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" className="text-destructive"
-                            onClick={() => setReasonTarget({ id: q.id, requirement_no: q.requirement_no, action: "reject" })}>
-                            <ThumbsDown className="h-3.5 w-3.5" /> Reject
-                          </Button>
-                          <Button size="sm" disabled={transition.isPending}
-                            onClick={() => quickApprove(q) ? transition.mutate({ id: q.id, action: "approve" }) : openReq(q.id)}>
-                            <ThumbsUp className="h-3.5 w-3.5" /> Approve
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-                {openReqs.length > 0 && (
-                  <p className="pt-1 text-xs text-muted-foreground">{openReqs.length} open requirements match these filters.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Alerts</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {lineAlerts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No line needs attention.</p>
-                ) : (
-                  lineAlerts.slice(0, 12).map(({ r, alerts }) => (
-                    <div key={r.plan_id} className="rounded-lg border border-border p-2.5">
-                      <p className="truncate text-sm text-foreground">{r.position_title} · {r.shiftLabel}</p>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {alerts.map((a) => <Badge key={a} variant="outline" className="text-xs">{a}</Badge>)}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            <StaffingBreakdown title="By shift" description="On roll against required; shortfalls add up line by line."
+              rows={byShift} onSelect={(k) => setFilters((f) => ({ ...f, shift: f.shift === k ? "all" : k }))} />
+            <StaffingBreakdown title="By department" description="Select a department to filter the page."
+              rows={byDept} onSelect={(k) => setFilters((f) => ({ ...f, departmentId: f.departmentId === k ? "all" : k, positionId: "all" }))} />
           </div>
 
-          <WorkforceTimingAlerts />
-          <WorkforceAlertsStrip rows={filtered} scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
-            shiftFiltered={filters.shift !== "all"} positionTitle={title} canManage={canManage}
-            onPlanDesks={(s) => navigate(`/hrms/workforce-planning/staffing-plan?plan_desk=${s.id}`)}
-            onOpenLine={(id) => navigate(`/hrms/workforce-planning/staffing-plan?line=${id}`)} />
-
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-2"><CardTitle className="text-base">Department-wise headcount</CardTitle></CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={deptChart} margin={{ top: 8, right: 8, bottom: 8, left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
-                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                    <ChartTooltip />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="current" name="On roll" fill="hsl(var(--primary))" radius={3} />
-                    <Bar dataKey="required" name="Required" fill="hsl(var(--chart-2, 200 80% 50%))" radius={3} />
-                    <Bar dataKey="approved" name="Approved" fill="hsl(var(--muted-foreground))" radius={3} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><LayoutGrid className="h-4 w-4" /> Shift-wise staffing</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {shiftRows.map((s) => (
-                  <div key={s.name} className="flex items-center justify-between rounded-lg border border-border p-2.5">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{s.name}</p>
-                      <p className="text-xs text-muted-foreground">Required {s.required} · On roll {s.current}</p>
-                    </div>
-                    <div className="text-right text-xs font-semibold">
-                      {s.short > 0 && <p className="text-destructive">short {s.short}</p>}
-                      {s.over > 0 && <p className="text-warning">over {s.over}</p>}
-                      {s.short === 0 && s.over === 0 && <p className="text-success">met</p>}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
+          <WorkforceBudgetCard canManage={canManage}
+            filtered={filters.departmentId !== "all" || filters.positionId !== "all" || filters.shift !== "all" || filters.employmentType !== "all" || filters.status !== "all" || filters.priority !== "all" || !!filters.fromDate || !!filters.toDate} />
         </>
       )}
 
       <HiringRequirementDialog open={!!seed} onOpenChange={(o) => !o && setSeed(null)} initial={seed ?? undefined} />
       <RequirementReasonDialog target={reasonTarget} onClose={() => setReasonTarget(null)} />
+
+      <AlertDialog open={!!approving} onOpenChange={(o) => !o && setApproving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve {approving?.requirement_no}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {approving?.number_required} {approving?.number_required === 1 ? "person" : "people"} for {approving?.positions?.title ?? "this role"}
+              {approving?.target_joining_date ? `, joining by ${formatIstDate(approving.target_joining_date)}` : ""}. Recruitment can start once it is approved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea rows={2} className="text-foreground" placeholder="Optional note (kept in the request's history)" value={approveNote} onChange={(e) => setApproveNote(e.target.value)} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back</AlertDialogCancel>
+            <AlertDialogAction disabled={transition.isPending} onClick={() => {
+              const q = approving; setApproving(null);
+              if (q) transition.mutate({ id: q.id, action: "approve", reason: approveNote.trim() || null });
+            }}>Approve</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+const METRIC_TONE: Record<string, string> = {
+  default: "text-foreground", danger: "text-destructive", warning: "text-amber-600 dark:text-amber-400", success: "text-emerald-600 dark:text-emerald-400",
+};
+
+/** One cell of the figure strip; the whole cell opens the page behind the number. */
+function Metric({ label, value, helper, to, tone = "default" }: {
+  label: string; value: React.ReactNode; helper?: React.ReactNode; to: string; tone?: keyof typeof METRIC_TONE;
+}) {
+  return (
+    <Link to={to} className="group block min-w-0 bg-card px-4 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+      <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground">{label}</span>
+      <div className={cn("mt-1 font-display text-[28px] font-semibold leading-8 tabular-nums", METRIC_TONE[tone])}>{value}</div>
+      <div className="mt-0.5 min-h-4 text-xs leading-4 text-muted-foreground">{helper}</div>
+    </Link>
+  );
+}
+
+/** The definitions behind the strip, in one place. */
+function HowCounted() {
+  const [open, setOpen] = useState(false);
+  const d = WF_DEFINITIONS;
+  const rows: [string, string][] = [
+    ["On roll", `${d.onRoll} Required: ${d.required}`],
+    ["Short now", `${d.short} The smaller figure under it: ${d.netNeed.toLowerCase()}`],
+    ["Being hired", d.beingHired],
+    ["Not yet requested", d.notRequested],
+    ["In 90 days", d.projected],
+    ["Leaving soon", d.leaving],
+  ];
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="inline-flex items-center gap-1 rounded text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        How these numbers are counted <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <dl className="mt-2 grid gap-x-6 gap-y-1.5 rounded-lg border border-border bg-card p-3 text-xs sm:grid-cols-2">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex gap-2"><dt className="w-28 shrink-0 font-medium text-foreground">{k}</dt><dd className="text-muted-foreground">{v}</dd></div>
+          ))}
+        </dl>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

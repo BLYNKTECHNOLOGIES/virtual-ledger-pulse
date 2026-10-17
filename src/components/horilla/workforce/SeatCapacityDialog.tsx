@@ -97,7 +97,8 @@ export function SeatCapacityDialog({
       onOpenChange={onOpenChange}
       title={form.id ? "Edit seat capacity" : "Add seat capacity"}
       description="Physical seats are desks and workstations. They are tracked separately from sanctioned and required headcount."
-      contentClassName="max-w-2xl"
+      contentClassName="md:max-w-2xl"
+      focusContainer
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

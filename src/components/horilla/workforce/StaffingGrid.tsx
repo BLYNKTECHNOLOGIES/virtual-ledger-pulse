@@ -1,11 +1,10 @@
 import { formatInr, type BudgetLine } from "@/hooks/hrms/useWorkforceBudget";
 import { Link } from "react-router-dom";
 import { Armchair, GraduationCap, PauseCircle, Plus, UserMinus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
-  GAP_CHIP_CLASS, formatIstDate, gapLabel, gapTone, pauseText, planningShiftId, planningShifts,
+  formatIstDate, gapLabel, gapTone, pauseText, planningShiftId, planningShifts, rotaOrder,
   type PlanningShiftLike, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
@@ -23,7 +22,7 @@ export interface GridRow {
   trainees: number;
 }
 
-/** Rows = desk groups / roles, columns = planning shifts (training shifts never). */
+/** Rows = desk groups / roles, columns = planning shifts in rota order (training shifts never). */
 export function buildStaffingGrid(
   rows: StaffingDerived[],
   plans: any[],
@@ -65,9 +64,9 @@ export function buildStaffingGrid(
   }
   unplanned.forEach((u) => u.shift_id && used.add(planningShiftId(shifts, u.shift_id)!));
 
-  const columns: GridColumn[] = planningShifts(shifts)
-    .filter((s) => used.has(s.id))
-    .map((s) => ({ id: s.id, name: s.name }));
+  const columns: GridColumn[] = rotaOrder(planningShifts(shifts) as any[])
+    .filter((s: any) => used.has(s.id))
+    .map((s: any) => ({ id: s.id, name: s.name }));
   if (used.has("any")) columns.push({ id: "any", name: "Any shift" });
 
   const list = Array.from(out.values()).sort(
@@ -86,42 +85,80 @@ interface Props {
   costs?: Map<string, BudgetLine>;
 }
 
+const TONE_TEXT = { short: "text-destructive", met: "text-success", over: "text-warning", covered: "text-primary" } as const;
+const TONE_BG = { short: "bg-destructive/[0.06] hover:bg-destructive/10", met: "hover:bg-muted/60", over: "bg-warning/[0.08] hover:bg-warning/15", covered: "bg-primary/[0.06] hover:bg-primary/10" } as const;
+/** Short but fully covered by trainees and people already selected or joining. */
+const cellTone = (r: StaffingDerived) => (r.staffingGap > 0 && r.netHiringRequirement === 0 ? "covered" : gapTone(r.staffingGap));
+
 function CellTip({ r }: { r: StaffingDerived }) {
   return (
     <div className="space-y-0.5 text-xs">
-      <p>Approved {r.approved_hc} · Required {r.required_hc}</p>
-      <p>Selected {r.selected_hc} · Joining {r.pending_joining_hc}</p>
-      <p>In training {r.in_training_hc}{r.training_ready_date ? ` (ready ${formatIstDate(r.training_ready_date)})` : ""}</p>
-      <p>Open requests {r.open_requirement_hc}{r.open_requirement_count ? ` in ${r.open_requirement_count}` : ""}</p>
-      {r.over_requested_hc > 0 && <p>Over-requested {r.over_requested_hc}</p>}
-      <p>Net need {r.netHiringRequirement} · Not yet requested {r.uncoveredHiringRequirement}</p>
+      <p className="font-medium">{r.current_hc} on roll of {r.required_hc} required{r.approved_hc !== r.required_hc ? ` (approved ${r.approved_hc})` : ""}</p>
+      {(r.selected_hc > 0 || r.pending_joining_hc > 0) && <p>Selected {r.selected_hc} · Joining {r.pending_joining_hc}</p>}
+      {r.in_training_hc > 0 && <p>In training {r.in_training_hc}{r.training_ready_date ? ` (ready ${formatIstDate(r.training_ready_date)})` : ""}</p>}
+      <p>Being hired {r.open_requirement_hc}{r.open_requirement_count ? ` in ${r.open_requirement_count} request${r.open_requirement_count === 1 ? "" : "s"}` : ""}</p>
+      {r.over_requested_hc > 0 && <p className="text-warning">Over-requested by {r.over_requested_hc}</p>}
+      {r.netHiringRequirement > 0 && <p>Still needed {r.netHiringRequirement} · not yet requested {r.uncoveredHiringRequirement}</p>}
+      {r.follow_desks && <p className="text-muted-foreground">Follows its desk group</p>}
       {pauseText(r) && <p className="text-warning">{pauseText(r)}</p>}
     </div>
   );
 }
 
+const sum = (cells: StaffingDerived[]) => cells.reduce(
+  (a, r) => ({ cur: a.cur + r.current_hc, req: a.req + r.required_hc, short: a.short + Math.max(0, r.staffingGap), over: a.over + Math.max(0, -r.staffingGap) }),
+  { cur: 0, req: 0, short: 0, over: 0 },
+);
+
+function Totals({ t, strong }: { t: ReturnType<typeof sum>; strong?: boolean }) {
+  return (
+    <span className="inline-flex flex-col items-center leading-tight">
+      <span className={cn("tabular-nums text-foreground", strong ? "text-sm font-semibold" : "text-sm")}>{t.cur} / {t.req}</span>
+      <span className={cn("text-[10px] font-medium", t.short ? "text-destructive" : t.over ? "text-warning" : "text-success")}>
+        {t.short ? `short ${t.short}` : t.over ? `over ${t.over}` : "met"}{t.short && t.over ? ` · over ${t.over}` : ""}
+      </span>
+    </span>
+  );
+}
+
 export function StaffingGrid({ columns, rows, canManage, onOpenLine, onPlanCell, costs }: Props) {
   const departments = Array.from(new Set(rows.map((r) => r.departmentName)));
+  const all = rows.flatMap((r) => Array.from(r.cells.values()));
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <table className="w-full table-fixed text-sm">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="w-full min-w-[720px] table-fixed text-sm">
           <colgroup>
-            <col className="w-[34%]" />
+            <col className="w-[30%]" />
             {columns.map((c) => <col key={c.id} />)}
+            <col className="w-24" />
           </colgroup>
           <thead className="border-b border-border bg-muted/40">
             <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="px-3 py-2">Role / desks</th>
-              {columns.map((c) => <th key={c.id} className="truncate px-2 py-2 text-center" title={c.name}>{c.name}</th>)}
+              <th className="px-3 py-2 font-medium">Role</th>
+              {columns.map((c) => <th key={c.id} className="truncate px-2 py-2 text-center font-medium" title={c.name}>{c.name.replace(/ Shift$/, "")}</th>)}
+              <th className="px-2 py-2 text-center font-medium">Total</th>
             </tr>
           </thead>
           <tbody>
-            {departments.map((dept) => (
-              <DeptRows key={dept} dept={dept} rows={rows.filter((r) => r.departmentName === dept)} columns={columns}
-                canManage={canManage} onOpenLine={onOpenLine} onPlanCell={onPlanCell} costs={costs} />
-            ))}
+            {departments.map((dept) => {
+              const deptRows = rows.filter((r) => r.departmentName === dept);
+              return (
+                <DeptRows key={dept} dept={dept} rows={deptRows} columns={columns} canManage={canManage}
+                  onOpenLine={onOpenLine} onPlanCell={onPlanCell} costs={costs} />
+              );
+            })}
           </tbody>
+          <tfoot className="border-t border-border bg-muted/30">
+            <tr>
+              <td className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">All lines</td>
+              {columns.map((c) => {
+                const cells = rows.map((r) => r.cells.get(c.id)).filter(Boolean) as StaffingDerived[];
+                return <td key={c.id} className="px-2 py-2 text-center">{cells.length ? <Totals t={sum(cells)} /> : null}</td>;
+              })}
+              <td className="px-2 py-2 text-center"><Totals t={sum(all)} strong /></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </TooltipProvider>
@@ -129,88 +166,105 @@ export function StaffingGrid({ columns, rows, canManage, onOpenLine, onPlanCell,
 }
 
 function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, costs }: Props & { dept: string }) {
+  const t = sum(rows.flatMap((r) => Array.from(r.cells.values())));
   return (
     <>
       <tr className="border-b border-border bg-muted/20">
         <td colSpan={columns.length + 1} className="px-3 py-1.5 text-xs font-semibold text-foreground">{dept}</td>
+        <td className="px-2 py-1.5 text-center text-[11px] tabular-nums text-muted-foreground">
+          {t.cur} / {t.req}{t.short ? <span className="ml-1 text-destructive">−{t.short}</span> : null}
+        </td>
       </tr>
-      {rows.map((row) => (
-        <tr key={row.key} className="border-b border-border/60 last:border-0">
-          <td className="px-3 py-2 align-top">
-            <p className="truncate font-medium text-foreground" title={row.roleLabel}>{row.roleLabel}</p>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-              {row.seat ? (
-                <Link to="/hrms/workforce-planning/capacity-seats" className="inline-flex items-center gap-1 hover:text-primary">
-                  <Armchair className="h-3 w-3 shrink-0" /> {row.seat.physical_seats} desks
-                </Link>
-              ) : (
-                <span>No desk group</span>
-              )}
-              {row.notice > 0 && (
-                <span className="inline-flex items-center gap-1 text-warning"><UserMinus className="h-3 w-3 shrink-0" /> {row.notice} on notice</span>
-              )}
-              {costs && (() => {
-                const cs = Array.from(row.cells.values()).map((r) => costs.get(r.plan_id)).filter(Boolean) as BudgetLine[];
-                const known = cs.filter((c) => c.full_cost != null);
-                const total = known.reduce((a, c) => a + (c.full_cost || 0), 0);
-                return cs.length ? (
-                  <span className="font-mono text-foreground" title="Fully staffed, monthly">
-                    {formatInr(total)}/mo{known.length < cs.length ? " + in dept. total" : ""}
-                  </span>
-                ) : null;
-              })()}
-              {row.trainees > 0 && (
-                <span className="inline-flex items-center gap-1 text-primary"><GraduationCap className="h-3 w-3 shrink-0" /> {row.trainees} training</span>
-              )}
-            </div>
-          </td>
-          {columns.map((c) => {
-            const r = row.cells.get(c.id);
-            if (!r) {
-              const coveredByAny = c.id !== "any" && row.cells.has("any");
+      {rows.map((row) => {
+        const cells = Array.from(row.cells.values());
+        const follows = cells.some((r) => r.follow_desks);
+        return (
+          <tr key={row.key} className="group border-b border-border/60 last:border-0">
+            <td className="px-3 py-2 align-middle">
+              <p className="truncate font-medium text-foreground" title={row.roleLabel}>{row.roleLabel}</p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                {row.seat ? (
+                  <Link to="/hrms/workforce-planning/capacity-seats" className="inline-flex items-center gap-1 hover:text-primary" title="Desk group">
+                    <Armchair className="h-3 w-3 shrink-0" /> {row.seat.physical_seats} desk{row.seat.physical_seats === 1 ? "" : "s"}{follows ? " · follows desks" : ""}
+                  </Link>
+                ) : (
+                  <span>No desk group</span>
+                )}
+                {row.trainees > 0 && (
+                  <span className="inline-flex items-center gap-1 text-primary"><GraduationCap className="h-3 w-3 shrink-0" /> {row.trainees} in training</span>
+                )}
+                {row.notice > 0 && (
+                  <span className="inline-flex items-center gap-1 text-warning"><UserMinus className="h-3 w-3 shrink-0" /> {row.notice} on notice</span>
+                )}
+                {costs && (() => {
+                  const cs = cells.map((r) => costs.get(r.plan_id)).filter(Boolean) as BudgetLine[];
+                  const known = cs.filter((c) => c.full_cost != null);
+                  const total = known.reduce((a, c) => a + (c.full_cost || 0), 0);
+                  return cs.length ? (
+                    <span className="font-mono text-foreground" title="Fully staffed, monthly">
+                      {formatInr(total)}/mo{known.length < cs.length ? " + in dept. total" : ""}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+            </td>
+            {columns.map((c) => {
+              const r = row.cells.get(c.id);
+              if (!r) {
+                const coveredByAny = c.id !== "any" && row.cells.has("any");
+                return (
+                  <td key={c.id} className="px-1.5 py-1.5 text-center align-middle">
+                    {coveredByAny ? (
+                      <span className="text-[10px] text-muted-foreground">any shift</span>
+                    ) : canManage ? (
+                      <button type="button" onClick={() => onPlanCell(row, c.id)} aria-label={`Plan ${row.roleLabel} in ${c.name}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/0 transition-colors hover:bg-muted hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:text-muted-foreground/60">
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground/40">·</span>
+                    )}
+                  </td>
+                );
+              }
+              const tone = cellTone(r);
+              const idle = r.required_hc === 0 && r.current_hc === 0;
+              const cost = costs?.get(r.plan_id);
               return (
-                <td key={c.id} className="px-2 py-2 text-center align-middle">
-                  {coveredByAny ? (
-                    <span className="text-[10px] text-muted-foreground">Any-shift line</span>
-                  ) : canManage ? (
-                    <button type="button" onClick={() => onPlanCell(row, c.id)}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
-                      <Plus className="h-3 w-3" /> Plan
-                    </button>
-                  ) : (
-                    <span className="text-muted-foreground/40">—</span>
-                  )}
-                </td>
-              );
-            }
-            const tone = gapTone(r.staffingGap);
-            return (
-              <td key={c.id} className="px-1.5 py-1.5 text-center align-middle">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" onClick={() => onOpenLine(r, row.roleLabel)}
-                      className={cn("w-full rounded-md border border-transparent px-1.5 py-1.5 transition-colors hover:border-border hover:bg-muted/50")}
-                      aria-label={`${row.roleLabel} ${c.name}: ${r.current_hc} on roll of ${r.required_hc} required, ${gapLabel(r.staffingGap)}`}>
-                      <span className="block text-sm font-semibold tabular-nums text-foreground">{r.current_hc} / {r.required_hc}</span>
-                      <span className="mt-0.5 flex flex-wrap items-center justify-center gap-1">
-                        <Badge variant="outline" className={cn("px-1.5 py-0 text-[10px]", GAP_CHIP_CLASS[tone])}>{gapLabel(r.staffingGap)}</Badge>
-                        {r.follow_desks && <span className="text-[10px] text-muted-foreground">= desks</span>}
-                        {costs?.get(r.plan_id) && (
-                          <span className="block w-full font-mono text-[10px] text-muted-foreground">
-                            {costs.get(r.plan_id)!.full_cost != null ? `${formatInr(costs.get(r.plan_id)!.full_cost)}/mo` : "in dept. total"}
+                <td key={c.id} className="px-1.5 py-1.5 text-center align-middle">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" onClick={() => onOpenLine(r, row.roleLabel)}
+                        className={cn("w-full rounded-md px-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          idle ? "hover:bg-muted/60" : TONE_BG[tone])}
+                        aria-label={`${row.roleLabel} ${c.name}: ${idle ? "not staffed in this shift" : `${r.current_hc} on roll of ${r.required_hc} required, ${gapLabel(r.staffingGap)}`}`}>
+                        {idle ? (
+                          <span className="block text-sm text-muted-foreground/60">—</span>
+                        ) : (
+                          <>
+                            <span className="block text-sm font-semibold tabular-nums text-foreground">{r.current_hc} / {r.required_hc}</span>
+                            <span className={cn("mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium", TONE_TEXT[tone])}>
+                              {tone === "covered" ? `short ${r.staffingGap} · covered` : gapLabel(r.staffingGap)}
+                              {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Automatic hiring paused" />}
+                            </span>
+                          </>
+                        )}
+                        {cost && (
+                          <span className="block font-mono text-[10px] text-muted-foreground">
+                            {cost.full_cost != null ? `${formatInr(cost.full_cost)}/mo` : "in dept. total"}
                           </span>
                         )}
-                        {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Automatic hiring paused" />}
-                      </span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top"><CellTip r={r} /></TooltipContent>
-                </Tooltip>
-              </td>
-            );
-          })}
-        </tr>
-      ))}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">{idle ? <p className="text-xs">Not staffed in this shift (0 required). Open to change.</p> : <CellTip r={r} />}</TooltipContent>
+                  </Tooltip>
+                </td>
+              );
+            })}
+            <td className="px-1.5 py-1.5 text-center align-middle"><Totals t={sum(cells)} /></td>
+          </tr>
+        );
+      })}
     </>
   );
 }

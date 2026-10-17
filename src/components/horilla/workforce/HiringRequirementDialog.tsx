@@ -151,7 +151,8 @@ export function HiringRequirementDialog({
       onOpenChange={onOpenChange}
       title={form.id ? "Edit hiring requirement" : "Create hiring requirement"}
       description={`Raised on ${formatIstDate((initial as any)?.requested_at ?? (initial as any)?.created_at ?? istToday())}. Once approved it can be sent to recruitment as an opening.`}
-      contentClassName="max-w-3xl"
+      contentClassName="md:max-w-3xl"
+      focusContainer
       footer={
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

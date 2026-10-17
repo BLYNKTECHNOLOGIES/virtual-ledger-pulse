@@ -1,25 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, GraduationCap, RotateCcw, Save, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import {
   Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis,
 } from "recharts";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MetricStrip, StatusPill } from "@/components/ats/AtsUi";
+import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
-import { WorkforceKpiCard } from "@/components/horilla/workforce/WorkforceKpiCard";
 import {
   useAttritionHistory,
   useForecastAssumptions,
@@ -28,7 +26,7 @@ import {
   useStaffingMatrix,
   useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
-import { formatIstDate, istToday, planningShifts } from "@/lib/hrms/workforce";
+import { formatIstDate, istToday, planningShifts, rotaOrder } from "@/lib/hrms/workforce";
 import {
   actualAttrition,
   buildForecast,
@@ -77,7 +75,8 @@ export default function WorkforceForecastPage() {
       matrix.rows.filter(
         (r) =>
           (departmentId === "all" || r.department_id === departmentId) &&
-          (positionId === "all" || r.position_id === positionId) &&
+          // A line counts for a role when the role is any of its roles (shared lines included).
+          (positionId === "all" || r.position_id === positionId || (r.role_ids ?? []).includes(positionId)) &&
           (shift === "all" || r.shiftLabel === shift),
       ),
     [matrix.rows, departmentId, positionId, shift],
@@ -146,273 +145,268 @@ export default function WorkforceForecastPage() {
   const t = forecast.totals;
   const loading = matrix.isLoading || eventsQ.isLoading;
 
+  const historyReady = !!override || historyQ.isSuccess || historyQ.isError;
+  const inflow = t.trainees + t.joiners + t.hires;
+  const outflow = t.exits + t.attrition;
+
   return (
-    <div className="space-y-4 p-3 md:p-6">
+    <div className="hrms-page space-y-4">
       <PageHeader
         title="Workforce forecast"
-        description={`Month by month to ${formatIstDate(end)}: on roll + trainees moving to the floor + confirmed joiners + expected hires − people leaving − estimated attrition, against what each staffing line requires.`}
+        description={`Headcount month by month up to ${formatIstDate(end)}: people on roll, trainees moving to the floor, joiners and expected hires in, people leaving and estimated attrition out — against what each staffing line requires.`}
       />
 
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-3 md:p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Horizon</Label>
-              <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                <TabsList className="flex-wrap">
-                  {PERIODS.map((p) => <TabsTrigger key={p.value} value={p.value}>{p.label}</TabsTrigger>)}
-                </TabsList>
-              </Tabs>
-            </div>
-            {period === "custom" && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Up to</Label>
-                <Input type="date" min={today} className="h-9 text-foreground" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <ScopeSelect label="Department" value={departmentId} onChange={setDepartmentId} all="All departments"
-              options={(lookups?.departments || []).map((d) => ({ value: d.id, label: d.name }))} />
-            <ScopeSelect label="Shift" value={shift} onChange={setShift} all="All shifts"
-              options={planningShifts((lookups?.shifts || []) as any[]).map((s: any) => ({ value: s.name, label: s.name }))} />
-            <ScopeSelect label="Role" value={positionId} onChange={setPositionId} all="All roles"
-              options={(lookups?.positions || []).filter((p: any) => p.in_workforce_planning !== false)
-                .filter((p: any) => departmentId === "all" || p.department_id === departmentId)
-                .map((p: any) => ({ value: p.id, label: p.title }))} />
-            <label className="flex items-center gap-2 self-end pb-2 text-sm text-foreground">
-              <Switch checked={includePending} onCheckedChange={setIncludePending} />
-              Include requests awaiting approval
-            </label>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3 rounded-xl border border-border bg-card p-3 md:p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <SegmentedControl<Period> aria-label="Horizon" size="sm" value={period} onValueChange={setPeriod}
+            options={PERIODS.map((p) => ({ value: p.value, label: p.label }))} />
+          {period === "custom" && (
+            <Input type="date" min={today} aria-label="Forecast up to" className="h-9 w-44 text-foreground" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
+          )}
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <Switch checked={includePending} onCheckedChange={setIncludePending} />
+            Count requests awaiting approval
+          </label>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[repeat(3,minmax(0,1fr))] lg:max-w-3xl">
+          <ScopeSelect label="Department" value={departmentId} onChange={(v) => { setDepartmentId(v); setPositionId("all"); }} all="All departments"
+            options={(lookups?.departments || []).map((d) => ({ value: d.id, label: d.name }))} />
+          <ScopeSelect label="Shift" value={shift} onChange={setShift} all="All shifts"
+            options={rotaOrder(planningShifts((lookups?.shifts || []) as any[])).map((s: any) => ({ value: s.name, label: s.name }))} />
+          <ScopeSelect label="Role" value={positionId} onChange={setPositionId} all="All roles"
+            options={(lookups?.positions || []).filter((p: any) => p.in_workforce_planning !== false)
+              .filter((p: any) => departmentId === "all" || p.department_id === departmentId)
+              .map((p: any) => ({ value: p.id, label: p.title }))} />
+        </div>
+      </div>
 
       {loading ? (
-        <TableSkeleton />
-      ) : matrix.isError || eventsQ.isError ? (
+        <>
+          <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-card px-4 py-3.5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-7 w-14" /><Skeleton className="mt-2 h-3 w-28" /></div>
+          ))}</MetricStrip>
+          <Skeleton className="h-72 w-full rounded-xl" />
+        </>
+      ) : (matrix.isError && !matrix.data) || (eventsQ.isError && !eventsQ.data) ? (
         <ErrorState title="Couldn't load the forecast" error={matrix.error || eventsQ.error}
           onRetry={() => { matrix.refetch(); eventsQ.refetch(); }} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <WorkforceKpiCard label="On roll today" value={t.opening} icon={Users} hint={`${lines.length} staffing lines in scope`} />
-            <WorkforceKpiCard label="Coming in" value={t.trainees + t.joiners + t.hires} icon={TrendingUp} tone="success"
-              hint={`${t.trainees} trainees · ${t.joiners} joiners · ${t.hires} expected hires`} />
-            <WorkforceKpiCard label="Going out" value={t.exits + t.attrition} icon={TrendingDown}
-              tone={t.exits + t.attrition > 0 ? "warning" : "default"} hint={`${t.exits} on notice · ${t.attrition} estimated${t.outsideExits ? ` · +${t.outsideExits} leaving outside planned lines` : ""}`} />
-            <WorkforceKpiCard label={`Projected by ${formatIstDate(end)}`} value={t.closing} hint={`Required ${t.required}`} />
-            <WorkforceKpiCard label="Short on lines" value={t.lineGap} icon={CalendarClock} tone={t.lineGap > 0 ? "danger" : "success"}
-              hint="Sum of each line's shortfall at the horizon" />
-            <WorkforceKpiCard label="Estimated extra need" value={t.estimatedExtraNeed} tone={t.estimatedExtraNeed > 0 ? "warning" : "default"}
-              hint="From attrition estimate — not tied to a line" />
-            <WorkforceKpiCard label="Attrition used" value={`${attritionPct}%`} hint={`a month · ${sourceText}`} />
-            <WorkforceKpiCard label="Undated hires" value={t.undatedHires} icon={GraduationCap}
-              hint="No target date — placed at the end of the horizon" />
+          <div className="space-y-1.5">
+            <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">
+              <Cell label="On roll today" value={t.opening} helper={`${lines.length} staffing line${lines.length === 1 ? "" : "s"} in scope`} />
+              <Cell label={`By ${formatIstDate(end)}`} value={historyReady ? <>{t.closing}<span className="text-lg font-medium text-muted-foreground"> / {t.required}</span></> : "…"}
+                helper={`+${inflow} in · −${historyReady ? outflow : "…"} out`} />
+              <Cell label="Short on lines then" tone={t.lineGap > 0 ? "danger" : "success"} value={t.lineGap}
+                helper={includePending ? "if approved and pending hiring lands on time" : "if approved hiring lands on its target date"} />
+              <Cell label="Attrition estimate" value={historyReady ? `${attritionPct}%` : "…"} helper={`a month · ${override ? "custom" : "actual, last 12 months"}`} />
+            </MetricStrip>
+            {t.undatedHires > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t.undatedHires} expected hire{t.undatedHires === 1 ? " has" : "s have"} no target joining date and {t.undatedHires === 1 ? "is" : "are"} counted at the end of the period.
+              </p>
+            )}
           </div>
 
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Month by month</CardTitle></CardHeader>
-            <CardContent>
-              {/* Phones: one card per month (no sideways scrolling) */}
-              <div className="space-y-2 md:hidden">
-                {forecast.months.map((m) => (
-                  <div key={m.key} className="rounded-md border border-border p-2.5 text-sm">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="font-medium text-foreground">{monthName(m.key)}{m.partial && <span className="ml-1 text-xs text-muted-foreground">{formatIstDate(m.start).slice(0, 6)}–{formatIstDate(m.end).slice(0, 6)}</span>}</p>
-                      <p className={`font-mono text-xs ${m.lineGap > 0 ? "text-destructive" : "text-success"}`}>short {m.lineGap}</p>
-                    </div>
-                    <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-xs tabular-nums">
-                      <dt className="font-sans text-muted-foreground">Opening</dt><dd className="text-right">{m.opening}</dd>
-                      <dt className="font-sans text-muted-foreground">+ Trainees / joiners</dt><dd className="text-right">{m.trainees} / {m.joiners}</dd>
-                      <dt className="font-sans text-muted-foreground">+ Hires</dt><dd className="text-right">{m.hires}{m.undatedHires > 0 ? ` (${m.undatedHires} undated)` : ""}</dd>
-                      <dt className="font-sans text-muted-foreground">− Leaving</dt><dd className="text-right">{m.exits}{m.outsideExits > 0 ? ` (+${m.outsideExits} outside lines)` : ""}</dd>
-                      <dt className="font-sans text-muted-foreground">− Attrition (est.)</dt><dd className="text-right">{m.attrition}</dd>
-                      <dt className="font-sans text-muted-foreground">Closing / required</dt><dd className="text-right font-semibold text-foreground">{m.closing} / {m.required}</dd>
-                      <dt className="font-sans text-muted-foreground">Extra need (est.)</dt><dd className="text-right">{m.estimatedExtraNeed}</dd>
-                    </dl>
+          <section className="rounded-xl border border-border bg-card p-4" aria-label="Closing against required">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-[15px] font-semibold text-foreground">Closing headcount against required</h2>
+              <p className="text-xs text-muted-foreground">Bars: people coming in (green) and going out (red) each month</p>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} tickLine={false} axisLine={false} />
+                  <ChartTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="In" fill="hsl(var(--success))" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="Out" fill="hsl(var(--destructive))" radius={[0, 0, 3, 3]} maxBarSize={28} />
+                  <Line type="monotone" dataKey="Closing" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="Required" stroke="hsl(var(--muted-foreground))" strokeDasharray="5 4" dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-border bg-card" aria-label="Month by month">
+            <header className="border-b border-border px-4 py-3">
+              <h2 className="font-display text-[15px] font-semibold text-foreground">Month by month</h2>
+              <p className="text-xs text-muted-foreground">Short on lines adds up each line's own shortfall; a surplus on one line never covers another.</p>
+            </header>
+            {/* Phones: one card per month (no sideways scrolling) */}
+            <div className="space-y-2 p-3 md:hidden">
+              {forecast.months.map((m) => (
+                <div key={m.key} className="rounded-lg border border-border p-2.5 text-sm">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2">
+                    <p className="font-medium text-foreground">{monthName(m.key)}{m.partial && <span className="ml-1 text-xs text-muted-foreground">{formatIstDate(m.start).slice(0, 6)}–{formatIstDate(m.end).slice(0, 6)}</span>}</p>
+                    <p className={`text-xs font-medium ${m.lineGap > 0 ? "text-destructive" : "text-success"}`}>{m.lineGap > 0 ? `short ${m.lineGap}` : "met"}</p>
                   </div>
-                ))}
-              </div>
-              <table className="hidden w-full text-sm md:table">
+                  <dl className="mt-1 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-x-3 gap-y-0.5 text-xs tabular-nums">
+                    <dt className="text-muted-foreground">Opening</dt><dd className="text-right">{m.opening}</dd>
+                    <dt className="text-muted-foreground">+ Trainees / joiners</dt><dd className="text-right">{m.trainees} / {m.joiners}</dd>
+                    <dt className="text-muted-foreground">+ Expected hires</dt><dd className="text-right">{m.hires}{m.undatedHires > 0 ? ` (${m.undatedHires} undated)` : ""}</dd>
+                    <dt className="text-muted-foreground">− Leaving</dt><dd className="text-right">{m.exits}{m.outsideExits > 0 ? ` (+${m.outsideExits} off-line)` : ""}</dd>
+                    <dt className="text-muted-foreground">− Attrition (estimate)</dt><dd className="text-right">{m.attrition}</dd>
+                    <dt className="text-muted-foreground">Closing / required</dt><dd className="text-right font-semibold text-foreground">{m.closing} / {m.required}</dd>
+                  </dl>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[820px] text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    <th className="py-2 pr-2 font-medium">Month</th>
-                    <th className="px-1 text-right font-medium">Opening</th>
-                    <th className="px-1 text-right font-medium">+ Trainees</th>
-                    <th className="px-1 text-right font-medium">+ Joiners</th>
-                    <th className="px-1 text-right font-medium">+ Hires</th>
-                    <th className="px-1 text-right font-medium">− Leaving</th>
-                    <th className="px-1 text-right font-medium">− Attrition (estimate)</th>
-                    <th className="px-1 text-right font-medium">Closing</th>
-                    <th className="px-1 text-right font-medium">Required</th>
-                    <th className="px-1 text-right font-medium">Short on lines</th>
-                    <th className="pl-1 text-right font-medium">Extra need (estimate)</th>
+                  <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Month</th>
+                    <th className="px-2 py-2 text-right font-medium">Opening</th>
+                    <th className="px-2 py-2 text-right font-medium">+ Trainees</th>
+                    <th className="px-2 py-2 text-right font-medium">+ Joiners</th>
+                    <th className="px-2 py-2 text-right font-medium">+ Hires</th>
+                    <th className="px-2 py-2 text-right font-medium">− Leaving</th>
+                    <th className="px-2 py-2 text-right font-medium">− Attrition</th>
+                    <th className="px-2 py-2 text-right font-medium">Closing</th>
+                    <th className="px-2 py-2 text-right font-medium">Required</th>
+                    <th className="px-4 py-2 text-right font-medium">Short on lines</th>
                   </tr>
                 </thead>
-                <tbody className="font-mono tabular-nums">
+                <tbody className="tabular-nums">
                   {forecast.months.map((m) => (
                     <tr key={m.key} className="border-b border-border/60">
-                      <td className="py-2 pr-2 font-sans text-foreground">
+                      <td className="px-4 py-2 text-foreground">
                         {monthName(m.key)}
                         {m.partial && <span className="ml-1 text-xs text-muted-foreground">{formatIstDate(m.start).slice(0, 6)}–{formatIstDate(m.end).slice(0, 6)}</span>}
                       </td>
-                      <td className="px-1 text-right">{m.opening}</td>
-                      <td className="px-1 text-right">{m.trainees || "—"}</td>
-                      <td className="px-1 text-right">{m.joiners || "—"}</td>
-                      <td className="px-1 text-right">{m.hires || "—"}{m.undatedHires > 0 && <span className="font-sans text-xs text-muted-foreground"> ({m.undatedHires} undated)</span>}</td>
-                      <td className="px-1 text-right">{m.exits || "—"}</td>
-                      <td className="px-1 text-right text-muted-foreground">{m.attrition || "—"}</td>
-                      <td className="px-1 text-right font-semibold text-foreground">{m.closing}</td>
-                      <td className="px-1 text-right">{m.required}</td>
-                      <td className={`px-1 text-right ${m.lineGap > 0 ? "text-destructive" : "text-success"}`}>{m.lineGap}</td>
-                      <td className="pl-1 text-right text-muted-foreground">{m.estimatedExtraNeed || "—"}</td>
+                      <td className="px-2 py-2 text-right">{m.opening}</td>
+                      <td className="px-2 py-2 text-right">{m.trainees || "—"}</td>
+                      <td className="px-2 py-2 text-right">{m.joiners || "—"}</td>
+                      <td className="px-2 py-2 text-right">{m.hires || "—"}{m.undatedHires > 0 && <span className="text-xs text-muted-foreground"> ({m.undatedHires} undated)</span>}</td>
+                      <td className="px-2 py-2 text-right">{m.exits || "—"}{m.outsideExits > 0 && <span className="text-xs text-muted-foreground"> (+{m.outsideExits} off-line)</span>}</td>
+                      <td className="px-2 py-2 text-right text-muted-foreground">{m.attrition || "—"}</td>
+                      <td className="px-2 py-2 text-right font-semibold text-foreground">{m.closing}</td>
+                      <td className="px-2 py-2 text-right">{m.required}</td>
+                      <td className={`px-4 py-2 text-right font-medium ${m.lineGap > 0 ? "text-destructive" : "text-success"}`}>{m.lineGap > 0 ? m.lineGap : "met"}</td>
                     </tr>
                   ))}
-                  {t.outsideExits > 0 && (
-                    <tr className="border-b border-border/60 text-muted-foreground">
-                      <td className="py-2 pr-2 font-sans">Leaving outside planned lines
-                        <span className="block text-xs">{forecast.months.filter((m) => m.outsideExits > 0).map((m) => `${monthName(m.key)} ${m.outsideExits}`).join(" · ")} — not in opening or closing</span>
-                      </td>
-                      <td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td>
-                      <td className="px-1 text-right">{t.outsideExits}</td>
-                      <td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="pl-1 text-right">—</td>
-                    </tr>
-                  )}
                   <tr className="font-semibold text-foreground">
-                    <td className="py-2 pr-2 font-sans">Total</td>
-                    <td className="px-1 text-right">{t.opening}</td>
-                    <td className="px-1 text-right">{t.trainees}</td>
-                    <td className="px-1 text-right">{t.joiners}</td>
-                    <td className="px-1 text-right">{t.hires}</td>
-                    <td className="px-1 text-right">{t.exits}</td>
-                    <td className="px-1 text-right">{t.attrition}</td>
-                    <td className="px-1 text-right">{t.closing}</td>
-                    <td className="px-1 text-right">{t.required}</td>
-                    <td className="px-1 text-right">{t.lineGap}</td>
-                    <td className="pl-1 text-right">{t.estimatedExtraNeed}</td>
+                    <td className="px-4 py-2">Total</td>
+                    <td className="px-2 py-2 text-right">{t.opening}</td>
+                    <td className="px-2 py-2 text-right">{t.trainees}</td>
+                    <td className="px-2 py-2 text-right">{t.joiners}</td>
+                    <td className="px-2 py-2 text-right">{t.hires}</td>
+                    <td className="px-2 py-2 text-right">{t.exits}{t.outsideExits > 0 && <span className="text-xs font-normal text-muted-foreground"> (+{t.outsideExits} off-line)</span>}</td>
+                    <td className="px-2 py-2 text-right">{t.attrition}</td>
+                    <td className="px-2 py-2 text-right">{t.closing}</td>
+                    <td className="px-2 py-2 text-right">{t.required}</td>
+                    <td className="px-4 py-2 text-right">{t.lineGap}</td>
                   </tr>
                 </tbody>
               </table>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Short on lines adds up each staffing line's own shortfall (required − projected, when positive); a surplus on one line never covers another.
-                Expected hires are the people still to hire on {includePending ? "approved, recruiting and awaiting-approval" : "approved and recruiting"} requirements, on their target joining date.
-              </p>
-            </CardContent>
-          </Card>
+            </div>
+            <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+              Expected hires are the people still to find on {includePending ? "approved, recruiting and awaiting-approval" : "approved and recruiting"} requests, on their target joining date.
+              {t.outsideExits > 0 ? ` "Off-line" = people leaving who sit on no staffing line; they are not in the opening or closing figures.` : ""}
+            </p>
+          </section>
 
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Closing vs required</CardTitle></CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
-                  <ChartTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
-                  <Legend />
-                  <Bar dataKey="In" fill="hsl(var(--success))" />
-                  <Bar dataKey="Out" fill="hsl(var(--destructive))" />
-                  <Line type="monotone" dataKey="Closing" stroke="hsl(var(--primary))" strokeWidth={2} />
-                  <Line type="monotone" dataKey="Required" stroke="hsl(var(--muted-foreground))" strokeDasharray="5 4" />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Alert>
-            <AlertDescription>
-              Estimated attrition ({attritionPct}% a month of the opening figure) is a planning assumption, not an actual employee count — it names nobody.
-              People actually leaving are counted separately from their last working day.
-            </AlertDescription>
-          </Alert>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Leaving in this period ({leavers.length})</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {leavers.length === 0 ? <p className="text-sm text-muted-foreground">Nobody on notice leaves in this period.</p> :
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            <section className="rounded-xl border border-border bg-card" aria-label="Leaving in this period">
+              <header className="border-b border-border px-4 py-3">
+                <h2 className="font-display text-[15px] font-semibold text-foreground">Leaving in this period ({leavers.length})</h2>
+              </header>
+              <div className="space-y-2 p-3">
+                {leavers.length === 0 ? <p className="px-1 py-2 text-sm text-muted-foreground">Nobody on notice leaves in this period.</p> :
                   leavers.map((e) => (
-                    <div key={e.ref_id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-sm">
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{e.person_name}{e.badge_id ? ` (${e.badge_id})` : ""}</p>
-                        <p className="text-xs text-muted-foreground">{e.role_title} · {e.shift_name || "No shift"} · last day {formatIstDate(e.event_date)}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {!e.plan_id && <Badge variant="outline">Not on a staffing line — outside the figures</Badge>}
+                    <div key={e.ref_id} className="rounded-lg border border-border p-2.5 text-sm">
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                        {e.person_name}{e.badge_id && <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-normal text-muted-foreground">ID {e.badge_id}</span>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{e.role_title} · {e.shift_name || "No shift"} · last day {formatIstDate(e.event_date)}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {!e.plan_id && <StatusPill tone="neutral">Not on a staffing line</StatusPill>}
                         {e.related_requirement_no
-                          ? <Badge variant="outline">Replacement {e.related_requirement_no}</Badge>
-                          : <Badge variant="outline" className="text-muted-foreground">No replacement request</Badge>}
+                          ? <StatusPill tone="success">Replacement {e.related_requirement_no}</StatusPill>
+                          : <StatusPill tone="warning">No replacement request</StatusPill>}
                       </div>
                     </div>
                   ))}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Joining in this period ({joiners.length})</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {joiners.length === 0 ? <p className="text-sm text-muted-foreground">No confirmed joiners or trainees finishing in this period.</p> :
+              </div>
+            </section>
+            <section className="rounded-xl border border-border bg-card" aria-label="Joining in this period">
+              <header className="border-b border-border px-4 py-3">
+                <h2 className="font-display text-[15px] font-semibold text-foreground">Joining in this period ({joiners.length})</h2>
+              </header>
+              <div className="space-y-2 p-3">
+                {joiners.length === 0 ? <p className="px-1 py-2 text-sm text-muted-foreground">No confirmed joiners or trainees finishing in this period.</p> :
                   joiners.map((e) => (
-                    <div key={`${e.kind}-${e.ref_id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-sm">
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{e.person_name}{e.badge_id ? ` (${e.badge_id})` : ""}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {e.kind === "trainee" ? "Finishes training" : "Joins"} {e.event_date ? formatIstDate(e.event_date) : "— no date (counted at the end)"}
-                          {" · "}{e.plan_id ? lineLabel.get(e.plan_id) : e.role_title}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline">{e.kind === "trainee" ? "Trainee" : "Onboarding"}</Badge>
-                        {e.requirement_no && <Badge variant="outline">{e.requirement_no}</Badge>}
-                        {!e.plan_id && <Badge variant="outline">Not on a staffing line</Badge>}
-                      </div>
+                    <div key={`${e.kind}-${e.ref_id}`} className="rounded-lg border border-border p-2.5 text-sm">
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                        {e.person_name}{e.badge_id && <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-normal text-muted-foreground">ID {e.badge_id}</span>}
+                        <StatusPill tone={e.kind === "trainee" ? "primary" : "success"}>{e.kind === "trainee" ? "Finishes training" : "Joins"}</StatusPill>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {e.event_date ? formatIstDate(e.event_date) : "No date (counted at the end)"} · {e.plan_id ? lineLabel.get(e.plan_id) : `${e.role_title} · not on a staffing line`}
+                        {e.requirement_no ? ` · ${e.requirement_no}` : ""}
+                      </p>
                     </div>
                   ))}
                 {hires.length > 0 && (
-                  <p className="pt-1 text-xs text-muted-foreground">
+                  <p className="px-1 pt-1 text-xs text-muted-foreground">
                     Plus {hires.reduce((a, h) => a + h.qty, 0)} expected hires from{" "}
-                    {hires.map((h, i) => <span key={h.ref_id}>{i > 0 && ", "}<Link className="text-primary underline" to={`/hrms/workforce-planning/hiring-requirements?req=${h.ref_id}`}>{h.requirement_no}</Link>{!h.event_date && " (no date — placed at the end)"}</span>)}.
+                    {hires.map((h, i) => <span key={h.ref_id}>{i > 0 && ", "}<Link className="text-primary underline-offset-2 hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${h.ref_id}`}>{h.requirement_no}</Link>{!h.event_date && " (no date)"}</span>)}.
                   </p>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           </div>
 
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Attrition assumption — {deptName}</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {historyQ.isError ? "Actual history couldn't be loaded." :
-                  `${actual.exits} exit${actual.exits === 1 ? "" : "s"} in the last ${actual.months} months · ${actual.pct}% a month (planned roles only).`}
-                {" "}Using: <span className="font-medium text-foreground">{attritionPct}% — {sourceText}</span>.
-                {override?.notes ? ` Note: ${override.notes}` : ""}
-              </p>
-              {canManage && (
-                <div className="flex flex-wrap items-end gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Custom % per month {deptKey ? "for this department" : "company-wide"}</Label>
-                    <Input type="number" min={0} max={100} step="0.1" className="h-9 w-32 text-foreground"
-                      value={customInput} placeholder={String(attritionPct)} onChange={(e) => setCustomInput(e.target.value)} />
-                  </div>
-                  <Button className="h-9" disabled={saveAssumption.isPending || customInput === "" || Number(customInput) < 0 || Number(customInput) > 100}
-                    onClick={() => saveAssumption.mutate(
-                      { departmentId: deptKey, pct: Number(customInput),
-                        notes: `Custom rate replaces actual ${actual.pct}% (${actual.exits} exits / ${actual.months} months)` },
-                      { onSuccess: () => setCustomInput("") })}>
-                    <Save className="h-4 w-4" /> Use custom rate
-                  </Button>
-                  {override && (override.department_id === deptKey) && (
-                    <Button variant="outline" className="h-9" disabled={saveAssumption.isPending}
-                      onClick={() => saveAssumption.mutate({ departmentId: deptKey, pct: null })}>
-                      <RotateCcw className="h-4 w-4" /> Use actual
-                    </Button>
-                  )}
+          <section className="rounded-xl border border-border bg-card p-4" aria-label="Attrition estimate">
+            <h2 className="font-display text-[15px] font-semibold text-foreground">Attrition estimate — {deptName}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A planning assumption ({attritionPct}% a month of the opening figure), not real people — it names nobody. People actually leaving are counted from their last working day.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {historyQ.isError ? "Actual history couldn't be loaded." : !historyQ.data ? "Loading the actual history…" :
+                `${actual.exits} exit${actual.exits === 1 ? "" : "s"} in the last ${actual.months} months = ${actual.pct}% a month (planned roles only).`}
+              {" "}In use: <span className="font-medium text-foreground">{attritionPct}% — {sourceText}</span>.
+              {override?.notes ? ` Note: ${override.notes}` : ""}
+            </p>
+            {canManage && (
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="fc-custom" className="text-xs text-muted-foreground">Custom % per month {deptKey ? "for this department" : "company-wide"}</Label>
+                  <Input id="fc-custom" type="number" min={0} max={100} step="0.1" className="h-9 w-32 text-foreground"
+                    value={customInput} placeholder={String(attritionPct)} onChange={(e) => setCustomInput(e.target.value)} />
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <Button className="h-9" disabled={saveAssumption.isPending || customInput === "" || Number(customInput) < 0 || Number(customInput) > 100}
+                  onClick={() => saveAssumption.mutate(
+                    { departmentId: deptKey, pct: Number(customInput),
+                      notes: `Custom rate replaces actual ${actual.pct}% (${actual.exits} exits / ${actual.months} months)` },
+                    { onSuccess: () => setCustomInput("") })}>
+                  <Save className="h-4 w-4" /> Use custom rate
+                </Button>
+                {override && (override.department_id === deptKey) && (
+                  <Button variant="outline" className="h-9" disabled={saveAssumption.isPending}
+                    onClick={() => saveAssumption.mutate({ departmentId: deptKey, pct: null })}>
+                    <RotateCcw className="h-4 w-4" /> Use actual
+                  </Button>
+                )}
+              </div>
+            )}
+          </section>
         </>
       )}
+    </div>
+  );
+}
+
+const CELL_TONE: Record<string, string> = { default: "text-foreground", danger: "text-destructive", success: "text-emerald-600 dark:text-emerald-400" };
+function Cell({ label, value, helper, tone = "default" }: { label: string; value: React.ReactNode; helper?: React.ReactNode; tone?: keyof typeof CELL_TONE }) {
+  return (
+    <div className="min-w-0 bg-card px-4 py-3.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <div className={cn("mt-1 font-display text-[28px] font-semibold leading-8 tabular-nums", CELL_TONE[tone])}>{value}</div>
+      <div className="mt-0.5 min-h-4 text-xs leading-4 text-muted-foreground">{helper}</div>
     </div>
   );
 }

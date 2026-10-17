@@ -34,7 +34,17 @@ export interface ResponsiveDialogProps {
   footer?: React.ReactNode;
   /** Optional className for the desktop DialogContent (e.g. `max-w-2xl`). */
   contentClassName?: string;
+  /**
+   * Focus the dialog itself on open instead of its first control — for forms whose first
+   * control is a Select or switch, where a typed letter would otherwise change a value.
+   */
+  focusContainer?: boolean;
 }
+
+const focusSelf = (e: Event) => {
+  e.preventDefault();
+  (e.currentTarget as HTMLElement | null)?.focus?.();
+};
 
 export function ResponsiveDialog({
   open,
@@ -44,13 +54,14 @@ export function ResponsiveDialog({
   children,
   footer,
   contentClassName,
+  focusContainer = false,
 }: ResponsiveDialogProps) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[calc(100dvh-1rem)] overflow-hidden">
+        <DrawerContent className={cn("max-h-[calc(100dvh-1rem)] overflow-hidden", focusContainer && "focus:outline-none")} onOpenAutoFocus={focusContainer ? focusSelf : undefined}>
           <DrawerHeader className="shrink-0 text-left">
             <DrawerTitle>{title}</DrawerTitle>
             {description ? (
@@ -71,7 +82,7 @@ export function ResponsiveDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Single scroller: DialogContent is flex + overflow-hidden, body is the only scroll area */}
-      <DialogContent className={cn("flex max-h-[90vh] flex-col overflow-hidden", contentClassName)}>
+      <DialogContent className={cn("flex max-h-[90vh] flex-col overflow-hidden", focusContainer && "focus:outline-none", contentClassName)} onOpenAutoFocus={focusContainer ? focusSelf : undefined}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{title}</DialogTitle>
           {description ? (

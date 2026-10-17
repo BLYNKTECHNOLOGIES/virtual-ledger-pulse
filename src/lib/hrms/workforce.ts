@@ -294,6 +294,68 @@ export function planningShifts<T extends PlanningShiftLike>(shifts: T[]): T[] {
   return sortByOperatingOrder(shifts.filter((s) => !s.planning_shift_id && !s.is_training_shift));
 }
 
+const minutesOf = (t?: string | null) => {
+  if (!t) return null;
+  const [h = "0", m = "0"] = t.split(":");
+  return Number(h) * 60 + Number(m);
+};
+
+/**
+ * Column order for staffing screens: shifts that hand over to each other around the clock
+ * (Morning → Evening → Night) come first, in the order they run; every other shift follows
+ * by start time. Without a full 24-hour rota this is plain operating order.
+ */
+export function rotaOrder<T extends { id: string; name: string; start_time?: string | null; end_time?: string | null }>(list: T[]): T[] {
+  const base = sortByOperatingOrder(list);
+  const byStart = new Map<number, T[]>();
+  for (const s of base) {
+    const st = minutesOf(s.start_time);
+    if (st == null) continue;
+    byStart.set(st, [...(byStart.get(st) ?? []), s]);
+  }
+  for (const first of base) {
+    const start = minutesOf(first.start_time);
+    if (start == null || minutesOf(first.end_time) == null) continue;
+    const chain: T[] = [first];
+    let total = 0;
+    let cur = first;
+    for (let guard = 0; guard < base.length; guard++) {
+      const a = minutesOf(cur.start_time)!, b = minutesOf(cur.end_time)!;
+      total += ((b - a + 1440) % 1440) || 1440;
+      if (b === start) break;
+      const next = (byStart.get(b) ?? []).find((x) => !chain.includes(x) && minutesOf(x.end_time) != null);
+      if (!next) { total = -1; break; }
+      chain.push(next);
+      cur = next;
+    }
+    if (chain.length >= 2 && total === 1440) return [...chain, ...base.filter((s) => !chain.includes(s))];
+  }
+  return base;
+}
+
+/** Plain-language definitions shown next to every Workforce figure (one source for every page). */
+export const WF_DEFINITIONS = {
+  required: "People each staffing line needs, added up line by line.",
+  onRoll: "People on roll counted on a staffing line (planned roles only; people in training are counted separately).",
+  short: "Each line's shortfall (required − on roll), added up. A surplus on one line never covers another.",
+  netNeed: "Short now, minus people already selected, joining or in training for that line.",
+  beingHired: "People still to find on open hiring requirements (awaiting approval, approved or recruiting).",
+  notRequested: "Net need that no open hiring requirement covers yet.",
+  projected: "Short on lines at the end of the period, after approved hiring, trainees and known exits (no attrition estimate).",
+  leaving: "People on notice in planned roles.",
+} as const;
+
+export type WorkforceTone = "primary" | "success" | "warning" | "destructive" | "neutral";
+/** Pill tones for requirement statuses and priorities (one mapping for every Workforce screen). */
+export const REQ_STATUS_TONE: Record<string, WorkforceTone> = {
+  draft: "neutral", pending_approval: "warning", approved: "primary", recruitment_active: "success",
+  partially_fulfilled: "success", fulfilled: "neutral", cancelled: "neutral", rejected: "destructive",
+};
+export const PRIORITY_TONE: Record<string, WorkforceTone> = { critical: "destructive", high: "warning", medium: "primary", low: "neutral" };
+export const PRIORITY_DOT: Record<string, string> = {
+  critical: "bg-destructive", high: "bg-amber-500", medium: "bg-primary", low: "bg-muted-foreground/40",
+};
+
 /** The planning shift a raw shift counts as (itself when it has no group). */
 export function planningShiftId(shifts: PlanningShiftLike[], shiftId?: string | null): string | null {
   if (!shiftId) return null;

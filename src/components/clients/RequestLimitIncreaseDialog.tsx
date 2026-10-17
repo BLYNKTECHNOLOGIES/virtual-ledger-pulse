@@ -119,7 +119,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
@@ -176,7 +176,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex flex-wrap justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Updating..." : "Update Limit"}</Button>
           </div>
@@ -194,7 +194,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                 {limitHistory.map((record: any) => (
                   <div key={record.id} className="border rounded-lg p-3 space-y-2 bg-muted/20">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-y-2">
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary" className="text-xs">
                           {record.status || 'APPROVED'}

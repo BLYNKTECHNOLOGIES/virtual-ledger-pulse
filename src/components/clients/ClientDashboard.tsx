@@ -522,9 +522,9 @@ export function ClientDashboard() {
   };
 
   return (
-    <div className="space-y-6 page-mount">
+    <div className="min-w-0 space-y-4 sm:space-y-6 page-mount">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${tabGridClass}`}>
+        <TabsList className={`client-tabs grid w-full ${tabGridClass}`}>
           {canViewDirectory && <TabsTrigger value="directory">Client Directory</TabsTrigger>}
           {canViewApprovals && (
             <TabsTrigger value="approvals" className="flex items-center gap-2">
@@ -544,7 +544,7 @@ export function ClientDashboard() {
         {canViewDirectory && <TabsContent value="directory" className="space-y-6">
           {/* Nested tabs for Buyers and Sellers */}
           <Tabs value={activeDirectoryTab} onValueChange={setActiveDirectoryTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="client-tabs grid w-full grid-cols-2">
               <TabsTrigger value="buyers">Buyers</TabsTrigger>
               <TabsTrigger value="sellers">Sellers</TabsTrigger>
             </TabsList>
@@ -559,8 +559,8 @@ export function ClientDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-0">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-full max-w-sm">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative w-full xl:max-w-sm">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Search buyers by name, ID, or phone..."
@@ -570,7 +570,7 @@ export function ClientDashboard() {
                         className="pl-9"
                       />
                     </div>
-                    <div className="flex-1" />
+                    <div className="hidden xl:block xl:flex-1" />
                     <ClientDirectoryFilterButton
                       filters={buyerFilters}
                       onFiltersChange={setBuyerFilters}
@@ -578,7 +578,7 @@ export function ClientDashboard() {
                       onToggle={() => setBuyerFiltersOpen(!buyerFiltersOpen)}
                     />
                     <Select value={buyerSort} onValueChange={setBuyerSort}>
-                      <SelectTrigger className="w-[200px]">
+                      <SelectTrigger className="w-full sm:w-[200px]">
                         <ArrowUpDown className="h-4 w-4 mr-2" />
                         <SelectValue />
                       </SelectTrigger>
@@ -615,7 +615,7 @@ export function ClientDashboard() {
               {/* Buyers List */}
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-wrap justify-between items-center gap-2">
                     <CardTitle>Existing Buyers</CardTitle>
                     <Badge variant="outline">{filteredBuyers?.length || 0} results</Badge>
                   </div>
@@ -625,13 +625,13 @@ export function ClientDashboard() {
                   <TableSkeleton rows={6} columns={canAssignRA ? 12 : 11} />
                 ) : (
                 <div className="overflow-x-auto rounded-xl border border-border">
-                  <table className="w-full">
+                  <table className="client-record-table w-full">
                     <thead>
                       <tr className="border-b border-border bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
                         {canAssignRA && (
                           <th className="text-left py-3 px-4 w-10">
                             <Checkbox
-                              checked={(filteredBuyers?.length || 0) > 0 && filteredBuyers!.every((c) => selectedClientIds.has(c.id))}
+                              checked={(filteredBuyers?.length || 0) > 0 && (filteredBuyers || []).every((c) => selectedClientIds.has(c.id))}
                               onCheckedChange={(checked) => toggleAll((filteredBuyers || []).map((c) => c.id), !!checked)}
                             />
                           </th>
@@ -665,34 +665,34 @@ export function ClientDashboard() {
                             onClick={() => handleClientClick(client.id)}
                           >
                             {canAssignRA && (
-                              <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                              <td data-label="Select" className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                   checked={selectedClientIds.has(client.id)}
                                   onCheckedChange={() => toggleClient(client.id)}
                                 />
                               </td>
                             )}
-                            <td className="py-3 px-4 font-medium">{client.name}</td>
-                            <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
-                            <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
-                            <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
-                            <td className="py-3 px-4 text-right tabular-nums">{totalOrders}</td>
-                            <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastSalesOrderDate)}</td>
-                            <td className="py-3 px-4">
+                            <td data-label="Buyer Name" className="py-3 px-4 font-medium">{client.name}</td>
+                            <td data-label="Buyer ID" className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
+                            <td data-label="Assigned RM" className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
+                            <td data-label="Risk Level" className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
+                            <td data-label="Total Orders" className="py-3 px-4 text-right tabular-nums">{totalOrders}</td>
+                            <td data-label="Last Order" className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastSalesOrderDate)}</td>
+                            <td data-label="Trend" className="py-3 px-4">
                               <VolumeTrendBadge trend={trend} changePercent={changePercent} />
                             </td>
-                            <td className="py-3 px-4">
+                            <td data-label="Status" className="py-3 px-4">
                               {getActivityStatusBadge(orderInfo?.daysSinceLastSalesOrder, totalOrders)}
                             </td>
-                            <td className="py-3 px-4">
+                            <td data-label="COSMOS" className="py-3 px-4">
                               {cosmosAlert ? (
                                 <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Alert</Badge>
                               ) : (
                                 <Badge variant="outline" className="bg-success/10 text-success border-success/20">Normal</Badge>
                               )}
                             </td>
-                            <td className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>
-                            <td className="py-3 px-4">
+                            <td data-label="KYC" className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>
+                            <td data-label="Priority" className="py-3 px-4">
                               <Badge className={priority.color}>{priority.tag}</Badge>
                             </td>
                           </tr>
@@ -739,8 +739,8 @@ export function ClientDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-0">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-full max-w-sm">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative w-full xl:max-w-sm">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Search sellers by name, ID, or phone..."
@@ -749,7 +749,7 @@ export function ClientDashboard() {
                         className="pl-9"
                       />
                     </div>
-                    <div className="flex-1" />
+                    <div className="hidden xl:block xl:flex-1" />
                     <ClientDirectoryFilterButton
                       filters={sellerFilters}
                       onFiltersChange={setSellerFilters}
@@ -757,7 +757,7 @@ export function ClientDashboard() {
                       onToggle={() => setSellerFiltersOpen(!sellerFiltersOpen)}
                     />
                     <Select value={sellerSort} onValueChange={setSellerSort}>
-                      <SelectTrigger className="w-[200px]">
+                      <SelectTrigger className="w-full sm:w-[200px]">
                         <ArrowUpDown className="h-4 w-4 mr-2" />
                         <SelectValue />
                       </SelectTrigger>
@@ -794,7 +794,7 @@ export function ClientDashboard() {
               {/* Sellers List */}
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-wrap justify-between items-center gap-2">
                     <CardTitle>Existing Sellers</CardTitle>
                     <Badge variant="outline">{filteredSellers?.length || 0} results</Badge>
                   </div>
@@ -804,13 +804,13 @@ export function ClientDashboard() {
                   <TableSkeleton rows={6} columns={canAssignRA ? 12 : 11} />
                 ) : (
                 <div className="overflow-x-auto rounded-xl border border-border">
-                  <table className="w-full">
+                  <table className="client-record-table w-full">
                     <thead>
                        <tr className="border-b border-border bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
                          {canAssignRA && (
                            <th className="text-left py-3 px-4 w-10">
                              <Checkbox
-                               checked={(filteredSellers?.length || 0) > 0 && filteredSellers!.every((c) => selectedClientIds.has(c.id))}
+                               checked={(filteredSellers?.length || 0) > 0 && (filteredSellers || []).every((c) => selectedClientIds.has(c.id))}
                                onCheckedChange={(checked) => toggleAll((filteredSellers || []).map((c) => c.id), !!checked)}
                              />
                            </th>
@@ -844,34 +844,34 @@ export function ClientDashboard() {
                             onClick={() => handleClientClick(client.id)}
                           >
                             {canAssignRA && (
-                              <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                              <td data-label="Select" className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                   checked={selectedClientIds.has(client.id)}
                                   onCheckedChange={() => toggleClient(client.id)}
                                 />
                               </td>
                             )}
-                            <td className="py-3 px-4 font-medium">{client.name}</td>
-                            <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
-                            <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
-                            <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
-                            <td className="py-3 px-4 text-right tabular-nums">{totalOrders}</td>
-                            <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastPurchaseOrderDate)}</td>
-                            <td className="py-3 px-4">
+                            <td data-label="Seller Name" className="py-3 px-4 font-medium">{client.name}</td>
+                            <td data-label="Seller ID" className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
+                            <td data-label="Assigned RM" className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
+                            <td data-label="Risk Level" className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
+                            <td data-label="Total Orders" className="py-3 px-4 text-right tabular-nums">{totalOrders}</td>
+                            <td data-label="Last Order" className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastPurchaseOrderDate)}</td>
+                            <td data-label="Trend" className="py-3 px-4">
                               <VolumeTrendBadge trend={trend} changePercent={changePercent} />
                             </td>
-                            <td className="py-3 px-4">
+                            <td data-label="Status" className="py-3 px-4">
                               {getActivityStatusBadge(orderInfo?.daysSinceLastPurchaseOrder, totalOrders)}
                             </td>
-                            <td className="py-3 px-4">
+                            <td data-label="COSMOS" className="py-3 px-4">
                               {cosmosAlert ? (
                                 <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Alert</Badge>
                               ) : (
                                 <Badge variant="outline" className="bg-success/10 text-success border-success/20">Normal</Badge>
                               )}
                             </td>
-                            <td className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>
-                            <td className="py-3 px-4">
+                            <td data-label="KYC" className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>
+                            <td data-label="Priority" className="py-3 px-4">
                               <Badge className={priority.color}>{priority.tag}</Badge>
                             </td>
                           </tr>
@@ -914,7 +914,7 @@ export function ClientDashboard() {
         {canViewApprovals && (
           <TabsContent value="approvals">
             <Tabs value={activeApprovalTab} onValueChange={setActiveApprovalTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="client-tabs grid w-full grid-cols-2">
                 <TabsTrigger value="buyer-approvals" className="flex items-center gap-2">
                   <UserCheck className="h-4 w-4" />
                   Buyer Approvals
@@ -943,7 +943,7 @@ export function ClientDashboard() {
 
       {/* Sticky assignment action bar */}
       {canAssignRA && selectedClientIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border bg-background px-5 py-3">
+        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-40 flex max-w-[calc(100vw-1.5rem)] flex-wrap justify-center items-center gap-2 rounded-lg border bg-background px-3 py-3">
           <span className="text-sm font-medium">{selectedClientIds.size} selected</span>
           <Button size="sm" onClick={() => setShowAssignDialog(true)}>
             <Headset className="h-4 w-4 mr-1" />

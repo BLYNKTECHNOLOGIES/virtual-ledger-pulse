@@ -1,0 +1,27 @@
+/* Client-only layouts; desktop tables and the underlying actions are unchanged. */
+.client-management-page, .client-management-dialog { overflow-wrap: anywhere; }
+.client-management-page .grid > *, .client-management-dialog .grid > * { min-width: 0; }
+@media (max-width: 767px) {
+  .client-management-page .client-tabs { height: auto; gap: 2px; }
+  .client-tabs [role="tab"] { min-width: 0; min-height: 44px; padding: 6px; font-size: 12px; white-space: normal; line-height: 1.3; }
+  .client-tabs [role="tab"] svg { display: none; }
+  .client-management-page button, .client-management-dialog button { max-width: 100%; white-space: normal; }
+  .client-management-page button:not([role="checkbox"]):not([role="switch"]):not([role="tab"]),
+  .client-management-dialog button:not([role="checkbox"]):not([role="switch"]) { min-height: 40px; }
+  .client-management-page input, .client-management-page textarea,
+  .client-management-dialog input, .client-management-dialog textarea { min-width: 0; font-size: 16px; }
+  .client-management-page .client-record-table, .client-management-dialog .client-record-table { display: block; width: 100%; min-width: 0; }
+  .client-record-table thead, .client-record-table thead tr { display: block; position: static; }
+  .client-record-table thead th { display: none; }
+  .client-record-table thead th:has([role="checkbox"]) { display: flex; align-items: center; gap: 12px; width: auto; padding: 12px; }
+  .client-record-table thead th:has([role="checkbox"])::after { content: "Select all"; }
+  .client-record-table tbody { display: block; }
+  .client-record-table tbody tr { display: block; padding: 12px; }
+  .client-record-table tbody td { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; width: 100%; max-width: none; padding: 7px 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .client-record-table td[data-label]::before { content: attr(data-label); flex: 0 0 100%; font-size: 11px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+  .client-record-table td[data-label="Select"] { flex-wrap: nowrap; justify-content: flex-start; align-items: center; }
+  .client-record-table td[data-label="Select"]::before { flex-basis: auto; }
+  .client-record-table td > * { min-width: 0; max-width: 100%; }
+  .client-record-table td .flex { flex-wrap: wrap; }
+  .client-management-page .tabular-nums { overflow-wrap: anywhere; }
+}

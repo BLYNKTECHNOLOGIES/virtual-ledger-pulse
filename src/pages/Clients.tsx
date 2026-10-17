@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import "@/components/clients/client-mobile.css";
 
 export default function Clients() {
   const navigate = useNavigate();
@@ -34,17 +35,17 @@ export default function Clients() {
         </div>
       }
     >
-    <div className="min-h-screen bg-muted/50 p-6 page-mount">
+    <div className="client-management-page min-w-0 min-h-screen bg-muted/50 p-3 sm:p-6 page-mount">
       {/* Header */}
       <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
-        <div className="px-6 py-6">
+        <div className="px-4 py-4 sm:px-6 sm:py-6">
           <PageHeader
             title={
-              <span className="flex items-center gap-3">
-                <span className="p-3 bg-primary/10 rounded-lg">
-                  <Users className="h-7 w-7 text-primary" />
+              <span className="flex items-center gap-2 sm:gap-3">
+                <span className="shrink-0 p-2 sm:p-3 bg-primary/10 rounded-lg">
+                  <Users className="h-5 w-5 sm:h-7 sm:w-7 text-primary" />
                 </span>
-                Client Management
+                <span className="min-w-0 text-xl sm:text-2xl">Client Management</span>
               </span>
             }
             description="Comprehensive client relationship management"

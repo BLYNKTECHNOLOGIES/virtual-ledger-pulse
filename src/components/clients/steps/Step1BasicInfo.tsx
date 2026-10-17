@@ -37,7 +37,7 @@ export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="name">Client Name *</Label>
           <Input
@@ -73,7 +73,7 @@ export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="client_type">Client Type *</Label>
           <Select value={formData.client_type} onValueChange={(value) => setFormData({ ...formData, client_type: value })}>
@@ -131,7 +131,7 @@ export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="first_order_value">First Order Value</Label>
           <Input

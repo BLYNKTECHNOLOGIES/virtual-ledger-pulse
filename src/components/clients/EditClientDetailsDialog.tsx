@@ -128,7 +128,7 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Client Details</DialogTitle>
         </DialogHeader>
@@ -258,7 +258,7 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex flex-wrap justify-end gap-2 pt-4">
             <Button
               type="button"
               variant="outline"

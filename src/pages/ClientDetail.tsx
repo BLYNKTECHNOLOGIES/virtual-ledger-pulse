@@ -14,6 +14,7 @@ import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics"
 import { ClientBeneficiaryDetails } from "@/components/clients/ClientBeneficiaryDetails";
 import { ClientExchangeBadge } from "@/components/clients/ClientExchangeBadge";
 import { BackButton } from "@/components/shared/BackButton";
+import "@/components/clients/client-mobile.css";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();
@@ -83,7 +84,7 @@ export default function ClientDetail() {
   const showAsSellerOnly = !isBuyer && (isSeller || legacySeller);
 
   return (
-    <div className="space-y-6 p-6 page-mount">
+    <div className="client-management-page min-w-0 space-y-4 p-3 sm:space-y-6 sm:p-6 page-mount">
       <BackButton fallbackTo="/clients" label="Back to Clients" />
       <PageHeader
         title={

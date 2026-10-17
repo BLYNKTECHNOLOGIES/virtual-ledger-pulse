@@ -322,9 +322,9 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
+          <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pr-6">
             <span>Add New Buyer</span>
             <span className="text-sm font-normal text-muted-foreground">
               Step {currentStep} of 4 - {getStepTitle()}
@@ -366,7 +366,7 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
                   </ul>
                 </div>
               )}
-              <div className="flex gap-2 pt-1">
+              <div className="flex flex-wrap gap-2 pt-1">
                 <Button size="sm" variant="outline" onClick={() => { setDuplicateWarning(null); }}>
                   Go Back & Edit
                 </Button>
@@ -384,7 +384,7 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between pt-6 border-t">
+        <div className="flex flex-wrap gap-2 justify-between pt-6 border-t">
           <Button 
             type="button" 
             variant="outline" 

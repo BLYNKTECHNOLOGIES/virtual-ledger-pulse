@@ -59,7 +59,7 @@ export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBenefic
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <CreditCard className="h-3.5 w-3.5" />
                   <span className="font-mono">{(b.account_number || "").trim()}</span>
                   {b.bank_name && <span>· {b.bank_name}</span>}
@@ -79,7 +79,7 @@ export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBenefic
                     {b.added_to_banks.map((ab) => (
                       <div
                         key={ab.bank_account_id}
-                        className="flex items-center gap-1.5 text-xs text-foreground"
+                        className="flex flex-wrap items-center gap-1.5 text-xs text-foreground"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                         <span className="font-medium">{ab.bank_name || "Bank"}</span>

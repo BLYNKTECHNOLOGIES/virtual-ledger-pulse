@@ -63,7 +63,7 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
       </div>
 
       {/* Add Bank Account Buttons */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button
           type="button"
           variant="outline"
@@ -88,7 +88,7 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
       <div className="space-y-4">
         {bankAccounts.map((account, index) => (
           <div key={account.id} className="p-4 border rounded-lg space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="font-medium text-foreground">
                 Bank Account #{index + 1}
                 {account.isCustomBank && <span className="ml-2 text-xs text-primary">(Custom Bank)</span>}
@@ -103,7 +103,7 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Bank Name *</Label>
                 {account.isCustomBank ? (

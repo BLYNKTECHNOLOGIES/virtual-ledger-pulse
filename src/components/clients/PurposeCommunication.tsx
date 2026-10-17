@@ -213,7 +213,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         </div>
 
         <div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-sm font-medium text-muted-foreground">Operations Associate Notes</label>
             <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               {!isEditingNotes && (
@@ -231,7 +231,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
                 placeholder="Add operator notes..."
                 className="min-h-[80px]"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={handleNotesSave} disabled={updateNotesMutation.isPending}>
                   <Save className="h-3 w-3 mr-1" />
                   Save
@@ -252,7 +252,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         </div>
 
         <div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-sm font-medium text-muted-foreground">Next Follow-up</label>
             <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               {!isEditingFollowup && (
@@ -269,7 +269,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
                 value={editedFollowupDate}
                 onChange={(e) => setEditedFollowupDate(e.target.value)}
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={handleFollowupSave} disabled={updateFollowupMutation.isPending}>
                   <Save className="h-3 w-3 mr-1" />
                   Save
@@ -297,7 +297,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
           )}
         </div>
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           <PermissionGate permissions={["clients_manage"]} showFallback={false}>
             <Button size="sm" variant="outline" onClick={handleNotesEdit}>
               <MessageCircle className="h-4 w-4 mr-1" />

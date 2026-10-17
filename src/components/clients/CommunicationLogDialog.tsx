@@ -87,7 +87,7 @@ export function CommunicationLogDialog({ clientId }: CommunicationLogDialogProps
           Communication Log
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+      <DialogContent className="client-management-dialog md:max-w-lg max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5" />
@@ -95,7 +95,7 @@ export function CommunicationLogDialog({ clientId }: CommunicationLogDialogProps
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-3">
+        <div className="min-h-0 flex-1 overflow-y-auto space-y-3">
           {!showForm && (
             <Button size="sm" onClick={() => setShowForm(true)} className="w-full">
               <Plus className="h-4 w-4 mr-1" /> Add Entry
@@ -133,7 +133,7 @@ export function CommunicationLogDialog({ clientId }: CommunicationLogDialogProps
 
           {logs?.map((log: any) => (
             <div key={log.id} className="border rounded-lg p-3 space-y-1">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-y-2">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className={typeColors[log.communication_type] || typeColors.note}>
                     <span className="flex items-center gap-1">

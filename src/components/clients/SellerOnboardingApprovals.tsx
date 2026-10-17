@@ -613,7 +613,7 @@ export function SellerOnboardingApprovals() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <CardTitle className="flex items-center gap-2">
               <UserCheck className="h-5 w-5" />
               New Seller Approvals
@@ -657,7 +657,7 @@ export function SellerOnboardingApprovals() {
           )}
 
           {filteredSellers && filteredSellers.length > 0 ? (
-            <Table stickyHeader density={density} maxHeight="65vh" className={selectedIds.size > 0 ? "pb-20" : undefined}>
+            <Table stickyHeader density={density} maxHeight="65vh" className={`client-record-table ${selectedIds.size > 0 ? "pb-20" : ""}`}>
                 <TableHeader>
                   <TableRow>
                     {canManageKycApprovals && (
@@ -694,7 +694,7 @@ export function SellerOnboardingApprovals() {
                     return (
                       <TableRow key={seller.id} data-state={selectedIds.has(seller.id) ? "selected" : undefined}>
                         {canManageKycApprovals && (
-                          <TableCell>
+                          <TableCell data-label="Select">
                             <Checkbox
                               checked={selectedIds.has(seller.id)}
                               onCheckedChange={() => toggleSelectOne(seller.id)}
@@ -702,7 +702,7 @@ export function SellerOnboardingApprovals() {
                             />
                           </TableCell>
                         )}
-                        <TableCell>
+                        <TableCell data-label="Seller Name">
                           <button
                             onClick={() => handleViewOrders(seller.id)}
                             className="font-medium text-primary hover:underline flex items-center gap-1"
@@ -752,26 +752,26 @@ export function SellerOnboardingApprovals() {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell data-label="Binance ID">
                           <div className="flex flex-col gap-0.5">
                             <span className="font-mono text-sm">{nickInfo?.nickname ? `@${nickInfo.nickname}` : '—'}</span>
                             <span className="text-[10px] text-muted-foreground">{seller.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{seller.client_id}</TableCell>
-                        <TableCell>{seller.phone || '-'}</TableCell>
-                        <TableCell>
+                        <TableCell data-label="Client ID" className="font-mono text-sm">{seller.client_id}</TableCell>
+                        <TableCell data-label="Contact">{seller.phone || '-'}</TableCell>
+                        <TableCell data-label="First Order Date">
                           {firstOrder?.order_date 
                             ? new Date(firstOrder.order_date).toLocaleDateString() 
                             : '-'}
                         </TableCell>
-                        <TableCell numeric>
+                        <TableCell data-label="First Order Amount" numeric>
                           {firstOrder?.total_amount 
                             ? `₹${firstOrder.total_amount.toLocaleString('en-IN')}` 
                             : '-'}
                         </TableCell>
-                        <TableCell>{getStatusBadge(seller.kyc_status)}</TableCell>
-                        <TableCell>
+                        <TableCell data-label="Status">{getStatusBadge(seller.kyc_status)}</TableCell>
+                        <TableCell data-label="Actions">
                           <div className="flex gap-2">
                             <Button
                               size="sm"

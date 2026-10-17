@@ -115,7 +115,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
       <div className="space-y-4">
         <h4 className="font-medium text-foreground">Required Documents</h4>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="pan_card">PAN Card *</Label>
             <div
@@ -167,7 +167,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
           </div>
         </div>
 
-        <div className="w-1/2">
+        <div className="w-full sm:w-1/2">
           <Label htmlFor="aadhar_back">Aadhar Card (Back) *</Label>
           <div
             {...dropAadhaarBack}
@@ -195,7 +195,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
 
       {/* Additional Documents */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="font-medium text-foreground">Additional Documents</h4>
           <Button 
             type="button" 
@@ -210,7 +210,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
         </div>
 
         {additionalDocs.map((doc) => (
-          <div key={doc.id} className="flex items-end gap-2 p-3 border rounded-lg">
+          <div key={doc.id} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 p-3 border rounded-lg">
             <div className="flex-1">
               <Label htmlFor={`doc_name_${doc.id}`}>Document Name</Label>
               <Input

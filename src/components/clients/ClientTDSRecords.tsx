@@ -153,7 +153,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-warning" />
             TDS Records (Seller)
@@ -205,7 +205,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
         {/* TDS Records Table */}
         {tdsRecords && tdsRecords.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-border">
-            <Table>
+            <Table className="client-record-table">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground">Order #</TableHead>
@@ -225,15 +225,15 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
                     onClick={() => record.purchase_order_id && openTransaction({ type: 'purchase_order', id: record.purchase_order_id })}
                     title={record.purchase_order_id ? "Click to view full order details" : undefined}
                   >
-                    <TableCell className="font-medium">{record.order_number}</TableCell>
-                    <TableCell>{record.pan_number}</TableCell>
-                    <TableCell className="text-right tabular-nums">₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right text-warning font-medium tabular-nums">
+                    <TableCell data-label="Order #" className="font-medium">{record.order_number}</TableCell>
+                    <TableCell data-label="PAN">{record.pan_number}</TableCell>
+                    <TableCell data-label="Total Amount" className="text-right tabular-nums">₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>
+                    <TableCell data-label="TDS Deducted" className="text-right text-warning font-medium tabular-nums">
                       ₹{record.tds_amount?.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">₹{record.net_payable_amount?.toLocaleString('en-IN')}</TableCell>
-                    <TableCell>{getFinancialQuarter(record.deduction_date)}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Net Paid" className="text-right tabular-nums">₹{record.net_payable_amount?.toLocaleString('en-IN')}</TableCell>
+                    <TableCell data-label="Quarter">{getFinancialQuarter(record.deduction_date)}</TableCell>
+                    <TableCell data-label="Status">
                       {record.tds_certificate_number ? (
                         <Badge variant="outline" className="bg-success/10 text-success border-success/20">Filed</Badge>
                       ) : (

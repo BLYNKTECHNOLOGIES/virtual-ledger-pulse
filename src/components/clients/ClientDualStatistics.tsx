@@ -131,7 +131,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex flex-wrap items-center gap-2">
             <ArrowRightLeft className="h-5 w-5 text-primary" />
             Trading Statistics
           </CardTitle>
@@ -149,7 +149,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ArrowRightLeft className="h-5 w-5 text-primary" />
             <CardTitle>Trading Statistics</CardTitle>
             {isComposite && (
@@ -164,7 +164,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
               <Badge className="bg-warning/10 text-warning border-warning/20">SELLER</Badge>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DateRangePicker
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
@@ -192,7 +192,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
               <h3 className="text-lg font-semibold text-success">Buy Statistics</h3>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-success">Total Orders</label>
                 <p className="text-2xl font-bold text-success tabular-nums">{buyStats.totalOrders}</p>
@@ -223,7 +223,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
               <h3 className="text-lg font-semibold text-warning">Sell Statistics</h3>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-warning">Total Orders</label>
                 <p className="text-2xl font-bold text-warning tabular-nums">{sellStats.totalOrders}</p>
@@ -254,7 +254,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
             <TrendingUp className="h-5 w-5" />
             Combined Summary
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <label className="text-sm font-medium text-primary">Total Trade Volume</label>
               <p className="text-2xl font-bold text-primary tabular-nums">₹{totalTradeVolume.toLocaleString('en-IN')}</p>

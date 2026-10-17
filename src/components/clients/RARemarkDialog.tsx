@@ -85,7 +85,7 @@ export function RARemarkDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Conversation Log — {clientName}</DialogTitle>
         </DialogHeader>
@@ -119,7 +119,7 @@ export function RARemarkDialog({
                 </Select>
               </div>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-y-2 gap-3">
               <label
                 className={cn(
                   "flex items-center gap-2 text-sm text-muted-foreground cursor-pointer rounded px-1 transition-colors",
@@ -156,7 +156,7 @@ export function RARemarkDialog({
           )}
           {remarks?.map((r) => (
             <div key={r.id} className="border rounded-lg p-3 space-y-1">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-y-2 gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{r.ra_name || "RA"}</span>
                   {r.contact_outcome && (

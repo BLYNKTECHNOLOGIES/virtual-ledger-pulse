@@ -98,7 +98,7 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
           <CardTitle className="text-sm font-medium text-success">Ready to Create Client</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <p className="font-medium text-success mb-2">Required Information:</p>
               <ul className="space-y-1 text-success">

@@ -203,7 +203,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -259,9 +259,9 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                         <span className="text-sm font-medium">{DOC_TYPE_LABELS[type]}</span>
                         <Badge variant="outline" className="text-xs">{docs.length} file{docs.length > 1 ? 's' : ''}</Badge>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-0 sm:ml-6">
                         {docs.map((doc: any) => (
-                          <div key={doc.id} className="flex items-center justify-between p-2 border rounded-md bg-muted/30">
+                          <div key={doc.id} className="flex flex-wrap items-center justify-between gap-y-2 p-2 border rounded-md bg-muted/30">
                             <div className="flex items-center gap-2 min-w-0">
                               <FileText className="h-3 w-3 shrink-0" />
                               <span className="text-sm truncate">{doc.file_name}</span>
@@ -313,7 +313,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                 <div className="space-y-3">
                   {bankDetails.map((bank: any) => (
                     <div key={bank.id} className="p-3 border rounded-md space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-y-2">
                         <span className="font-medium text-sm">
                           {bank.bank_name} <span className="text-muted-foreground">••••{bank.last_four_digits}</span>
                         </span>
@@ -347,7 +347,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {incomeDetails.primary_source_of_income && (
                     <div>
                       <p className="text-xs text-muted-foreground">Primary Source</p>

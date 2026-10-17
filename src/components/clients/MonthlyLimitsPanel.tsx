@@ -112,7 +112,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
             <p className="text-lg font-semibold text-success">₹{firstOrderValue.toLocaleString('en-IN')}</p>
@@ -132,13 +132,13 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
             <span className="text-sm font-medium">{usedPercentage.toFixed(1)}% Used</span>
           </div>
           <Progress value={usedPercentage} className="h-2" />
-          <div className="flex justify-between text-sm text-muted-foreground mt-1">
+          <div className="flex flex-col sm:flex-row gap-1 justify-between text-sm text-muted-foreground mt-1">
             <span>Used: ₹{currentMonthUsed.toLocaleString('en-IN')}</span>
             <span>Remaining: ₹{remainingLimit.toLocaleString('en-IN')}</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Cosmos Triggered?</label>
             <Badge variant="outline" className={isCosmosTriggered ? "text-destructive border-destructive/20 bg-destructive/5" : "text-success border-success/20 bg-success/5"}>
@@ -153,7 +153,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Re-KYC Status</label>
             <Badge variant="outline" className="text-primary border-info/20 bg-info/5">
@@ -168,7 +168,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={() => setShowLimitDialog(true)}>
             <TrendingUp className="h-4 w-4 mr-1" />
             Request Limit Increase

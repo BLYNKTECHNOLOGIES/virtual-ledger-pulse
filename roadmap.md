@@ -1,5 +1,10 @@
 # Roadmap
 
+## Client Management phone layouts
+- [x] Optimize directory, approvals, assignments, client details and related forms without changing business logic
+- [x] Verify isolated sample layouts at 320/390/768/1280px with no page overflow; 397 tests passed and preview build clean
+- [ ] Verify signed-in real-record flows — blocked: external unmanaged sign-in prevents authenticated checks
+
 ## Optional pre-joining onboarding
 - [x] Provide isolated sample package, uploads, submission, correction and HR-review preview; verified desktop/phone flow and 22 tests; no real candidate writes or emails
 - [x] Assess the existing candidate link and joining side effects

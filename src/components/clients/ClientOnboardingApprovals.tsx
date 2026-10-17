@@ -2188,9 +2188,9 @@ export function ClientOnboardingApprovals() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <AlertCircle className="h-6 w-6 text-warning" />
-        <h2 className="text-2xl font-bold">Client Onboarding Approvals</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">Client Onboarding Approvals</h2>
         <Badge variant="destructive">{approvalCounts?.pending ?? allPendingApprovals.length} Pending</Badge>
       </div>
 
@@ -2235,7 +2235,7 @@ export function ClientOnboardingApprovals() {
             <TableSkeleton rows={8} columns={8} />
           ) : (
             <>
-            <Table stickyHeader density={density} maxHeight="65vh">
+            <Table stickyHeader density={density} maxHeight="65vh" className="client-record-table">
               <TableHeader>
                  <TableRow>
                    <TableHead>Client Name</TableHead>
@@ -2264,7 +2264,7 @@ export function ClientOnboardingApprovals() {
                     !sameUserNick && !sameUserVName && state === 'new_client' && !safeNick && !safeVName;
                   return (
                   <TableRow key={approval.id}>
-                    <TableCell className="font-medium">
+                    <TableCell data-label="Client Name" className="font-medium">
                       <div>
                         {approval.client_name}
                         {entry.orderCount > 1 && (
@@ -2333,7 +2333,7 @@ export function ClientOnboardingApprovals() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Binance ID">
                       <div className="text-sm">
                         <div className="font-mono">{idInfo?.nickname || '—'}</div>
                         {idInfo?.verifiedName && (
@@ -2341,7 +2341,7 @@ export function ClientOnboardingApprovals() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell numeric>
+                    <TableCell data-label="Order Details" numeric>
                       <div className="text-sm">
                         {entry.totalAmount > 0 ? (
                           <>
@@ -2356,7 +2356,7 @@ export function ClientOnboardingApprovals() {
                       </div>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell data-label="Contact">
                       <div className="text-sm">
                         <div>{approval.client_phone}</div>
                         {approval.client_state && (
@@ -2364,7 +2364,7 @@ export function ClientOnboardingApprovals() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Documents">
                       <div className="flex gap-1">
                         {approval.aadhar_front_url && (
                           <Button
@@ -2387,7 +2387,7 @@ export function ClientOnboardingApprovals() {
                       </div>
                     </TableCell>
                     {canViewVideoKyc && (
-                      <TableCell>
+                      <TableCell data-label="VKYC">
                         {approval.vkyc_recording_url ? (
                           <Button
                             size="sm"
@@ -2402,10 +2402,10 @@ export function ClientOnboardingApprovals() {
                         )}
                       </TableCell>
                     )}
-                    <TableCell>
+                    <TableCell data-label="Status">
                       {getStatusBadge(approval.approval_status)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Actions">
                       <div className="flex gap-2">
                         {approval.sales_order_id ? (
                           <Button
@@ -2494,7 +2494,7 @@ export function ClientOnboardingApprovals() {
             <TableSkeleton rows={6} columns={7} />
           ) : (
           <>
-          <Table>
+          <Table className="client-record-table">
             <TableHeader>
               <TableRow>
                 <TableHead>Client Name</TableHead>
@@ -2509,14 +2509,14 @@ export function ClientOnboardingApprovals() {
             <TableBody>
               {reviewedApprovals.slice(0, visibleHistoryCount).map((approval) => (
                 <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-destructive/5' : ''}>
-                  <TableCell className="font-medium">{approval.client_name}</TableCell>
-                  <TableCell>{approval.order_amount > 0 ? `₹${approval.order_amount.toLocaleString('en-IN')}` : <span className="text-xs text-muted-foreground italic">No linked order</span>}</TableCell>
-                  <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>
-                  <TableCell>{(approval.reviewed_by && (reviewerNameMap?.[approval.reviewed_by] || approval.reviewed_by)) || '-'}</TableCell>
-                  <TableCell>
+                  <TableCell data-label="Client Name" className="font-medium">{approval.client_name}</TableCell>
+                  <TableCell data-label="Order Amount">{approval.order_amount > 0 ? `₹${approval.order_amount.toLocaleString('en-IN')}` : <span className="text-xs text-muted-foreground italic">No linked order</span>}</TableCell>
+                  <TableCell data-label="Status">{getStatusBadge(approval.approval_status)}</TableCell>
+                  <TableCell data-label="Reviewed By">{(approval.reviewed_by && (reviewerNameMap?.[approval.reviewed_by] || approval.reviewed_by)) || '-'}</TableCell>
+                  <TableCell data-label="Review Date">
                     {approval.reviewed_at ? new Date(approval.reviewed_at).toLocaleDateString() : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Details">
                     {approval.approval_status === 'APPROVED' ? (
                       <span className="text-sm text-muted-foreground">
                         Limit: ₹{approval.proposed_monthly_limit?.toLocaleString('en-IN') || '-'}
@@ -2527,7 +2527,7 @@ export function ClientOnboardingApprovals() {
                       </span>
                     ) : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Actions">
                     {approval.approval_status === 'REJECTED' && hasPermission('clients_destructive') ? (
                       <Button
                         size="sm"
@@ -2572,7 +2572,7 @@ export function ClientOnboardingApprovals() {
 
       {/* Approval Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : closeApprovalDialog()}>
-        <DialogContent className="md:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="client-management-dialog md:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Client Onboarding Form</DialogTitle>
           </DialogHeader>
@@ -2593,7 +2593,7 @@ export function ClientOnboardingApprovals() {
                   {/* Existing client details */}
                    <div className="bg-card rounded-md p-3 border border-warning/20">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                      <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
                       <div><span className="text-muted-foreground">User No:</span> <span className="font-mono">{identityDetail.existingUserNo || 'N/A'}</span></div>
                       <div><span className="text-muted-foreground">Nickname:</span> {identityDetail.existingNickname ? `@${identityDetail.existingNickname}` : 'N/A'}</div>
@@ -2669,7 +2669,7 @@ export function ClientOnboardingApprovals() {
 
                   <div className="bg-card rounded-md p-3 border border-warning/20">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
                       <div><span className="text-muted-foreground">User No:</span> <span className="font-mono">{identityDetail.requestUserNo || 'N/A'}</span></div>
                       <div><span className="text-muted-foreground">Nickname:</span> {identityDetail.requestNickname ? `@${identityDetail.requestNickname}` : 'N/A'}</div>
@@ -2723,7 +2723,7 @@ export function ClientOnboardingApprovals() {
                 <h3 className="font-semibold mb-2">Order Information</h3>
                 <div className="space-y-4 text-sm">
                   {/* Row 1: Client Name + Order Amount */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="font-medium">Client Name:</span> {selectedApproval.client_name}
                     </div>
@@ -2775,7 +2775,7 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* Row 2: Phone + State */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="client_phone" className="font-medium">Phone *</Label>
                       {phoneEditEnabled ? (
@@ -2934,7 +2934,7 @@ export function ClientOnboardingApprovals() {
                         </div>
                       </div>
                       {entry.statementFile && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <Label className="text-xs">Statement Period From</Label>
                             <Popover>
@@ -3365,7 +3365,7 @@ export function ClientOnboardingApprovals() {
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={closeApprovalDialog}>
                   Cancel
                 </Button>

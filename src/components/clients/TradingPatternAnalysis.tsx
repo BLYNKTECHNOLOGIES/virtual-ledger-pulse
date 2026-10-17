@@ -115,7 +115,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
 
   const renderAnalysisContent = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         <div className="text-center p-4 bg-card rounded-lg shadow-sm border border-info/20">
           <div className="text-3xl font-bold text-primary">{totalOrders}</div>
           <div className="text-sm text-muted-foreground mt-1">

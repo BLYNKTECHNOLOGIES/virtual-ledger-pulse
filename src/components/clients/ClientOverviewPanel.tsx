@@ -192,7 +192,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client Name</label>
             <p className="text-lg font-semibold">{client.name}</p>
@@ -211,7 +211,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">State</label>
             <div className="flex items-center gap-2">
@@ -235,7 +235,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Date of Onboarding</label>
             <div className="flex items-center gap-2">
@@ -249,7 +249,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
             <div className="flex items-center gap-2">
@@ -267,7 +267,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Risk Appetite</label>
             <Select
@@ -313,7 +313,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client Type</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {isComposite ? (
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                   Composite
@@ -333,7 +333,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         {/* Only show monthly limits for buyers (not sellers) */}
         {!isSeller && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Monthly Limit</label>
               <p className="text-sm font-medium">₹{client.monthly_limit?.toLocaleString('en-IN') || 'Not set'}</p>
@@ -345,7 +345,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Total Trade Volume</label>
             <p className="text-lg font-semibold text-primary tabular-nums">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
@@ -365,7 +365,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
               <Briefcase className="h-4 w-4" />
               Source of Income
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {incomeDetails.primary_source_of_income && (
                 <div>
                   <p className="text-xs text-muted-foreground">Primary Source</p>
@@ -448,7 +448,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         {/* Action Buttons */}
         <div className="space-y-4 pt-4 border-t">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               <Button 
                 size="sm" 
@@ -474,7 +474,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           {/* Only show limit and cosmos buttons for buyers */}
           {!isSeller && (
             <PermissionGate permissions={["clients_manage"]} showFallback={false}>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Button 
                   size="sm" 
                   variant="outline" 

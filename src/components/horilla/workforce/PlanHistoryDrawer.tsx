@@ -14,7 +14,19 @@ const TYPE_LABEL: Record<string, string> = {
   headcount_plan: "Staffing line",
   seat_capacity: "Desk group",
   hiring_requirement: "Requirement",
+  position: "Position",
+  employee: "Employee",
+  onboarding: "Onboarding",
+  user: "ERP user",
 };
+/** "payment_operations_shared_plan" → "Payment operations shared plan". */
+const readable = (s?: string | null) => {
+  if (!s) return "";
+  if (TYPE_LABEL[s]) return TYPE_LABEL[s];
+  const t = s.replace(/_/g, " ").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Workforce plan audit trail (hr_workforce_plan_audit), newest first. */
 export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -64,6 +76,7 @@ export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpe
       (plans.data || []).forEach((p: any) => m.set(p.id, `${roles(p) || "Role"} · ${shiftText(p)}`));
       (seats.data || []).forEach((s: any) => m.set(s.id, s.is_training_only ? "Training desks" : `${roles(s) || "Department"} desks`));
       (reqs.data || []).forEach((r: any) => m.set(r.id, r.requirement_no));
+      (positions.data || []).forEach((p: any) => { if (!m.has(p.id)) m.set(p.id, p.title); });
       return m;
     },
   });
@@ -79,6 +92,9 @@ export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpe
     );
   }, [audit.data, labels.data, search, limit]);
   const hasMore = (audit.data?.length || 0) > limit;
+  // Desk-group (and other id) values show the group's name, never a raw id.
+  const valueText = (v?: string | null) =>
+    v == null ? null : UUID_RE.test(v) ? labels.data?.get(v) ?? "Removed desk group" : v;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -108,17 +124,17 @@ export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpe
             rows.map((r: any) => (
               <div key={r.id} className="rounded-md border border-border p-2.5 text-sm">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-medium text-foreground">{labels.data?.get(r.entity_id) ?? TYPE_LABEL[r.entity] ?? r.entity}</span>
+                  <span className="font-medium text-foreground">{labels.data?.get(r.entity_id) ?? readable(r.entity)}</span>
                   <span className="text-xs text-muted-foreground">{formatIstDateTime(r.changed_at)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {TYPE_LABEL[r.entity] ?? r.entity} · {r.field_changed} · by {r.changed_by_name || "System"}
+                  {readable(r.entity)} · {readable(r.field_changed)} · by {r.changed_by_name || "System"}
                 </p>
                 {(r.old_value || r.new_value) && (
                   <p className="mt-1 break-words text-foreground">
-                    <span className="text-muted-foreground line-through">{r.old_value ?? "—"}</span>
+                    <span className="text-muted-foreground line-through">{valueText(r.old_value) ?? "—"}</span>
                     <span className="mx-1.5 text-muted-foreground">to</span>
-                    {r.new_value ?? "—"}
+                    {valueText(r.new_value) ?? "—"}
                   </p>
                 )}
                 {r.reason && <p className="mt-1 break-words text-xs text-muted-foreground">Reason: {r.reason}</p>}

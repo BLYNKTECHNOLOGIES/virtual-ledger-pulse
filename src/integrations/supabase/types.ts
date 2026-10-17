@@ -27377,6 +27377,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          position_id: string | null
           updated_at: string
         }
         Insert: {
@@ -27388,6 +27389,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          position_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -27399,9 +27401,18 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          position_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "raci_roles_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       raci_tasks: {
         Row: {

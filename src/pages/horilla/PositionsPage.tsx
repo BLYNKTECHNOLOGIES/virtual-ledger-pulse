@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,14 +14,34 @@ import { Switch } from "@/components/ui/switch";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { useJobDescriptions, type JobDescriptionRow } from "@/hooks/useJobDescriptions";
-import { invalidatePlanning, useHeadcountPlans, useSeatOccupancy, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
+import { invalidatePlanning, useHeadcountPlans, usePositionPlanningStatus, useSeatOccupancy, useStaffingMatrix, type PositionPlanningStatus } from "@/hooks/hrms/useWorkforcePlanning";
 import { usePermissions } from "@/hooks/usePermissions";
 import { JobDescriptionViewer } from "@/components/horilla/positions/JobDescriptionViewer";
 import { JobDescriptionLibraryDialog } from "@/components/horilla/positions/JobDescriptionLibraryDialog";
 
 
+type PlanningChoice = "" | "plan" | "no_staff" | "outside";
+type MovePreview = { lines: number; desk_groups: number; requests: number; jobs: number; people: number; onboarding: number; users: number; total: number; refusal: string | null; can_move: boolean };
+
+const PLANNING_LABEL: Record<PositionPlanningStatus, string> = {
+  planned: "Planned", no_staff_needed: "No staff needed", outside: "Outside planning", undecided: "Not decided",
+};
+const PLANNING_CLASS: Record<PositionPlanningStatus, string> = {
+  planned: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  no_staff_needed: "bg-muted text-muted-foreground border-border",
+  outside: "bg-muted text-muted-foreground border-border",
+  undecided: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+};
+
 export default function PositionsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const deptFilter = params.get("department") || "";
+  const planningFilter = params.get("planning") === "undecided";
+  const [planningChoice, setPlanningChoice] = useState<PlanningChoice>("");
+  const [movePreview, setMovePreview] = useState<MovePreview | null>(null);
+  const [editOriginalDept, setEditOriginalDept] = useState<string>("");
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", department_id: "", is_active: true });
@@ -32,6 +53,17 @@ export default function PositionsPage() {
   const { hasPermission } = usePermissions();
   const canManagePlanning = hasPermission("hrms_manage");
   const [confirmSwitch, setConfirmSwitch] = useState<null | { p: any; kind: "planning" | "active"; value: boolean }>(null);
+  const { data: planningStatus } = usePositionPlanningStatus();
+
+  // ?add=1&department=<id> opens Add position with that department chosen (from the Departments page).
+  useEffect(() => {
+    if (params.get("add") === "1") {
+      setForm({ title: "", department_id: params.get("department") || "", is_active: true });
+      setEditId(null); setPlanningChoice(""); setAddOpen(true);
+      const next = new URLSearchParams(params); next.delete("add"); setParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const { data: positions, isLoading } = useQuery({
@@ -52,8 +84,8 @@ export default function PositionsPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = {
+    mutationFn: async (): Promise<{ id: string | null; choice: PlanningChoice }> => {
+      const payload: any = {
         title: form.title,
         department_id: form.department_id || null,
         is_active: form.is_active,
@@ -62,15 +94,23 @@ export default function PositionsPage() {
         const { data, error } = await supabase.from("positions").update(payload).eq("id", editId).select("id");
         if (error) throw error;
         if (!data || data.length === 0) throw new Error("No row updated (permission denied or position missing)");
-      } else {
-        const { error } = await supabase.from("positions").insert(payload);
-        if (error) throw error;
+        return { id: editId, choice: "" };
       }
+      if (canManagePlanning && planningChoice === "outside") payload.in_workforce_planning = false;
+      const { data, error } = await supabase.from("positions").insert(payload).select("id").single();
+      if (error) throw error;
+      if (canManagePlanning && planningChoice === "no_staff") {
+        const { error: e2 } = await (supabase.rpc as any)("hr_wf_set_no_staff_needed", { p_position: data.id, p_on: true });
+        if (e2) throw e2;
+      }
+      return { id: data.id, choice: canManagePlanning ? planningChoice : "" };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success(editId ? "Position updated" : "Position created");
       queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
+      invalidatePlanning(queryClient);
       closeDialog();
+      if (res.choice === "plan" && res.id) navigate(`/hrms/workforce-planning/staffing-plan?plan_role=${res.id}`);
     },
     onError: (e: any) => toast.error(`Failed to save position: ${e?.message || "unknown error"}`),
   });
@@ -100,7 +140,22 @@ export default function PositionsPage() {
     onError: (e: any) => toast.error(e?.message || "Could not update the position"),
   });
 
-  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", is_active: true }); };
+  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", is_active: true }); setPlanningChoice(""); setMovePreview(null); setEditOriginalDept(""); };
+
+  // Editing a department: preview what moves with the position (lines, desk groups, requests, jobs, people) and confirm once.
+  const submitPosition = async () => {
+    if (editId && (form.department_id || "") !== editOriginalDept && form.department_id) {
+      const { data, error } = await (supabase.rpc as any)("hr_wf_position_move_preview", { p_position: editId, p_new_department: form.department_id });
+      if (error) { toast.error(error.message); return; }
+      const pv = data as MovePreview;
+      if (pv.refusal) { toast.error(pv.refusal); return; }
+      if (pv.total > 0 || pv.users > 0) {
+        if (!pv.can_move) { toast.error("Only HRMS managers can move a position that has staffing lines, desk groups, requests, jobs or people."); return; }
+        setMovePreview(pv); return;
+      }
+    }
+    saveMutation.mutate();
+  };
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
@@ -144,9 +199,18 @@ export default function PositionsPage() {
     },
     onError: (e: any) => toast.error(e?.message || "Could not update the position"),
   });
+  const noStaffMutation = useMutation({
+    mutationFn: async ({ id, on }: { id: string; on: boolean }) => {
+      const { error } = await (supabase.rpc as any)("hr_wf_set_no_staff_needed", { p_position: id, p_on: on });
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidatePlanning(queryClient); toast.success("Planning decision saved"); },
+    onError: (e: any) => toast.error(e?.message || "Could not save the decision"),
+  });
   const PlanningControl = ({ p }: { p: any }) => {
     const inPlan = p.in_workforce_planning !== false;
     const planned = plannedByPosition[p.id];
+    const st = planningStatus?.get(p.id);
     return (
       <div className="mt-1.5 space-y-0.5">
         <div className="flex items-center gap-2" title="Leadership and contract roles without a desk are left out of staffing.">
@@ -157,7 +221,24 @@ export default function PositionsPage() {
             aria-label="In workforce planning"
           />
           <span className="text-[10px] text-muted-foreground">In workforce planning</span>
+          {st && (
+            <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${PLANNING_CLASS[st.status]}`}>
+              {st.status === "planned" ? `Planned · ${st.line_count} line${st.line_count === 1 ? "" : "s"}` : PLANNING_LABEL[st.status]}
+            </span>
+          )}
         </div>
+        {canManagePlanning && st && (st.status === "undecided" || st.status === "no_staff_needed") && (
+          <div className="flex flex-wrap gap-2 text-[10px]">
+            <button className="text-primary underline-offset-2 hover:underline" onClick={() => navigate(`/hrms/workforce-planning/staffing-plan?plan_role=${p.id}`)}>Plan its lines</button>
+            {st.status === "undecided" ? (
+              <button className="text-muted-foreground underline-offset-2 hover:underline" disabled={noStaffMutation.isPending}
+                onClick={() => noStaffMutation.mutate({ id: p.id, on: true })}>No staff needed now</button>
+            ) : (
+              <button className="text-muted-foreground underline-offset-2 hover:underline" disabled={noStaffMutation.isPending}
+                onClick={() => noStaffMutation.mutate({ id: p.id, on: false })}>Undo "no staff needed"</button>
+            )}
+          </div>
+        )}
         {inPlan && planned && (
           <p className="text-[10px] text-muted-foreground">
             Planned: required {planned.required} · on roll {planned.current}{planned.shared ? " (shared line)" : ""}
@@ -216,7 +297,9 @@ export default function PositionsPage() {
     const isActive = (p as any).is_active !== false;
     const matchesStatus =
       statusFilter === "all" || (statusFilter === "active" ? isActive : !isActive);
-    return matchesTerm && matchesStatus;
+    const matchesDept = !deptFilter || p.department_id === deptFilter;
+    const matchesPlanning = !planningFilter || planningStatus?.get(p.id)?.status === "undecided";
+    return matchesTerm && matchesStatus && matchesDept && matchesPlanning;
   });
 
   return (
@@ -231,7 +314,7 @@ export default function PositionsPage() {
               JD Library
             </Button>
             <Button
-              onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setAddOpen(true); }}
+              onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setPlanningChoice(""); setAddOpen(true); }}
               className="h-9 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />
@@ -272,6 +355,19 @@ export default function PositionsPage() {
             {chip.label}
           </button>
         ))}
+        <button
+          onClick={() => { const n = new URLSearchParams(params); if (planningFilter) n.delete("planning"); else n.set("planning", "undecided"); setParams(n, { replace: true }); }}
+          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+            planningFilter ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground"}`}
+        >
+          Not decided ({(positions || []).filter((p: any) => planningStatus?.get(p.id)?.status === "undecided").length})
+        </button>
+        {deptFilter && (
+          <button onClick={() => { const n = new URLSearchParams(params); n.delete("department"); setParams(n, { replace: true }); }}
+            className="rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            {getDeptName(deptFilter)} ✕
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -288,7 +384,7 @@ export default function PositionsPage() {
           action={
             !searchTerm ? (
               <Button
-                onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setAddOpen(true); }}
+                onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setPlanningChoice(""); setAddOpen(true); }}
                 className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Position
@@ -379,7 +475,7 @@ export default function PositionsPage() {
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
+                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditOriginalDept(p.department_id || ""); setEditId(p.id); setAddOpen(true); }}
                     className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
                   <button
                     onClick={() => { if (!blockIfOccupied(p, "delete")) setDeleteTarget({ id: p.id, name: p.title }); }}
@@ -437,7 +533,7 @@ export default function PositionsPage() {
                 )}
                 <div className="flex items-center gap-1">
 
-                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
+                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditOriginalDept(p.department_id || ""); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
                 <button
                   onClick={() => { if (!blockIfOccupied(p, "delete")) setDeleteTarget({ id: p.id, name: p.title }); }}
@@ -458,7 +554,7 @@ export default function PositionsPage() {
         footer={
           <>
             <Button variant="outline" className="h-9" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.title || saveMutation.isPending} className="h-9">
+            <Button onClick={submitPosition} disabled={!form.title || saveMutation.isPending || (!editId && canManagePlanning && !planningChoice)} className="h-9">
               {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
             </Button>
           </>
@@ -476,11 +572,55 @@ export default function PositionsPage() {
               {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
+          {!editId && canManagePlanning && (
+            <div>
+              <Label>Workforce planning *</Label>
+              <div className="mt-1 space-y-1.5">
+                {([
+                  { v: "plan", t: "Plan its staffing lines now", d: "Opens the staffing plan to add its lines after saving." },
+                  { v: "no_staff", t: "In planning, no staff needed now", d: "Hiring stays blocked until it gets a line." },
+                  { v: "outside", t: "Not part of workforce planning", d: "Leadership or roles without a desk." },
+                ] as const).map((o) => (
+                  <label key={o.v} className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm ${planningChoice === o.v ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <input type="radio" name="planning-choice" className="mt-1" checked={planningChoice === o.v} onChange={() => setPlanningChoice(o.v)} />
+                    <span><span className="text-foreground">{o.t}</span><span className="block text-xs text-muted-foreground">{o.d}</span></span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          {!editId && !canManagePlanning && (
+            <p className="text-xs text-muted-foreground">An HRMS manager decides how this role is planned before anyone can hire for it.</p>
+          )}
           <p className="text-xs text-muted-foreground">
             New positions start Active. Use the switch in the list to mark a role tentative (planned on paper, not being filled right now).
           </p>
         </div>
       </ResponsiveDialog>
+
+      <AlertDialog open={!!movePreview} onOpenChange={(o) => !o && setMovePreview(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move {form.title} to {getDeptName(form.department_id)}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>Everything belonging to this position moves with it, and each moved record gets a history entry:</p>
+                <ul className="list-disc space-y-0.5 pl-5 text-foreground">
+                  <li>{movePreview?.lines ?? 0} staffing line(s)</li>
+                  <li>{movePreview?.desk_groups ?? 0} desk group(s)</li>
+                  <li>{movePreview?.requests ?? 0} open hiring request(s)</li>
+                  <li>{movePreview?.jobs ?? 0} draft/open/paused job(s)</li>
+                  <li>{movePreview?.people ?? 0} active people{movePreview?.onboarding ? ` and ${movePreview.onboarding} onboarding in progress` : ""}</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="h-9" onClick={() => { setMovePreview(null); saveMutation.mutate(); }}>Move everything</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <JobDescriptionLibraryDialog
         open={libraryOpen}

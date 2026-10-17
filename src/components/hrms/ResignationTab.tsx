@@ -42,7 +42,7 @@ type ResignationEmployee = {
   badge_id: string;
   first_name: string;
   last_name: string;
-  hr_employee_work_info: { department_id: string | null; job_role: string | null }[];
+  hr_employee_work_info: { department_id: string | null; job_role: string | null; position_title?: string | null }[];
   resignation_date: string | null;
   resignation_status: string | null;
   notice_period_end_date: string | null;
@@ -115,14 +115,14 @@ export function ResignationTab() {
       const employeeIds = employees.map((employee) => employee.id);
       const { data: workInfoRows, error: workInfoError } = await supabase
         .from("hr_employee_work_info")
-        .select("employee_id, department_id, job_role")
+        .select("employee_id, department_id, job_role, position:positions!hr_employee_work_info_job_position_id_fkey(title)")
         .in("employee_id", employeeIds);
       if (workInfoError) throw workInfoError;
 
-      const workInfoByEmployee = new Map<string, { department_id: string | null; job_role: string | null }[]>();
+      const workInfoByEmployee = new Map<string, { department_id: string | null; job_role: string | null; position_title?: string | null }[]>();
       for (const row of workInfoRows || []) {
         const existing = workInfoByEmployee.get(row.employee_id) || [];
-        existing.push({ department_id: row.department_id, job_role: row.job_role });
+        existing.push({ department_id: row.department_id, job_role: row.job_role, position_title: (row as any).position?.title ?? null });
         workInfoByEmployee.set(row.employee_id, existing);
       }
 
@@ -647,7 +647,7 @@ export function ResignationTab() {
                           <span className="text-xs text-muted-foreground">#{emp.badge_id}</span>
                           {getStatusBadge(emp.resignation_status)}
                         </div>
-                        <div className="text-sm text-muted-foreground">{emp.hr_employee_work_info?.[0]?.job_role || "—"}</div>
+                        <div className="text-sm text-muted-foreground">{emp.hr_employee_work_info?.[0]?.position_title || emp.hr_employee_work_info?.[0]?.job_role || "—"}</div>
                         <div className="text-sm space-x-4">
                           <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
                           <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
@@ -686,7 +686,7 @@ export function ResignationTab() {
                           {getStatusBadge(emp.resignation_status)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {emp.hr_employee_work_info?.[0]?.job_role || "—"}
+                          {emp.hr_employee_work_info?.[0]?.position_title || emp.hr_employee_work_info?.[0]?.job_role || "—"}
                         </div>
                         <div className="text-sm space-x-4">
                           <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>

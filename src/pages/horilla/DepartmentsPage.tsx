@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { usePositionPlanningStatus } from "@/hooks/hrms/useWorkforcePlanning";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -36,6 +38,19 @@ export default function DepartmentsPage() {
 
   const { hasPermission } = usePermissions();
   const canManageHeads = hasPermission("hrms_manage");
+  const navigate = useNavigate();
+  const { data: planningStatus } = usePositionPlanningStatus(canManageHeads);
+  const { data: deptPositions = [] } = useQuery({
+    queryKey: ["hr_positions", "dept-planning"],
+    enabled: canManageHeads,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("positions").select("id, department_id");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const undecidedIn = (deptId: string) =>
+    (deptPositions as any[]).filter((p) => p.department_id === deptId && planningStatus?.get(p.id)?.status === "undecided").length;
   const { data: activeEmployees = [] } = useQuery({
     queryKey: ["dept_head_choices"],
     queryFn: async () => {
@@ -85,15 +100,21 @@ export default function DepartmentsPage() {
         } as any).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("departments").insert({
+        const { data, error } = await supabase.from("departments").insert({
           name: form.name, code: form.code, description: form.description, icon: form.icon,
           ...(canManageHeads && form.head_employee_id ? { head_employee_id: form.head_employee_id } : {}),
-        } as any);
+        } as any).select("id").single();
         if (error) throw error;
+        return data?.id as string;
       }
     },
-    onSuccess: () => {
-      toast.success(editId ? "Department updated" : "Department created");
+    onSuccess: (newId) => {
+      if (!editId && newId && canManageHeads) {
+        toast.success("Department created", {
+          action: { label: "Add a position to it", onClick: () => navigate(`/hrms/employee/positions?add=1&department=${newId}`) },
+          duration: 10000,
+        });
+      } else toast.success(editId ? "Department updated" : "Department created");
       queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
       closeDialog();
     },
@@ -109,7 +130,7 @@ export default function DepartmentsPage() {
       toast.success("Department deleted");
       queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
     },
-    onError: () => toast.error("Failed to delete department"),
+    onError: (e: any) => toast.error(e?.message || "Failed to delete department"),
   });
 
   const toggleActiveMutation = useMutation({
@@ -121,6 +142,7 @@ export default function DepartmentsPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
       toast.success("Status updated");
     },
+    onError: (e: any) => toast.error(e?.message || "Could not change the status"),
   });
 
   const closeDialog = () => {
@@ -230,6 +252,12 @@ export default function DepartmentsPage() {
                 <Users className="h-3.5 w-3.5" />
                 {empCounts?.[d.id] || 0} employee{(empCounts?.[d.id] || 0) === 1 ? "" : "s"}
               </div>
+              {canManageHeads && undecidedIn(d.id) > 0 && (
+                <Link to={`/hrms/employee/positions?department=${d.id}&planning=undecided`}
+                  className="mt-2 inline-block text-xs font-medium text-amber-600 underline-offset-2 hover:underline">
+                  {undecidedIn(d.id)} role{undecidedIn(d.id) === 1 ? "" : "s"} not decided for workforce planning
+                </Link>
+              )}
             </div>
           );})}
 
@@ -295,7 +323,7 @@ export default function DepartmentsPage() {
             <AlertDialogDescription>
               {(empCounts?.[deleteTarget?.id ?? ""] || 0) > 0
                 ? `"${deleteTarget?.name}" can't be deleted while ${empCounts?.[deleteTarget?.id ?? ""]} employee(s) are assigned to it — move them to another department first, or switch it to Inactive instead.`
-                : `Delete "${deleteTarget?.name}"? Its positions, headcount and seat plans and forecast assumptions are deleted with it. This cannot be undone.`}
+                : `Delete "${deleteTarget?.name}"? Its positions and forecast assumptions are deleted with it. Deleting is refused while it still has active staffing lines, desk groups, open requests, jobs or people. This cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

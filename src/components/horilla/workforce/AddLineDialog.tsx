@@ -9,7 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { PRIORITIES, PRIORITY_LABEL, planningShifts } from "@/lib/hrms/workforce";
-import { useSaveHeadcountPlan, useSeatCapacity, useSeatOccupancy, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
+import { invalidatePlanning, useSaveHeadcountPlan, useSeatCapacity, useSeatOccupancy, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AddLineSeed {
   department_id?: string;
@@ -39,6 +42,8 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
   const { data: lookups } = useWorkforceLookups();
   const { data: seats = [] } = useSeatCapacity();
   const save = useSaveHeadcountPlan();
+  const qc = useQueryClient();
+  const invalidate = () => invalidatePlanning(qc);
   const occupancy = useSeatOccupancy();
   const [multi, setMulti] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -53,7 +58,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
     required_hc: 0,
     approved_hc: 0,
     target_date: "",
-    priority: "medium",
+    priority: "auto",
     reason: "",
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -72,7 +77,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       required_hc: 0,
       approved_hc: 0,
       target_date: "",
-      priority: "medium",
+      priority: "auto",
       reason: "",
     });
     setMulti([]);
@@ -132,7 +137,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
         approved_hc: approved,
         required_hc: required,
         target_date: form.target_date || null,
-        priority: form.priority,
+        priority: form.priority === "auto" ? null : form.priority,
         notes: form.reason.trim(),
         seat_capacity_id: seat ? seat.id : null,
         follow_desks: following,
@@ -141,7 +146,12 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
   const submitMany = async () => {
     setError(null); setSaving(true);
     try {
-      for (const id of multi) await save.mutateAsync(payloadFor(shifts.find((s: any) => s.id === id)));
+      // One transaction: either every desk's line is saved or none is.
+      const lines = multi.map((id) => payloadFor(shifts.find((s: any) => s.id === id)));
+      const { error: e } = await (supabase.rpc as any)("hr_wf_add_lines", { p_lines: lines });
+      if (e) throw e;
+      invalidate();
+      toast.success(`${lines.length} staffing line${lines.length === 1 ? "" : "s"} saved`);
       onOpenChange(false);
     } catch (e: any) {
       setError(e?.message || "Could not save the lines");
@@ -165,7 +175,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
         approved_hc: approved,
         required_hc: required,
         target_date: form.target_date || null,
-        priority: form.priority,
+        priority: form.priority === "auto" ? null : form.priority,
         notes: form.reason.trim(),
         seat_capacity_id: seat ? seat.id : null,
         follow_desks: following,
@@ -309,7 +319,10 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
           <Label>Priority</Label>
           <Select value={form.priority} onValueChange={(v) => set({ priority: v })}>
             <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
-            <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              <SelectItem value="auto">Automatic</SelectItem>
+              {PRIORITIES.map((p) => <SelectItem key={p} value={p}>Always {PRIORITY_LABEL[p].toLowerCase()}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
         <div className="space-y-1 sm:col-span-2">

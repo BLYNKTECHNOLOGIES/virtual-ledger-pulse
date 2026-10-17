@@ -62,13 +62,15 @@ export function useMoveAfterTraining() {
   });
 }
 
-/** Lines that follow a desk group: switch to fixed numbers (keeps today's required) or follow another group. */
+/**
+ * Lines that follow a desk group: switch to fixed numbers (keeps today's required) or follow another group.
+ * The reason is recorded as the line's change reason in plan history.
+ */
 export function useRehomeLine() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ planId, seatId }: { planId: string; seatId: string | null }) => {
-      const patch = seatId ? { seat_capacity_id: seatId, follow_desks: true } : { seat_capacity_id: null, follow_desks: false };
-      const { error } = await supabase.from("hr_headcount_plans").update(patch as any).eq("id", planId);
+    mutationFn: async ({ planId, seatId, reason }: { planId: string; seatId: string | null; reason: string }) => {
+      const { error } = await (supabase.rpc as any)("hr_wf_rehome_line", { p_plan: planId, p_seat: seatId, p_reason: reason.trim() });
       if (error) throw error;
     },
     onSuccess: (_d, v) => { invalidatePlanning(qc); toast.success(v.seatId ? "Line moved to the other desk group" : "Line now uses fixed numbers"); },

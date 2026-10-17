@@ -15473,7 +15473,7 @@ export type Database = {
           location: string | null
           notes: string | null
           position_id: string | null
-          priority: string
+          priority: string | null
           required_hc: number
           seat_capacity_id: string | null
           shift_id: string | null
@@ -15502,7 +15502,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           position_id?: string | null
-          priority?: string
+          priority?: string | null
           required_hc?: number
           seat_capacity_id?: string | null
           shift_id?: string | null
@@ -15531,7 +15531,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           position_id?: string | null
-          priority?: string
+          priority?: string | null
           required_hc?: number
           seat_capacity_id?: string | null
           shift_id?: string | null
@@ -26513,6 +26513,8 @@ export type Database = {
           reports_to_position_id: string | null
           title: string
           updated_at: string | null
+          wf_no_line_ok_at: string | null
+          wf_no_line_ok_by: string | null
         }
         Insert: {
           created_at?: string | null
@@ -26525,6 +26527,8 @@ export type Database = {
           reports_to_position_id?: string | null
           title: string
           updated_at?: string | null
+          wf_no_line_ok_at?: string | null
+          wf_no_line_ok_by?: string | null
         }
         Update: {
           created_at?: string | null
@@ -26537,6 +26541,8 @@ export type Database = {
           reports_to_position_id?: string | null
           title?: string
           updated_at?: string | null
+          wf_no_line_ok_at?: string | null
+          wf_no_line_ok_by?: string | null
         }
         Relationships: [
           {
@@ -38643,9 +38649,14 @@ export type Database = {
           still_open: number
         }[]
       }
+      hr_wf_add_lines: { Args: { p_lines: Json }; Returns: string[] }
       hr_wf_application_requirement: {
         Args: { p_job: string; p_pref: string[] }
         Returns: string
+      }
+      hr_wf_assert_role_planned: {
+        Args: { p_position: string }
+        Returns: undefined
       }
       hr_wf_caller_is_internal: { Args: never; Returns: boolean }
       hr_wf_daily_reconcile: { Args: never; Returns: Json }
@@ -38719,10 +38730,56 @@ export type Database = {
         Returns: string
       }
       hr_wf_planning_shift: { Args: { p_shift: string }; Returns: string }
+      hr_wf_position_move_counts: {
+        Args: { p_old_department: string; p_position: string }
+        Returns: Json
+      }
+      hr_wf_position_move_preview: {
+        Args: { p_new_department: string; p_position: string }
+        Returns: Json
+      }
+      hr_wf_position_move_refusal: {
+        Args: {
+          p_new_department: string
+          p_old_department: string
+          p_position: string
+        }
+        Returns: string
+      }
+      hr_wf_position_planning_status: {
+        Args: never
+        Returns: {
+          line_count: number
+          position_id: string
+          status: string
+        }[]
+      }
+      hr_wf_position_status_core: {
+        Args: never
+        Returns: {
+          line_count: number
+          position_id: string
+          status: string
+        }[]
+      }
+      hr_wf_priority_rule: {
+        Args: {
+          p_net: number
+          p_required: number
+          p_staffed: number
+          p_target: string
+          p_today: string
+        }
+        Returns: Record<string, unknown>
+      }
       hr_wf_queue_reconcile: { Args: never; Returns: undefined }
       hr_wf_refresh_open_requirements: { Args: never; Returns: undefined }
       hr_wf_refresh_requirement: {
         Args: { p_requirement: string }
+        Returns: undefined
+      }
+      hr_wf_rehome_line: {
+        Args: { p_plan: string; p_reason: string; p_seat: string }
         Returns: undefined
       }
       hr_wf_remove_desk_group: {
@@ -38760,6 +38817,14 @@ export type Database = {
         Args: { p_eligible: string[]; p_position: string }
         Returns: string[]
       }
+      hr_wf_scope_live_counts: {
+        Args: { p_department: string; p_position: string }
+        Returns: string
+      }
+      hr_wf_set_no_staff_needed: {
+        Args: { p_on: boolean; p_position: string }
+        Returns: undefined
+      }
       hr_wf_shift_groups: {
         Args: { p_eligible: string[]; p_shift: string }
         Returns: string[]
@@ -38795,8 +38860,12 @@ export type Database = {
           position_id: string
           position_title: string
           priority: string
+          priority_auto: string
+          priority_pinned: string
+          priority_why: string
           replacement_cover_hc: number
           required_hc: number
+          role_ids: string[]
           seat_active: boolean
           seat_capacity_id: string
           selected_hc: number
@@ -38944,8 +39013,12 @@ export type Database = {
           position_id: string
           position_title: string
           priority: string
+          priority_auto: string
+          priority_pinned: string
+          priority_why: string
           replacement_cover_hc: number
           required_hc: number
+          role_ids: string[]
           seat_active: boolean
           seat_capacity_id: string
           selected_hc: number

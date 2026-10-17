@@ -19,12 +19,17 @@ import {
   HIRING_REASONS,
   PRIORITIES,
   PRIORITY_LABEL,
+  linePriorityText,
   formatIstDate,
   istToday,
 } from "@/lib/hrms/workforce";
 import {
   useSaveHiringRequirement,
   useWorkforceLookups,
+  useWorkforceEmployees,
+  usePositionPlanningStatus,
+  roleBlocksHiring,
+  ROLE_NOT_PLANNED_MESSAGE,
   useStaffingMatrix,
   useHeadcountPlans,
   type HiringRequirementInput,
@@ -68,6 +73,8 @@ export function HiringRequirementDialog({
   defaultSubmitForApproval = true,
 }: HiringRequirementDialogProps) {
   const { data: lookups } = useWorkforceLookups();
+  const { data: employees = [] } = useWorkforceEmployees(open);
+  const { data: planning } = usePositionPlanningStatus(open);
   const save = useSaveHiringRequirement();
   const matrix = useStaffingMatrix();
   const { data: activePlans = [] } = useHeadcountPlans();
@@ -143,7 +150,7 @@ export function HiringRequirementDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={form.id ? "Edit hiring requirement" : "Create hiring requirement"}
-      description={`Raised on ${formatIstDate(istToday())}. Once approved it can be sent to recruitment as an opening.`}
+      description={`Raised on ${formatIstDate((initial as any)?.requested_at ?? (initial as any)?.created_at ?? istToday())}. Once approved it can be sent to recruitment as an opening.`}
       contentClassName="max-w-3xl"
       footer={
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
@@ -230,11 +237,15 @@ export function HiringRequirementDialog({
                   <SelectValue placeholder="Select position" />
                 </SelectTrigger>
                 <SelectContent>
-                  {positions.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.title}
-                    </SelectItem>
-                  ))}
+                  {positions.map((p) => {
+                    // Roles in planning with no staffing line can't be hired for yet (the database refuses too).
+                    const blocked = roleBlocksHiring(planning?.get(p.id)?.status) && p.id !== initial?.position_id;
+                    return (
+                      <SelectItem key={p.id} value={p.id} disabled={blocked} title={blocked ? ROLE_NOT_PLANNED_MESSAGE(p.title) : undefined}>
+                        {p.title}{blocked ? " · Plan first" : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -344,7 +355,7 @@ export function HiringRequirementDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Not a replacement</SelectItem>
-                  {(lookups?.employees || []).map((e: any) => (
+                  {(employees as any[]).map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>
                       {e.badge_id ? `${e.badge_id} — ` : ""}
                       {[e.first_name, e.last_name].filter(Boolean).join(" ")}
@@ -430,6 +441,15 @@ export function HiringRequirementDialog({
                   placeholder="Why the approved requirement is changing" />
               </div>
             )}
+            {form.staffing_plan_id && matrix.rows.find((r) => r.plan_id === form.staffing_plan_id) ? (
+              <div className="space-y-1">
+                <Label>Priority</Label>
+                <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                  {linePriorityText(matrix.rows.find((r) => r.plan_id === form.staffing_plan_id)!)}
+                </p>
+                <p className="text-xs text-muted-foreground">Requests on a staffing line take the line's priority.</p>
+              </div>
+            ) : (
             <div className="space-y-1">
               <Label>Priority</Label>
               <Select disabled={limited} value={form.priority} onValueChange={(v) => set({ priority: v })}>
@@ -445,6 +465,7 @@ export function HiringRequirementDialog({
                 </SelectContent>
               </Select>
             </div>
+            )}
             <div className="space-y-1 sm:col-span-2">
               <Label>Note</Label>
               <Textarea

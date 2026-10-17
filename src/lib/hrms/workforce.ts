@@ -44,6 +44,38 @@ export interface StaffingMatrixRow {
   auto_paused_need?: number | null;
   /** Open replacements for people on this line still serving notice (capped by them) — they cover future exits only. */
   replacement_cover_hc?: number | null;
+  /** `priority` is HR's pin when set, else the automatic rule. */
+  priority_auto?: string | null;
+  priority_pinned?: string | null;
+  priority_why?: string | null;
+  /** Every role of the line, main role first. */
+  role_ids?: string[] | null;
+}
+
+/**
+ * Automatic line priority — mirrors public.hr_wf_priority_rule.
+ * net ≤ 0 → low; target ≤ 7 days (or past), or nobody on the line with no target → critical;
+ * net ≥ half of required, or target ≤ 15 days → high; else medium.
+ */
+export function autoPriority(input: {
+  required: number; net: number; staffed: number; target: string | null; today?: string;
+}): { priority: Priority; why: string } {
+  const { required, net, staffed, target } = input;
+  const d = target ? daysUntil(target, input.today ?? istToday()) : null;
+  const t = d == null ? "" : d < 0 ? `target joining date passed ${-d} day${d === -1 ? "" : "s"} ago`
+    : d === 0 ? "target joining date is today" : `target joining date in ${d} day${d === 1 ? "" : "s"}`;
+  if (net <= 0) return { priority: "low", why: "no one needed" };
+  if (d != null && d <= 7) return { priority: "critical", why: t };
+  if (staffed === 0 && required > 0 && d == null) return { priority: "critical", why: "nobody on this line yet" };
+  if (net * 2 >= required) return { priority: "high", why: `${net} of ${required} still needed` };
+  if (d != null && d <= 15) return { priority: "high", why: t };
+  return { priority: "medium", why: `${net} of ${required} still needed` };
+}
+
+/** "High · automatic — 4 of 8 still needed" / "Critical · set by HR". */
+export function linePriorityText(r: Pick<StaffingMatrixRow, "priority" | "priority_pinned" | "priority_why">): string {
+  const label = PRIORITY_LABEL[r.priority] ?? r.priority;
+  return r.priority_pinned ? `${label} · set by HR` : `${label} · automatic${r.priority_why ? ` — ${r.priority_why}` : ""}`;
 }
 
 /** "Automatic hiring paused — declined by <name> on <date>: <reason>" (null when not paused). */
@@ -420,7 +452,7 @@ export function matchesFilters(
   reqDates?: Map<string, (string | null)[]>,
 ): boolean {
   if (f.departmentId !== "all" && row.department_id !== f.departmentId) return false;
-  if (f.positionId !== "all" && row.position_id !== f.positionId) return false;
+  if (f.positionId !== "all" && row.position_id !== f.positionId && !(row.role_ids ?? []).includes(f.positionId)) return false;
   if (f.shift !== "all" && row.shiftLabel !== f.shift) return false;
   if (
     f.employmentType !== "all" &&

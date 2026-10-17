@@ -143,7 +143,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!uploading) { onOpenChange(o); if (!o) reset(); } }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="client-management-dialog md:max-w-md">
         <DialogHeader>
           <DialogTitle>Upload KYC Document</DialogTitle>
           <DialogDescription>
@@ -168,7 +168,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
 
           <KycFileDropArea files={files} setFiles={setFiles} disabled={uploading} />
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>
               Cancel
             </Button>

@@ -86,7 +86,7 @@ export function CosmosSettingsDialog({ open, onOpenChange, client }: CosmosSetti
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -95,7 +95,7 @@ export function CosmosSettingsDialog({ open, onOpenChange, client }: CosmosSetti
         </DialogHeader>
 
         <Tabs defaultValue="alerts" className="w-full">
-          <TabsList className="flex w-full flex-wrap">
+          <TabsList className="client-tabs grid h-auto w-full grid-cols-2 sm:grid-cols-4">
             <TabsTrigger value="alerts">Alert Thresholds</TabsTrigger>
             <TabsTrigger value="risk">Risk Controls</TabsTrigger>
             <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
@@ -301,7 +301,7 @@ export function CosmosSettingsDialog({ open, onOpenChange, client }: CosmosSetti
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-2 pt-4">
+        <div className="flex flex-wrap justify-end gap-2 pt-4">
           <Button
             type="button"
             variant="outline"

@@ -86,7 +86,7 @@ export function ClientOrderSummaryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
@@ -97,7 +97,7 @@ export function ClientOrderSummaryDialog({
         {/* Client Info */}
         {client && (
           <div className="bg-muted/50 rounded-lg p-4 mb-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Client ID:</span>
                 <p className="font-mono font-medium">{client.client_id}</p>
@@ -121,7 +121,7 @@ export function ClientOrderSummaryDialog({
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export function ClientOrderSummaryDialog({
             </div>
           ) : orders && orders.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="client-record-table w-full">
                 <thead>
                   <tr className="border-b bg-muted/20">
                     <th className="text-left py-2 px-4 font-medium text-muted-foreground text-sm">Order #</th>
@@ -197,19 +197,19 @@ export function ClientOrderSummaryDialog({
                       onClick={() => openTransaction({ type: 'purchase_order', id: order.id })}
                       title="Click to view full order details"
                     >
-                      <td className="py-2 px-4 font-mono text-sm text-primary hover:underline">{order.order_number}</td>
-                      <td className="py-2 px-4 text-sm">
+                      <td data-label="Order #" className="py-2 px-4 font-mono text-sm text-primary hover:underline">{order.order_number}</td>
+                      <td data-label="Date" className="py-2 px-4 text-sm">
                         {order.order_date 
                           ? format(new Date(order.order_date), 'dd MMM yyyy')
                           : '-'}
                       </td>
-                      <td className="py-2 px-4 text-sm text-muted-foreground max-w-xs truncate">
+                      <td data-label="Description" className="py-2 px-4 text-sm text-muted-foreground sm:max-w-xs sm:truncate">
                         {order.description || '-'}
                       </td>
-                      <td className="py-2 px-4 text-sm text-right font-medium">
+                      <td data-label="Amount" className="py-2 px-4 text-sm text-right font-medium">
                         ₹{(order.total_amount || 0).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-2 px-4 text-center">
+                      <td data-label="Status" className="py-2 px-4 text-center">
                         {getStatusBadge(order.status)}
                       </td>
                     </tr>

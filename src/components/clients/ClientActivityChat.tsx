@@ -176,14 +176,14 @@ export function ClientActivityChat({ clientId, clientName }: Props) {
   return (
     <div className="rounded-lg border bg-card">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b">
         <div className="flex items-center gap-2">
           <MessageCircle className="h-4 w-4 text-success" />
           <h4 className="text-sm font-semibold">Activity Timeline</h4>
           {isFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Switch
               id={`rev-${clientId}`}
               checked={includeReversed}
@@ -210,7 +210,7 @@ export function ClientActivityChat({ clientId, clientName }: Props) {
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="h-[520px] overflow-y-auto px-3 py-3 space-y-3 bg-muted/20"
+          className="h-[min(520px,60dvh)] overflow-y-auto px-3 py-3 space-y-3 bg-muted/20"
         >
           {isLoading ? (
             <div className="h-full grid place-items-center text-sm text-muted-foreground">
@@ -356,7 +356,7 @@ function FeedBubble({
 }) {
   const align = isHuman ? "justify-end" : "justify-start";
   const bubbleClasses = cn(
-    "max-w-[85%] rounded-lg border px-3 py-2 text-sm shadow-sm",
+    "min-w-0 max-w-[calc(100%-2.25rem)] sm:max-w-[85%] rounded-lg border px-3 py-2 text-sm shadow-sm",
     isHuman
       ? "bg-primary/10 border-primary/20"
       : "bg-background border-border"
@@ -384,7 +384,7 @@ function FeedBubble({
           }
         }}
       >
-        <div className="flex items-center gap-2 mb-0.5">
+        <div className="flex flex-wrap items-center gap-2 mb-0.5">
           {item.badge && (
             <Badge variant="outline" className="h-4 px-1.5 text-[10px] uppercase tracking-wide">
               {item.badge}
@@ -424,13 +424,13 @@ function FeedBubble({
                 className="inline-flex items-center gap-2 text-xs rounded-md border px-2 py-1 hover:bg-muted"
               >
                 <FileText className="h-3.5 w-3.5" />
-                <span className="max-w-[220px] truncate">{item.attachment.filename}</span>
+                <span className="min-w-0 max-w-full sm:max-w-[220px] truncate">{item.attachment.filename}</span>
               </a>
             )}
           </div>
         )}
 
-        <div className="mt-1 text-[10px] text-muted-foreground flex items-center gap-2">
+        <div className="mt-1 text-[10px] text-muted-foreground flex flex-wrap items-center gap-2">
           <span>{item.actorName}</span>
           <span>·</span>
           <span>{formatTime(item.at)}</span>

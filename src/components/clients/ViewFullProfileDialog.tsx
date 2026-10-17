@@ -104,9 +104,9 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [] 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-y-2">
             <DialogTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
               Complete Client Profile - {client.name}

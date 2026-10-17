@@ -1,5 +1,6 @@
 // Copilot v2: the situation of an order chat — what the client is waiting for right now — worked out without AI
 // from the Binance status, Binance's own chat events and our standard messages, plus an approver's correction.
+// Binance's order data (its extra-KYC field) fills a KYC notice the chat does not have.
 // The same question needs a different reply in a different situation ("Can I pay now?" before and after KYC),
 // so Playbook replies are chosen by situation. Codes are a tree: a reply for "sell.kyc" covers every KYC step,
 // including steps added later, so approved replies keep working when situations are split or added.
@@ -78,8 +79,55 @@ export interface Detected {
   readyAt?: number | null
   /** Sell order with no KYC sign at all in the chat (no Binance KYC notice, no KYC request from us). */
   noKyc?: boolean
+  /**
+   * Sell order whose extra KYC Binance says is required and not verified, with neither Binance's Verified notice nor our
+   * payment details in the chat: it stays in KYC, whatever an approver's correction says.
+   */
+  kycRequired?: boolean
 }
-export interface Mark { code: string | null; at: number; by: string | null }
+/** An approver's correction; detected: the step the chat showed when it was made. */
+export interface Mark { code: string | null; at: number; by: string | null; detected?: string | null }
+/**
+ * What the chat itself may not show: Binance's order data, for the gaps in the chat (a notice not synced yet, or missed;
+ * the chat's own notices win when present, as they carry the time), and what the approvers' corrections say about it.
+ */
+export interface OrderSignals {
+  /** additionalKycVerify on our sell orders: 0 no extra KYC, 1 extra KYC required and not verified, 2 verified. */
+  kycVerify?: number | null
+  /** When the order was created (ms): the time of a KYC requirement known only from the order data. */
+  createdAt?: number | null
+  /** The latest moment by which the approvers' corrections say the client was verified (see verifiedBy). */
+  verifiedBy?: number | null
+  /**
+   * kycVerify 1 standing for Binance's "verified" at an unknown moment (a reply sent earlier is being filed): KYC was
+   * required, but whether it was verified by then is unknown, so an approver's correction made then still counts.
+   */
+  verifiedLater?: boolean
+}
+/**
+ * For filing a reply sent earlier: whether KYC was required never changes, but "verified" now says nothing about the
+ * moment that reply was sent.
+ */
+export const requiredOnly = (s: OrderSignals | null | undefined): OrderSignals =>
+  s?.kycVerify === 2
+    ? { kycVerify: 1, createdAt: s?.createdAt ?? null, verifiedLater: true }
+    : { kycVerify: s?.kycVerify ?? null, createdAt: s?.createdAt ?? null }
+
+/**
+ * The latest moment by which the approvers' corrections say the client was verified (marks newest first): their newest
+ * "Client can pay" set by hand, or their newest move from "Client can pay" back to a KYC step (a re-check: the
+ * verification came before it). Binance's "verified" known only from its order data then counts no later than this, so
+ * our KYC messages after it read as a re-check, as they do after Binance's notice or our payment details. A KYC step set
+ * while the chat already showed KYC, or going back to what the chat shows, says nothing about it.
+ */
+export function verifiedBy(marks: Mark[]): number | null {
+  for (const m of marks) {
+    if (!m.code) continue
+    if (covers('sell.pay', m.code)) return m.at
+    if (covers('sell.kyc', m.code) && m.detected && covers('sell.pay', m.detected)) return m.at
+  }
+  return null
+}
 export interface Situation extends Detected {
   label: string | null
   detectedCode: string | null
@@ -120,6 +168,8 @@ const PAYING = /\bpaying on\b|\bprocess(ing)?\b|\bin process\b|\bpayment is (in 
 const COOLING = /\bbeneficiary\b/i
 const QUESTION = /\?|^\s*(how|what|when|why|where|which|kitna|kitni|kitne|kya|kab|kyu|kyon|kaise|any update|update)\b/i
 const SMALL_TALK = /^\s*(good\s+(morning|afternoon|evening|night)|hello|hii*|hey|namaste|namaskar|thanks?|thank\s*you|ok(ay)?|k|yes|yeah|no|sure|wait|sir|ji|hmm+)[\s.!,]*(sir|ji|bro|ma'?am|bhai|please)?[\s.!]*$/i
+/** A greeting, thanks or "ok" on its own: nothing to look up. */
+export const isSmallTalk = (text: string | null | undefined) => SMALL_TALK.test(String(text ?? ''))
 /** Our message says KYC is finished rather than asking for it ("your KYC is complete"; not "not done yet"). */
 const KYC_DONE = /\b(verified|completed?|done|received|successful(ly)?|approved)\b/i
 const KYC_NOT_DONE = /\b(not|nahi|nahin|yet to|pending|incomplete)\b[^.?!]{0,20}\b(verified|completed?|done|approved|received)\b|\b(verified|completed?|done|approved|received)\b[^.?!]{0,12}\b(nahi|nahin|not|yet)\b/i
@@ -157,13 +207,36 @@ function fromStatus(side: Side | null, status: string, t: Msg[]): Detected | nul
 /** One of our messages asking for KYC (an instruction to pay that mentions the mobile number is not one). */
 const kycAsk = (m: Msg) => ours(m) && isText(m) && KYC_ASK.test(m.text) && !asksToPayNow(m.text)
 
-function detectSell(t: Msg[]): Detected {
+function detectSell(t: Msg[], sig: OrderSignals, now: number): Detected {
+  const akv = sig.kycVerify
+  // Binance's order data fills a notice the chat does not have (not synced yet, missed, or older than the messages
+  // loaded): extra KYC is required from the order's creation, so a missing notice never makes an order look like "no KYC,
+  // client can pay"; and "verified" (see below).
   const kycEvent = first(t, (m) => (m.who === 'system' && m.event === 'order_created_with_additional_kyc_maker_sell') || (m.who === 'auto' && m.event === 'kyc_card'))
+    ?? (akv === 1 || akv === 2
+      ? { id: 'binance-order-kyc', at: sig.createdAt && sig.createdAt > 0 ? sig.createdAt : 0, who: 'system' as const, kind: 'system', text: '', event: 'order_created_with_additional_kyc_maker_sell' }
+      : null)
   let askMsg = latest(t, kycAsk)
   const firstAsk = first(t, kycAsk)
-  const verified = latest(t, (m) => m.who === 'system' && m.event === 'maker_verified_additional_kyc_maker_sell')
+  const chatVerified = latest(t, (m) => m.who === 'system' && m.event === 'maker_verified_additional_kyc_maker_sell')
   const details = latest(t, (m) => m.who === 'us' && m.kind === 'text' && sharesDetails(m.text))
   const rm = latest(t, (m) => m.who === 'us' && m.kind === 'text' && RM.test(m.text))
+  // Binance says the extra KYC is required and not verified, and the chat shows neither its Verified notice nor our payment
+  // details: KYC it is (an approver's "Client can pay" does not change that).
+  const out = akv === 1 && !sig.verifiedLater && !chatVerified && !details ? (d: Detected): Detected => ({ ...d, kycRequired: true }) : (d: Detected) => d
+  // Verified per Binance's order data while the chat has no notice (not synced yet, or missed): the click's time is
+  // unknown. With our payment details shared, those decide (a KYC request after them is still a re-check). Otherwise it
+  // counts from our latest KYC step (a KYC request or the verification-call message; or Binance's KYC notice): the click
+  // normally follows it, and an approver's correction made after it still wins, which our small talk ("ok sir, please
+  // wait") never undoes. Once an approver set "Client can pay", or moved the chat from it back to a KYC step (a re-check),
+  // the click came before that: it counts from our latest KYC step before then, and our KYC messages after it are a
+  // re-check, as they are after Binance's notice.
+  const until = sig.verifiedBy ?? Infinity
+  const lastStep = latest(t, (m) => m.at <= until && (kycAsk(m) || (m.who === 'us' && m.kind === 'text' && RM.test(m.text))))
+  const verified = chatVerified ?? (akv === 2 && !details
+    ? { id: 'binance-order-verified', at: Math.min(Math.max(lastStep?.at ?? 0, kycEvent?.at ?? 0), until), who: 'system' as const, kind: 'system', text: '' }
+    : null)
+  const verifiedByOrderData = !chatVerified && akv === 2
   let kycStart = [kycEvent?.at, firstAsk?.at].filter((x): x is number => typeof x === 'number').sort((a, b) => a - b)[0] ?? null
 
   let reask = false
@@ -173,20 +246,26 @@ function detectSell(t: Msg[]): Detected {
     // the client is not asked to pay: a verification call, or a real KYC request (asking for something, not
     // "your KYC is complete").
     const again = latest(t, (m) => m.at > doneAt && kycAsk(m) && ASKING.test(m.text) && !saysKycDone(m.text))
-    if (rm && rm.at > doneAt && rm.at >= (again?.at ?? 0)) return { code: 'sell.kyc.call', evidence: [{ at: rm.at, text: 'Verification call message sent' }], since: rm.at }
+    if (rm && rm.at > doneAt && rm.at >= (again?.at ?? 0)) return out({ code: 'sell.kyc.call', evidence: [{ at: rm.at, text: 'Verification call message sent' }], since: rm.at })
     if (!again) {
       const ev: Evidence[] = []
-      if (verified) ev.push({ at: verified.at, text: 'Verified on Binance' })
+      if (chatVerified) ev.push({ at: chatVerified.at, text: 'Verified on Binance' })
+      else if (verifiedByOrderData) ev.push({ at: null, text: 'Verified on Binance' })
       if (details) ev.push({ at: details.at, text: 'Payment details shared' })
-      return { code: 'sell.pay.ready', evidence: ev, since: doneAt }
+      return out({ code: 'sell.pay.ready', evidence: ev, since: doneAt })
     }
     reask = true
     askMsg = again
     kycStart = again.at
   } else if (rm && rm.at >= (askMsg?.at ?? 0)) {
-    return { code: 'sell.kyc.call', evidence: [{ at: rm.at, text: 'Verification call message sent' }], since: rm.at }
+    return out({ code: 'sell.kyc.call', evidence: [{ at: rm.at, text: 'Verification call message sent' }], since: rm.at })
   }
-  if (kycStart === null) return { code: 'sell.pay.ready', evidence: [{ at: null, text: 'No extra KYC on this order' }], since: 0, noKyc: true }
+  if (kycStart === null) {
+    // No KYC sign in the chat. Only Binance saying "no extra KYC" (0) lets the client pay from the start; while its field
+    // is not known yet (a new order not stored yet, the screen's value not in), the order is treated as needing KYC.
+    if (akv === 0) return out({ code: 'sell.pay.ready', evidence: [{ at: null, text: 'No extra KYC on Binance for this order' }], since: 0, noKyc: true })
+    return out({ code: 'sell.kyc.pending', evidence: [{ at: null, text: "Binance's KYC setting not known yet" }, { at: null, text: 'nothing received yet' }], since: 0 })
+  }
 
   const after = askMsg?.at ?? kycStart
   const gave = latest(t, (m) => m.at > after && answer(m))
@@ -196,14 +275,16 @@ function detectSell(t: Msg[]): Detected {
     if (docs) ev.push({ at: docs.at, text: 'Documents received' })
     if (!docs || gave.at > docs.at) ev.push({ at: gave.at, text: 'Client answered' })
     // since = our last step: the client's own messages never undo an approver's correction.
-    return { code: 'sell.kyc.review', evidence: ev, since: after }
+    return out({ code: 'sell.kyc.review', evidence: ev, since: after })
   }
   // The client still owes something: the documents, or the answer to our latest KYC question.
   const ev: Evidence[] = []
   if (docs) ev.push({ at: docs.at, text: 'Documents received' })
-  ev.push(askMsg ? { at: askMsg.at, text: reask ? 'KYC asked again' : docs ? 'Question asked' : 'KYC asked' } : { at: kycEvent!.at, text: 'Binance asked for extra KYC' })
+  ev.push(askMsg
+    ? { at: askMsg.at, text: reask ? 'KYC asked again' : docs ? 'Question asked' : 'KYC asked' }
+    : kycEvent!.id === 'binance-order-kyc' ? { at: null, text: 'Extra KYC required on Binance' } : { at: kycEvent!.at, text: 'Binance asked for extra KYC' })
   ev.push({ at: null, text: docs ? 'waiting for the answer' : 'nothing received yet' })
-  return { code: 'sell.kyc.pending', evidence: ev, since: after }
+  return out({ code: 'sell.kyc.pending', evidence: ev, since: after })
 }
 
 function detectBuy(t: Msg[], now: number): Detected {
@@ -233,11 +314,11 @@ function detectBuy(t: Msg[], now: number): Detected {
   return { code: 'buy.pay.processing', evidence: [{ at: last.m.at, text: 'Payment in process' }], since: last.m.at }
 }
 
-/** The situation from the chat and the order status alone. */
-export function detectSituation(side: Side | null, status: string, t: Msg[], now: number): Detected {
+/** The situation from the order status, the chat, and Binance's order data where the chat has a gap. */
+export function detectSituation(side: Side | null, status: string, t: Msg[], now: number, signals: OrderSignals | null = null): Detected {
   const s = fromStatus(side, String(status ?? '').toUpperCase(), t)
   if (s) return s
-  if (side === 'SELL') return detectSell(t)
+  if (side === 'SELL') return detectSell(t, signals ?? {}, now)
   if (side === 'BUY') return detectBuy(t, now)
   return { code: null, evidence: [], since: 0 }
 }
@@ -260,7 +341,8 @@ export function statusFromEvents(t: Msg[]): string {
 
 /**
  * An approver's correction wins over the detection until a newer step happens in the chat (a status change or one
- * of our standard messages after it). Status situations (paid, completed, cancelled, appeal) always come from Binance.
+ * of our standard messages after it). Status situations (paid, completed, cancelled, appeal) always come from Binance,
+ * and a sell order whose extra KYC Binance says is not verified stays in KYC.
  */
 export function resolveSituation(side: Side | null, d: Detected, mark: Mark | null): Situation {
   const base: Situation = { ...d, label: situationDef(d.code)?.label ?? null, detectedCode: d.code, marked: null }
@@ -268,6 +350,7 @@ export function resolveSituation(side: Side | null, d: Detected, mark: Mark | nu
   if (mark.at <= d.since) return base
   if (mark.code === null) return base
   if (!markable(mark.code, side)) return base
+  if (d.kycRequired && !covers('sell.kyc', mark.code)) return base
   return { ...base, code: mark.code, label: situationDef(mark.code)?.label ?? null, marked: { by: mark.by, at: mark.at } }
 }
 
@@ -350,6 +433,11 @@ const PAY_ASK: RegExp[] = [
   /\b(good|free|ok|okay|clear)\s+to\s+(pay|transfer|make the payment)\b/gi,
   /\b(waiting|wait)\s+for\s+(your|the)\s+payment\b/gi,
   /\b(after|once|when)\s+(you\s+)?(pay|paying|make the payment|making the payment|have paid)\b/gi,
+  /\byou\s+(need|have|must)\s+to\s+(pay|make the payment|transfer)(?=\s+(it|now|the amount|within|in|before|by)\b|\s*[.,!]|\s*$)/gi,
+  // "…, so pay fast": the connector stays outside the match, so "complete the KYC first, then pay" is still read as a step
+  // first. Not "so pay later once we confirm", not "pay attention" ("pay only from your own account" still counts).
+  /(?<=\b(so|and|then)\s+)((please|kindly|pls|plz)\s+)?(pay|transfer|make the payment)\b(?!\s+(verification|details?|check|later|attention|heed)\b)/gi,
+  /\b(pay|transfer)\s+(fast|quickly|asap|soon|immediately|jaldi|jldi)\b/gi,
   /\b(don'?t|do not|no need to)\s+(wait|hesitate|delay|forget|worry|panic)\b[^.?!]{0,15}\b(pay|payment|transfer)\b/gi,
   /\bpayment details\b[^.?!]{0,25}\b(below|above|here|are as follows)\b/gi,
   /\b(pay|payment|transfer|amount|paise|paisa|money)\s+(\w+\s+)?(kar|kr)\s*(do|dijiye|dijie|dijiyega|dein|de|dena|sakte|sakti|sakta|skte|skti|skta|lijiye|lijiyega|lo|lein|len)\b/gi,
@@ -362,8 +450,21 @@ const PAY_ASK: RegExp[] = [
   /\b(is|isi|iss|yeh|ye|inhi|isme)\s+(upi|account|number|details?)\s+(par|pe|mein|me)\b/gi,
   /\b(upi|qr|account|details?)\s+(par|pe)\s+(\w+\s+){0,2}?(bhej\s*(do|dijiye|dijie|dein|de)|bhejiye|bhejein|bhejo|daal\s*(do|dijiye|dijie)|daaliye|dalo|send\s+kar\w*|transfer\s+kar\w*)\b/gi,
 ]
+/**
+ * The time left to pay ("15 minutes to pay", "payment ka time 6 minute bacha hai"): it hurries the client to pay, unless a
+ * condition on verification comes first in the sentence ("once your KYC is done, you will have 15 minutes to pay").
+ */
+const PAY_TIME: RegExp[] = [
+  /\b(left|remaining)\s+(to|for)\s+(pay|paying|make the payment|the payment|transfer)\b/gi,
+  /\btime\s+to\s+(pay|make the payment|transfer)\b/gi,
+  /\b(min|mins|minutes?|time)\s+((left|remaining)\s+)?(to|for)\s+(pay|paying|payment|the payment|make the payment|transfer)\b(?!\s+(verification|details?|check|confirmation|to reflect|reflect))/gi,
+  /\b(pay|payment|transfer)\s+(karne|krne)\s+(ke\s+liye|ko)\s+(\w+\s+){0,3}?(minute|minutes|min|mins|time|samay|ghante|ghanta)\s+(bache|bacha|bachi|baaki|baki|left|hai|hain|he)\b/gi,
+  /\b(pay|payment)\s+(karne\s+)?ke\s+liye\s+(\w+\s+){0,3}?(minute|minutes|min|mins|time|samay)\b/gi,
+  /\b(minute|minutes|min|mins)\s+(bache|bacha|baaki|baki)\s+(hain|hai|he)\s+(pay|payment)\b/gi,
+  /\b(pay|payment)\s+(ka|ki|ke)\s+(time|samay)\b[^.?!]{0,25}?\b(bacha|bache|bachi|baaki|baki|left)\b/gi,
+]
 /** "Pay now, sir." on its own. */
-const PAY_BARE = /^\s*((sir|ma'?am|ji)[\s,]+)?(please |kindly |pls )?(pay|transfer)(\s+(now|it))?[\s,]*(sir|ma'?am|ji)?[\s.!]*$/i
+const PAY_BARE =/^\s*((sir|ma'?am|ji)[\s,]+)?(please |kindly |pls )?(pay|transfer)(\s+(now|it))?[\s,]*(sir|ma'?am|ji)?[\s.!]*$/i
 /** "Do not pay", "payment mat kar dijiye". Reassurances ("don't wait / worry / forget to pay") are not refusals. */
 const NEG_BEFORE = /\b(do not|don'?t|never|no need to|not to|avoid)\s+(\w+\s+){0,2}$/i
 const NEG_INSIDE = /\b(do not|don'?t|never|no need to|not to|avoid)\b|\b(mat|na|nahi|nahin)\b/i
@@ -385,11 +486,32 @@ const VERIFIED_HI: RegExp[] = [
 ]
 /** After a condition placed after the request: another main clause ("we will release") means it governs that one. */
 const CLAUSE_BREAK = /\b(we|we'll|our|us|hum|humari|hamari|hamara|release|released|releasing|share|shared|send|sent|bhej\w*|karenge|denge|team|usdt|crypto|coins?|will|order)\b/i
-/** Words that may sit between a condition and the request it governs ("Once verified, sir, you can pay"). */
+/**
+ * Between a verification condition and a later time to pay: another clause ("we will release", "order release hoga")
+ * means the condition governs that one, not the time to pay ("you will have" does not).
+ */
+const TIME_BREAK = /\b(we|we'll|our|us|hum|humari|hamari|hamara|release\w*|share\w*|send|sent|bhej\w*|karenge|denge|hoga|hogi|jayega|jaega|jayegi|team|usdt|crypto|coins?|order|confirm\w*|will\s+be|it'?ll)\b/i
+/** Words that may sit between a condition and the request it governs ("Once your KYC is done, sir, you can pay"). */
 const FILLER = /^(sir|ma'?am|maam|ji|please|kindly|pls|plz|then|you|can|may|could|also|only|just|hi|aap|phir|fir|tab|to|toh|bhi|and|now|abhi|easily|directly|go|ahead|feel|free)$/i
 const onlyFiller = (x: string) => x.split(/[\s,;:.!?]+/).filter((w) => /\w/.test(w)).every((w) => FILLER.test(w))
+/** Words that may open a clause before its condition ("Sir, once your KYC is done, …"; "aapka KYC complete hone ke baad …"). */
+const LEAD_WORDS = /^(sir|ma'?am|maam|ji|dear|hello|hi|ok|okay|please|kindly|pls|plz|and|so|then|also|just|bas|your|the|aapka|aapki|aapke|apka|apki|apke|ek|baar|jab)$/i
+/**
+ * The condition opens its own clause: "we will release the USDT once your verification is complete, please pay now" closes
+ * "we will release", so it governs that clause, not the request after it.
+ */
+const opensClause = (s: string, c: { start: number }) =>
+  (s.slice(0, c.start).split(/[,;:]/).pop() ?? '').split(/\s+/).filter((w) => /\w/.test(w)).every((w) => LEAD_WORDS.test(w))
 const FIRST_DONE_EN = /\bfirst\b/i
 const DONE_EN = /\b(complete|finish|do|get)\s+(your |the )?(kyc|verification|video kyc|vkyc)\b|\b(get|be|are|is)\s+(fully\s+)?verified\b|\b(kyc|verification)\b[^.?!,]{0,15}\b(complete|completed|done)\b/i
+/**
+ * An instruction to do the client's KYC ("complete your KYC, then pay"): a step first even without "first". Only the
+ * client's own KYC ("the verification" could be of our account name), never negated ("you need not do the KYC again"), and
+ * not when what follows before the request is a call, a link, documents, a person or an account ("complete the KYC
+ * verification call and then pay"). Tested on the text before the request only.
+ */
+const DO_KYC_EN = new RegExp(String.raw`(?<!\b(?:not|never|no need to|don'?t|didn'?t|needn'?t)\s+)\b((complete|finish|do|get)\s+((your|the)\s+)?(kyc|video kyc|vkyc)|(complete|finish|do|get)\s+your\s+(one[\s-]?time\s+)?verification|get\s+(fully\s+)?verified)\b`
+  + String.raw`(?![^.?!,;]*?\b(call|link|documents?|team|officer|rm|executive|agent|account|name|upi|bank|beneficiary|payee|payment)\b)`, 'i')
 const FIRST_DONE_HI = /\bpehle\b/i
 const DONE_HI = /\b(kyc|verification)\b[^.?!]{0,15}\b(complete|poori|puri|done|clear|verify)\b/i
 
@@ -414,11 +536,12 @@ function excused(s: string, h: Span): boolean {
   const blank = (x: string) => x.replace(REASSURE, (m) => ' '.repeat(m.length))
   if (NEG_BEFORE.test(blank(before.slice(-40))) || NEG_INSIDE.test(blank(text))) return true
   if (BEFORE_STEP.test(before)) return true
-  // A condition before the request governs it when only filler words sit between ("Once verified, you can pay";
-  // "verification ke baad hi payment kijiye"). After the request, an English condition governs it when it ends the
-  // sentence ("you can pay after your verification is complete"), not when it opens another clause.
+  // A condition before the request governs it when it opens its clause and only filler words sit between ("Once your KYC
+  // is done, you can pay"; "verification ke baad hi payment kijiye"). After the request, an English condition governs it
+  // when it ends the sentence ("you can pay after your verification is complete"), not when it opens another clause. A
+  // bare "once verified" names no subject (the payment? the beneficiary?), so it is no condition.
   for (const c of [...spans(VERIFIED_EN, s), ...spans(VERIFIED_HI, s)]) {
-    if (c.end <= h.start && onlyFiller(s.slice(c.end, h.start))) return true
+    if (c.end <= h.start && opensClause(s, c) && onlyFiller(s.slice(c.end, h.start))) return true
   }
   for (const c of spans(VERIFIED_EN, s)) {
     const between = s.slice(h.end, c.start)
@@ -426,7 +549,8 @@ function excused(s: string, h: Span): boolean {
   }
   // "Complete your KYC first, then you can pay" / "Pehle KYC complete kijiye, phir payment kar sakte hain".
   const lead = s.slice(Math.max(0, h.start - 25), h.start)
-  if (FIRST_DONE_EN.test(before) && DONE_EN.test(before) && /\b(then|after that|afterwards)\b[\s,]*(\w+\s+){0,2}$/i.test(lead)) return true
+  const thenLead = /\b(then|after that|afterwards)\b[\s,]*(\w+\s+){0,2}$/i.test(lead)
+  if (thenLead && ((FIRST_DONE_EN.test(before) && DONE_EN.test(before)) || DO_KYC_EN.test(before))) return true
   if (FIRST_DONE_HI.test(before) && DONE_HI.test(before) && /\b(phir|fir|uske baad|iske baad|tab)\b[\s,]*(\w+\s+){0,2}$/i.test(lead)) return true
   return false
 }
@@ -449,6 +573,11 @@ export function invitesPayment(text: string | null | undefined): boolean {
       pos += part.length
     }
     if (hits.some((h) => !excused(s, h))) return true
+    // A time to pay is excused by a verification condition before it that governs it: it opens its own clause and no other
+    // clause comes in between.
+    const conditions = [...spans(VERIFIED_EN, s), ...spans(VERIFIED_HI, s)]
+    const governed = (h: Span) => conditions.some((c) => c.end <= h.start && opensClause(s, c) && !TIME_BREAK.test(s.slice(c.end, h.start)))
+    if (spans(PAY_TIME, s).some((h) => !excused(s, h) && !governed(h))) return true
   }
   return false
 }

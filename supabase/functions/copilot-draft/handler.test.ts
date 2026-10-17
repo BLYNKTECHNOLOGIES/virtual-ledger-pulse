@@ -78,15 +78,17 @@ Deno.test('the same chat state is drafted once: cached for both approvers; a fre
   await s.insertRequest({ user_id: SHUBHAM, order_number: ORDER, mode: 'suggest', request_key: key, status: 'pending' })
   const third = await run(s, a)
   eq(third.status, 202); eq(third.body.status, 'pending')
+  ok(third.body.retryAfterMs > 70_000 && third.body.retryAfterMs <= 75_000, 'tells the waiting approver when the request can be taken over')
 })
 
 Deno.test('monthly cap: no drafting, approved replies still work', async () => {
   const s = new FakeStore(), a = new FakeAi()
-  s.spend = 24999
+  s.spend = 24999.99
   s.rows = [msg('client', 'Is TDS deducted?')]
-  s.matchRows = [entry({ similarity: 0.6, title: 'TDS rate' })]
+  s.matchRows = [entry({ similarity: 0.58, title: 'TDS rate' })]
   const r = await run(s, a)
-  eq(r.body.status, 'capped'); eq(r.body.skippedReason, 'monthly_cap'); eq(a.chats.length, 0)
+  eq(r.body.status, 'capped'); eq(r.body.skippedReason, 'monthly_cap'); eq(a.chats.length, 0, 'no AI pick and no drafts')
+  eq(r.body.route.result, 'capped')
   eq(r.body.related.length, 1, 'related approved reply still offered')
   eq(r.body.budget.alertPct, 80)
 })
@@ -548,7 +550,10 @@ Deno.test('other steps come from the question whose reply is shown, not a closer
   const shown = entry({ topic_id: t, similarity: 0.88, title: 'When will KYC be done?', scope: { stages: ['sell.kyc.review'] }, specificity: 3, reply_en: 'Sir, we are checking your details.' })
   const call = entry({ topic_id: t, similarity: 0.88, title: 'When will KYC be done?', scope: { stages: ['sell.kyc.call'] }, fits: false, specificity: -1, reply_en: 'Sir, our KYC team will call you shortly.' })
   s.matchRows = [a1, shown, call]
+  // Two close questions (0.93 and 0.88): the AI decides which one the client asked.
+  a.replies['google/gemini-3-flash-preview'] = () => ({ ok: true, data: { pick: 'Q2', confidence: 'high', reason: 'KYC is being checked' }, usage: { input: 900, output: 60, reasoning: 0, estimated: false }, latencyMs: 5 })
   const r = await run(s, a)
+  eq(r.body.route.result, 'picked')
   eq(r.body.playbook.map((p: any) => p.entryId), [shown.entry_id])
   eq(r.body.alternatives.map((p: any) => [p.entryId, p.steps]), [[call.entry_id, ['sell.kyc.call']]])
   eq(r.body.otherSteps.map((x: any) => x.code), ['sell.kyc.pending'])
@@ -567,4 +572,493 @@ Deno.test('the step to set follows the language shown: the Hinglish call message
   eq(r.body.context.language, 'hi'); eq(r.body.context.situation, 'sell.kyc.pending')
   eq(r.body.alternatives[0]?.text, 'Sir, ek baar verification zaroori hai. Hamari KYC team thodi der mein aapse connect karegi.')
   eq(r.body.alternatives[0].steps, ['sell.kyc.call', 'sell.kyc.review'])
+})
+
+// ─── CP-6: a clear best match, the AI picking the question, Binance's deadlines and what we hold on the client ─────
+
+const UTILITY = 'google/gemini-3-flash-preview'
+const routeReply = (pick: string, confidence = 'high', reason = 'Same question') =>
+  (_system: string, _user: string) => ({ ok: true, data: { pick, confidence, reason }, usage: { input: 1500, output: 120, reasoning: 0, estimated: false }, latencyMs: 5 })
+const utilityCalls = (a: FakeAi) => a.chats.filter((c) => c.model === UTILITY)
+const draftCalls = (a: FakeAi) => a.chats.filter((c) => c.model !== UTILITY)
+
+Deno.test('a clear best question below the threshold is shown first (0.66, next 0.50): no AI at all', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'tds certificate milega?')]
+  const best = entry({ similarity: 0.66, title: 'TDS certificate timing' })
+  const next = entry({ similarity: 0.5, title: 'Why 1% TDS', reply_en: 'Sir, 1% TDS is deducted under Section 194S.' })
+  s.matchRows = [best, next]
+  const r = await run(s, a)
+  eq(s.matchCalls[0].minSimilarity, 0.4); eq(s.matchCalls[0].limit, 8)
+  eq(a.chats.length, 0, 'no AI pick, no drafts')
+  eq(r.body.playbook.map((p: any) => [p.entryId, p.pickedBy]), [[best.entry_id, 'lead']])
+  eq(r.body.related.length, 0, 'a question under the related threshold is not shown')
+  eq(r.body.lead, { topicId: best.topic_id, similarity: 0.66, next: 0.5 })
+  eq(r.body.route, null); eq(r.body.skippedReason, 'approved_reply_found')
+})
+
+Deno.test('close questions (0.66 and 0.60): the AI picks one; its approved reply is shown first and nothing is drafted', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('us', 'Good evening, sir.'), msg('client', 'TDS ka certificate kab tak aayega? call me 9876543210')]
+  const first = entry({ similarity: 0.66, title: 'Why 1% TDS', reply_en: 'Sir, 1% TDS is deducted under Section 194S.', question_text: 'tds kyu kata' })
+  const second = entry({ similarity: 0.6, title: 'TDS certificate timing', question_text: 'tds certificate kab milega' })
+  s.matchRows = [first, second]
+  s.questionRows = [{ topic_id: second.topic_id, question_text: 'When will I get Form 16A?' }, { topic_id: second.topic_id, question_text: 'tds certificate kab milega' }]
+  a.replies[UTILITY] = routeReply('Q2', 'high', 'Asks when the TDS certificate comes')
+  const r = await run(s, a)
+  eq(utilityCalls(a).length, 1); eq(draftCalls(a).length, 0, 'no drafts: an approved reply was picked')
+  eq(r.body.playbook.map((p: any) => [p.entryId, p.pickedBy]), [[second.entry_id, 'ai']])
+  eq(r.body.related.map((p: any) => p.entryId), [first.entry_id], 'the other question stays one tap away')
+  eq(r.body.route, { result: 'picked', topicId: second.topic_id, title: 'TDS certificate timing', confidence: 'high', reason: 'Asks when the TDS certificate comes' })
+  eq(r.body.skippedReason, 'ai_picked_reply')
+  const call = s.calls.find((c) => c.variant === 'route')
+  eq([call.purpose, call.model, call.status], ['judge', UTILITY, 'ok']); ok(call.cost_inr > 0, 'cost logged against the monthly cap')
+  ok(String(call.output_text).includes('"result":"picked"'))
+  const sys = utilityCalls(a)[0].system, u = JSON.parse(utilityCalls(a)[0].user)
+  ok(sys.includes('You never write replies'))
+  eq(u.candidates.map((c: any) => [c.id, c.question]), [['Q1', 'Why 1% TDS'], ['Q2', 'TDS certificate timing']])
+  eq(u.candidates[1].client_wordings, ['tds certificate kab milega', 'When will I get Form 16A?'])
+  eq(u.candidates[1].reply_now, 'Sir, the TDS certificate is shared every quarter.')
+  ok(u.client_message.includes('[phone]') && !JSON.stringify(u).includes('9876543210'), 'personal numbers masked')
+  eq(u.order.situation, 'Client can pay')
+  const req = [...s.requests.values()][0]
+  eq(req.matches.map((m: any) => m.picked_by), [null, 'ai'], 'kept on the request for the scorecard')
+})
+
+Deno.test('the AI says none, is unsure, or fails: drafts as before and nothing is picked', async () => {
+  for (const [reply, result] of [[routeReply('none', 'high', 'Different question'), 'none'], [routeReply('Q1', 'low'), 'unsure'],
+    [() => ({ ok: false, usage: { input: 0, output: 0, reasoning: 0, estimated: true }, latencyMs: 15000, status: 0, error: 'timeout' }), 'failed']] as const) {
+    const s = new FakeStore(), a = new FakeAi()
+    s.rows = [msg('client', 'Can I get an invoice?')]
+    s.matchRows = [entry({ similarity: 0.66, title: 'Why 1% TDS' }), entry({ similarity: 0.6, title: 'TDS certificate timing' })]
+    a.replies[UTILITY] = reply as any
+    const r = await run(s, a)
+    eq(r.body.route.result, result, result)
+    eq(r.body.playbook.length, 0, result); eq(r.body.related.length, 2, result)
+    eq(draftCalls(a).length, 2, `${result}: both models draft`)
+    eq(s.calls.find((c) => c.variant === 'route').status, result === 'failed' ? 'error' : 'ok')
+  }
+})
+
+Deno.test('no AI pick for small talk, images, or questions only for the other side', async () => {
+  const cases: Array<[ChatRow[], any[]]> = [
+    [[msg('client', 'ok sir'), msg('client', 'thanks')], [entry({ similarity: 0.5 })]],
+    [[msg('client', 'img', 'image')], [entry({ similarity: 0.5 })]],
+    [[msg('client', 'Can I sell to you?')], [entry({ similarity: 0.7, scope: { sides: ['BUY'] }, fits: false, specificity: -1 })]],
+  ]
+  for (const [rows, matches] of cases) {
+    const s = new FakeStore(), a = new FakeAi()
+    s.rows = rows; s.matchRows = matches
+    const r = await run(s, a)
+    eq(utilityCalls(a).length, 0); eq(r.body.route, null)
+  }
+})
+
+Deno.test('drafting again for the same chat state keeps the AI pick, without picking again', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'TDS ka certificate kab tak aayega?')]
+  const second = entry({ similarity: 0.6, title: 'TDS certificate timing' })
+  s.matchRows = [entry({ similarity: 0.66, title: 'Why 1% TDS' }), second]
+  a.replies[UTILITY] = routeReply('Q2')
+  await run(s, a)
+  const forced = await run(s, a, { mode: 'force' })
+  eq(utilityCalls(a).length, 1, 'one AI pick for this chat state')
+  eq(draftCalls(a).length, 2, 'drafts asked for by hand')
+  eq(forced.body.playbook.map((p: any) => [p.entryId, p.pickedBy]), [[second.entry_id, 'ai']])
+  eq(forced.body.route.result, 'picked')
+  const redraft = await run(s, a, { mode: 'redraft', instruction: 'shorter' })
+  eq(utilityCalls(a).length, 1); eq(redraft.body.playbook[0].pickedBy, 'ai')
+  // a new client message is a new chat state: a fresh pick
+  s.rows.push(msg('client', 'aur invoice?'))
+  await run(s, a)
+  eq(utilityCalls(a).length, 2)
+})
+
+Deno.test('a question the AI picks that has replies only for other steps is named, and its answers guide the drafts', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'Release kab hoga?')]
+  const t = id()
+  s.matchRows = [
+    entry({ topic_id: t, similarity: 0.62, title: 'When will you release?', scope: { sides: ['SELL'], stages: ['sell.pay.checking'] }, fits: false, specificity: -1, reply_en: 'Sir, we release once the payment is verified.' }),
+    entry({ similarity: 0.58, title: 'TDS certificate timing' }),
+  ]
+  a.replies[UTILITY] = routeReply('Q1', 'medium')
+  const r = await run(s, a)
+  eq(r.body.route.result, 'picked')
+  eq(r.body.otherSituations.map((o: any) => o.topicId), [t])
+  eq(r.body.playbook.length, 0); eq(draftCalls(a).length, 2)
+  const u = JSON.parse(draftCalls(a)[0].user)
+  eq(u.other_situation_answers[0].title, 'When will you release?')
+})
+
+Deno.test("Binance's extra-KYC field and deadlines: from the order data, the screen's live values first; shown and told to the drafts", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const created = NOW.getTime() - 10 * 60_000
+  s.orderRow = { ...s.orderRow, create_time: created, kyc_raw: '1', kyc_detail: '1', pay_by: String(NOW.getTime() + 6 * 60_000) }
+  s.rows = [msg('client', 'hello sir, can I pay?')]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.kyc.pending', 'no KYC notice in the chat, but Binance requires it')
+  eq(r.body.context.binance_kyc, 1)
+  eq(r.body.context.pay_by, new Date(NOW.getTime() + 6 * 60_000).toISOString())
+  eq(r.body.context.release_by, null)
+  const u = JSON.parse(draftCalls(a)[0].user)
+  // Before verification the deadline only hurries the KYC: never a time left to pay.
+  eq(u.order.order_expires, '15 Oct, 20:36 IST (6 min left)'); eq(u.order.pay_deadline, undefined)
+  ok(String(u.order.order_expires_means).includes('never ask them to pay'))
+  eq(u.order.binance_extra_kyc, 'required by Binance and not verified on Binance yet')
+  ok(draftCalls(a)[0].system.includes('Deadlines in "order" come from Binance'))
+
+  // the screen's live values: "verified" moves the chat on; a 0 from the screen never lowers what Binance stored
+  const s2 = new FakeStore(), a2 = new FakeAi()
+  s2.orderRow = { ...s.orderRow }
+  s2.rows = [msg('client', 'hello sir, can I pay?')]
+  const live = await run(s2, a2, { hint: { kycVerify: 2, payBy: NOW.getTime() + 9 * 60_000 + 30_000 } })
+  eq(live.body.context.situation, 'sell.pay.ready'); eq(live.body.context.binance_kyc, 2)
+  eq(live.body.context.pay_by, new Date(NOW.getTime() + 9 * 60_000 + 30_000).toISOString())
+  const lu = JSON.parse(draftCalls(a2)[0].user)
+  eq(lu.order.pay_deadline, '15 Oct, 20:39 IST (9 min left)', 'once the client can pay; minutes rounded down')
+  ok(String(lu.order.pay_deadline_means).includes('The client must pay')); eq(lu.order.binance_extra_kyc, 'verified on Binance')
+  const s3 = new FakeStore(), a3 = new FakeAi()
+  s3.orderRow = { ...s.orderRow }
+  s3.rows = [msg('client', 'hello sir, can I pay?')]
+  eq((await run(s3, a3, { hint: { kycVerify: 0, payBy: 'soon' } })).body.context.binance_kyc, 1)
+})
+
+Deno.test('once marked paid: the release deadline; our open appeal case on the panel only; buy orders say who pays', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, order_status: 'BUYER_PAYED', pay_by: String(NOW.getTime() - 20 * 60_000) }
+  s.rows = [sysRow('seller_payed'), msg('client', 'paid sir, please release')]
+  s.appeal = { status: 'respond_by_set', responseDueAt: NOW.getTime() + 25 * 60_000 }
+  const r = await run(s, a, { hint: { releaseBy: NOW.getTime() + 14 * 60_000 } })
+  eq(r.body.context.pay_by, null, 'paying is done')
+  eq(r.body.context.release_by, new Date(NOW.getTime() + 14 * 60_000).toISOString())
+  eq(r.body.context.appeal_case, { status: 'respond_by_set', response_due: new Date(NOW.getTime() + 25 * 60_000).toISOString() })
+  const u = JSON.parse(draftCalls(a)[0].user)
+  eq(u.order.release_deadline, '15 Oct, 20:44 IST (14 min left)')
+  ok(String(u.order.release_deadline_means).startsWith('We should check the payment'))
+  ok(!JSON.stringify(u).includes('appeal_case') && !JSON.stringify(u).includes('our_appeal'), 'our appeal work is never told to the drafts')
+  // a paid order without a release time shows none (never the pay deadline instead)
+  const p2 = new FakeStore(), a2 = new FakeAi()
+  p2.orderRow = { ...s.orderRow }
+  p2.rows = [sysRow('seller_payed'), msg('client', 'paid sir')]
+  const none = await run(p2, a2)
+  eq([none.body.context.pay_by, none.body.context.release_by], [null, null])
+  s.appeal = { status: 'resolved', responseDueAt: null }
+  s.rows.push(msg('client', 'hello?'))
+  eq((await run(s, a)).body.context.appeal_case, null, 'a closed case is not shown')
+
+  const b = new FakeStore(), ab = new FakeAi()
+  b.orderRow = { ...b.orderRow, trade_type: 'BUY', pay_by: String(NOW.getTime() + 30 * 60_000) }
+  b.rows = [msg('client', 'payment kab karoge?')]
+  await run(b, ab)
+  ok(String(JSON.parse(draftCalls(ab)[0].user).order.pay_deadline_means).startsWith('We must pay the client'))
+})
+
+Deno.test('what we hold on the client: counts and yes/no only, for the panel and the drafts', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = {
+    status: 'linked',
+    client: { kyc_status: 'VERIFIED', buyer_status: 'APPROVED', phone_masked: '••••••3210', pan_masked: 'AB••••••4F' },
+    documents: { aadhaar: true, pan: true },
+    order_context: { name_check: 'mismatch', side_completed: 4, appeals: 1, orders_90d: 6, cancelled_90d: 2, today_other_count: 0 },
+    limit_request_pending: false,
+  }
+  s.rows = [msg('client', 'Can I pay by IMPS?')]
+  const r = await run(s, a)
+  eq(r.body.context.client, { on_file: ['aadhaar', 'pan', 'phone'], earlier_orders: 4, appeals: 1, name_check: 'mismatch', limit_request_pending: false })
+  // appeals are counted on the client's orders as the client card counts them; the ERP's orders count as earlier orders too
+  const t = new FakeStore(), at2 = new FakeAi()
+  t.panel = { ...s.panel, history: { buy_count: 9 } }
+  t.appeal = { status: 'requested', responseDueAt: null }
+  t.rows = [msg('client', 'Can I pay by IMPS?')]
+  const tr = await run(t, at2)
+  eq([tr.body.context.client.appeals, tr.body.context.client.earlier_orders], [1, 9])
+  const u = JSON.parse(draftCalls(a)[0].user)
+  eq([u.client.phone_on_file, u.client.earlier_binance_orders_this_side, u.client.appeals_on_this_clients_orders, u.client.binance_name_vs_client_record], [true, 4, 1, 'mismatch'])
+  ok(!JSON.stringify(u).includes('3210') && !JSON.stringify(u).includes('AB••'), 'no number, not even masked')
+  ok(draftCalls(a)[0].system.includes('Never mention internal records'))
+  const n = new FakeStore(), an = new FakeAi()
+  n.panel = { status: 'not_client' }
+  n.rows = [msg('client', 'Can I pay by IMPS?')]
+  eq((await run(n, an)).body.context.client, null)
+})
+
+Deno.test('two close questions above 0.78 (siblings): the AI decides, not the threshold; without the AI the old rule applies', async () => {
+  const mk = () => {
+    const s = new FakeStore(), a = new FakeAi()
+    s.rows = [msg('client', 'payment kar diya, release karo')]
+    const pay = entry({ similarity: 0.88, title: 'Can I pay now?', reply_en: 'Sir, please wait for the payment details.' })
+    const done = entry({ similarity: 0.86, title: 'Payment done — please release' , reply_en: 'Thank you, sir. We are checking the payment.' })
+    s.matchRows = [pay, done]
+    return { s, a, pay, done }
+  }
+  // the AI picks the second one: only that reply is shown first, the other stays one tap away
+  const x = mk()
+  x.a.replies[UTILITY] = routeReply('Q2', 'high', 'Client says they paid')
+  const r = await run(x.s, x.a)
+  eq(r.body.playbook.map((p: any) => [p.entryId, p.pickedBy]), [[x.done.entry_id, 'ai']])
+  eq(r.body.related.map((p: any) => p.entryId), [x.pay.entry_id])
+  eq(draftCalls(x.a).length, 0)
+  // the AI says none: nothing is shown first, the drafts come
+  const y = mk()
+  y.a.replies[UTILITY] = routeReply('none')
+  const n = await run(y.s, y.a)
+  eq(n.body.playbook.length, 0); eq(n.body.related.length, 2); eq(draftCalls(y.a).length, 2)
+  // over the budget the AI cannot be asked: both are shown first, as before
+  const z = mk()
+  z.s.spend = 24999.99
+  const c = await run(z.s, z.a)
+  eq(c.body.route.result, 'capped')
+  eq(c.body.playbook.map((p: any) => [p.entryId, p.pickedBy ?? null]), [[z.pay.entry_id, null], [z.done.entry_id, null]])
+  // a clear lead above the threshold needs no AI
+  const w = mk()
+  w.s.matchRows[1].similarity = 0.7
+  const l = await run(w.s, w.a)
+  eq(utilityCalls(w.a).length, 0); eq(l.body.playbook.map((p: any) => p.entryId), [w.pay.entry_id]); eq(l.body.lead, null)
+})
+
+Deno.test('drafting again keeps the AI\'s "none" for the same chat state: no new pick, nothing shown first', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'payment kar diya, release karo')]
+  s.matchRows = [entry({ similarity: 0.88, title: 'Can I pay now?' }), entry({ similarity: 0.86, title: 'Payment done — please release' })]
+  a.replies[UTILITY] = routeReply('none')
+  await run(s, a)
+  const f = await run(s, a, { mode: 'force' })
+  eq(utilityCalls(a).length, 1); eq(f.body.route.result, 'none'); eq(f.body.playbook.length, 0)
+})
+
+Deno.test('a cached suggestion comes back with today\'s order facts (deadlines, appeal case, client records)', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'When will I get the TDS certificate?')]
+  s.matchRows = [entry({ similarity: 0.91 })]
+  const first = await run(s, a)
+  eq(first.body.context.appeal_case, null)
+  s.appeal = { status: 'respond_by_set', responseDueAt: NOW.getTime() + 40 * 60_000 }
+  const again = await run(s, a)
+  eq(again.body.cached, true)
+  eq(again.body.context.appeal_case, { status: 'respond_by_set', response_due: new Date(NOW.getTime() + 40 * 60_000).toISOString() })
+  eq(again.body.playbook.map((p: any) => p.entryId), first.body.playbook.map((p: any) => p.entryId), 'the same suggestions')
+})
+
+Deno.test('the AI never sees a reply held back before verification as the reply for this step', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('client', 'Can I pay now?')]
+  s.matchRows = [
+    entry({ similarity: 0.66, title: 'Can I pay now?', reply_en: 'Yes sir, please pay to {upi}.', reply_hi: 'Ji sir, {upi} par payment kar dijiye.' }),
+    entry({ similarity: 0.6, title: 'How long will it take?', reply_en: 'Sir, we are checking your details.' }),
+  ]
+  a.replies[UTILITY] = routeReply('Q1')
+  const r = await run(s, a)
+  const u = JSON.parse(utilityCalls(a)[0].user)
+  eq(u.candidates[0].reply_now, null, 'held back: no reply for this step')
+  eq(r.body.route.result, 'picked'); eq(r.body.playbook.length, 0); eq(r.body.heldBack.length, 1)
+  eq(draftCalls(a).length, 2, 'drafted instead')
+})
+
+Deno.test('an AI pick that throws never blocks the drafts', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'Can I get an invoice?')]
+  s.matchRows = [entry({ similarity: 0.66, title: 'Why 1% TDS' }), entry({ similarity: 0.6, title: 'TDS certificate timing' })]
+  a.replies[UTILITY] = () => { throw new Error('network down') }
+  const r = await run(s, a)
+  eq(r.status, 200); eq(r.body.route.result, 'failed'); eq(draftCalls(a).length, 2)
+})
+
+Deno.test("a new sell order not stored yet: without Binance's KYC field it is KYC pending (pay replies held back); the screen's 0 means no extra KYC", async () => {
+  const mk = () => {
+    const s = new FakeStore(), a = new FakeAi()
+    s.orderRow = null
+    s.rows = [msg('client', 'hi sir, can I pay now?')]
+    s.matchRows = [entry({ title: 'Can I pay now?', reply_en: 'Yes sir, please pay to {upi}.', reply_hi: 'Ji sir, {upi} par payment kar dijiye.' })]
+    return { s, a }
+  }
+  const x = mk()
+  const r = await run(x.s, x.a, { hint: { tradeType: 'SELL', status: 'TRADING' } })
+  eq(r.body.context.situation, 'sell.kyc.pending'); eq(r.body.playbook.length, 0); eq(r.body.heldBack.length, 1)
+  const y = mk()
+  const r0 = await run(y.s, y.a, { hint: { tradeType: 'SELL', status: 'TRADING', kycVerify: 0 } })
+  eq(r0.body.context.situation, 'sell.pay.ready'); eq(r0.body.playbook.length, 1)
+})
+
+Deno.test('the AI answering outside its candidates is no answer: the old rule applies', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'payment kar diya, release karo')]
+  const pay = entry({ similarity: 0.88, title: 'Can I pay now?' }), done = entry({ similarity: 0.86, title: 'Payment done — please release' })
+  s.matchRows = [pay, done]
+  a.replies[UTILITY] = routeReply('Q9')
+  const r = await run(s, a)
+  eq(r.body.route.result, 'failed'); eq(r.body.playbook.length, 2, 'both at 0.78 or more, as before')
+  eq(s.calls.find((c) => c.variant === 'route').error, 'invalid_pick')
+})
+
+Deno.test('the clear lead must beat a question for the other side that scores higher, and questions cut off by the lookup limit', async () => {
+  // a refund question on a sell order: the buy-only question scores far higher, so the sell question is not trusted alone
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'mera refund kab aayega')]
+  s.matchRows = [entry({ similarity: 0.9, title: 'Refund for our payment', scope: { sides: ['BUY'] }, fits: false, specificity: -1 }),
+    entry({ similarity: 0.65, title: 'Payment done — please release' }), entry({ similarity: 0.45, title: 'Why 1% TDS' })]
+  a.replies[UTILITY] = routeReply('none')
+  const r = await run(s, a)
+  eq(utilityCalls(a).length, 1, 'asked the AI'); eq(r.body.playbook.length, 0)
+  // seven buy questions fill the lookup between 0.69 and 0.63: the sell question at 0.70 is not 0.15 ahead of what may be cut off
+  const t = new FakeStore(), b = new FakeAi()
+  t.rows = [msg('client', 'kitna time lagega')]
+  const sell = entry({ similarity: 0.7, title: 'How long will it take?' })
+  t.matchRows = [sell, ...[0.69, 0.68, 0.67, 0.66, 0.65, 0.64, 0.63].map((x) => entry({ similarity: x, title: `Buy question ${x}`, scope: { sides: ['BUY'] }, fits: false, specificity: -1 }))]
+  b.replies[UTILITY] = routeReply('Q1')
+  const r2 = await run(t, b)
+  eq(utilityCalls(b).length, 1); eq(r2.body.playbook.map((p: any) => [p.entryId, p.pickedBy]), [[sell.entry_id, 'ai']])
+})
+
+Deno.test('no AI pick when no candidate has a reply for this order', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = { status: 'not_client' }
+  s.rows = [msg('client', 'TDS ka certificate kab tak aayega?')]
+  s.matchRows = [entry({ similarity: 0.66, title: 'TDS for approved clients', scope: { client_states: ['approved'] }, fits: false, specificity: -1 }),
+    entry({ similarity: 0.6, title: 'TDS for approved clients 2', scope: { client_states: ['approved'] }, fits: false, specificity: -1 })]
+  const r = await run(s, a)
+  eq(utilityCalls(a).length, 0); eq(r.body.route, null); eq(draftCalls(a).length, 2)
+})
+
+Deno.test('taking over a stale request restarts its clock, so the next approver waits instead of paying again', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'When will I get the TDS certificate?')]
+  s.matchRows = [entry({ similarity: 0.91 })]
+  const key = `${s.rows[0].binance_message_id}|TRADING|sell.pay.ready`
+  const old = await s.insertRequest({ user_id: OPERATOR, order_number: ORDER, mode: 'suggest', request_key: key, status: 'pending' })
+  s.requests.get(old.id!)!.created_at = new Date(NOW.getTime() - 120_000).toISOString()
+  const r = await run(s, a)
+  eq(r.body.requestId, old.id)
+  eq(s.requests.get(old.id!)!.created_at, NOW.toISOString())
+})
+
+Deno.test("an order not stored yet: the client panel's counts for this side are unknown", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = null
+  s.panel = { status: 'linked', client: { kyc_status: 'VERIFIED', buyer_status: 'APPROVED' }, documents: {}, order_context: { side_completed: 0, appeals: 1 } }
+  s.appeal = { status: 'requested', responseDueAt: null }
+  s.rows = [msg('client', 'Can I pay by IMPS?')]
+  const r = await run(s, a, { hint: { tradeType: 'SELL', status: 'TRADING', kycVerify: 0 } })
+  eq([r.body.context.client.earlier_orders, r.body.context.client.appeals], [null, 1])
+})
+
+Deno.test("Binance's stored 'required' is not told to the drafts once the chat shows the client can pay", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, kyc_raw: '1', kyc_detail: '1' }
+  s.rows = [sysRow('order_created_with_additional_kyc_maker_sell'), sysRow('maker_verified_additional_kyc_maker_sell'), msg('client', 'Can I get an invoice?')]
+  const r = await run(s, a)
+  eq(r.body.context.situation, 'sell.pay.ready')
+  eq(JSON.parse(draftCalls(a)[0].user).order.binance_extra_kyc, undefined)
+})
+
+Deno.test('a facts-only request (nothing to answer on the screen) never looks anything up, drafts or saves, even if a client message is stored', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'When will I get the TDS certificate?')]
+  s.orderRow = { ...s.orderRow, pay_by: String(NOW.getTime() + 12 * 60_000) }
+  const r = await run(s, a, { mode: 'context' })
+  eq(r.body.status, 'nothing_to_answer'); eq(r.body.context.pay_by, new Date(NOW.getTime() + 12 * 60_000).toISOString())
+  eq(a.chats.length + a.embeds.length, 0); eq(s.requests.size, 0); eq(s.calls.length, 0)
+})
+
+// ─── Round 3: replies for other clients, the lead against the other side, re-checks, Binance's open KYC ─────
+
+Deno.test("replies for other clients never make an AI pick worth asking, and are never named as another situation's answer", async () => {
+  // unsure between two questions whose only replies are for approved clients (this client is new)
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = { status: 'not_client' }
+  s.rows = [msg('client', 'TDS ka certificate kab tak aayega?')]
+  s.matchRows = [entry({ similarity: 0.66, title: 'TDS for approved clients', scope: { client_states: ['approved'], stages: ['sell.pay.ready'] }, fits: false, specificity: -1 }),
+    entry({ similarity: 0.6, title: 'TDS for approved clients 2', scope: { client_states: ['approved'], stages: ['sell.kyc'] }, fits: false, specificity: -1 })]
+  const r = await run(s, a)
+  eq(utilityCalls(a).length, 0, 'no paid pick that could change nothing'); eq(r.body.route, null); eq(draftCalls(a).length, 2)
+  // a question clearly recognised, with replies only for approved clients: not "has replies only for Client can pay"
+  const t = new FakeStore(), b = new FakeAi()
+  t.panel = { status: 'not_client' }
+  t.rows = [msg('client', 'TDS ka certificate kab tak aayega?')]
+  t.matchRows = [entry({ similarity: 0.9, title: 'TDS for approved clients', scope: { client_states: ['approved'], stages: ['sell.pay.ready'] }, fits: false, specificity: -1 })]
+  const r2 = await run(t, b)
+  eq(r2.body.otherSituations, []); eq((JSON.parse(draftCalls(b)[0].user).other_situation_answers ?? []).length, 0)
+})
+
+Deno.test('the clear lead must also be 0.15 ahead of the best question for the other side', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'kitna time lagega')]
+  const sell = entry({ similarity: 0.7, title: 'How long will it take?' })
+  s.matchRows = [sell, entry({ similarity: 0.69, title: 'How long for our payment?', scope: { sides: ['BUY'] }, fits: false, specificity: -1 })]
+  a.replies[UTILITY] = routeReply('Q1')
+  const r = await run(s, a)
+  eq(utilityCalls(a).length, 1, 'as close as a buy question: the AI is asked'); eq(r.body.lead, null)
+  eq(r.body.playbook.map((p: any) => [p.entryId, p.pickedBy]), [[sell.entry_id, 'ai']])
+  const t = new FakeStore(), b = new FakeAi()
+  t.rows = [msg('client', 'kitna time lagega')]
+  const far = entry({ similarity: 0.7, title: 'How long will it take?' })
+  t.matchRows = [far, entry({ similarity: 0.55, title: 'How long for our payment?', scope: { sides: ['BUY'] }, fits: false, specificity: -1 })]
+  const r2 = await run(t, b)
+  eq(b.chats.length, 0, 'clearly ahead: no AI at all')
+  eq(r2.body.playbook.map((p: any) => [p.entryId, p.pickedBy]), [[far.entry_id, 'lead']])
+  eq(r2.body.lead, { topicId: far.topic_id, similarity: 0.7, next: 0.55 }, 'measured against the other-side question')
+})
+
+Deno.test("an approver's re-check after Binance-only \"verified\" holds through our KYC request: pay replies stay held back", async () => {
+  const mk = () => {
+    const s = new FakeStore(), a = new FakeAi()
+    // Binance says verified; its notice is not in the chat (not synced yet)
+    s.orderRow = { ...s.orderRow, kyc_raw: '2', kyc_detail: '2' }
+    const rows = [...kycAsked(), msg('client', 'img', 'image'), msg('us', 'Sir one time verification is needed, our team will connect you soon.'), msg('client', 'ok')]
+    const markAt = Number(rows[rows.length - 1].binance_create_time) + 500
+    s.rows = [...rows, msg('us', 'Sir, the Aadhar image is not clear. Please share your Aadhar card again'), msg('client', 'Can I pay now?')]
+    s.matchRows = [entry({ title: 'Can I pay now?', reply_en: 'Yes sir, please pay to {upi}.', reply_hi: 'Ji sir, {upi} par payment kar dijiye.' })]
+    return { s, a, markAt }
+  }
+  const x = mk()
+  x.s.mark = { code: 'sell.kyc.pending', at: x.markAt, by: SHUBHAM, detected: 'sell.pay.ready' }
+  const r = await run(x.s, x.a)
+  eq(r.body.context.situation, 'sell.kyc.pending'); eq(r.body.context.situation_evidence.startsWith('KYC asked again'), true)
+  eq(r.body.playbook.length, 0); eq(r.body.heldBack.length, 1); eq(r.body.context.before_verification, true)
+  // adjusting the step during the re-check keeps it a re-check
+  const y = mk()
+  y.s.marks = [{ code: 'sell.kyc.call', at: y.markAt + 100, by: SHUBHAM, detected: 'sell.kyc.review' }, { code: 'sell.kyc.pending', at: y.markAt, by: SHUBHAM, detected: 'sell.pay.ready' }]
+  eq((await run(y.s, y.a)).body.context.before_verification, true)
+  // without the approver's re-check the click's time is unknown: the chat reads "Client can pay" until Binance's notice arrives
+  const z = mk()
+  eq((await run(z.s, z.a)).body.context.situation, 'sell.pay.ready')
+})
+
+Deno.test('the panel gets the step decision the drafts follow, and whether Binance still says the extra KYC is open', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, kyc_raw: '1', kyc_detail: '1', create_time: NOW.getTime() - 600_000 }
+  s.rows = [msg('client', 'hello sir, can I pay?')]
+  const r = await run(s, a, { mode: 'context' })
+  eq([r.body.context.situation, r.body.context.before_verification, r.body.context.binance_kyc_open], ['sell.kyc.pending', true, true])
+  // a "Client can pay" set by hand does not hold while Binance says the KYC is open
+  s.mark = { code: 'sell.pay.ready', at: NOW.getTime() - 1000, by: SHUBHAM, detected: 'sell.kyc.pending' }
+  const m = await run(s, a, { mode: 'context' })
+  eq([m.body.context.situation, m.body.context.situation_marked], ['sell.kyc.pending', null])
+  // verified in the chat (the stored field is behind): not before verification, nothing open
+  s.mark = null
+  s.rows = [sysRow('order_created_with_additional_kyc_maker_sell'), sysRow('maker_verified_additional_kyc_maker_sell'), msg('client', 'Can I get an invoice?')]
+  const v = await run(s, a, { mode: 'context' })
+  eq([v.body.context.situation, v.body.context.before_verification, v.body.context.binance_kyc_open], ['sell.pay.ready', false, false])
+  // buy orders have no such step
+  const b = new FakeStore()
+  b.orderRow = { ...b.orderRow, trade_type: 'BUY' }
+  b.rows = [msg('client', 'payment kab karoge?')]
+  const bo = await run(b, new FakeAi(), { mode: 'context' })
+  eq([bo.body.context.before_verification, bo.body.context.binance_kyc_open], [null, false])
+})
+
+Deno.test("Binance-only \"verified\": a KYC request after an approver's own \"Client can pay\" holds pay replies back again", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, kyc_raw: '2', kyc_detail: '2' }
+  const rows = [...kycAsked(), msg('client', 'img', 'image'), msg('us', 'Sir one time verification is needed, our team will connect you soon.'), msg('client', 'ok')]
+  const t = Number(rows[rows.length - 1].binance_create_time)
+  // a re-check, then "Client can pay" set by hand, then our KYC request again
+  s.marks = [{ code: 'sell.pay.ready', at: t + 600, by: SHUBHAM, detected: 'sell.pay.ready' }, { code: 'sell.kyc.pending', at: t + 300, by: SHUBHAM, detected: 'sell.pay.ready' }]
+  s.matchRows = [entry({ title: 'Can I pay now?', reply_en: 'Yes sir, please pay to {upi}.', reply_hi: 'Ji sir, {upi} par payment kar dijiye.' })]
+  s.rows = [...rows, msg('client', 'Can I pay now?')]
+  const before = await run(s, a)
+  eq(before.body.context.situation, 'sell.pay.ready', "the approver's \"Client can pay\" stands until our next KYC step")
+  s.rows = [...rows, msg('us', 'Sir, please share your Aadhar card again, the photo is cut'), msg('client', 'Can I pay now?')]
+  const r = await run(s, new FakeAi())
+  eq(r.body.context.situation, 'sell.kyc.pending'); eq(r.body.playbook.length, 0); eq(r.body.heldBack.length, 1)
 })

@@ -75,6 +75,7 @@ export interface MatchRow {
 }
 
 export interface Team { code: string; label: string; description: string }
+export interface AppealCase { status: string; responseDueAt: number | null }
 export interface Example { entry_id: string; chat: Array<{ from: string; text: string }> }
 
 export interface ContactPick { id: string; purpose: string; person_name: string; phone: string; available_now: boolean; priority: number }
@@ -107,12 +108,15 @@ export interface Store {
   config(): Promise<CopilotConfig | null>
   isApprover(userId: string): Promise<boolean>
   order(orderNumber: string): Promise<any | null>
+  /** Our team's latest appeal case for the order (status and the response timer), if any. */
+  appealCase(orderNumber: string): Promise<AppealCase | null>
+  /** The chat's last 80 messages, plus Binance's KYC notices from before them. */
   messages(orderNumber: string): Promise<ChatRow[]>
   smallRanges(): Promise<{ sales: SmallRange | null; buys: SmallRange | null }>
   accountName(id: string | null): Promise<string | null>
   clientPanel(orderNumber: string): Promise<any>
-  /** An approver's latest correction of this chat's situation (null code = back to the detected one). */
-  situationMark(orderNumber: string): Promise<Mark | null>
+  /** Approvers' corrections of this chat's situation, newest first (null code = back to the detected one). */
+  situationMarks(orderNumber: string): Promise<Mark[]>
   monthSpend(): Promise<number>
   match(a: MatchArgs): Promise<MatchRow[]>
   rejections(embedding: number[] | string, min: number, limit: number): Promise<Array<{ draft_text: string; reason: string | null }>>
@@ -144,6 +148,12 @@ export interface Store {
 
 const vec = (v: number[] | string) => (typeof v === 'string' ? v : `[${v.join(',')}]`)
 
+/** The chat's latest messages (oldest first) with Binance's KYC notices from before them, each message once. */
+export function withNotices(recent: ChatRow[], notices: ChatRow[]): ChatRow[] {
+  const ids = new Set(recent.map((r) => r.id ?? r.binance_message_id ?? r.dedupe_key))
+  return [...notices.filter((r) => !ids.has(r.id ?? r.binance_message_id ?? r.dedupe_key)), ...recent]
+}
+
 /** admin: service-role client. user: client carrying the caller's JWT (for get_terminal_order_client). */
 export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
   const db = admin as any
@@ -165,16 +175,35 @@ export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
       return data === true
     },
     async order(orderNumber) {
-      const { data } = await db.from('binance_order_history')
-        .select('order_number, trade_type, order_status, total_price, amount, asset, fiat_unit, pay_method_name, exchange_account_id, has_active_complaint, create_time')
+      // Binance's extra-KYC field and deadlines are read one by one: the stored order payloads also hold personal data
+      // (names, payment accounts), which never leave the database.
+      const { data, error } = await db.from('binance_order_history')
+        .select('order_number, trade_type, order_status, total_price, amount, asset, fiat_unit, pay_method_name, exchange_account_id, has_active_complaint, create_time, '
+          + 'kyc_raw:raw_data->>additionalKycVerify, kyc_detail:order_detail_raw->>additionalKycVerify, pay_by:order_detail_raw->>notifyPayEndTime, '
+          + 'release_by:order_detail_raw->>confirmPayEndTime')
         .eq('order_number', orderNumber).limit(1).maybeSingle()
+      // Without the stored order, side, status and amount come from the screen only: say so in the logs.
+      if (error) console.error(JSON.stringify({ fn: 'copilot', outcome: 'order_read_failed', code: error.code }))
       return data ?? null
     },
+    async appealCase(orderNumber) {
+      const { data, error } = await db.from('terminal_appeal_cases').select('status, response_due_at, created_at')
+        .eq('order_number', orderNumber).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (error || !data) return null
+      return { status: String(data.status ?? ''), responseDueAt: data.response_due_at ? Date.parse(data.response_due_at) : null }
+    },
     async messages(orderNumber) {
-      const { data } = await db.from('binance_order_chat_messages')
-        .select('id, binance_message_id, dedupe_key, message_type, sender_is_self, is_system_message, is_recall, message_text, binance_create_time')
-        .eq('order_number', orderNumber).order('binance_create_time', { ascending: false }).limit(80)
-      return [...(data ?? [])].reverse()
+      const cols = 'id, binance_message_id, dedupe_key, message_type, sender_is_self, is_system_message, is_recall, message_text, binance_create_time'
+      // Binance's KYC notices (extra KYC required, client verified) decide the KYC steps: in a long chat they can be older
+      // than the last 80 messages, so they are read on their own too (two short rows, merged by id).
+      const [recent, notices] = await Promise.all([
+        db.from('binance_order_chat_messages').select(cols)
+          .eq('order_number', orderNumber).order('binance_create_time', { ascending: false }).limit(80),
+        db.from('binance_order_chat_messages').select(cols)
+          .eq('order_number', orderNumber).eq('is_system_message', true).like('message_text', '%additional_kyc_maker_sell%')
+          .order('binance_create_time', { ascending: true }).limit(4),
+      ])
+      return withNotices([...(recent.data ?? [])].reverse(), notices.data ?? [])
     },
     async smallRanges() {
       const [s, b] = await Promise.all([
@@ -194,11 +223,10 @@ export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
       if (error) return null
       return data
     },
-    async situationMark(orderNumber) {
-      const { data } = await db.from('copilot_situation_marks').select('code, created_by, created_at')
-        .eq('order_number', orderNumber).order('created_at', { ascending: false }).limit(1).maybeSingle()
-      if (!data) return null
-      return { code: data.code ?? null, at: Date.parse(data.created_at), by: data.created_by ?? null }
+    async situationMarks(orderNumber) {
+      const { data } = await db.from('copilot_situation_marks').select('code, detected_code, created_by, created_at')
+        .eq('order_number', orderNumber).order('created_at', { ascending: false }).limit(20)
+      return (data ?? []).map((r: any) => ({ code: r.code ?? null, at: Date.parse(r.created_at), by: r.created_by ?? null, detected: r.detected_code ?? null }))
     },
     async monthSpend() {
       const { data } = await db.rpc('copilot_month_spend_inr')

@@ -3,14 +3,16 @@
 // approved reply fits or the approver asks. Nothing is ever sent from here: Insert puts text in the composer.
 // KYC happens outside the chat, so a step worked out from our messages is a best guess: the question's replies for
 // the neighbouring steps are offered too ("If: Checking KYC"), and sending one sets the chat to that step.
+// When matching by meaning is unsure, a small model picks which approved question the client asked ("Picked by AI");
+// the reply is still the approved text. Binance's deadlines and what we hold on the client are shown as chips.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  AlertTriangle, BookCheck, Check, ChevronDown, ChevronUp, CornerDownLeft, History, Languages, Loader2, MapPin, Phone, RefreshCw,
-  ShieldAlert, Signpost, Sparkles, Wand2, X,
+  AlertTriangle, BookCheck, Check, ChevronDown, ChevronUp, Clock, CornerDownLeft, History, Languages, Loader2, MapPin, Phone, RefreshCw,
+  ShieldAlert, Signpost, Sparkles, UserRound, Wand2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -18,8 +20,8 @@ import {
 } from '@/hooks/useCopilotPlaybook';
 import { copilotAdmin, useCopilotSituations, useCopilotTeams, useUserNames, userLabel } from '@/hooks/useCopilotAdmin';
 import {
-  FLAG_LABEL, REJECT_REASONS, buildCopilotPicks, contactsUsed, fillCopilotText, modelLabel, statusLabel, teamLabel, type ContactPurpose,
-  type CopilotPick,
+  FLAG_LABEL, KYC_WAIT_MS, REJECT_REASONS, buildCopilotPicks, clientSummary, contactsUsed, deadlineChips, deadlineContext, fillCopilotText,
+  kycReload, modelLabel, statusLabel, teamLabel, waitForLiveKyc, type ContactPurpose, type CopilotPick,
 } from '@/lib/copilot/copilotText';
 import { markableSituations, STATUS_SITUATIONS } from '@/lib/copilot/situations';
 import type { TemplateOrderValues } from '@/lib/fill-template';
@@ -43,6 +45,10 @@ interface Props {
   onState: (s: { requestId: string | null; picks: CopilotPick[] }) => void;
   /** Changes when the chat's step was set from outside the panel (a reply sent for another step): fresh suggestions. */
   refreshKey?: number;
+  /** Live values from Binance's order detail on this screen: extra-KYC field and deadlines (ms). Sent with each request. */
+  binance?: { kycVerify?: number | null; payBy?: number | null; releaseBy?: number | null } | null;
+  /** The screen is still loading Binance's order detail (the first request on an open sell order waits a moment for it). */
+  binanceLoading?: boolean;
 }
 
 const COLLAPSE_KEY = 'terminal-copilot-collapsed';
@@ -55,7 +61,11 @@ const INSTRUCTION_CHIPS: Array<{ key: string; label: string }> = [
   { key: 'detail', label: 'Add detail' },
 ];
 
-function Chip({ tone = 'muted', children, title }: { tone?: 'muted' | 'green' | 'amber' | 'red' | 'primary'; children: React.ReactNode; title?: string }) {
+function Chip({ tone = 'muted', children, title, fluid = false }: {
+  tone?: 'muted' | 'green' | 'amber' | 'red' | 'primary'; children: React.ReactNode; title?: string;
+  /** May shrink to the row's width (its text then truncates) instead of keeping its natural width. */
+  fluid?: boolean;
+}) {
   const cls = {
     muted: 'border-border bg-secondary/60 text-muted-foreground',
     green: 'border-trade-buy/30 bg-trade-buy/10 text-trade-buy',
@@ -64,7 +74,7 @@ function Chip({ tone = 'muted', children, title }: { tone?: 'muted' | 'green' | 
     primary: 'border-primary/30 bg-primary/10 text-primary',
   }[tone];
   return (
-    <span title={title} className={`inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-[10px] font-medium leading-none ${cls}`}>
+    <span title={title} className={`inline-flex h-5 ${fluid ? 'min-w-0 max-w-full' : 'shrink-0'} items-center gap-1 rounded-full border px-2 text-[10px] font-medium leading-none ${cls}`}>
       {children}
     </span>
   );
@@ -99,10 +109,14 @@ function RejectButton({ onReject, disabled }: { onReject: (reason: string) => vo
   );
 }
 
-/** What the client is waiting for, as the Copilot worked it out; an approver can change it for this chat. */
-function SituationMenu({ side, current, detected, detectedLabel, marked, disabled, onPick }: {
+/**
+ * What the client is waiting for, as the Copilot worked it out; an approver can change it for this chat. While Binance says
+ * the client's extra KYC is not verified (and the chat shows neither its notice nor our payment details), the payment
+ * step cannot be picked.
+ */
+function SituationMenu({ side, current, detected, detectedLabel, marked, disabled, payBlocked = false, onPick }: {
   side: 'BUY' | 'SELL' | null; current: string | null; detected: string | null; detectedLabel: string | null; marked: boolean;
-  disabled?: boolean; onPick: (code: string | null) => void;
+  disabled?: boolean; payBlocked?: boolean; onPick: (code: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { data: rows } = useCopilotSituations();
@@ -121,13 +135,18 @@ function SituationMenu({ side, current, detected, detectedLabel, marked, disable
       <PopoverContent align="start" side="top" className="w-64 p-1.5">
         <p className="px-1.5 pb-1 text-[11px] font-medium text-foreground">What is the client waiting for?</p>
         <div className="flex flex-col gap-0.5">
-          {options.map((o) => (
-            <button key={o.code} type="button" onClick={() => { setOpen(false); if (o.code !== current) onPick(o.code); }}
-              className={`rounded px-2 py-1.5 text-left text-xs hover:bg-secondary ${o.code === current ? 'bg-primary/10 text-primary' : 'text-foreground'}`}>
-              <span className="block font-medium">{o.label}</span>
-              <span className="block text-[10px] leading-snug text-muted-foreground">{o.description}</span>
-            </button>
-          ))}
+          {options.map((o) => {
+            const blocked = payBlocked && o.code.startsWith('sell.pay');
+            return (
+              <button key={o.code} type="button" disabled={blocked} onClick={() => { setOpen(false); if (o.code !== current) onPick(o.code); }}
+                className={`rounded px-2 py-1.5 text-left text-xs hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent ${o.code === current ? 'bg-primary/10 text-primary' : 'text-foreground'}`}>
+                <span className="block font-medium">{o.label}</span>
+                <span className="block text-[10px] leading-snug text-muted-foreground">
+                  {blocked ? "Not while Binance says the client's extra KYC is not verified." : o.description}
+                </span>
+              </button>
+            );
+          })}
           {marked && detected && (
             <button type="button" onClick={() => { setOpen(false); onPick(null); }} className="mt-0.5 rounded border-t border-border px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-secondary">
               Back to what the chat shows: {detectedLabel ?? detected}
@@ -141,7 +160,7 @@ function SituationMenu({ side, current, detected, detectedLabel, marked, disable
 
 export function CopilotPanel({
   orderNumber, exchangeAccountId, tradeType, orderStatus, totalPrice, asset, payMethod, trigger, templateValues, onInsert, onApprove, onState,
-  refreshKey = 0,
+  refreshKey = 0, binance = null, binanceLoading = false,
 }: Props) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [data, setData] = useState<DraftResponse | null>(null);
@@ -156,17 +175,34 @@ export function CopilotPanel({
   const triggerKey = trigger?.key ?? null;
   const triggerRef = useRef(trigger);
   triggerRef.current = trigger;
+  // Read when a request is made, so a new poll of the order detail never reloads the suggestions by itself.
+  const binanceRef = useRef(binance);
+  binanceRef.current = binance;
+  const binanceLoadingRef = useRef(binanceLoading);
+  binanceLoadingRef.current = binanceLoading;
   const { data: teams } = useCopilotTeams();
   const { data: users = [] } = useUserNames();
 
-  const load = useCallback(async (mode: 'suggest' | 'redraft' | 'force', instruction: string | null = null) => {
+  // The extra-KYC value the latest request was sent with, and whether one is about to go out (the 600 ms wait), for the
+  // reload on "verified" below.
+  const sentKyc = useRef<number | null>(null);
+  const scheduled = useRef(false);
+  /** 'context': the order facts only, with nothing to answer (no AI, nothing saved): no skeleton and no error line. */
+  const load = useCallback(async (mode: 'suggest' | 'redraft' | 'force' | 'context', instruction: string | null = null) => {
+    const quiet = mode === 'context';
     const mine = ++seq.current;
-    if (mode === 'suggest') setLoading(true); else setBusy(instruction ?? mode);
+    scheduled.current = false;
+    sentKyc.current = binanceRef.current?.kycVerify ?? null;
+    if (!quiet) { if (mode === 'suggest') setLoading(true); else setBusy(instruction ?? mode); }
     setError(null);
     try {
       const res = await copilotDraft({
         orderNumber, exchangeAccountId: exchangeAccountId ?? null, mode, instruction,
-        hint: { tradeType, status: orderStatus, totalPrice, asset, payMethod, latest: triggerRef.current?.hint ?? null },
+        hint: {
+          tradeType, status: orderStatus, totalPrice, asset, payMethod, latest: triggerRef.current?.hint ?? null,
+          kycVerify: binanceRef.current?.kycVerify ?? null, payBy: binanceRef.current?.payBy ?? null,
+          releaseBy: binanceRef.current?.releaseBy ?? null,
+        },
       }, () => mine !== seq.current);
       if (mine !== seq.current) return;
       setData(res);
@@ -174,25 +210,36 @@ export function CopilotPanel({
     } catch (e) {
       if (mine !== seq.current) return;
       const err = e as CopilotError;
-      if (err.code === 'cancelled') return;
+      if (err.code === 'cancelled' || quiet) return;
       setError(err.code === 'too_many_requests' ? 'Too many requests — wait a moment and try again.' : err.message || 'Could not load suggestions.');
     } finally {
       if (mine === seq.current) { setLoading(false); setBusy(null); }
     }
   }, [orderNumber, exchangeAccountId, tradeType, orderStatus, totalPrice, asset, payMethod]);
 
-  // New client message (or a new order status) → suggestions for it. Closing the chat stops everything.
+  // New client message (or a new order status) → suggestions for it. With nothing to answer, a quiet request brings the
+  // order facts only (the situation, deadlines and client records; no AI, nothing saved). Closing the chat stops everything.
   useEffect(() => {
     seq.current++;
     setData(null);
     setError(null);
     setLoading(false);
     setBusy(null);
-    if (!triggerKey) return;
-    const t = setTimeout(() => { void load('suggest'); }, 600);
+    // The request about to go out carries today's extra-KYC value (so the "verified" reload below does not double it).
+    scheduled.current = true;
+    sentKyc.current = binanceRef.current?.kycVerify ?? null;
+    // On an open sell order it waits a moment (at most 3 s) for Binance's live extra-KYC value while the screen loads it.
+    const started = Date.now();
+    let t: ReturnType<typeof setTimeout>;
+    const go = () => {
+      if (waitForLiveKyc({ side: tradeType, status: orderStatus, live: binanceRef.current?.kycVerify, loading: binanceLoadingRef.current })
+        && Date.now() - started < KYC_WAIT_MS) { t = setTimeout(go, 200); return; }
+      void load(triggerKey ? 'suggest' : 'context');
+    };
+    t = setTimeout(go, 600);
     // Bumping the sequence on cleanup drops any answer that arrives after the chat changed or closed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    return () => { clearTimeout(t); seq.current++; };
+    return () => { clearTimeout(t); seq.current++; scheduled.current = false; };
   }, [orderNumber, triggerKey, orderStatus, load]);
 
   // The chat's step was set from outside (a reply sent for another step): fresh suggestions for a client message still
@@ -201,8 +248,24 @@ export function CopilotPanel({
   useEffect(() => {
     if (refreshKey === seenRefresh.current) return;
     seenRefresh.current = refreshKey;
-    if (triggerRef.current) void load('suggest');
+    // A request about to go out reads the new step itself.
+    if (triggerRef.current && !scheduled.current) void load('suggest');
   }, [refreshKey, load]);
+
+  // Binance's extra-KYC value reaches the screen on an open sell order, and the last request and its answer did not know it
+  // ("verified", or the field at all): fresh suggestions for a client message waiting, or (nothing to answer) the order
+  // facts again, once. Never while a request is about to go out or running (re-checked when its answer lands).
+  const kycVerify = binance?.kycVerify ?? null;
+  const answeredKyc = data?.context?.binance_kyc ?? null;
+  const pending = loading || !!busy;
+  const factsOnly = !data || data.status === 'nothing_to_answer';
+  useEffect(() => {
+    const mode = kycReload({
+      side: tradeType, status: orderStatus, live: kycVerify, sent: sentKyc.current, answered: answeredKyc, waiting: !!triggerRef.current,
+      pending: pending || scheduled.current, factsOnly,
+    });
+    if (mode) void load(mode);
+  }, [kycVerify, answeredKyc, pending, tradeType, orderStatus, load, factsOnly]);
 
   const fill = useCallback((text: string) => fillCopilotText(text, templateValues, data?.contacts), [templateValues, data?.contacts]);
   const requestId = data?.requestId ?? null;
@@ -264,6 +327,27 @@ export function CopilotPanel({
   const conflictFound = data?.skippedReason === 'conflict_found';
   const aiFailed = data?.aiFailed ?? 0;
   const missing = (data?.missingContacts ?? []) as ContactPurpose[];
+  const aiPicked = data?.skippedReason === 'ai_picked_reply';
+
+  // The last order facts from the server stay shown while suggestions reload or no client message waits.
+  const [lastCtx, setLastCtx] = useState<typeof ctx | null>(null);
+  useEffect(() => { if (ctx) setLastCtx(ctx); }, [ctx]);
+  const facts = ctx ?? lastCtx;
+  // Binance's deadlines: the screen's live values first, so they show even with nothing to answer. The countdown is
+  // worked out at each render; a 5-second tick (and coming back to the tab) re-renders while there is one.
+  const deadlineCtx = deadlineContext({ tradeType, orderStatus, live: binance, server: facts });
+  const hasDeadline = !!(deadlineCtx.pay_by || deadlineCtx.release_by || deadlineCtx.appeal_case?.response_due);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!hasDeadline) return;
+    const tick = () => setTick((n) => n + 1);
+    const t = setInterval(tick, 5_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
+  }, [hasDeadline]);
+  const deadlines = deadlineChips(deadlineCtx, Date.now());
+  const client = useMemo(() => clientSummary(facts?.client), [facts?.client]);
 
   const statusLine = (() => {
     if (loading) return <span className="flex items-center gap-1.5 text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Reading the chat…</span>;
@@ -273,6 +357,7 @@ export function CopilotPanel({
     if (data.status === 'nothing_to_answer') return <span className="text-muted-foreground">No new client message.</span>;
     if (data.status === 'capped') return <span className="text-warning">AI drafting paused: this month's AI budget is used up. Approved replies still work.</span>;
     if (approvedFound) return <span className="text-trade-buy">Approved reply found — no AI used.</span>;
+    if (aiPicked) return <span className="text-trade-buy">Approved reply picked by AI — nothing drafted.</span>;
     if (conflictFound) return <span className="text-destructive">Two approved answers disagree — pick one in the <Link to="/terminal/playbook?tab=inbox" className="underline underline-offset-2">Playbook inbox</Link>.</span>;
     if (aiFailed && !drafts.length) return <span className="text-warning">The AI did not answer this time{playbook.length ? ' — Playbook replies are below' : ''}.</span>;
     if (playbook.length && drafts.length) return <span className="text-foreground">From the Playbook, plus AI drafts</span>;
@@ -307,6 +392,14 @@ export function CopilotPanel({
           <Chip tone={tone}>{label}</Chip>
           <span className="min-w-0 max-w-full truncate text-[11px] font-medium text-foreground" title={p.title}>{p.title}</span>
           <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground" title="How closely the client's question matches">{Math.round(p.similarity * 100)}%</span>
+          {p.pickedBy === 'ai' && (
+            <Chip tone="primary" title="The AI matched the client's message to this approved question. The reply is the approved text.">
+              <Sparkles className="h-2.5 w-2.5" />Picked by AI
+            </Chip>
+          )}
+          {p.pickedBy === 'lead' && (
+            <Chip title={`Clearly the closest question${data?.lead?.next != null ? `: the next one scores ${Math.round(data.lead.next * 100)}%` : ''}.`}>Clear best match</Chip>
+          )}
           {p.specific && !!p.situations?.length && <Chip tone="primary" title="This reply is for this situation">For: {p.situations.join(', ')}</Chip>}
           {p.contextSimilarity != null && p.contextSimilarity >= 0.75 && (
             <Chip title={`Used before in a chat like this one (${Math.round(p.contextSimilarity * 100)}% alike)`}><History className="h-2.5 w-2.5" />Like an earlier chat</Chip>
@@ -327,6 +420,9 @@ export function CopilotPanel({
         </div>
         {!compact && <div className="mt-1 whitespace-pre-wrap break-words text-xs leading-snug text-card-foreground">{text}</div>}
         {compact && <div className="mt-1 line-clamp-2 break-words text-[11px] leading-snug text-muted-foreground">{text}</div>}
+        {p.pickedBy === 'ai' && !compact && data?.route?.reason && (
+          <div className="mt-1 text-[10px] text-muted-foreground">AI pick{data.route.confidence ? ` (${data.route.confidence} confidence)` : ''}: {data.route.reason}</div>
+        )}
         {p.note && !compact && <div className="mt-1 text-[10px] text-muted-foreground">Note: {p.note}</div>}
         {p.status === 'tentative' && !p.conflict && !compact && <div className="mt-1 text-[10px] text-warning">Tentative — sending it, or Confirm, makes it approved.</div>}
         {!compact && contactLine(p.text)}
@@ -396,22 +492,29 @@ export function CopilotPanel({
   };
 
   return (
-    <div className="w-full min-w-0 rounded-lg border border-primary/25 bg-primary/[0.04]">
+    <div className="@container w-full min-w-0 rounded-lg border border-primary/25 bg-primary/[0.04]">
       {/* Header: what the Copilot assumed about this chat */}
-      <div className="flex min-w-0 items-center gap-1.5 px-2.5 py-1.5">
+      {/* In a narrow panel (phones, or the three-column order screen) the chips take their own row under the title. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 px-2.5 py-1.5">
         <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
         <span className="shrink-0 text-[11px] font-semibold text-foreground">Copilot</span>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+        {(ctx || deadlines.length > 0 || risks.length > 0 || budget?.alertPct != null) && <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1 @[32rem]:order-none @[32rem]:flex-1 @[32rem]:basis-0">
           {ctx && <Chip title={ctx.language_reason}><Languages className="h-2.5 w-2.5" />{lang} · {address}</Chip>}
+          {/* Binance's deadlines stay visible while the panel is collapsed. */}
+          {deadlines.map((d) => (
+            <Chip key={d.key} tone={d.tone} title={d.title} fluid>
+              <Clock className="h-2.5 w-2.5 shrink-0" /><span className="truncate">{d.main ?? d.label}</span>{d.left && <span className="shrink-0">· {d.left}</span>}
+            </Chip>
+          ))}
           {/* Red risks get a banner below; the header keeps them visible while the panel is collapsed. */}
           {risks.filter((r) => collapsed || r.level !== 'red').map((r) => (
-            <Chip key={r.code} tone={r.level === 'red' ? 'red' : 'amber'} title={r.label}><AlertTriangle className="h-2.5 w-2.5" />{r.label}</Chip>
+            <Chip key={r.code} tone={r.level === 'red' ? 'red' : 'amber'} title={r.label} fluid><AlertTriangle className="h-2.5 w-2.5 shrink-0" /><span className="truncate">{r.label}</span></Chip>
           ))}
           {budget?.alertPct != null && (
             <Chip tone={budget.alertPct >= 80 ? 'red' : 'amber'} title="AI spend this month">AI ₹{Math.round(budget.spentInr).toLocaleString('en-IN')} / ₹{Math.round(budget.limitInr).toLocaleString('en-IN')}</Chip>
           )}
-        </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground" onClick={() => void load(data && data.status !== 'nothing_to_answer' ? 'redraft' : 'force')} disabled={working} title="Draft again" aria-label="Draft again">
+        </div>}
+        <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground" onClick={() => void load(data && data.status !== 'nothing_to_answer' ? 'redraft' : 'force')} disabled={working} title="Draft again" aria-label="Draft again">
           <RefreshCw className={`h-3.5 w-3.5 ${working ? 'animate-spin' : ''}`} />
         </Button>
         <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground" onClick={toggleCollapsed} title={collapsed ? 'Show suggestions' : 'Hide suggestions'} aria-label={collapsed ? 'Show suggestions' : 'Hide suggestions'} aria-expanded={!collapsed}>
@@ -434,12 +537,19 @@ export function CopilotPanel({
                 ctx.kyc_status ? `KYC ${ctx.kyc_status.toLowerCase()}` : null].filter(Boolean).join(' · ')}
             </div>
           )}
+          {client.text && (
+            <div role="group" className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] leading-snug text-muted-foreground" aria-label="What we hold on the client">
+              <span className="min-w-0"><UserRound className="mr-1 inline h-2.5 w-2.5 align-[-1px]" />Our records: {client.text}</span>
+              {client.warnings.map((w) => <Chip key={w.key} tone={w.tone} title={w.title}>{w.label}</Chip>)}
+            </div>
+          )}
           {ctx?.situation && (
             <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] leading-snug" aria-label="Situation">
               <MapPin className="h-2.5 w-2.5 shrink-0 text-primary" />
               <span className="text-muted-foreground">Waiting for:</span>
               <SituationMenu side={ctx.side} current={ctx.situation ?? null} detected={ctx.situation_detected ?? null}
-                detectedLabel={ctx.situation_detected_label ?? null} marked={!!ctx.situation_marked} disabled={working} onPick={(c) => void changeSituation(c)} />
+                detectedLabel={ctx.situation_detected_label ?? null} marked={!!ctx.situation_marked} disabled={working}
+                payBlocked={ctx.binance_kyc_open === true && binance?.kycVerify !== 2} onPick={(c) => void changeSituation(c)} />
               {ctx.situation_marked
                 ? <span className="text-muted-foreground">· set by {markedBy}{ctx.situation_detected_label ? ` (chat shows ${ctx.situation_detected_label})` : ''}</span>
                 : ctx.situation_evidence ? <span className="min-w-0 truncate text-muted-foreground" title={ctx.situation_evidence}>· {ctx.situation_evidence}</span> : null}
@@ -529,7 +639,7 @@ export function CopilotPanel({
             <div className="flex justify-end pt-0.5">
               <Button variant="ghost" size="sm" disabled={working} onClick={() => void load('force')} className="h-6 px-2 text-[11px] text-primary">
                 {busy === 'force' ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1 h-3 w-3" />}
-                {approvedFound || conflictFound ? 'Draft with AI anyway' : aiFailed ? 'Try the AI again' : 'Draft with AI'}
+                {approvedFound || aiPicked || conflictFound ? 'Draft with AI anyway' : aiFailed ? 'Try the AI again' : 'Draft with AI'}
               </Button>
             </div>
           )}

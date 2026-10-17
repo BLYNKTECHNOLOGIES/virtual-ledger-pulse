@@ -155,7 +155,7 @@ export function PlaybookStats({ onOpenEntry }: { onOpenEntry: (entryId: string) 
             <CardTitle className="text-sm font-semibold">AI spend by day (this month)</CardTitle>
             <CardDescription className="text-xs">
               {Object.entries(s.spend.by_purpose).length
-                ? Object.entries(s.spend.by_purpose).map(([k, v]) => `${({ draft: 'drafts', redraft: 'redrafts', embed: 'matching', judge: 'saving', translate: 'translation', seed: 'seed' } as Record<string, string>)[k] ?? k} ${inr(Number(v), 2)}`).join(' · ')
+                ? Object.entries(s.spend.by_purpose).map(([k, v]) => `${({ draft: 'drafts', redraft: 'redrafts', embed: 'matching', judge: 'saving and AI picks', translate: 'translation', seed: 'seed' } as Record<string, string>)[k] ?? k} ${inr(Number(v), 2)}`).join(' · ')
                 : 'Nothing spent yet this month.'}
             </CardDescription>
           </CardHeader>

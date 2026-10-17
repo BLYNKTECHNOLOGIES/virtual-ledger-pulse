@@ -49,6 +49,27 @@ export interface CopilotContext {
   situation_detected_label?: string | null;
   situation_marked?: { by: string | null; at: string } | null;
   situation_ready_at?: string | null;
+  /** Binance's extra-KYC field on our sell orders: 0 not required, 1 required and not verified, 2 verified. */
+  binance_kyc?: number | null;
+  /** Sell orders: the client is not verified yet (the step decision the drafts follow). Null on buy orders. */
+  before_verification?: boolean | null;
+  /** Binance says the extra KYC is not verified and the chat shows neither its notice nor our payment details. */
+  binance_kyc_open?: boolean;
+  /** Binance's deadlines that matter now (ISO): paying while open; releasing once marked paid. */
+  pay_by?: string | null;
+  release_by?: string | null;
+  /** Our team's open appeal case for the order. */
+  appeal_case?: { status: string; response_due: string | null } | null;
+  /** What we hold on the client (counts and yes/no only); null for a client not in our records. */
+  client?: CopilotClientSummary | null;
+}
+export interface CopilotClientSummary {
+  on_file: string[];
+  earlier_orders: number | null;
+  /** Appeal cases on the client's orders, this one included (as the client card counts them). */
+  appeals: number | null;
+  name_check: string | null;
+  limit_request_pending: boolean;
 }
 export interface PlaybookSuggestion {
   entryId: string;
@@ -71,6 +92,8 @@ export interface PlaybookSuggestion {
   risk: string;
   note: string | null;
   version: number;
+  /** Shown first although below the match threshold: picked by the AI, or a clear best match. */
+  pickedBy?: 'ai' | 'lead';
 }
 export interface AiDraft {
   callId: string | null;
@@ -108,6 +131,19 @@ export interface DraftResponse {
   alternatives?: StepSuggestion[];
   /** Other steps the client could be at with no saved reply: a tap switches the chat to that step. */
   otherSteps?: Array<{ code: string; label: string }>;
+  /** When matching by meaning was unsure, the AI picked the question (or none). Null when it was not asked. */
+  route?: CopilotRoute | null;
+  /** A clear best match below the threshold: its score and the next question's. */
+  lead?: { topicId: string; similarity: number; next: number | null } | null;
+  /** status 'pending': when the request being made may be taken over (ms). */
+  retryAfterMs?: number;
+}
+export interface CopilotRoute {
+  result: 'picked' | 'unsure' | 'none' | 'failed' | 'capped';
+  topicId: string | null;
+  title: string | null;
+  confidence: 'high' | 'medium' | 'low' | null;
+  reason: string | null;
 }
 /** A reply for another step ("If: Checking KYC"); `steps` are the step codes it is the reply for, closest first. */
 export interface StepSuggestion extends PlaybookSuggestion {
@@ -121,6 +157,10 @@ export interface OrderHint {
   asset?: string | null;
   payMethod?: string | null;
   latest?: { id: string; text: string } | null;
+  /** From the live Binance order detail on the screen (fresher than the stored order). */
+  kycVerify?: number | null;
+  payBy?: number | null;
+  releaseBy?: number | null;
 }
 
 export class CopilotError extends Error {
@@ -138,16 +178,28 @@ async function invoke<T>(fn: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-/** Suggestions for an open chat. A chat state already being drafted (by either approver) is waited for, not paid twice. */
+/**
+ * Suggestions for an open chat. A chat state already being drafted (by either approver) is waited for, not paid twice:
+ * until its answer is ready or, if that request died, until the server may take it over (it says when), so the waiting
+ * approver gets the suggestions without pressing Retry.
+ */
 export async function copilotDraft(
-  body: { orderNumber: string; exchangeAccountId?: string | null; mode?: 'suggest' | 'redraft' | 'force'; instruction?: string | null; hint?: OrderHint },
+  body: { orderNumber: string; exchangeAccountId?: string | null; mode?: 'suggest' | 'redraft' | 'force' | 'context'; instruction?: string | null; hint?: OrderHint },
   isCancelled: () => boolean = () => false,
 ): Promise<DraftResponse> {
-  for (let attempt = 0; attempt < 16; attempt++) {
+  const started = Date.now();
+  let until = started + 45_000;
+  for (let attempt = 0; attempt < 40; attempt++) {
     const data = await invoke<DraftResponse>('copilot-draft', body);
     if (data?.status !== 'pending') return data;
+    const takeover = Number(data.retryAfterMs);
+    if (Number.isFinite(takeover) && takeover >= 0) until = Math.max(until, Date.now() + Math.min(takeover, 120_000) + 5_000);
+    if (Date.now() >= until) break;
     if (isCancelled()) throw new CopilotError('cancelled', 'cancelled', 0);
-    await new Promise((r) => setTimeout(r, 2500));
+    // Often at first (the other request usually lands within seconds), then gently: each check counts against the
+    // approver's allowance.
+    const waited = Date.now() - started;
+    await new Promise((r) => setTimeout(r, waited < 15_000 ? 2_500 : waited < 45_000 ? 5_000 : 10_000));
     if (isCancelled()) throw new CopilotError('cancelled', 'cancelled', 0);
   }
   throw new CopilotError('Suggestions are taking longer than usual. Try again.', 'timeout', 0);

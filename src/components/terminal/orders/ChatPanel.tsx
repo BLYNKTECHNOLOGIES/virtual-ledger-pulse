@@ -108,6 +108,12 @@ interface Props {
   paymentMethod?: string | null;
   /** Live order values used to fill quick-reply template tokens at insert time. */
   templateValues?: TemplateOrderValues;
+  /** From Binance's live order detail (when the screen has it): extra-KYC field and deadlines, for the Copilot. */
+  binanceKycVerify?: unknown;
+  binancePayBy?: unknown;
+  binanceReleaseBy?: unknown;
+  /** The screen is still loading Binance's live order detail (the Copilot's first request waits a moment for it). */
+  binanceDetailLoading?: boolean;
 }
 
 // Binance timestamps can arrive as either epoch seconds or milliseconds.
@@ -119,7 +125,7 @@ function normalizeChatTimestamp(value: unknown): number {
   return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
 }
 
-export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, orderAsset, paymentMethod, templateValues }: Props) {
+export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, orderAsset, paymentMethod, templateValues, binanceKycVerify, binancePayBy, binanceReleaseBy, binanceDetailLoading = false }: Props) {
   // Sending and read state stay strictly attached to the opened order. Earlier
   // verified threads are rendered below as read-only, order-separated context.
   const orderNumber = openedOrderNumber;
@@ -614,13 +620,19 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     setCopilotPickStep(cur?.situation && s.picks.some((p) => pickKey(p) === pickKey(cur)) ? cur.situation.label : null);
   }, []);
   useEffect(() => { setCopilotPick(null); setCopilotSaveOwn(false); }, [orderNumber, setCopilotPick]);
+  // Binance's live extra-KYC field and deadlines (numbers or null): fresher than the stored order on the server.
+  const liveNumber = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v
+    : typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v) : null);
+  const kycLive = liveNumber(binanceKycVerify), payByLive = liveNumber(binancePayBy), releaseByLive = liveNumber(binanceReleaseBy);
+  const copilotBinance = useMemo(() => ({ kycVerify: kycLive, payBy: payByLive, releaseBy: releaseByLive }), [kycLive, payByLive, releaseByLive]);
   const copilotHint = useMemo(() => ({
     tradeType: tradeType ?? null,
     status: orderStatus ?? null,
     totalPrice: templateValues?.amount ?? null,
     asset: orderAsset ?? null,
     payMethod: paymentMethod ?? null,
-  }), [tradeType, orderStatus, templateValues?.amount, orderAsset, paymentMethod]);
+    ...copilotBinance,
+  }), [tradeType, orderStatus, templateValues?.amount, orderAsset, paymentMethod, copilotBinance]);
 
   const teachCopilot = useCallback(async (cause: LearnBody['cause'], finalText: string, picked: CopilotPick | null, beforeAt?: number) => {
     try {
@@ -918,6 +930,8 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               onApprove={approveCopilotPick}
               onState={handleCopilotState}
               refreshKey={copilotRefresh}
+              binance={copilotBinance}
+              binanceLoading={binanceDetailLoading}
             />
           </div>
         )}

@@ -315,6 +315,9 @@ export function clientFacts(side: Side | null, c: any): { state: ClientState; fa
   const docs = c.documents ?? {}
   const onFile = ['aadhaar', 'pan', 'vkyc', 'bank_statement', 'source_of_fund'].filter((k) => docs[k] === true)
   const hist = c.history ?? {}
+  const oc = c.order_context ?? {}
+  const count = (v: unknown): number | null => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
+  const nameCheck = ['match', 'partial', 'mismatch'].includes(String(oc.name_check)) ? String(oc.name_check) : 'unknown'
   return {
     state,
     facts: {
@@ -322,10 +325,18 @@ export function clientFacts(side: Side | null, c: any): { state: ClientState; fa
       kyc_status: cl.kyc_status ?? null,
       approval_for_this_side: approval ?? null,
       documents_on_file: onFile,
+      // Yes or no only: the number itself never leaves the database.
+      phone_on_file: !!cl.phone_masked,
       purpose_on_file: cl.purpose ? true : false,
       source_of_funds_on_file: c.client?.income?.source ? true : false,
       completed_buys_with_us: hist.buy_count ?? null,
       completed_sells_to_us: hist.sell_count ?? null,
+      earlier_binance_orders_this_side: count(oc.side_completed),
+      other_orders_today_this_side: count(oc.today_other_count),
+      orders_last_90_days: count(oc.orders_90d),
+      cancelled_last_90_days: count(oc.cancelled_90d),
+      appeals_on_this_clients_orders: count(oc.appeals),
+      binance_name_vs_client_record: nameCheck,
       limit_request_pending: c.limit_request_pending === true,
     },
   }
@@ -502,6 +513,8 @@ export function buildDraftMessages(c: DraftContext): { system: string; user: str
     '- "approved_answers" are company policy for this situation. When one fits, keep its substance exactly; you may adapt the wording slightly. Answers marked "tentative" are unconfirmed suggestions.',
     '- "other_situation_answers" answer the same question for other situations. Use them only for tone and for facts that are still true now; never copy a step that does not fit the current situation.',
     '- Use only facts from the data given. Never state anything about this order, payment or client that is not in the data. If you need information, ask the client, or say we will check.',
+    '- "client" holds our internal records: use them to decide what to ask (never ask again for a document or detail we have on file) and how careful to be. Never mention internal records, order counts, past appeals or name checks to the client.',
+    '- Deadlines in "order" come from Binance. Only when order.pay_deadline is given on a sell order may you tell the client how much time is left to pay; before verification order.order_expires only lets you ask them to finish the KYC steps quickly. Never promise anything by a deadline.',
     '- Placeholders: {amount} is the order amount, {orderNo} the order number, {name} the client\'s name, {upi} our UPI ID; a company team\'s number is {contact:<team>} with the teams listed in "teams". Use them instead of writing any such value.',
     '- Give a contact number only when the client asks for one (for example which number will call them); never offer one otherwise. Pick the team from "teams" that fits this client and situation.',
     '- Never ask the client to skip or avoid KYC, and never say KYC is not needed. KYC rules come only from the approved answers.',
@@ -522,6 +535,56 @@ export function buildDraftMessages(c: DraftContext): { system: string; user: str
     avoid: c.avoid,
     chat: c.chat,
     answer_this: c.answerThis ?? '',
+  })
+  return { system, user }
+}
+
+// ─── Question router ("AI picks, Playbook speaks") ──────────────────────────────────────────────────
+
+/** A Playbook question the client may be asking: short id for the model, its title, client wordings, today's reply. */
+export interface RouteCandidate { id: string; title: string; wordings: string[]; replyNow: string | null }
+
+/** The model can only answer with one of the candidates' ids or "none". */
+export function routeSchema(ids: string[]) {
+  return {
+    type: 'object',
+    properties: {
+      pick: { type: 'string', enum: [...ids, 'none'] },
+      confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      reason: { type: 'string' },
+    },
+    required: ['pick', 'confidence', 'reason'],
+    additionalProperties: false,
+  }
+}
+
+/**
+ * When matching by meaning is unsure, a small model picks which approved question the client is asking (or none). It
+ * never writes the reply: the approved text of the picked question is what the approver sees.
+ */
+export function buildRouteMessages(input: {
+  now: string
+  order: Record<string, unknown>
+  chat: Array<{ from: string; at: string; text: string }>
+  message: string
+  candidates: RouteCandidate[]
+}): { system: string; user: string } {
+  const system = [
+    'You match the latest messages of a client in a Binance P2P order chat with a crypto merchant to one question in the merchant\'s Playbook, so that a manager can be shown its approved reply. You never write replies.',
+    '- Pick the candidate the client is asking about now. Read the chat and order.situation: the same words can be a different question at a different step (for example "how long?" after a KYC request is about the KYC; after the client paid it is about the release).',
+    '- Pick by what the client asks, even when the candidate has no reply for this step (reply_now is null).',
+    '- Pick "none" when no candidate is the same question, when the client asks nothing (a greeting, thanks, "ok"), or only gives information.',
+    '- When the client asks several things, pick the main question.',
+    '- confidence: "high" when it is clearly the same question, "medium" when it is probably the same question, "low" when unsure.',
+    '- reason: at most 12 words, for the manager.',
+    'Return JSON only.',
+  ].join('\n')
+  const user = JSON.stringify({
+    now_ist: input.now,
+    order: input.order,
+    chat: input.chat,
+    client_message: input.message,
+    candidates: input.candidates.map((c) => ({ id: c.id, question: c.title, client_wordings: c.wordings, reply_now: c.replyNow })),
   })
   return { system, user }
 }

@@ -1,7 +1,7 @@
 // Run: deno test supabase/functions/_shared/copilot-playbook.test.ts
 import {
-  applyAddress, buildDraftMessages, buildTranscript, clientFacts, clientTurn, costInr, decideAddress, decideLanguage, detectLang,
-  detectRisks, generalize, greetingFor, guardDraft, maskPII, orderCategory, readUsage, type ChatRow, type Msg,
+  applyAddress, buildDraftMessages, buildRouteMessages, buildTranscript, clientFacts, clientTurn, costInr, decideAddress, decideLanguage, detectLang,
+  detectRisks, generalize, greetingFor, guardDraft, maskPII, orderCategory, readUsage, routeSchema, type ChatRow, type Msg,
 } from './copilot-playbook.ts'
 
 function eq(actual: unknown, expected: unknown, msg = '') {
@@ -202,4 +202,33 @@ Deno.test('draft prompt carries the rules, the address, the language and no unma
   ok(system.includes('Never ask the client to skip or avoid KYC'))
   const u = JSON.parse(user)
   eq(u.answer_this, 'tds kitna hai'); eq(u.avoid[0].why_rejected ?? u.avoid[0].why, 'Promises release')
+})
+
+Deno.test('clientFacts: what we hold as counts and yes/no; the name check only as a label; never the numbers', () => {
+  const panel = {
+    status: 'linked',
+    client: { kyc_status: 'VERIFIED', buyer_status: 'APPROVED', phone_masked: '••••••3210', pan_masked: 'AB••••••4F', name: 'Someone' },
+    documents: { aadhaar: true, pan: true, vkyc: false },
+    order_context: { name_check: 'partial', side_completed: '7', appeals: 0, orders_90d: 9, cancelled_90d: 1, today_other_count: 2, binance_name: 'X' },
+  }
+  const f = clientFacts('SELL', panel).facts
+  eq([f.phone_on_file, f.documents_on_file, f.earlier_binance_orders_this_side, f.appeals_on_this_clients_orders, f.other_orders_today_this_side, f.binance_name_vs_client_record],
+    [true, ['aadhaar', 'pan'], 7, 0, 2, 'partial'])
+  const text = JSON.stringify(f)
+  ok(!text.includes('3210') && !text.includes('Someone') && !text.includes('"X"'), 'no personal data')
+  eq(clientFacts('SELL', { ...panel, order_context: { name_check: 'odd' }, client: { buyer_status: 'APPROVED' } }).facts.binance_name_vs_client_record, 'unknown')
+  eq(clientFacts('SELL', { ...panel, order_context: {} }).facts.earlier_binance_orders_this_side, null)
+})
+
+Deno.test('routeSchema allows only the candidates or "none"; the router prompt carries the masked chat and never asks for a reply', () => {
+  const schema = routeSchema(['Q1', 'Q2'])
+  eq(schema.properties.pick.enum, ['Q1', 'Q2', 'none']); eq(schema.required, ['pick', 'confidence', 'reason'])
+  const m = buildRouteMessages({
+    now: '15 Oct, 20:30', order: { situation: 'KYC pending' }, chat: [{ from: 'client', at: '20:29', text: 'kitna time?' }], message: 'kitna time?',
+    candidates: [{ id: 'Q1', title: 'KYC time', wordings: ['how long for kyc'], replyNow: null }],
+  })
+  ok(m.system.includes('You never write replies')); ok(m.system.includes('"none"'))
+  const u = JSON.parse(m.user)
+  eq(u.candidates, [{ id: 'Q1', question: 'KYC time', client_wordings: ['how long for kyc'], reply_now: null }])
+  eq(u.client_message, 'kitna time?')
 })

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePositionPlanningStatus, roleBlocksHiring, ROLE_NOT_PLANNED_MESSAGE } from "@/hooks/hrms/useWorkforcePlanning";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -136,13 +137,13 @@ function Field({ label, error, children, hint, htmlFor }: { label: React.ReactNo
   );
 }
 
-function LookupSelect({ value, onChange, options, placeholder, disabled }: { value: string; onChange: (v: string) => void; options: { id: string; label: string }[]; placeholder: string; disabled?: boolean }) {
+function LookupSelect({ value, onChange, options, placeholder, disabled }: { value: string; onChange: (v: string) => void; options: { id: string; label: string; disabled?: boolean; hint?: string }[]; placeholder: string; disabled?: boolean }) {
   return (
     <Select value={value || NONE} onValueChange={(v) => onChange(v === NONE ? "" : v)} disabled={disabled}>
       <SelectTrigger className="text-foreground"><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
         <SelectItem value={NONE}>{placeholder}</SelectItem>
-        {options.map((o) => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+        {options.map((o) => <SelectItem key={o.id} value={o.id} disabled={o.disabled} title={o.hint}>{o.label}{o.disabled ? " · Plan first" : ""}</SelectItem>)}
       </SelectContent>
     </Select>
   );
@@ -178,9 +179,14 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
   }, [defLocation, open]);
 
   const deptId = watch("department_id");
+  // Roles in workforce planning with no staffing line can't be hired for (the database refuses too).
+  const planning = usePositionPlanningStatus(open);
   const posOptions = useMemo(
-    () => (positions.data ?? []).filter((p) => !deptId || p.department_id === deptId),
-    [positions.data, deptId],
+    () => (positions.data ?? []).filter((p) => !deptId || p.department_id === deptId).map((p) => {
+      const blocked = roleBlocksHiring(planning.data?.get(p.id)?.status) && p.id !== job?.position_id;
+      return { ...p, disabled: blocked, hint: blocked ? ROLE_NOT_PLANNED_MESSAGE(p.label) : undefined };
+    }),
+    [positions.data, deptId, planning.data, job?.position_id],
   );
 
   const posId = watch("position_id");

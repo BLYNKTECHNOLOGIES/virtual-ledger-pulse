@@ -19,17 +19,23 @@ import { PlanHistoryDrawer } from "@/components/horilla/workforce/PlanHistoryDra
 import { StaffingGrid, buildStaffingGrid, type GridRow } from "@/components/horilla/workforce/StaffingGrid";
 import { WorkforceAttention } from "@/components/horilla/workforce/WorkforceAttention";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
+import { InfoTip } from "@/components/ats/AtsUi";
 import {
-  useHeadcountPlans, useSeatCapacity, useStaffingMatrix, useUnplannedScopes, useWorkforceLookups,
+  useHeadcountPlans, useHiringRequirements, useSeatCapacity, useStaffingMatrix, useUnplannedScopes, useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
 import {
-  gapLabel, gapTone, planningShiftId, planningShifts, rotaOrder, sumLines, type StaffingDerived,
+  WF_DEFINITIONS, formatIstDate, lineTone, lineToneLabel, planningShiftId, planningShifts, rotaOrder, sumLines, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { cn } from "@/lib/utils";
 
 type View = "grid" | "list";
 type StatusFilter = "all" | "understaffed" | "fully_staffed" | "overstaffed";
-const TONE_TEXT = { short: "text-destructive", met: "text-success", over: "text-warning" } as const;
+const TONE_TEXT = { short: "text-destructive", met: "text-success", over: "text-warning", covered: "text-primary" } as const;
+
+const STATUS_PARAM: Record<string, StatusFilter> = {
+  understaffed: "understaffed", short: "understaffed", fully_staffed: "fully_staffed", met: "fully_staffed",
+  overstaffed: "overstaffed", over: "overstaffed",
+};
 
 function readView(): View {
   try { return localStorage.getItem("wf_staffing_view") === "list" ? "list" : "grid"; } catch { return "grid"; }
@@ -43,7 +49,7 @@ export default function StaffingPlanPage() {
   const [view, setView] = useState<View>(readView);
   const [dept, setDept] = useState("all");
   const [shift, setShift] = useState("all");
-  const [status, setStatus] = useState<StatusFilter>(() => (params.get("status") as StatusFilter) || "all");
+  const [status, setStatus] = useState<StatusFilter>(() => STATUS_PARAM[params.get("status") ?? ""] ?? "all");
   const [search, setSearch] = useState("");
   const [showCost, setShowCost] = useState(false);
   const budget = useWorkforceBudget(canManage && showCost);
@@ -59,6 +65,18 @@ export default function StaffingPlanPage() {
   const { data: plans = [] } = useHeadcountPlans();
   const { data: seats = [] } = useSeatCapacity();
   const { data: unplanned = [] } = useUnplannedScopes();
+  const { data: allReqs = [] } = useHiringRequirements();
+  // Lines carry no target date of their own today: show the earliest target of their open requests.
+  const reqTarget = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const q of allReqs as any[]) {
+      if (!q.staffing_plan_id || !q.target_joining_date) continue;
+      if (!["pending_approval", "approved", "recruitment_active", "partially_fulfilled"].includes(q.status)) continue;
+      const cur = m.get(q.staffing_plan_id);
+      if (!cur || q.target_joining_date < cur) m.set(q.staffing_plan_id, q.target_joining_date);
+    }
+    return m;
+  }, [allReqs]);
 
   useEffect(() => { try { localStorage.setItem("wf_staffing_view", view); } catch { /* storage unavailable */ } }, [view]);
 
@@ -171,13 +189,14 @@ export default function StaffingPlanPage() {
 
       {!matrix.isLoading && rows.length > 0 && (
         <dl className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <Stat label="Required" value={totals.required} sub={`${totals.lines} line${totals.lines === 1 ? "" : "s"}`} />
-          <Stat label="On roll" value={totals.current} />
+          <Stat label="Required" value={totals.required} sub={`${totals.lines} line${totals.lines === 1 ? "" : "s"}`} info={WF_DEFINITIONS.required} />
+          <Stat label="On roll" value={totals.current} info={WF_DEFINITIONS.onRoll} />
           {totals.inTraining > 0 && <Stat label="In training" value={totals.inTraining} />}
-          <Stat label="Short now" value={totals.shortNow} tone={totals.shortNow > 0 ? "text-destructive" : "text-success"} />
+          <Stat label="Short now" value={totals.shortNow} tone={totals.shortNow > 0 ? "text-destructive" : "text-success"} info={WF_DEFINITIONS.short} />
+          {totals.netNeed !== totals.shortNow && <Stat label="Still needed" value={totals.netNeed} info={WF_DEFINITIONS.netNeed} />}
           {totals.overNow > 0 && <Stat label="Over" value={totals.overNow} tone="text-warning" />}
-          <Stat label="Being hired" value={totals.requested} />
-          {totals.uncovered > 0 && <Stat label="Not yet requested" value={totals.uncovered} tone="text-warning" />}
+          <Stat label="Being hired" value={totals.requested} info={WF_DEFINITIONS.beingHired} />
+          {totals.uncovered > 0 && <Stat label="Not yet requested" value={totals.uncovered} tone="text-warning" info={WF_DEFINITIONS.notRequested} />}
           {totals.overRequested > 0 && <Stat label="Over-requested" value={totals.overRequested} tone="text-warning" />}
           {filtering && <span className="self-center text-xs text-muted-foreground">for the filtered lines</span>}
         </dl>
@@ -189,6 +208,7 @@ export default function StaffingPlanPage() {
         variant="compact"
         scope={{ departmentId: dept }}
         shiftFiltered={shift !== "all"}
+        shift={shift === "all" ? "all" : orderedShifts.find((s: any) => s.id === shift)?.name}
         onOpenLine={openLine}
         onPlanDesks={(s) => {
           const ids = seatRoleIds(s);
@@ -275,26 +295,32 @@ export default function StaffingPlanPage() {
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Line</th>
                   <th className="px-2 py-2 text-right font-medium">On roll / req.</th>
+                  <th className="hidden px-2 py-2 text-right font-medium xl:table-cell">Approved</th>
                   <th className="px-2 py-2 text-right font-medium">In training</th>
                   <th className="px-2 py-2 text-right font-medium">Joining</th>
                   <th className="px-2 py-2 text-right font-medium">Candidates</th>
                   <th className="px-2 py-2 text-right font-medium">Being hired</th>
                   <th className="px-2 py-2 text-right font-medium">Still needed</th>
                   <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="hidden px-3 py-2 font-medium lg:table-cell">Target joining</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r) => {
-                  const tone = gapTone(r.staffingGap);
+                  const tone = lineTone(r);
+                  const openLine = () => setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Role" });
                   return (
-                    <tr key={r.plan_id} tabIndex={0} className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30 focus-visible:bg-muted/40 focus-visible:outline-none"
-                      onClick={() => setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Role" })}
-                      onKeyDown={(e) => { if (e.key === "Enter") setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Role" }); }}>
+                    <tr key={r.plan_id} className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30 focus-within:bg-muted/30"
+                      onClick={openLine}>
                       <td className="px-3 py-2">
-                        <p className="font-medium text-foreground">{r.position_title} · {r.shiftLabel}</p>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); openLine(); }}
+                          className="rounded-sm text-left font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          {r.position_title} · {r.shiftLabel}
+                        </button>
                         <p className="text-xs text-muted-foreground">{r.department_name}{r.follow_desks ? " · follows desks" : ""}</p>
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.current_hc} / {r.required_hc}</td>
+                      <td className="hidden px-2 py-2 text-right tabular-nums xl:table-cell">{r.approved_hc}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.in_training_hc || "—"}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.selected_hc + r.pending_joining_hc || "—"}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.pipeline_hc || "—"}</td>
@@ -304,7 +330,10 @@ export default function StaffingPlanPage() {
                         {r.uncoveredHiringRequirement > 0 && <span className="ml-1 text-xs font-normal text-warning">({r.uncoveredHiringRequirement} not requested)</span>}
                       </td>
                       <td className={cn("px-3 py-2 text-xs font-medium", r.required_hc === 0 && r.current_hc === 0 ? "text-muted-foreground" : TONE_TEXT[tone])}>
-                        {r.required_hc === 0 && r.current_hc === 0 ? "not staffed" : gapLabel(r.staffingGap)}
+                        {r.required_hc === 0 && r.current_hc === 0 ? "not staffed" : lineToneLabel(r)}
+                      </td>
+                      <td className="hidden px-3 py-2 text-xs text-muted-foreground lg:table-cell">
+                        {r.target_date ? formatIstDate(r.target_date) : reqTarget.get(r.plan_id) ? formatIstDate(reqTarget.get(r.plan_id)!) : "—"}
                       </td>
                     </tr>
                   );
@@ -326,10 +355,10 @@ export default function StaffingPlanPage() {
   );
 }
 
-function Stat({ label, value, sub, tone }: { label: string; value: number; sub?: string; tone?: string }) {
+function Stat({ label, value, sub, tone, info }: { label: string; value: number; sub?: string; tone?: string; info?: string }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="inline-flex items-center gap-1 text-xs text-muted-foreground">{label}{info && <InfoTip label={label} text={info} />}</dt>
       <dd className={cn("font-semibold tabular-nums text-foreground", tone)}>{value}</dd>
       {sub && <dd className="text-xs text-muted-foreground">({sub})</dd>}
     </div>
@@ -350,23 +379,24 @@ function MobileLines({ rows, columns, onOpen }: { rows: GridRow[]; columns: { id
               <div key={row.key} className="rounded-xl border border-border bg-card p-3">
                 <p className="font-medium text-foreground">{row.roleLabel}</p>
                 <p className="text-xs text-muted-foreground">
-                  {row.seat ? `${row.seat.physical_seats} desks` : "No desk group"}
+                  {row.seat ? `${row.seat.physical_seats} desk${row.seat.physical_seats === 1 ? "" : "s"}` : "No desk group"}
                   {row.trainees ? ` · ${row.trainees} in training` : ""}{row.notice ? ` · ${row.notice} on notice` : ""}
                 </p>
                 <div className="mt-2 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5">
                   {cells.map(({ c, r }) => {
                     const idle = r.required_hc === 0 && r.current_hc === 0;
-                    const tone = gapTone(r.staffingGap);
+                    const tone = lineTone(r);
                     return (
                       <div key={c.id} role="button" tabIndex={0} onClick={() => onOpen(r, row.roleLabel)}
-                        onKeyDown={(e) => { if (e.key === "Enter") onOpen(r, row.roleLabel); }}
+                        aria-label={`${row.roleLabel} ${c.name}: ${idle ? "not staffed" : `${r.current_hc} of ${r.required_hc}, ${lineToneLabel(r)}`}`}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(r, row.roleLabel); } }}
                         className="cursor-pointer rounded-lg border border-border px-2.5 py-1.5 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         <p className="truncate text-[11px] text-muted-foreground">{c.name.replace(/ Shift$/, "")}</p>
                         <p className="text-sm tabular-nums">
                           {idle ? <span className="text-muted-foreground">not staffed</span> : (
                             <>
                               <span className="font-semibold text-foreground">{r.current_hc} / {r.required_hc}</span>
-                              <span className={cn("ml-1.5 text-[11px] font-medium", TONE_TEXT[tone])}>{gapLabel(r.staffingGap)}</span>
+                              <span className={cn("ml-1.5 text-[11px] font-medium", TONE_TEXT[tone])}>{lineToneLabel(r)}</span>
                             </>
                           )}
                         </p>

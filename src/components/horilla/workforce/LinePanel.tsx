@@ -48,10 +48,10 @@ function Stat({ label, value, tone, sub }: { label: string; value: React.ReactNo
   );
 }
 
-/** Line status for the header: trainees and joiners that cover the gap are not "short". */
+/** Line status for the header: trainees and hires that cover the gap are not "short". */
 function lineStatus(line: StaffingDerived): { tone: "destructive" | "success" | "warning" | "primary" | "neutral"; text: string } {
   if (line.required_hc === 0 && line.current_hc === 0) return { tone: "neutral", text: "Not staffed in this shift" };
-  if (line.staffingGap > 0 && line.netHiringRequirement === 0) return { tone: "primary", text: `${gapLabel(line.staffingGap)} · covered by trainees and joiners` };
+  if (line.staffingGap > 0 && line.netHiringRequirement === 0) return { tone: "primary", text: `${gapLabel(line.staffingGap)} · covered by trainees and hires` };
   const t = gapTone(line.staffingGap);
   return { tone: t === "short" ? "destructive" : t === "over" ? "warning" : "success", text: gapLabel(line.staffingGap) };
 }
@@ -78,9 +78,9 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const move = useMoveRequirement();
   const transition = useRequirementTransition();
   const [moveTo, setMoveTo] = useState<Record<string, string>>({});
-  // Automatic priority with an HR pin; the line's own priority only if the database gives no automatic value.
+  // Priority is automatic unless HR pins it ("Always …"); saving "auto" sends null.
   const autoPriority: string | null = line?.priority_auto ?? null;
-  const hasAuto = autoPriority != null;
+  const hasAuto = true;
 
   const [form, setForm] = useState({ required: 0, approved: 0, follow: false, target: "", priority: "medium", reason: "",
     shift: "any", seat: "none", roles: [] as string[] });
@@ -91,7 +91,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
 
   const lineRoles = (p: any): string[] => (p?.eligible_position_ids?.length ? p.eligible_position_ids : p?.position_id ? [p.position_id] : []);
   const lineShift = (p: any): string => p?.shift_id ?? p?.eligible_shift_ids?.[0] ?? "any";
-  const initialPriority = (l: StaffingDerived) => (hasAuto ? (l.priority_pinned ?? "auto") : (l.priority || "medium"));
+  const initialPriority = (l: StaffingDerived) => l.priority_pinned ?? "auto";
   // Reset only when another line is opened — never on a background refetch.
   const planKey = line?.plan_id && plan ? line.plan_id : null;
   useEffect(() => {
@@ -239,7 +239,22 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                     tone={line.over_requested_hc > 0 ? "text-warning" : undefined} />
                   <Stat label="Candidates" value={line.pipeline_hc} />
                 </div>
-                {line.uncoveredHiringRequirement > 0 ? (
+                {(() => {
+                  const open = lineReqs.filter((r: any) => OPEN.has(r.status) && r.status !== "draft" && r.target_joining_date)
+                    .map((r: any) => r.target_joining_date as string).sort();
+                  const target = line.target_date ?? open[0];
+                  return target ? (
+                    <p className="text-xs text-muted-foreground">
+                      Target joining {formatIstDate(target)}{line.target_date ? "" : " (earliest open request)"}
+                    </p>
+                  ) : null;
+                })()}
+                {lineReqs.some((r: any) => r.status === "draft") && line.uncoveredHiringRequirement > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-foreground">A draft request is waiting on this line — finish and send it instead of raising another.</p>
+                    <Button variant="outline" className="w-full" onClick={() => setTab("requests")}>Open the draft</Button>
+                  </div>
+                ) : line.uncoveredHiringRequirement > 0 ? (
                   canManage ? (
                     <Button className="w-full" onClick={() => onHire(line)}>
                       <UserPlus className="h-4 w-4" /> Request {line.uncoveredHiringRequirement} for this line
@@ -413,8 +428,8 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                         <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}>
                           <SelectTrigger className="text-foreground" aria-label="Priority"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {hasAuto && <SelectItem value="auto">Automatic ({PRIORITY_LABEL[autoPriority!] ?? autoPriority})</SelectItem>}
-                            {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{hasAuto ? `Always ${PRIORITY_LABEL[p]}` : PRIORITY_LABEL[p]}</SelectItem>)}
+                            <SelectItem value="auto">{autoPriority ? `Automatic (now ${PRIORITY_LABEL[autoPriority] ?? autoPriority})` : "Automatic"}</SelectItem>
+                            {PRIORITIES.map((p) => <SelectItem key={p} value={p}>Always {PRIORITY_LABEL[p].toLowerCase()}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>

@@ -4,7 +4,7 @@ import { Armchair, GraduationCap, PauseCircle, Plus, UserMinus } from "lucide-re
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
-  formatIstDate, gapLabel, gapTone, pauseText, planningShiftId, planningShifts, rotaOrder,
+  formatIstDate, lineTone, lineToneLabel, pauseText, planningShiftId, planningShifts, rotaOrder,
   type PlanningShiftLike, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
@@ -87,8 +87,6 @@ interface Props {
 
 const TONE_TEXT = { short: "text-destructive", met: "text-success", over: "text-warning", covered: "text-primary" } as const;
 const TONE_BG = { short: "bg-destructive/[0.06] hover:bg-destructive/10", met: "hover:bg-muted/60", over: "bg-warning/[0.08] hover:bg-warning/15", covered: "bg-primary/[0.06] hover:bg-primary/10" } as const;
-/** Short but fully covered by trainees and people already selected or joining. */
-const cellTone = (r: StaffingDerived) => (r.staffingGap > 0 && r.netHiringRequirement === 0 ? "covered" : gapTone(r.staffingGap));
 
 function CellTip({ r }: { r: StaffingDerived }) {
   return (
@@ -218,7 +216,7 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
                       <span className="text-[10px] text-muted-foreground">any shift</span>
                     ) : canManage ? (
                       <button type="button" onClick={() => onPlanCell(row, c.id)} aria-label={`Plan ${row.roleLabel} in ${c.name}`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/0 transition-colors hover:bg-muted hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:text-muted-foreground/60">
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/0 transition-colors hover:bg-muted hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:text-muted-foreground/60 [@media(hover:none)]:text-muted-foreground/50">
                         <Plus className="h-4 w-4" />
                       </button>
                     ) : (
@@ -227,7 +225,7 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
                   </td>
                 );
               }
-              const tone = cellTone(r);
+              const tone = lineTone(r);
               const idle = r.required_hc === 0 && r.current_hc === 0;
               const cost = costs?.get(r.plan_id);
               return (
@@ -237,14 +235,14 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
                       <button type="button" onClick={() => onOpenLine(r, row.roleLabel)}
                         className={cn("w-full rounded-md px-1.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           idle ? "hover:bg-muted/60" : TONE_BG[tone])}
-                        aria-label={`${row.roleLabel} ${c.name}: ${idle ? "not staffed in this shift" : `${r.current_hc} on roll of ${r.required_hc} required, ${gapLabel(r.staffingGap)}`}`}>
+                        aria-label={`${row.roleLabel} ${c.name}: ${idle ? "not staffed in this shift" : `${r.current_hc} on roll of ${r.required_hc} required, ${lineToneLabel(r)}`}`}>
                         {idle ? (
                           <span className="block text-sm text-muted-foreground/60">—</span>
                         ) : (
                           <>
                             <span className="block text-sm font-semibold tabular-nums text-foreground">{r.current_hc} / {r.required_hc}</span>
                             <span className={cn("mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium", TONE_TEXT[tone])}>
-                              {tone === "covered" ? `short ${r.staffingGap} · covered` : gapLabel(r.staffingGap)}
+                              {lineToneLabel(r)}
                               {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Automatic hiring paused" />}
                             </span>
                           </>

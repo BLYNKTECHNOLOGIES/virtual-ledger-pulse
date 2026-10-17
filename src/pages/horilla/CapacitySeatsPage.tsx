@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { MetricStrip } from "@/components/ats/AtsUi";
@@ -189,6 +188,20 @@ export default function CapacitySeatsPage() {
     return map;
   }, [headcountPlans, allShifts]);
 
+  /**
+   * Desks a group gives a shift: all of them when it is meant for that shift (its own shift, or a line plans it
+   * there); otherwise only the desks people actually use then. Used by the shift cards and the seat map alike.
+   */
+  const deskCountInShift = useCallback((seat: any, shiftIds: string[], sitting: number) => {
+    const desks = seat.physical_seats || 0;
+    if (seat.is_training_only) return desks;
+    const own = seatShift(seat);
+    if (own && shiftIds.includes(own)) return desks;
+    const planned = plannedSeatShifts.get(seat.id);
+    if (planned && (planned.has("any") || shiftIds.some((id) => planned.has(id)))) return desks;
+    return Math.min(desks, sitting);
+  }, [seatShift, plannedSeatShifts]);
+
   const filtered = useMemo(
     () =>
       enriched.filter((s) => {
@@ -236,11 +249,9 @@ export default function CapacitySeatsPage() {
             person.department_id === seat.department_id &&
             seatAllowsPosition(seat, person.job_position_id),
         ).length;
-        const planned = plannedSeatShifts.get(seat.id);
-        const isPlanned = !!planned && (planned.has("any") || planned.has(shift.id));
-        // A desk group planned in this shift brings all its desks; one that only has someone sitting there
-        // unplanned brings just the desks in use (one person on another shift must not add the whole group).
-        return sum + (isPlanned ? seat.physical_seats || 0 : Math.min(seat.physical_seats || 0, sitting));
+        // Same rule as the seat map (deskCountInShift): a group meant for this shift brings all its desks; one that
+        // only has someone sitting there outside its planned shifts brings just the desks in use.
+        return sum + deskCountInShift(seat, [shift.id], sitting);
       }, 0);
       const utilisation = eligibleSeats > 0 ? (assigned / eligibleSeats) * 100 : 0;
       return {
@@ -277,7 +288,7 @@ export default function CapacitySeatsPage() {
       });
     }
     return rows.filter((row) => row.assigned > 0 || row.seats > 0);
-  }, [filtered, filteredPeople, allShifts, traineeIds, seatShift, plannedSeatShifts]);
+  }, [filtered, filteredPeople, allShifts, traineeIds, seatShift, plannedSeatShifts, deskCountInShift]);
 
   const totals = useMemo(() => {
     const workingSeats = filtered.filter((seat) => !seat.is_training_only);
@@ -342,16 +353,12 @@ export default function CapacitySeatsPage() {
     [shiftBreakdown],
   );
 
-  const mapShifts = useMemo(
-    () =>
-      shiftBreakdown.map((shift) => ({
-        id: shift.id,
-        name: shift.name,
-        start_time: shift.start_time,
-        end_time: shift.end_time,
-      })),
-    [shiftBreakdown],
-  );
+  const mapShifts = useMemo(() => {
+    // Same order as the shift cards and the table: the rota first, then the training shift and "Unassigned".
+    const work = rotaOrder(shiftBreakdown.filter((x) => x.id !== "unassigned" && !trainingShiftIds.has(x.id)) as any[]);
+    const ordered = [...work, ...shiftBreakdown.filter((x) => trainingShiftIds.has(x.id)), ...shiftBreakdown.filter((x) => x.id === "unassigned")];
+    return ordered.map((shift: any) => ({ id: shift.id, name: shift.name, start_time: shift.start_time, end_time: shift.end_time }));
+  }, [shiftBreakdown, trainingShiftIds]);
 
   const capacityFilterShifts = useMemo(
     () => sortByOperatingOrder(allShifts.filter((shift) => !shift.planning_shift_id)),
@@ -399,7 +406,8 @@ export default function CapacitySeatsPage() {
           .filter((person) => seatMatchesPerson(seat, person))
           .sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
         const occupiedSeats = matchingPeople.length;
-        const physicalSeats = seat.physical_seats || 0;
+        // One person working outside the group's planned shifts uses a desk; they don't bring the whole group.
+        const physicalSeats = deskCountInShift(seat, selectedShiftIds, occupiedSeats);
         return {
           id: seat.id,
           departmentName: seat.is_training_only ? "Training zone" : seat.departmentName || "Unassigned department",
@@ -460,7 +468,7 @@ export default function CapacitySeatsPage() {
       a.departmentName.localeCompare(b.departmentName) ||
       a.positionTitle.localeCompare(b.positionTitle),
     );
-  }, [activeMapShiftId, filtered, filteredPeople, plannedSeatShifts, shiftBreakdown, seatMatchesPerson, trainingShiftIds, seatShift, headcountPlans, allShifts, filters.departmentId, filters.positionId, people, traineeIds, lookups?.positions, lookups?.departments]);
+  }, [activeMapShiftId, filtered, filteredPeople, plannedSeatShifts, shiftBreakdown, seatMatchesPerson, trainingShiftIds, seatShift, headcountPlans, allShifts, filters.departmentId, filters.positionId, people, traineeIds, lookups?.positions, lookups?.departments, deskCountInShift]);
 
   // Shifts in rota order for the table and the cards (training shift and "Unassigned" last).
   const shiftCols = useMemo(() => {
@@ -475,6 +483,17 @@ export default function CapacitySeatsPage() {
   const trainingSeats = filtered.filter((x) => x.is_training_only).reduce((a, x) => a + (x.physical_seats || 0), 0);
   const overGroups = filtered.filter((x) => !x.is_training_only && x.currentOccupancy > (x.physical_seats || 0));
   const overPeople = overGroups.reduce((a, x) => a + (x.currentOccupancy - (x.physical_seats || 0)), 0);
+  const overText = (() => {
+    if (!overGroups.length) return "everyone has a desk";
+    if (overGroups.length > 1) return `${overPeople} people without a desk, each group at its busiest shift`;
+    const g: any = overGroups[0];
+    let best: [string, number] | null = null;
+    (planningRows.find((r: any) => r.id === g.id)?.byShift as Map<string, number> | undefined)?.forEach((n, sid) => {
+      if (sid !== "unassigned" && (!best || n > best[1])) best = [sid, n];
+    });
+    const sname = best ? allShifts.find((x) => x.id === best![0])?.name ?? "its busiest shift" : "its busiest shift";
+    return `${g.is_training_only ? "Training room" : g.positionTitle || "Whole department"} · ${sname}: ${g.currentOccupancy - (g.physical_seats || 0)} over`;
+  })();
   const tableRows = useMemo(
     () => planningRows.slice().sort((a, b) =>
       Number(!!a.is_training_only) - Number(!!b.is_training_only)
@@ -501,7 +520,7 @@ export default function CapacitySeatsPage() {
     },
   });
   const groupName = (s: any) => (s.is_training_only ? "Training room" : s.positionTitle || "Whole department");
-  const usable = (s: any) => (s.max_operational_capacity != null && s.max_operational_capacity !== s.physical_seats ? s.max_operational_capacity : null);
+  const usable = (s: any) => (!s.is_training_only && s.max_operational_capacity != null && s.max_operational_capacity !== s.physical_seats ? s.max_operational_capacity : null);
   const plannedIn = (s: any, shiftId: string) => !!plannedSeatShifts.get(s.id)?.has(shiftId) || !!plannedSeatShifts.get(s.id)?.has("any");
   const showOccupancy = !occupancyLoading && !occupancyError;
 
@@ -520,7 +539,7 @@ export default function CapacitySeatsPage() {
         onChange={setFilters}
         departments={lookups?.departments || []}
         positions={lookups?.positions || []}
-        shifts={rotaOrder(capacityFilterShifts.filter((x: any) => !x.is_training_shift))}
+        shifts={[...rotaOrder(capacityFilterShifts.filter((x: any) => !x.is_training_shift)), ...capacityFilterShifts.filter((x: any) => x.is_training_shift)]}
         showStatus={false}
         showPriority={false}
         showDates={false}
@@ -556,7 +575,7 @@ export default function CapacitySeatsPage() {
             <Cell label="Free in that shift" value={!showOccupancy ? "…" : workPeak ? Math.max(0, workPeak.seats - workPeak.assigned) : "—"}
               helper={workPeak && workPeak.seats < workPeak.assigned ? `${workPeak.assigned - workPeak.seats} over` : "desks of roles working it"} />
             <Cell label="Desk groups over" tone={overGroups.length ? "danger" : "default"} value={!showOccupancy ? "…" : overGroups.length}
-              helper={overGroups.length ? `${overPeople} ${overPeople === 1 ? "person" : "people"} without a desk at the busiest shift` : "everyone has a desk"} />
+              helper={overText} />
           </MetricStrip>
 
           <WorkforceAttention
@@ -566,6 +585,7 @@ export default function CapacitySeatsPage() {
             topics={["desks"]}
             scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
             shiftFiltered={filters.shift !== "all"}
+            shift={filters.shift}
             onPlanDesks={(seat) => navigate(`/hrms/workforce-planning/staffing-plan?plan_desk=${seat.id}`)}
           />
 
@@ -606,7 +626,7 @@ export default function CapacitySeatsPage() {
                             <div className={cn("h-full rounded-full", occupancyTone(x.utilisation))} style={{ width: `${Math.min(100, x.utilisation)}%` }} />
                           </div>
                           <p className={cn("mt-1 text-[11px] font-medium", over > 0 ? "text-destructive" : "text-muted-foreground")}>
-                            {over > 0 ? `${over} over` : `${-over} free`}
+                            {over > 0 ? `${over} over` : `${-over} free`}{x.seats > 0 ? ` · ${Math.round(x.utilisation)}% full` : ""}
                           </p>
                         </div>
                       );
@@ -621,7 +641,7 @@ export default function CapacitySeatsPage() {
                   <p className="text-xs text-muted-foreground">People sitting in each shift; the busiest shift decides whether the group is full.</p>
                 </div>
 
-                <TooltipProvider delayDuration={150}>
+                <>
                   <div className="hidden overflow-x-auto rounded-xl border border-border bg-card md:block">
                     <table className="w-full min-w-[760px] text-sm">
                       <thead className="border-b border-border bg-muted/40">
@@ -660,17 +680,13 @@ export default function CapacitySeatsPage() {
                               })}
                               <td className="px-3 py-2.5">
                                 {!showOccupancy ? <span className="text-muted-foreground">…</span> : (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="inline-flex flex-col">
-                                        <span className="tabular-nums text-foreground">{cur} of {desks}</span>
-                                        <span className={cn("text-[11px] font-medium", over > 0 ? "text-destructive" : over === 0 && desks > 0 ? "text-success" : "text-muted-foreground")}>
-                                          {over > 0 ? `${over} over` : over === 0 && desks > 0 ? "full" : `${-over} free`}
-                                        </span>
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="text-xs">{row.totalOnRoll} on roll across all shifts{row.shift_id ? "" : "; desks are shared, so the busiest shift counts"}</TooltipContent>
-                                  </Tooltip>
+                                  <span className="inline-flex flex-col">
+                                    <span className="tabular-nums text-foreground">{cur} of {desks}</span>
+                                    <span className={cn("text-[11px] font-medium", over > 0 ? "text-destructive" : over === 0 && desks > 0 ? "text-success" : "text-muted-foreground")}>
+                                      {over > 0 ? `${over} over` : over === 0 && desks > 0 ? "full" : `${-over} free`}
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground">{row.totalOnRoll} on roll in all shifts</span>
+                                  </span>
                                 )}
                               </td>
                               {canManage && (
@@ -687,7 +703,7 @@ export default function CapacitySeatsPage() {
                       </tbody>
                     </table>
                   </div>
-                </TooltipProvider>
+                </>
 
                 <div className="space-y-2 md:hidden">
                   {tableRows.map((row) => {

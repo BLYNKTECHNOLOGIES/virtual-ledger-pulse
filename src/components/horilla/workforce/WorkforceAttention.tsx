@@ -24,6 +24,8 @@ interface Props {
   canManage: boolean;
   scope?: AlertScope;
   shiftFiltered?: boolean;
+  /** The shift filter's label ("all" or a shift name). */
+  shift?: string;
   /** Only these kinds of items (e.g. desks on Capacity & Seats). */
   topics?: AttentionTopic[];
   /** "compact" = one summary bar that opens the list (pages where the grid comes first). */
@@ -32,6 +34,9 @@ interface Props {
   columns?: 1 | 2;
   onOpenLine?: (planId: string) => void;
   onOpenRequirement?: (reqId: string) => void;
+  /** Approve / reject a pending request here; without them the request's details open instead. */
+  onApprove?: (req: any) => void;
+  onReject?: (req: any) => void;
   onPlanDesks?: (seat: any) => void;
   className?: string;
 }
@@ -42,10 +47,10 @@ const SHOW = 6;
 
 /** The one list of things HR has to act on: approvals, jobs, joiners, desks, plan gaps. */
 export function WorkforceAttention({
-  rows, canManage, scope, shiftFiltered, topics, variant = "full", columns = 1, onOpenLine, onOpenRequirement, onPlanDesks, className,
+  rows, canManage, scope, shiftFiltered, shift, topics, variant = "full", columns = 1, onOpenLine, onOpenRequirement, onApprove, onReject, onPlanDesks, className,
 }: Props) {
   const navigate = useNavigate();
-  const a = useWorkforceAttention(rows, { scope, shiftFiltered, canManage });
+  const a = useWorkforceAttention(rows, { scope, shiftFiltered, shift, canManage });
   const groups = topics ? a.groups.filter((g) => topics.includes(g.topic)) : a.groups;
   // Count topics, not items: 19 roles to decide is one thing to do, not 19.
   const actionable = groups.filter((g) => g.severity !== "low").length;
@@ -59,6 +64,8 @@ export function WorkforceAttention({
     switch (x.kind) {
       case "line": return onOpenLine ? onOpenLine(x.planId) : navigate(`/hrms/workforce-planning/staffing-plan?line=${x.planId}`);
       case "requirement": return onOpenRequirement ? onOpenRequirement(x.reqId) : navigate(`/hrms/workforce-planning/hiring-requirements?req=${x.reqId}`);
+      case "approve": return onApprove ? onApprove(x.req) : navigate(`/hrms/workforce-planning/hiring-requirements?req=${x.req.id}`);
+      case "reject": return onReject ? onReject(x.req) : navigate(`/hrms/workforce-planning/hiring-requirements?req=${x.req.id}`);
       case "link": return navigate(x.to);
       case "plan-desks": return onPlanDesks ? onPlanDesks(x.seat) : navigate(`/hrms/workforce-planning/staffing-plan?plan_desk=${x.seat.id}`);
       case "move-training": return setMoving(x.trainee);
@@ -69,13 +76,16 @@ export function WorkforceAttention({
   if (a.loading && variant === "compact") return null;
   if (variant === "compact" && groups.length === 0) return null;
 
+  const isOpen = (g: AttentionGroup) => !!open[g.key] || groups.length === 1;
+  // In two columns an opened topic spans both, so its neighbour doesn't stretch into an empty box.
+  const cells = groups.reduce((n, g) => n + (isOpen(g) ? 2 : 1), 0);
   const list = (
-    <ul className={cn(columns === 2 ? "grid grid-cols-1 gap-px overflow-hidden rounded-b-xl bg-border lg:grid-cols-2" : "divide-y divide-border")}>
+    <ul className={cn(columns === 2 ? "grid grid-flow-row-dense grid-cols-1 gap-px overflow-hidden rounded-b-xl bg-border lg:grid-cols-2" : "divide-y divide-border")}>
       {groups.map((g) => (
-        <GroupRow key={g.key} g={g} open={!!open[g.key] || groups.length === 1} onToggle={() => setOpen((o) => ({ ...o, [g.key]: !o[g.key] }))}
+        <GroupRow key={g.key} g={g} open={isOpen(g)} wide={columns === 2 && isOpen(g)} onToggle={() => setOpen((o) => ({ ...o, [g.key]: !o[g.key] }))}
           run={run} busy={resume.isPending} />
       ))}
-      {columns === 2 && groups.length % 2 === 1 && <li aria-hidden className="hidden bg-card lg:block" />}
+      {columns === 2 && cells % 2 === 1 && <li aria-hidden className="hidden bg-card lg:block" />}
     </ul>
   );
 
@@ -121,12 +131,12 @@ export function WorkforceAttention({
   );
 }
 
-function GroupRow({ g, open, onToggle, run, busy }: { g: AttentionGroup; open: boolean; onToggle: () => void; run: (x: AttentionAction) => void; busy: boolean }) {
+function GroupRow({ g, open, wide, onToggle, run, busy }: { g: AttentionGroup; open: boolean; wide?: boolean; onToggle: () => void; run: (x: AttentionAction) => void; busy: boolean }) {
   const [all, setAll] = useState(false);
   const Icon = TOPIC_ICON[g.topic];
   const items = all ? g.items : g.items.slice(0, SHOW);
   return (
-    <li className="bg-card">
+    <li className={cn("bg-card", wide && "lg:col-span-2")}>
       <div className="flex items-start gap-3 px-4 py-3">
         <span className="relative mt-0.5 shrink-0">
           <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -155,13 +165,14 @@ function GroupRow({ g, open, onToggle, run, busy }: { g: AttentionGroup; open: b
           {items.map((it) => (
             <li key={it.key} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md bg-muted/40 px-2.5 py-1.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-foreground" title={it.title}>{it.title}</p>
+                <p className="text-sm text-foreground sm:truncate" title={it.title}>{it.title}</p>
                 {it.detail && <p className="text-xs text-muted-foreground">{it.detail}</p>}
               </div>
               {it.actions.length > 0 && (
                 <div className="flex shrink-0 flex-wrap gap-1">
                   {it.actions.map((x) => (
-                    <Button key={x.label} size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={x.kind === "resume" && busy} onClick={() => run(x)}>
+                    <Button key={x.label} size="sm" variant={x.kind === "approve" ? "default" : "outline"}
+                      className={cn("h-7 px-2 text-xs", x.kind === "reject" && "text-destructive")} disabled={x.kind === "resume" && busy} onClick={() => run(x)}>
                       {x.label}
                     </Button>
                   ))}

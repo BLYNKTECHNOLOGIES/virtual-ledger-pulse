@@ -199,7 +199,10 @@ export default function WorkforceForecastPage() {
                 helper={`+${inflow} in · −${historyReady ? outflow : "…"} out`} />
               <Cell label="Short on lines then" tone={t.lineGap > 0 ? "danger" : "success"} value={t.lineGap}
                 helper={includePending ? "if approved and pending hiring lands on time" : "if approved hiring lands on its target date"} />
-              <Cell label="Attrition estimate" value={historyReady ? `${attritionPct}%` : "…"} helper={`a month · ${override ? "custom" : "actual, last 12 months"}`} />
+              <Cell label="Attrition estimate" tone={t.estimatedExtraNeed > 0 ? "warning" : "default"}
+                value={!historyReady ? "…" : !override && historyQ.isError ? "—" : `${attritionPct}%`}
+                helper={!override && historyQ.isError ? "history couldn't load"
+                  : `a month (${override ? "custom" : `actual, last ${actual.months} month${actual.months === 1 ? "" : "s"}`})${historyReady && t.estimatedExtraNeed > 0 ? ` · ≈${t.estimatedExtraNeed} more to hire` : ""}`} />
             </MetricStrip>
             {t.undatedHires > 0 && (
               <p className="text-xs text-muted-foreground">
@@ -249,6 +252,7 @@ export default function WorkforceForecastPage() {
                     <dt className="text-muted-foreground">+ Expected hires</dt><dd className="text-right">{m.hires}{m.undatedHires > 0 ? ` (${m.undatedHires} undated)` : ""}</dd>
                     <dt className="text-muted-foreground">− Leaving</dt><dd className="text-right">{m.exits}{m.outsideExits > 0 ? ` (+${m.outsideExits} off-line)` : ""}</dd>
                     <dt className="text-muted-foreground">− Attrition (estimate)</dt><dd className="text-right">{m.attrition}</dd>
+                    <dt className="text-muted-foreground">Extra need (estimate)</dt><dd className="text-right">{m.estimatedExtraNeed}</dd>
                     <dt className="text-muted-foreground">Closing / required</dt><dd className="text-right font-semibold text-foreground">{m.closing} / {m.required}</dd>
                   </dl>
                 </div>
@@ -267,7 +271,8 @@ export default function WorkforceForecastPage() {
                     <th className="px-2 py-2 text-right font-medium">− Attrition</th>
                     <th className="px-2 py-2 text-right font-medium">Closing</th>
                     <th className="px-2 py-2 text-right font-medium">Required</th>
-                    <th className="px-4 py-2 text-right font-medium">Short on lines</th>
+                    <th className="px-2 py-2 text-right font-medium">Short on lines</th>
+                    <th className="px-4 py-2 text-right font-medium">Extra need (est.)</th>
                   </tr>
                 </thead>
                 <tbody className="tabular-nums">
@@ -285,7 +290,8 @@ export default function WorkforceForecastPage() {
                       <td className="px-2 py-2 text-right text-muted-foreground">{m.attrition || "—"}</td>
                       <td className="px-2 py-2 text-right font-semibold text-foreground">{m.closing}</td>
                       <td className="px-2 py-2 text-right">{m.required}</td>
-                      <td className={`px-4 py-2 text-right font-medium ${m.lineGap > 0 ? "text-destructive" : "text-success"}`}>{m.lineGap > 0 ? m.lineGap : "met"}</td>
+                      <td className={`px-2 py-2 text-right font-medium ${m.lineGap > 0 ? "text-destructive" : "text-success"}`}>{m.lineGap > 0 ? m.lineGap : "met"}</td>
+                      <td className="px-4 py-2 text-right text-muted-foreground">{m.estimatedExtraNeed || "—"}</td>
                     </tr>
                   ))}
                   <tr className="font-semibold text-foreground">
@@ -298,7 +304,8 @@ export default function WorkforceForecastPage() {
                     <td className="px-2 py-2 text-right">{t.attrition}</td>
                     <td className="px-2 py-2 text-right">{t.closing}</td>
                     <td className="px-2 py-2 text-right">{t.required}</td>
-                    <td className="px-4 py-2 text-right">{t.lineGap}</td>
+                    <td className="px-2 py-2 text-right">{t.lineGap}</td>
+                    <td className="px-4 py-2 text-right">{t.estimatedExtraNeed}</td>
                   </tr>
                 </tbody>
               </table>
@@ -306,6 +313,7 @@ export default function WorkforceForecastPage() {
             <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
               Expected hires are the people still to find on {includePending ? "approved, recruiting and awaiting-approval" : "approved and recruiting"} requests, on their target joining date.
               {t.outsideExits > 0 ? ` "Off-line" = people leaving who sit on no staffing line; they are not in the opening or closing figures.` : ""}
+              {" "}Extra need is the attrition estimate turned into people to hire; it is tied to no line.
             </p>
           </section>
 
@@ -400,7 +408,7 @@ export default function WorkforceForecastPage() {
   );
 }
 
-const CELL_TONE: Record<string, string> = { default: "text-foreground", danger: "text-destructive", success: "text-emerald-600 dark:text-emerald-400" };
+const CELL_TONE: Record<string, string> = { default: "text-foreground", danger: "text-destructive", success: "text-emerald-600 dark:text-emerald-400", warning: "text-amber-600 dark:text-amber-400" };
 function Cell({ label, value, helper, tone = "default" }: { label: string; value: React.ReactNode; helper?: React.ReactNode; tone?: keyof typeof CELL_TONE }) {
   return (
     <div className="min-w-0 bg-card px-4 py-3.5">

@@ -115,7 +115,7 @@ export default function WorkforceOverviewPage() {
     const m = new Map<string, BreakdownRow & { id: string | null }>();
     filtered.forEach((r) => {
       const name = r.department_name || "No department";
-      const e = m.get(name) || { key: r.department_id ?? name, id: r.department_id, label: name, required: 0, current: 0, short: 0, over: 0 };
+      const e = m.get(name) || { key: r.department_id ?? "__none__", id: r.department_id, label: name, required: 0, current: 0, short: 0, over: 0, selectable: !!r.department_id };
       e.required += r.required_hc; e.current += r.current_hc;
       e.short += Math.max(0, r.staffingGap); e.over += Math.max(0, -r.staffingGap);
       m.set(name, e);
@@ -135,7 +135,11 @@ export default function WorkforceOverviewPage() {
   const approve = (q: any) => (q.target_joining_date && !(q.adds_headcount > 0) ? (setApproveNote(""), setApproving(q)) : openReq(q.id));
   const reject = (q: any) => setReasonTarget({ id: q.id, requirement_no: q.requirement_no, action: "reject", consequence: declineConsequence(q, null) });
 
-  const staffedPct = t.required > 0 ? Math.round((t.current / t.required) * 100) : 0;
+  // Counted line by line: a surplus on one line never covers a shortage on another.
+  const staffedCapped = filtered.reduce((a, r) => a + Math.min(r.current_hc, r.required_hc), 0);
+  const staffedPct = t.required > 0 ? Math.round((staffedCapped / t.required) * 100) : 0;
+  const reqsFailed = reqs.isError && !reqs.data;
+  const nextReady = filtered.map((r) => r.training_ready_date).filter(Boolean).sort()[0] ?? null;
   const loading = matrix.isLoading;
 
   return (
@@ -178,26 +182,48 @@ export default function WorkforceOverviewPage() {
           description="Add a line for each role and shift in the staffing plan. People on roll and the pipeline are then counted for you."
           action={<Button asChild><Link to="/hrms/workforce-planning/staffing-plan">Open the staffing plan</Link></Button>} />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
-          description="Change or clear the filters to see the figures again."
-          action={<Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>} />
+        <>
+          <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
+            description={filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId))
+              ? "This role has no staffing line yet, so nobody can hire for it. Plan its lines, or clear the filters."
+              : "Change or clear the filters to see the figures again."}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {canManage && filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId)) && (
+                  <Button asChild><Link to={`/hrms/workforce-planning/staffing-plan?plan_role=${filters.positionId}`}>Plan lines for this role</Link></Button>
+                )}
+                <Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>
+              </div>
+            } />
+          <WorkforceAttention
+            rows={filtered}
+            canManage={canManage}
+            scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
+            shiftFiltered={filters.shift !== "all"}
+            shift={filters.shift}
+            onOpenRequirement={openReq}
+            onApprove={approve}
+            onReject={reject}
+          />
+        </>
       ) : (
         <>
           <div className="space-y-1.5">
             <MetricStrip>
               <Metric label="On roll" to="/hrms/workforce-planning/staffing-plan"
                 value={<>{t.current}<span className="text-lg font-medium text-muted-foreground"> / {t.required}</span></>}
-                helper={`${staffedPct}% staffed${t.inTraining ? ` · ${t.inTraining} in training` : ""}`} />
-              <Metric label="Short now" to="/hrms/workforce-planning/staffing-plan" tone={t.shortNow > 0 ? "danger" : "success"}
-                value={t.shortNow} helper={t.netNeed !== t.shortNow ? `${t.netNeed} after trainees and joiners` : `across ${filtered.filter((r) => r.staffingGap > 0).length} lines`} />
+                helper={`${staffedPct}% staffed${t.inTraining ? ` · ${t.inTraining} in training${nextReady ? `, ready ${formatIstDate(nextReady)}` : ""}` : ""}`} />
+              <Metric label="Short now" to="/hrms/workforce-planning/staffing-plan?status=understaffed" tone={t.shortNow > 0 ? "danger" : "success"}
+                value={t.shortNow} helper={t.netNeed !== t.shortNow ? `${t.netNeed} still needed after trainees and hires` : `across ${filtered.filter((r) => r.staffingGap > 0).length} lines`} />
               <Metric label="Being hired" to="/hrms/workforce-planning/hiring-requirements"
-                value={t.requested} helper={`${openReqs.length} request${openReqs.length === 1 ? "" : "s"}${pending.length ? ` · ${pending.length} awaiting approval` : ""}`} />
+                value={t.requested} helper={reqsFailed ? "requests couldn't load" : reqs.isLoading ? "…" : `${openReqs.length} request${openReqs.length === 1 ? "" : "s"}${pending.length ? ` · ${pending.length} awaiting approval` : ""}`} />
               <Metric label="Not yet requested" to="/hrms/workforce-planning/staffing-plan" tone={t.uncovered > 0 ? "warning" : "default"}
                 value={t.uncovered} helper={t.uncovered > 0 ? "short with no hiring request" : "every shortage has a request"} />
               <Metric label="In 90 days" to="/hrms/workforce-planning/forecast" tone={(projectedGap ?? 0) > 0 ? "warning" : "default"}
                 value={projectedGap == null ? "…" : projectedGap} helper="short after approved hiring" />
               <Metric label="Leaving soon" to="/hrms/workforce-planning/forecast" tone={leaving.length > 0 ? "warning" : "default"}
-                value={leaving.length} helper={leaving.length ? (nextLeaving ? `next last day ${formatIstDate(nextLeaving)}` : "last day not set") : "nobody on notice"} />
+                value={leavingQ.isLoading ? "…" : leavingQ.isError && !leavingQ.data ? "—" : leaving.length}
+                helper={leavingQ.isLoading ? " " : leavingQ.isError && !leavingQ.data ? "couldn't load" : leaving.length ? (nextLeaving ? `next last day ${formatIstDate(nextLeaving)}` : "last day not set") : "nobody on notice"} />
             </MetricStrip>
             <HowCounted />
           </div>
@@ -208,13 +234,18 @@ export default function WorkforceOverviewPage() {
             columns={2}
             scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
             shiftFiltered={filters.shift !== "all"}
+            shift={filters.shift}
             onOpenRequirement={openReq}
+            onApprove={approve}
+            onReject={reject}
           />
 
           <ShortLinesTable
             rows={filtered}
             reqsByLine={reqsByLine}
+            reqsError={reqsFailed}
             jobsByReq={reqJobs.data}
+            jobsError={reqJobs.isError}
             linkable={linkable.data}
             canManage={canManage}
             busy={transition.isPending}

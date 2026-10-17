@@ -338,9 +338,9 @@ export const WF_DEFINITIONS = {
   required: "People each staffing line needs, added up line by line.",
   onRoll: "People on roll counted on a staffing line (planned roles only; people in training are counted separately).",
   short: "Each line's shortfall (required − on roll), added up. A surplus on one line never covers another.",
-  netNeed: "Short now, minus people already selected, joining or in training for that line.",
+  netNeed: "Still needed: short now, minus people in training and people already hired for that line (selected or joining).",
   beingHired: "People still to find on open hiring requirements (awaiting approval, approved or recruiting).",
-  notRequested: "Net need that no open hiring requirement covers yet.",
+  notRequested: "Still needed that no open hiring requirement covers yet (drafts don't count until they are sent).",
   projected: "Short on lines at the end of the period, after approved hiring, trainees and known exits (no attrition estimate).",
   leaving: "People on notice in planned roles.",
 } as const;
@@ -387,6 +387,15 @@ export const GAP_CHIP_CLASS: Record<GapTone, string> = {
 };
 export function gapLabel(gap: number): string {
   return gap > 0 ? `short ${gap}` : gap < 0 ? `over ${-gap}` : "met";
+}
+
+/** A line's tone on every staffing screen: "covered" = short today, but trainees and hires cover it all. */
+export type LineTone = GapTone | "covered";
+export function lineTone(r: { staffingGap: number; netHiringRequirement: number }): LineTone {
+  return r.staffingGap > 0 && r.netHiringRequirement === 0 ? "covered" : gapTone(r.staffingGap);
+}
+export function lineToneLabel(r: { staffingGap: number; netHiringRequirement: number }): string {
+  return lineTone(r) === "covered" ? `short ${r.staffingGap} · covered` : gapLabel(r.staffingGap);
 }
 
 /** Status filter options. */
@@ -546,7 +555,8 @@ export function requirementMatchesFilters(
 ): boolean {
   const line = req.staffing_plan_id ? lineById.get(req.staffing_plan_id) : undefined;
   if (f.departmentId !== "all" && (line?.department_id ?? req.department_id) !== f.departmentId) return false;
-  if (f.positionId !== "all" && req.position_id !== f.positionId) return false;
+  if (f.positionId !== "all" && req.position_id !== f.positionId
+      && !(line && (line.position_id === f.positionId || (line.role_ids ?? []).includes(f.positionId)))) return false;
   if (f.shift !== "all" && (line?.shiftLabel ?? req.shift_label ?? "Any shift") !== f.shift) return false;
   if (f.employmentType !== "all" && normEmploymentType(req.employment_type ?? line?.employment_type) !== normEmploymentType(f.employmentType)) return false;
   if (f.status !== "all" && line && line.status !== f.status) return false;

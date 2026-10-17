@@ -38,17 +38,19 @@ export function WorkforceHomeCard() {
   // Hidden for people without HRMS access, and when the figures can't load at all (a failed refresh keeps the last ones).
   if (!allowed || (matrix.isError && matrix.rows.length === 0)) return null;
 
+  // Each figure waits for its own data; one that can't load says so instead of showing 0.
+  const state = (q: { isLoading: boolean; isError: boolean; data?: unknown }) => (q.data !== undefined ? "ready" : q.isError ? "error" : "loading");
+  const matrixState = matrix.rows.length || !matrix.isLoading ? "ready" : "loading";
   const items = [
-    { label: "Short now", value: figures.short, tone: figures.short > 0 ? "text-destructive" : "text-foreground", icon: AlertTriangle,
-      sub: figures.net !== figures.short ? `${figures.net} after trainees and joiners` : "across all staffing lines", to: "/hrms/workforce-planning/staffing-plan?status=short" },
-    { label: "Awaiting approval", value: figures.awaiting, tone: "text-foreground", icon: ClipboardCheck,
+    { label: "Short now", value: figures.short, tone: figures.short > 0 ? "text-destructive" : "text-foreground", icon: AlertTriangle, state: matrixState,
+      sub: figures.net !== figures.short ? `${figures.net} still needed after trainees and hires` : "across all staffing lines", to: "/hrms/workforce-planning/staffing-plan?status=understaffed" },
+    { label: "Awaiting approval", value: figures.awaiting, tone: "text-foreground", icon: ClipboardCheck, state: state(reqs),
       sub: figures.awaiting ? `request${figures.awaiting === 1 ? "" : "s"} · ${figures.awaitingPeople} ${figures.awaitingPeople === 1 ? "person" : "people"}` : "nothing to approve", to: "/hrms/workforce-planning/hiring-requirements?tab=pending" },
-    { label: "Joining this month", value: figures.joining, tone: "text-foreground", icon: UserPlus,
+    { label: "Joining this month", value: figures.joining, tone: "text-foreground", icon: UserPlus, state: matrixState === "ready" ? state(events) : "loading",
       sub: `${figures.joiningAll} joining in total`, to: "/hrms/workforce-planning/forecast" },
-    { label: "Leaving this month", value: figures.leavingMonth, tone: figures.leavingMonth > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground", icon: UserMinus,
+    { label: "Leaving this month", value: figures.leavingMonth, tone: figures.leavingMonth > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground", icon: UserMinus, state: state(leaving),
       sub: `${figures.leavingAll} on notice in total`, to: "/hrms/workforce-planning/forecast" },
   ];
-  const loading = matrix.isLoading && matrix.rows.length === 0;
 
   return (
     <section className="rounded-lg border border-border bg-card" aria-label="Workforce planning">
@@ -66,10 +68,12 @@ export function WorkforceHomeCard() {
               <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground group-hover:text-foreground">
                 <i.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />{i.label}
               </span>
-              {loading ? <Skeleton className="mt-2 h-7 w-12" /> : (
-                <span className={cn("mt-1 block font-mono text-2xl font-bold tabular-nums leading-8", i.tone)}>{i.value}</span>
+              {i.state === "loading" ? <Skeleton className="mt-2 h-7 w-12" /> : (
+                <span className={cn("mt-1 block font-mono text-2xl font-bold tabular-nums leading-8", i.state === "error" ? "text-muted-foreground" : i.tone)}>
+                  {i.state === "error" ? "—" : i.value}
+                </span>
               )}
-              <span className="block text-[11px] leading-4 text-muted-foreground">{loading ? " " : i.sub}</span>
+              <span className="block text-[11px] leading-4 text-muted-foreground">{i.state === "loading" ? " " : i.state === "error" ? "couldn't load" : i.sub}</span>
             </Link>
           ))}
         </MetricStrip>

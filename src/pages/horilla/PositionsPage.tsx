@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { DesignationLink } from "@/components/horilla/workforce/DesignationStory";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -448,7 +449,7 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
                   <Briefcase className="mt-0.5 h-4 w-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-medium text-foreground break-words">{p.title}</span>
+                      <DesignationLink id={p.id} label={p.title} className="font-medium text-foreground break-words">{p.title}</DesignationLink>
                       <GradeChip p={p} />
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground break-words">
@@ -537,7 +538,7 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
                   <Briefcase className="h-4 w-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="font-medium text-foreground break-words">{p.title}</p>
+                      <p className="font-medium text-foreground break-words"><DesignationLink id={p.id} label={p.title}>{p.title}</DesignationLink></p>
                       <GradeChip p={p} />
                     </div>
                     <p className="text-xs text-muted-foreground break-words">{getDeptName(p.department_id)}</p>

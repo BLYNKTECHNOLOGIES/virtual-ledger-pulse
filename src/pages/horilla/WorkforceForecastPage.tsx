@@ -15,6 +15,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MetricStrip, StatusPill } from "@/components/ats/AtsUi";
+import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
+import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
+import { DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
@@ -154,7 +157,10 @@ export default function WorkforceForecastPage() {
       <PageHeader
         title="Workforce forecast"
         description={`Headcount month by month up to ${formatIstDate(end)}: people on roll, trainees moving to the floor, joiners and expected hires in, people leaving and estimated attrition out — against what each staffing line requires.`}
+        actions={<HowItWorksButton current="forecast" />}
       />
+
+      <WorkforceChainBand current="forecast" />
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-3 md:p-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -404,6 +410,7 @@ export default function WorkforceForecastPage() {
           </section>
         </>
       )}
+      <DesignationStoryHost />
     </div>
   );
 }

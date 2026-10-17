@@ -10,6 +10,7 @@ import { MetricCell, MetricStrip } from "@/components/ats/AtsUi";
 import { usePositionPlanningStatus, type PositionPlanningStatus } from "@/hooks/hrms/useWorkforcePlanning";
 import { buildStructure, flattenStructure, gradeLabel, gradeShort, type DesignationRow, type StructureNode } from "@/lib/hrms/designations";
 import { cn } from "@/lib/utils";
+import { DesignationLink } from "@/components/horilla/workforce/DesignationStory";
 
 const PLANNING_TEXT: Record<PositionPlanningStatus, string> = {
   planned: "Planned",
@@ -218,7 +219,7 @@ export function OrgStructureView({ onEditDesignations }: { onEditDesignations?: 
                 ) : <span aria-hidden className="mt-2 ml-1.5 h-1.5 w-1.5 rounded-full bg-border" />}
                 <div className="min-w-0">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
-                    <p className={cn("break-words text-sm font-medium text-foreground", matches.has(r.id) && q && "text-primary")}>{r.title}</p>
+                    <p className={cn("break-words text-sm font-medium text-foreground", matches.has(r.id) && q && "text-primary")}><DesignationLink id={r.id} label={r.title}>{r.title}</DesignationLink></p>
                     <span
                       className={cn("whitespace-nowrap text-xs tabular-nums", names.length ? "font-medium text-foreground" : "text-muted-foreground")}
                       title={names.length ? names.join(", ") : undefined}

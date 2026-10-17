@@ -77,6 +77,30 @@ const navGroups: NavGroup[] = [
           { label: "F&F Settlement", path: "/hrms/offboarding/fnf" },
         ],
       },
+      // Planning chain order: Organization decides designations → Workforce Planning sizes and requests → ATS recruits.
+      {
+        label: "Organization",
+        icon: Building2,
+        path: "/hrms/organization",
+        children: [
+          { label: "Structure", path: "/hrms/organization" },
+          { label: "Reporting lines", path: "/hrms/organization?tab=reporting" },
+          { label: "Departments", path: "/hrms/organization?tab=departments" },
+          { label: "Designations", path: "/hrms/organization?tab=designations" },
+        ],
+      },
+      {
+        label: "Workforce Planning",
+        icon: Target,
+        path: "/hrms/workforce-planning",
+        children: [
+          { label: "Overview", path: "/hrms/workforce-planning" },
+          { label: "Desks", path: "/hrms/workforce-planning/capacity-seats" },
+          { label: "Staffing Plan", path: "/hrms/workforce-planning/staffing-plan" },
+          { label: "Hiring Requests", path: "/hrms/workforce-planning/hiring-requirements" },
+          { label: "Forecast", path: "/hrms/workforce-planning/forecast" },
+        ],
+      },
       {
         label: "Recruitment (ATS)",
         icon: UserSearch,
@@ -89,18 +113,6 @@ const navGroups: NavGroup[] = [
           { label: "Jobs", path: "/hrms/ats/jobs" },
           { label: "Reports", path: "/hrms/ats/reports" },
           { label: "Settings", path: "/hrms/ats/settings" },
-        ],
-      },
-      {
-        label: "Workforce Planning",
-        icon: Target,
-        path: "/hrms/workforce-planning",
-        children: [
-          { label: "Overview", path: "/hrms/workforce-planning" },
-          { label: "Staffing Plan", path: "/hrms/workforce-planning/staffing-plan" },
-          { label: "Capacity & Seats", path: "/hrms/workforce-planning/capacity-seats" },
-          { label: "Hiring Requirements", path: "/hrms/workforce-planning/hiring-requirements" },
-          { label: "Workforce Forecast", path: "/hrms/workforce-planning/forecast" },
         ],
       },
     ],
@@ -201,17 +213,6 @@ const navGroups: NavGroup[] = [
         ],
       },
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
-      {
-        label: "Organization",
-        icon: Building2,
-        path: "/hrms/organization",
-        children: [
-          { label: "Structure", path: "/hrms/organization" },
-          { label: "Reporting lines", path: "/hrms/organization?tab=reporting" },
-          { label: "Departments", path: "/hrms/organization?tab=departments" },
-          { label: "Designations", path: "/hrms/organization?tab=designations" },
-        ],
-      },
       { label: "Disciplinary Actions", icon: AlertTriangle, path: "/hrms/disciplinary-actions" },
     ],
   },

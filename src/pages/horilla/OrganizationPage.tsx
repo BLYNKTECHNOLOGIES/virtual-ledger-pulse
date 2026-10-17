@@ -7,6 +7,9 @@ import { OrgChartView } from "@/components/hrms/OrgChartView";
 import { OrgStructureView } from "@/components/hrms/org/OrgStructureView";
 import DepartmentsPage from "./DepartmentsPage";
 import PositionsPage from "./PositionsPage";
+import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
+import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
+import { DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 
 const TABS = ["structure", "reporting", "departments", "designations"] as const;
 type OrgTab = (typeof TABS)[number];
@@ -36,8 +39,10 @@ export default function OrganizationPage() {
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Organization"
-        description="Designations, departments and who reports to whom. Every other screen uses these."
+        description="Departments, designations and who reports to whom. Select a designation's name to follow it through workforce planning."
+        actions={<HowItWorksButton current="designations" />}
       />
+      <WorkforceChainBand current="designations" />
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList ref={tabsRef}>
           <TabsTrigger value="structure" className="gap-1.5"><Network className="h-3.5 w-3.5" />Structure</TabsTrigger>
@@ -59,6 +64,7 @@ export default function OrganizationPage() {
           <PositionsPage embedded />
         </TabsContent>
       </Tabs>
+      <DesignationStoryHost />
     </div>
   );
 }

@@ -16,10 +16,10 @@
 - A day inside approved leave keeps the status the device or HR gives it, and leave is refunded only for the worked part (hr_reconcile_worked_leave_days, re-evaluated on every run), because device punches and HR day marks are the attendance source of truth.
 - Leave accrual (run_leave_accrual) skips anyone whose last working day is before the accrual month's end, because a mid-month leaver earns no leave for the leaving month.
 - hr_attendance_daily is attendance truth (device then HR override); hr_attendance is a trigger-kept mirror whose HR edits route into the calendar, keeping payroll/screens consistent.
-- Every attendance screen (HR calendar, employee calendar, summaries) resolves days via resolveDayStatus over hr_attendance_day_range and the employee summary cards use hr_attendance_month_summary (self-only for non-HR), because HR and employee must see identical figures.
+- Attendance screens use resolveDayStatus/hr_attendance_day_range; employee cards use hr_attendance_month_summary (self-only for non-HR), keeping figures identical.
 - RazorpayX additions are pushed only under exact names from hr_razorpay_component_catalog, which mirrors the Component names in RazorpayX Settings → Salary Component Library (proxy maps or rejects; our wording goes in remarks), because RazorpayX rejects addition names that are not library components.
 - A mid-month CTC revision is held from RazorpayX until that month's cockpit Step 7 (payroll run complete) is done, then pushed automatically, because RazorpayX must pay the old CTC for the month being processed.
-- Reports & Analytics treats `hr_payslips_v` as payroll truth, employer payroll cost as gross plus employer contributions, approved leave as day totals rather than request counts, and canonical evidence-backed attendance only as workforce availability; owner exclusions must apply to every metric, drill-down and export.
+- Reports use hr_payslips_v; employer cost = gross + employer contributions; leave is day totals; availability is evidence-backed attendance; owner exclusions cover metrics, drill-downs and exports.
 - Salary-register importer sums two headers for one figure only if they resolve to different columns (aliases can double a deduction).
 - Tests use `bun run test` and import "vitest", never bun:test, for one unified runner.
 
@@ -32,3 +32,4 @@
 
 - Designation authority is positions: triggers sync title/grade/department to employed people, open onboarding, ERP logins and RACI; leavers preserve exit history. hierarchy_level is company grade, reports_to_position_id is JD structure, managers are separate. Edit departments/designations only in HRMS Organization; RazorpayX imports never create them, keeping titles consistent.
 - Joining previews and dispatch share `_shared/joiningBatch.ts` through an HRMS re-export, preventing browser/server scheduling drift.
+- The sample-prejoining link is browser-only, never calling onboarding services, keeping sample evidence out of real records.

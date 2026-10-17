@@ -32,4 +32,4 @@
 
 - Designation authority is positions: triggers sync title/grade/department to employed people, open onboarding, ERP logins and RACI; leavers preserve exit history. hierarchy_level is company grade, reports_to_position_id is JD structure, managers are separate. Edit departments/designations only in HRMS Organization; RazorpayX imports never create them, keeping titles consistent.
 - Joining previews and dispatch share `_shared/joiningBatch.ts` through an HRMS re-export, preventing browser/server scheduling drift.
-- The sample-prejoining link is browser-only, never calling onboarding services, keeping sample evidence out of real records.
+- The sample-prejoining link is browser-only; joining choices reuse the shared calendar, and date changes invalidate signed offer/confirmation, keeping sample evidence out of real records.

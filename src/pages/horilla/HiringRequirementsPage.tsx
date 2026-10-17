@@ -16,6 +16,7 @@ import { HiringRequirementDetailDialog } from "@/components/horilla/workforce/Hi
 import { useHeadcountPlans, useHiringRequirements, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
 import { requirementLineIssues } from "@/hooks/hrms/useWorkforceAlerts";
 import { useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
+import { useLinkableJobs } from "@/lib/ats/jobRequirements";
 import { JobStatusBadge } from "@/components/ats/AtsBits";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -82,6 +83,7 @@ export default function HiringRequirementsPage() {
   }, [requirements, activePlans]);
   const pipeline = useRequirementPipeline();
   const reqJobs = useRequirementJobs();
+  const linkable = useLinkableJobs(requirements.filter((r: any) => ["approved", "recruitment_active", "partially_fulfilled"].includes(r.status)) as any[]);
   const matrix = useStaffingMatrix();
   const lineById = useMemo(() => new Map(matrix.rows.map((l) => [l.plan_id, l])), [matrix.rows]);
   const pendingCount = requirements.filter((r: any) => r.status === "pending_approval").length;
@@ -226,17 +228,21 @@ export default function HiringRequirementsPage() {
                         </div>
                         <Progress value={pct} />
                       </div>
-                      {canManage && ["approved", "recruitment_active", "partially_fulfilled"].includes(r.status) && !jobs.some((j: any) => ["open", "paused"].includes(j.status)) && (
-                        <Button
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/hrms/ats/jobs?new=1&requirement=${r.id}`);
-                          }}
-                        >
-                          <Send className="h-3.5 w-3.5" /> Create ATS job
-                        </Button>
-                      )}
+                      {canManage && ["approved", "recruitment_active", "partially_fulfilled"].includes(r.status) && !jobs.some((j: any) => ["open", "paused"].includes(j.status)) && (() => {
+                        const lj = linkable.data?.get(r.id) ?? [];
+                        return (
+                          <div className="flex flex-col gap-1">
+                            {lj.map((j) => (
+                              <Button key={j.id} size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/hrms/ats/jobs?edit=${j.id}&requirement=${r.id}`); }}>
+                                <Send className="h-3.5 w-3.5" /> Link to {j.job_code ?? j.title}
+                              </Button>
+                            ))}
+                            <Button size="sm" variant={lj.length ? "outline" : "default"} onClick={(e) => { e.stopPropagation(); navigate(`/hrms/ats/jobs?new=1&requirement=${r.id}`); }}>
+                              <Send className="h-3.5 w-3.5" /> {lj.length ? "Create a new job" : "Create ATS job"}
+                            </Button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </CardContent>

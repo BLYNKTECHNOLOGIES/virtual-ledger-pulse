@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { diffLinks } from "./jobRequirementDiff";
+import { diffLinks, matchingJobsForRequirement, type OpenJobRef } from "./jobRequirementDiff";
 
-export { diffLinks };
+export { diffLinks, matchingJobsForRequirement };
+export type { OpenJobRef };
 
 /** Extra requirement links of one job (ats_job_requirements; the job's requisition_id is separate). */
 export function useJobRequirementLinks(jobId?: string | null) {
@@ -61,4 +62,38 @@ export async function syncJobRequirementLinks(jobId: string, desired: string[], 
     const { error: e } = await supabase.from("ats_job_requirements" as any).insert(add.map((requirement_id) => ({ job_id: jobId, requirement_id })));
     if (e) throw e;
   }
+}
+
+/** Create/update a job and replace its requirement links in one server transaction (ats_save_job). */
+export async function saveJobWithLinks(jobId: string | null, job: Record<string, unknown>, links: string[]) {
+  const { data, error } = await (supabase.rpc as any)("ats_save_job", { p_job_id: jobId, p_job: job, p_links: links });
+  if (error) throw error;
+  return data as any;
+}
+
+/** Open jobs per requirement id that can take that requirement as another shift link. */
+export function useLinkableJobs(requirements: { id: string; department_id?: string | null; position_id?: string | null; staffing_plan_id?: string | null }[]) {
+  const ids = requirements.map((r) => r.id).sort().join(",");
+  return useQuery({
+    queryKey: ["ats", "linkable-jobs", ids],
+    enabled: requirements.length > 0,
+    staleTime: 30_000,
+    queryFn: async (): Promise<Map<string, OpenJobRef[]>> => {
+      const [{ data: jobs, error: e1 }, { data: plans, error: e2 }] = await Promise.all([
+        supabase.from("ats_jobs").select("id, job_code, title, department_id, position_id, shift_ids").in("status", ["open", "paused"]).order("created_at"),
+        supabase.from("hr_headcount_plans").select("id, shift_id, eligible_shift_ids, position_id, eligible_position_ids"),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      const pm = new Map(((plans ?? []) as any[]).map((p) => [p.id as string, p]));
+      const m = new Map<string, OpenJobRef[]>();
+      for (const r of requirements) {
+        const p = r.staffing_plan_id ? pm.get(r.staffing_plan_id) : null;
+        const roles = p ? (p.eligible_position_ids?.length ? p.eligible_position_ids : p.position_id ? [p.position_id] : []) : null;
+        const shifts = p ? (p.eligible_shift_ids?.length ? p.eligible_shift_ids : p.shift_id ? [p.shift_id] : []) : null;
+        m.set(r.id, matchingJobsForRequirement((jobs ?? []) as OpenJobRef[], r, roles, shifts));
+      }
+      return m;
+    },
+  });
 }

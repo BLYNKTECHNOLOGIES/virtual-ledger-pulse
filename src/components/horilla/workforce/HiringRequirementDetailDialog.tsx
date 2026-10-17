@@ -28,6 +28,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { JobStatusBadge } from "@/components/ats/AtsBits";
 import { useAtsStages } from "@/lib/ats/api";
+import { useLinkableJobs } from "@/lib/ats/jobRequirements";
 import { BUDGET_SOURCE_LABEL, formatInr, useWorkforceBudget } from "@/hooks/hrms/useWorkforceBudget";
 
 interface HiringRequirementDetailDialogProps {
@@ -58,6 +59,7 @@ export function HiringRequirementDetailDialog({
   open, onOpenChange, requirement, canApprove, canManage,
 }: HiringRequirementDetailDialogProps) {
   const reqId = open ? requirement?.id ?? null : null;
+  const linkable = useLinkableJobs(open && requirement ? [requirement as any] : []);
   const navigate = useNavigate();
   const transition = useRequirementTransition();
   const pipeline = useRequirementPipeline();
@@ -193,8 +195,11 @@ export function HiringRequirementDetailDialog({
           {canManage && ["rejected", "cancelled"].includes(r.status) && (
             <Button variant="outline" disabled={transition.isPending} onClick={() => run("reopen", note)}>Reopen as draft</Button>
           )}
+          {canManage && recruiting && !openJob && (linkable.data?.get(r.id) ?? []).map((j) => (
+            <Button key={j.id} onClick={() => navigate(`/hrms/ats/jobs?edit=${j.id}&requirement=${r.id}`)}><Send className="h-4 w-4" /> Link to {j.job_code ?? j.title}</Button>
+          ))}
           {canManage && recruiting && !openJob && (
-            <Button onClick={() => navigate(`/hrms/ats/jobs?new=1&requirement=${r.id}`)}><Send className="h-4 w-4" /> Create ATS job</Button>
+            <Button variant={(linkable.data?.get(r.id) ?? []).length ? "outline" : "default"} onClick={() => navigate(`/hrms/ats/jobs?new=1&requirement=${r.id}`)}><Send className="h-4 w-4" /> {(linkable.data?.get(r.id) ?? []).length ? "Create a new job" : "Create ATS job"}</Button>
           )}
           {openJob && (
             <Button variant="secondary" onClick={() => navigate(`/hrms/ats/jobs/${openJob.id}`)}><ExternalLink className="h-4 w-4" /> Open ATS job</Button>

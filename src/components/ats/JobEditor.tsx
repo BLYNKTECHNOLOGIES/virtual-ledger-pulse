@@ -3,6 +3,9 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidatePlanning } from "@/hooks/hrms/useWorkforcePlanning";
+import { requirementFitsJob } from "@/lib/ats/requirementOptions";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +19,13 @@ import {
 import { ChipInput, MultiSelect } from "./AtsBits";
 import { JobDetailsInput, Req } from "./AtsUi";
 import {
-  type AtsJob, atsKeys, createJob, jobKeys, updateJob, useAtsMutation, useAtsSettings, useDepartmentsLookup,
+  type AtsJob, atsKeys, jobKeys, useAtsMutation, useAtsSettings, useDepartmentsLookup,
   useEmployeesLookup, usePositionsLookup, useRequirementsLookup, useShiftsLookup,
 } from "@/lib/ats/api";
 import { EMPLOYMENT_TYPES, humanize } from "@/lib/ats/format";
 import { JobLineShiftNotice } from "./JobLineShiftNotice";
 import { RequirementLinkEditor } from "./RequirementLinkEditor";
-import { syncJobRequirementLinks, useJobRequirementLinks } from "@/lib/ats/jobRequirements";
+import { saveJobWithLinks, useJobRequirementLinks } from "@/lib/ats/jobRequirements";
 import { ApplicationFormEditor } from "./ApplicationFormEditor";
 import { type ApplicationForm, effectiveForm } from "@/lib/ats/forms";
 
@@ -147,6 +150,7 @@ function LookupSelect({ value, onChange, options, placeholder, disabled }: { val
 
 export function JobEditor({ open, job, onClose, initialRequirementId }: { open: boolean; job: AtsJob | null; onClose: () => void; initialRequirementId?: string | null }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const isEdit = !!job;
   const settings = useAtsSettings();
   const depts = useDepartmentsLookup();
@@ -179,13 +183,17 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     [positions.data, deptId],
   );
 
+  const posId = watch("position_id");
+  const primaryWatch = watch("requisition_id");
+  // Only requirements of this job's department and role (any role of the requirement's line);
+  // requirements already linked stay listed so a picker never loses its value.
   const reqOptions = useMemo(
     () =>
-      (reqs.data ?? []).map((r: any) => {
+      (reqs.data ?? []).filter((r: any) => requirementFitsJob(r, deptId, posId) || r.id === primaryWatch || extraReqIds.includes(r.id)).map((r: any) => {
         const pos = positions.data?.find((p) => p.id === r.position_id)?.label;
         return { id: r.id, raw: r, label: [r.requirement_no, pos, r.shift_label, `still needed ${r.still_needed ?? 0}`].filter(Boolean).join(" · "), status: humanize(String(r.status ?? "")) };
       }),
-    [reqs.data, positions.data],
+    [reqs.data, positions.data, deptId, posId, primaryWatch, extraReqIds],
   );
 
   const setIfEmpty = (k: keyof FormValues, v: any) => {
@@ -230,27 +238,39 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
   const appliedReq = useRef<string | null>(null);
   useEffect(() => {
     if (!open) { appliedReq.current = null; return; }
-    if (isEdit || !initialRequirementId || appliedReq.current === initialRequirementId) return;
+    if (!initialRequirementId || appliedReq.current === initialRequirementId) return;
     if (!reqOptions.some((o) => o.id === initialRequirementId) || !positions.data) return;
+    if (isEdit) {
+      // "Link to JOB-000X" from Workforce Planning: add the requirement as this job's link for its shift.
+      if (job?.id && reqLinks.isLoading) return;
+      appliedReq.current = initialRequirementId;
+      const cur = getValues("requisition_id");
+      if (cur === initialRequirementId || (reqLinks.data ?? []).includes(initialRequirementId)) return;
+      if (!cur) setValue("requisition_id", initialRequirementId, { shouldDirty: true });
+      else setExtraReqIds((x) => [...new Set([...x, initialRequirementId])]);
+      pickLink(initialRequirementId);
+      return;
+    }
     appliedReq.current = initialRequirementId;
     applyRequirement(initialRequirementId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, isEdit, initialRequirementId, reqOptions, positions.data]);
+  }, [open, isEdit, initialRequirementId, reqOptions, positions.data, reqLinks.isLoading]);
 
   const save = useAtsMutation(
     async (v: FormValues) => {
       const payload = toPayload(v);
-      const saved = isEdit
-        ? await updateJob({ id: job!.id, patch: { ...payload, is_published: job!.status === "open" ? payload.is_published : false } })
-        : await createJob({ ...payload, is_published: mode.current === "open" && payload.is_published, status: mode.current === "open" ? "open" : "draft" });
+      const patch = isEdit
+        ? { ...payload, is_published: job!.status === "open" ? payload.is_published : false }
+        : { ...payload, is_published: mode.current === "open" && payload.is_published, status: mode.current === "open" ? "open" : "draft" };
       const linked = [...new Set([v.requisition_id, ...extraReqIds].filter(Boolean))] as string[];
-      await syncJobRequirementLinks(saved.id, linked, nn(v.requisition_id));
-      return saved;
+      // One server transaction: a refused link saves nothing, so "Save" can never create a duplicate posting.
+      return (await saveJobWithLinks(isEdit ? job!.id : null, patch, linked)) as AtsJob;
     },
     {
       invalidate: () => [...jobKeys(job?.id), ["workforce_hiring_requirements"], ["workforce_staffing_matrix"], ["workforce_audit"], ["ats", "job-requirement-links"], ["ats", "active-job-requirement-links"], ["ats", "requirement-jobs"]],
       success: isEdit ? "Job updated" : () => (mode.current === "open" ? "Job created and opened" : "Draft saved"),
       onSuccess: (data) => {
+        invalidatePlanning(qc);
         reset(getValues());
         onClose();
         if (!isEdit && data?.id) navigate(`/hrms/ats/jobs/${data.id}`);

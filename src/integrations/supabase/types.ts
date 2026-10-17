@@ -35333,6 +35333,10 @@ export type Database = {
         }
         Returns: Json
       }
+      ats_save_job: {
+        Args: { p_job: Json; p_job_id: string; p_links: string[] }
+        Returns: Json
+      }
       ats_set_conversation: {
         Args: { p_action: string; p_candidate_id: string; p_until?: string }
         Returns: undefined
@@ -35384,6 +35388,30 @@ export type Database = {
       ats_try_numeric: { Args: { p: string }; Returns: number }
       ats_try_timestamptz: { Args: { p: string }; Returns: string }
       ats_validate_application_form: { Args: { f: Json }; Returns: undefined }
+      ats_validate_job_requirement: {
+        Args: {
+          p_dept: string
+          p_pos: string
+          p_req: string
+          p_require_open: boolean
+          p_shifts: string[]
+        }
+        Returns: undefined
+      }
+      ats_validate_job_requirement_core: {
+        Args: {
+          p_dept: string
+          p_pos: string
+          p_require_open: boolean
+          p_shifts: string[]
+          r_dept: string
+          r_no: string
+          r_plan: string
+          r_pos: string
+          r_status: string
+        }
+        Returns: undefined
+      }
       audit_client_nickname_merges: {
         Args: never
         Returns: {
@@ -38615,6 +38643,10 @@ export type Database = {
           still_open: number
         }[]
       }
+      hr_wf_application_requirement: {
+        Args: { p_job: string; p_pref: string[] }
+        Returns: string
+      }
       hr_wf_caller_is_internal: { Args: never; Returns: boolean }
       hr_wf_daily_reconcile: { Args: never; Returns: Json }
       hr_wf_is_manager: { Args: { _uid: string }; Returns: boolean }
@@ -38784,6 +38816,7 @@ export type Database = {
         }
         Returns: string
       }
+      hr_wf_sync_job: { Args: { p_job: string }; Returns: undefined }
       hr_wf_trainee_allocation: {
         Args: never
         Returns: {

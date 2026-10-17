@@ -40,10 +40,19 @@ export function skipReason(action: BulkAction, r: AtsAppRow): string | null {
  * Shift for a bulk hire: the job's only shift, or the candidate's single preferred shift among the job's.
  * `undefined` = can't decide in bulk (several job shifts, no single matching preference).
  */
-export function bulkHireShift(jobShiftIds: string[], preferred?: string[] | null): string | null | undefined {
+export function bulkHireShift(
+  jobShiftIds: string[], preferred?: string[] | null, shiftNames?: ReadonlyMap<string, string>,
+): string | null | undefined {
   if (jobShiftIds.length <= 1) return jobShiftIds[0] ?? null;
-  const match = (preferred ?? []).filter((p) => jobShiftIds.includes(p));
-  return match.length === 1 ? match[0] : undefined;
+  // preferred_shifts stores shift names (careers form); older rows may hold ids.
+  const toId = (p: string) => {
+    const v = p.trim();
+    if (jobShiftIds.includes(v)) return v;
+    return jobShiftIds.find((id) => (shiftNames?.get(id) ?? "").trim().toLowerCase() === v.toLowerCase());
+  };
+  const prefs = (preferred ?? []).filter((p) => p && p.trim());
+  if (prefs.length !== 1) return undefined;
+  return toId(prefs[0]) ?? undefined;
 }
 
 function callFor(action: BulkAction, appId: string, hiredShift?: string | null) {
@@ -75,18 +84,22 @@ export async function runBulk(
   // Hiring in bulk: each person needs one shift on multi-shift jobs.
   const hireShift = new Map<string, string | null>();
   let jobShifts: Map<string, string[]> | null = null;
+  let shiftNames = new Map<string, string>();
   if (action.kind === "move") {
     const { data: st } = await supabase.from("ats_stages").select("kind, code").eq("id", action.stageId).maybeSingle();
     if (st && (st.kind === "hired" || st.code === "hired")) {
       const jobIds = [...new Set(rows.map((r) => (r as any).job_id).filter(Boolean))] as string[];
       const { data: jobs } = jobIds.length ? await supabase.from("ats_jobs").select("id, shift_ids").in("id", jobIds) : { data: [] as any[] };
       jobShifts = new Map((jobs ?? []).map((j: any) => [j.id, (j.shift_ids ?? []) as string[]]));
+      const ids = [...new Set([...jobShifts.values()].flat())];
+      const { data: sh } = ids.length ? await supabase.from("hr_shifts").select("id, name").in("id", ids) : { data: [] as any[] };
+      shiftNames = new Map((sh ?? []).map((x: any) => [x.id as string, (x.name ?? "") as string]));
     }
   }
   for (const r of rows) {
     let s = skipReason(action, r);
     if (!s && jobShifts) {
-      const shift = bulkHireShift(jobShifts.get((r as any).job_id) ?? [], (r as any).preferred_shifts);
+      const shift = bulkHireShift(jobShifts.get((r as any).job_id) ?? [], (r as any).preferred_shifts, shiftNames);
       if (shift === undefined) s = "the job has several shifts: hire from the candidate page to choose one";
       else hireShift.set(r.application_id!, shift);
     }

@@ -611,7 +611,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           <HireShiftPicker shifts={jobShifts.data ?? []} value={hireShift} onChange={setHireShift} />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={(jobShifts.data?.length ?? 0) > 1 && !hireShift}
+            <AlertDialogAction disabled={jobShifts.isLoading || ((jobShifts.data?.length ?? 0) > 1 && !hireShift)}
               onClick={() => { const h = hireDlg!; setHireDlg(null); moveTo(h.id, h.name, h.note, hireShift); }}>Mark as hired</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

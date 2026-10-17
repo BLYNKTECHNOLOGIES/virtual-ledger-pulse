@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePositionPlanningStatus, roleBlocksHiring, ROLE_NOT_PLANNED_MESSAGE } from "@/hooks/hrms/useWorkforcePlanning";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller, type Control } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { FileText } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidatePlanning } from "@/hooks/hrms/useWorkforcePlanning";
 import { requirementFitsJob } from "@/lib/ats/requirementOptions";
@@ -20,7 +21,7 @@ import {
 import { ChipInput, MultiSelect } from "./AtsBits";
 import { JobDetailsInput, Req } from "./AtsUi";
 import {
-  type AtsJob, atsKeys, jobKeys, useAtsMutation, useAtsSettings, useDepartmentsLookup,
+  type AtsJob, atsKeys, jobKeys, useAtsMutation, useAtsSettings, useCanManageAtsSettings, useDepartmentsLookup,
   useEmployeesLookup, usePositionsLookup, useRequirementsLookup, useShiftsLookup,
 } from "@/lib/ats/api";
 import { EMPLOYMENT_TYPES, humanize } from "@/lib/ats/format";
@@ -29,6 +30,11 @@ import { RequirementLinkEditor } from "./RequirementLinkEditor";
 import { saveJobWithLinks, useJobRequirementLinks } from "@/lib/ats/jobRequirements";
 import { ApplicationFormEditor } from "./ApplicationFormEditor";
 import { type ApplicationForm, effectiveForm } from "@/lib/ats/forms";
+import { HiringBrief, TemplateSourceLine } from "./JobTemplateBits";
+import {
+  type EffectiveJobTemplate, type TemplateFormKey, type TemplateFormValues, TEMPLATE_FIELD_LABELS, planTemplateFill, templateFormValues,
+  textDiffersFromTemplate, useJobTemplates,
+} from "@/lib/ats/jobTemplates";
 
 const NONE = "__none";
 const optNum = (min: number, max: number, label: string) =>
@@ -149,6 +155,95 @@ function LookupSelect({ value, onChange, options, placeholder, disabled }: { val
   );
 }
 
+/** What a template fill left alone, shown under "Job details". */
+type FillNotice = { typed: TemplateFormKey[]; fromRequirement: TemplateFormKey[] };
+const fieldList = (keys: TemplateFormKey[]) => keys.map((k) => TEMPLATE_FIELD_LABELS[k]).join(", ");
+const inr = (v: string) => `₹${Number(v).toLocaleString("en-IN")}`;
+/**
+ * Notes that quote one pay figure next to a different salary would show candidates two salaries. Checked as HR types,
+ * so it covers every route: a fill that kept HR's pay, "Fill from template" on an existing job, or a manual edit.
+ */
+function payMismatch(notes: string, min: string, max: string): string | null {
+  const quoted = notes.match(/₹\s?[\d,]+/)?.[0]?.replace(/\s/g, "");
+  const lo = min.trim(), hi = max.trim();
+  if (!quoted || (lo === "" && hi === "") || [lo, hi].some((v) => v !== "" && !Number.isFinite(Number(v)))) return null;
+  if (quoted === inr(lo !== "" ? lo : hi)) return null;
+  const pay = [lo, hi].filter((v) => v !== "").map(inr).join("–");
+  return `The Notes mention ${quoted}, but this job's salary is ${pay}. Check that they match before you publish.`;
+}
+
+/**
+ * The "Job details" header: the template in use, what a fill left alone, and "Fill from template".
+ * It watches the four text fields itself, so typing in them re-renders only this panel, not the whole editor.
+ */
+function TemplatePanel({ control, template, templatesReady, templatesFailed, onRetry, posId, posLabel, isEdit, notice, canEditTemplates, onReplace }: {
+  control: Control<FormValues>; template: EffectiveJobTemplate | null; templatesReady: boolean; templatesFailed: boolean; onRetry: () => void;
+  posId: string; posLabel: string | null; isEdit: boolean; notice: FillNotice | null; canEditTemplates: boolean; onReplace: () => void;
+}) {
+  const text = useWatch({ control, name: ["summary", "description", "requirements", "benefits", "salary_min", "salary_max"] });
+  const [confirm, setConfirm] = useState(false);
+  const current = { summary: text[0] ?? "", description: text[1] ?? "", requirements: text[2] ?? "", benefits: text[3] ?? "" };
+  const differs = !!template && textDiffersFromTemplate(current, template);
+  const hasOwnText = Object.values(current).some((v) => v.trim() !== "");
+  const mismatch = payMismatch(current.benefits, text[4] ?? "", text[5] ?? "");
+  const showNotice = !!template && !!notice && (notice.typed.length > 0 || notice.fromRequirement.length > 0);
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold text-muted-foreground">Job details</h3>
+        {template && differs && (
+          <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => (hasOwnText ? setConfirm(true) : onReplace())}>
+            <FileText className="h-3.5 w-3.5" aria-hidden /> Fill from template
+          </Button>
+        )}
+      </div>
+      <div role="status" aria-live="polite" className="space-y-2">
+        {template ? (
+          <>
+            <TemplateSourceLine template={template} designation={posLabel} newTab canEdit={canEditTemplates} />
+            {showNotice && (
+              <div className="space-y-1 rounded-md border border-warning/40 bg-warning/5 px-2.5 py-1.5 text-xs text-foreground">
+                {notice!.typed.length > 0 && <p>Kept what you had already entered in {fieldList(notice!.typed)}.</p>}
+                {notice!.fromRequirement.length > 0 && <p>Kept the hiring request's {fieldList(notice!.fromRequirement)}.</p>}
+                {differs && <p>Use “Fill from template” to replace the text.</p>}
+              </div>
+            )}
+            {mismatch && <p className="rounded-md border border-warning/40 bg-warning/5 px-2.5 py-1.5 text-xs text-foreground">{mismatch}</p>}
+          </>
+        ) : templatesFailed ? (
+          <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <span>Couldn't load the job templates, so nothing was filled in.</span>
+            <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onRetry}>Try again</Button>
+          </p>
+        ) : posId && !templatesReady ? (
+          <p className="text-xs text-muted-foreground">Loading the template…</p>
+        ) : posId ? (
+          <p className="text-xs text-muted-foreground">No template for this designation yet. HR admins can add one in Settings › Job templates.</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">Pick a designation to fill these details from its template.</p>
+        )}
+      </div>
+      {template && <HiringBrief template={template} designation={posLabel} />}
+
+      <AlertDialog open={confirm} onOpenChange={setConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace the job details?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Summary, Description, Requirements and Notes are replaced with the {posLabel ?? "designation"} template's text.{" "}
+              {isEdit ? "Pay, experience and employment type stay as they are." : "Pay, experience and employment type change only where you haven't set them."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep my text</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirm(false); onReplace(); }}>Replace</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 export function JobEditor({ open, job, onClose, initialRequirementId }: { open: boolean; job: AtsJob | null; onClose: () => void; initialRequirementId?: string | null }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -169,8 +264,14 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: toForm(job, defLocation) });
   const { register, control, handleSubmit, formState, watch, setValue, getValues, reset } = form;
 
+  // Which fields a hiring request filled, and the title the form set itself; both start over when the editor opens.
+  const reqFilled = useRef(new Set<string>());
+  const autoTitle = useRef("");
   useEffect(() => {
-    if (open) reset(toForm(job, defLocation));
+    if (!open) return;
+    reset(toForm(job, defLocation));
+    reqFilled.current = new Set();
+    autoTitle.current = "";
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, job?.id]);
   useEffect(() => {
@@ -205,7 +306,10 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
   const setIfEmpty = (k: keyof FormValues, v: any) => {
     const cur = getValues(k) as any;
     const empty = cur == null || cur === "" || (Array.isArray(cur) && cur.length === 0);
-    if (empty && v != null && v !== "" && !(Array.isArray(v) && v.length === 0)) setValue(k, v, { shouldDirty: true, shouldValidate: true });
+    if (!(empty && v != null && v !== "" && !(Array.isArray(v) && v.length === 0))) return false;
+    setValue(k, v, { shouldDirty: true, shouldValidate: true });
+    reqFilled.current.add(k);
+    return true;
   };
 
   const applyRequirement = (id: string, setPrimary = true) => {
@@ -216,7 +320,10 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     setIfEmpty("position_id", r.position_id ?? "");
     setIfEmpty("location", r.location ?? "");
     const et = String(r.employment_type ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-    if (EMPLOYMENT_TYPES.some((t) => t.value === et) && !formState.dirtyFields.employment_type && !isEdit) setValue("employment_type", et as any, { shouldDirty: true });
+    if (EMPLOYMENT_TYPES.some((t) => t.value === et) && !formState.dirtyFields.employment_type && !isEdit) {
+      setValue("employment_type", et as any, { shouldDirty: true });
+      reqFilled.current.add("employment_type");
+    }
     if (!isEdit || getValues("openings") === "1" || getValues("openings") === "") {
       setValue("openings", String(Math.max(r.still_needed ?? 0, 1)), { shouldDirty: true });
     }
@@ -226,7 +333,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     const reqText = [r.required_skills?.trim(), r.experience_required?.trim() ? `Experience: ${r.experience_required.trim()}` : null].filter(Boolean).join("\n");
     setIfEmpty("requirements", reqText);
     const pos = positions.data?.find((p) => p.id === r.position_id);
-    if (pos) setIfEmpty("title", pos.label);
+    if (pos && setIfEmpty("title", pos.label)) autoTitle.current = pos.label;
   };
 
   // A requirement got picked in one of the per-shift slots: fill empty fields, and when several
@@ -262,6 +369,60 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, initialRequirementId, reqOptions, positions.data, reqLinks.isLoading]);
 
+  // Job templates: a new job fills its details from the designation's template; HR's own text is never overwritten.
+  const templates = useJobTemplates(open);
+  const canEditTemplates = useCanManageAtsSettings().data === true;
+  // A template shows or fills only once HR's saved versions have loaded, so a slow or failed load can't pass the
+  // built-in default off as HR's version.
+  const template = templates.ready && posId ? templates.map.get(posId) ?? null : null;
+  const posLabel = posId ? positions.data?.find((p) => p.id === posId)?.label ?? null : null;
+  const lastApplied = useRef<TemplateFormValues | null>(null);
+  const lastTemplatePos = useRef<string>("");
+  const lastTemplateText = useRef<string>("");
+  const [fillNotice, setFillNotice] = useState<FillNotice | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    lastApplied.current = null;
+    // An existing job's designation counts as already handled, so opening it never changes its text.
+    lastTemplatePos.current = isEdit ? (job?.position_id ?? "") : "";
+    lastTemplateText.current = "";
+    setFillNotice(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, job?.id]);
+  const templateValuesNow = (): TemplateFormValues => {
+    const v = getValues();
+    return {
+      summary: v.summary, description: v.description, requirements: v.requirements, benefits: v.benefits,
+      employment_type: v.employment_type, experience_min_years: v.experience_min_years, experience_max_years: v.experience_max_years,
+      salary_min: v.salary_min, salary_max: v.salary_max, salary_period: v.salary_period, show_salary: v.show_salary,
+    };
+  };
+  const templateText = (t: EffectiveJobTemplate | null | undefined) => (t ? JSON.stringify(templateFormValues(t)) : "");
+  const applyTemplate = (positionId: string, mode: "auto" | "replace") => {
+    const t = positionId ? templates.map.get(positionId) ?? null : null;
+    // An existing job only ever takes the template's text; its pay, experience and employment type stay as they are.
+    const plan = planTemplateFill(templateValuesNow(), lastApplied.current, templateFormValues(t), mode, { textOnly: isEdit });
+    for (const [k, v] of Object.entries(plan.patch)) setValue(k as TemplateFormKey, v as never, { shouldDirty: true, shouldValidate: true });
+    lastApplied.current = plan.applied;
+    lastTemplatePos.current = positionId;
+    lastTemplateText.current = templateText(t);
+    setFillNotice(t ? {
+      typed: plan.kept.filter((k) => !reqFilled.current.has(k)),
+      fromRequirement: plan.kept.filter((k) => reqFilled.current.has(k)),
+    } : null);
+  };
+  // New jobs only: whenever the designation changes (picked by hand, from a hiring request or from Workforce
+  // Planning), and when its template changes while the editor is open (HR edited it in another tab).
+  useEffect(() => {
+    if (!open || isEdit || !templates.ready) return;
+    // Read the form, not this render's value: right after a reset the render can still hold the previous job's designation.
+    const pos = getValues("position_id") ?? "";
+    const text = templateText(pos ? templates.map.get(pos) : null);
+    if (pos === lastTemplatePos.current && text === lastTemplateText.current) return;
+    applyTemplate(pos, "auto");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, templates.ready, templates.map, posId]);
+
   const save = useAtsMutation(
     async (v: FormValues) => {
       const payload = toPayload(v);
@@ -293,7 +454,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
         open={open}
         onOpenChange={(o) => (!o ? requestClose() : undefined)}
         title={isEdit ? "Edit job" : "New job"}
-        description={isEdit ? undefined : "Fill in the basics now; you can add the rest later."}
+        description={isEdit ? undefined : "Pick a designation and its template fills in the job details. You can change anything before saving."}
         contentClassName="md:w-[calc(100vw-3rem)] md:max-w-6xl"
         footer={
           <>
@@ -332,9 +493,17 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
                 <Controller control={control} name="position_id" render={({ field }) => (
                   <LookupSelect value={field.value} placeholder="No designation" options={posOptions}
                     onChange={(v) => {
+                      const prevLabel = positions.data?.find((x) => x.id === field.value)?.label;
                       field.onChange(v);
                       const pos = positions.data?.find((x) => x.id === v);
-                      if (pos && !getValues("title").trim()) setValue("title", pos.label, { shouldDirty: true, shouldValidate: true });
+                      const title = getValues("title").trim();
+                      // The title follows the designation until HR writes their own.
+                      if (pos && (!title || title === prevLabel || title === autoTitle.current)) {
+                        setValue("title", pos.label, { shouldDirty: true, shouldValidate: true });
+                        autoTitle.current = pos.label;
+                      }
+                      // The department follows the designation (one department per designation).
+                      if (pos?.department_id && !getValues("department_id")) setValue("department_id", pos.department_id, { shouldDirty: true });
                     }} />
                 )} />
               </Field>
@@ -417,7 +586,11 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
           </section>
 
           <section className="min-w-0 space-y-3 border-t border-border pt-5 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-            <h3 className="text-xs font-semibold text-muted-foreground">Job details</h3>
+            <TemplatePanel
+              control={control} template={template} templatesReady={templates.ready} templatesFailed={templates.isError} onRetry={templates.refetch}
+              posId={posId ?? ""} posLabel={posLabel} isEdit={isEdit} notice={fillNotice} canEditTemplates={canEditTemplates}
+              onReplace={() => { if (posId) applyTemplate(posId, "replace"); }}
+            />
             <div className="grid min-w-0 grid-cols-1 gap-5">
               <div>
                 <Field label="Summary" error={e.summary?.message} htmlFor="ats-summary">
@@ -483,6 +656,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </>
   );
 }

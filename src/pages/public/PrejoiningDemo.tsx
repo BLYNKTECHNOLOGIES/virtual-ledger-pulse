@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Download, FileCheck2, RotateCcw, CheckCircle2 } from 'lucide-react';
-import { DEMO_DOCUMENTS, demoReady, demoSubmissionProblems, type DemoReview } from '@/lib/hrms/prejoiningDemo';
-import { joiningSendDateIST, nextJoiningBatch } from '@/lib/hrms/joiningBatch';
+import { DEMO_DOCUMENTS, demoJoiningChoices, demoReady, demoSubmissionProblems, type DemoReview } from '@/lib/hrms/prejoiningDemo';
+import { joiningSendDateIST } from '@/lib/hrms/joiningBatch';
 
 type Evidence = { name: string; url: string };
 const initial: Record<string, string> = {
@@ -33,9 +34,13 @@ function sampleDocument(title: string, date: string): Evidence {
   return { name: `SAMPLE-${title.replace(/[^a-z0-9]+/gi, '-')}.pdf`, url: URL.createObjectURL(pdf.output('blob')) };
 }
 function download(file: Evidence) { const a = document.createElement('a'); a.href = file.url; a.download = file.name; a.click(); }
+function displayJoiningDate(date: string): string {
+  return new Date(`${date}T00:00:00+05:30`).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+}
 export default function PrejoiningDemo() {
   const [view, setView] = useState('email');
-  const [date] = useState(() => nextJoiningBatch(joiningSendDateIST(new Date())));
+  const [choices] = useState(() => demoJoiningChoices(joiningSendDateIST(new Date())));
+  const [date, setDate] = useState(choices[0] ?? '');
   const [details, setDetails] = useState(initial);
   const [files, setFiles] = useState<Record<string, Evidence>>({});
   const [reviews, setReviews] = useState<Record<string, DemoReview>>({});
@@ -52,16 +57,25 @@ export default function PrejoiningDemo() {
   const attach = (key: string, file: Evidence) => {
     setFiles(f => ({ ...f, [key]: file })); setReviews(r => ({ ...r, [key]: 'pending' }));
   };
+  const chooseDate = (value: string) => {
+    if (!choices.includes(value) || value === date || (submitted && !correctionOpen)) return;
+    if (files.offer) URL.revokeObjectURL(files.offer.url);
+    setFiles(({ offer: _offer, ...remaining }) => remaining);
+    setReviews(r => ({ ...r, offer: 'pending', details: 'pending' }));
+    setConfirmed(false); setDate(value); setErrors([]);
+    event(`Candidate selected joining ${value}; signed offer and joining confirmation reset`);
+  };
   const submit = () => {
     const issues = demoSubmissionProblems(files, confirmed, declared);
+    if (!choices.includes(date)) issues.push('Select an available joining date');
     for (const key of ['First name', 'Date of birth', 'Mobile', 'Personal email', 'Address', 'Account holder']) if (!details[key]?.trim()) issues.push(`${key} is required`);
     if (details['Account number'] !== details['Re-enter account number']) issues.push('Bank account numbers must match');
     setErrors(issues);
     if (issues.length) return;
-    setSubmitted(true); setCorrectionOpen(false); setVersion(v => v + 1); event('Submission received for sample HR review; no employee created');
+    setSubmitted(true); setCorrectionOpen(false); setVersion(v => v + 1); event(`Submission received for sample HR review; joining ${date}; no employee created`);
   };
   const reset = () => {
-    Object.values(files).forEach(f => URL.revokeObjectURL(f.url)); setDetails(initial); setFiles({}); setReviews({}); setNotes({}); setConfirmed(false); setDeclared(false); setSubmitted(false); setCorrectionOpen(false); setVersion(0); setErrors([]); setEvents([]); setView('email');
+    Object.values(files).forEach(f => URL.revokeObjectURL(f.url)); setDate(choices[0] ?? ''); setDetails(initial); setFiles({}); setReviews({}); setNotes({}); setConfirmed(false); setDeclared(false); setSubmitted(false); setCorrectionOpen(false); setVersion(0); setErrors([]); setEvents([]); setView('email');
   };
   const groups = [
     ['Personal details', ['First name', 'Last name', 'Date of birth', 'Gender', 'Marital status', 'Mobile', 'Personal email']],

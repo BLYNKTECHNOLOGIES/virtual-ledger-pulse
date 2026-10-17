@@ -360,18 +360,6 @@ export function rotaOrder<T extends { id: string; name: string; start_time?: str
   return base;
 }
 
-/** Plain-language definitions shown next to every Workforce figure (one source for every page). */
-export const WF_DEFINITIONS = {
-  required: "People each staffing line needs, added up line by line.",
-  onRoll: "People on roll counted on a staffing line (planned designations only; people in training are counted separately).",
-  short: "Each line's shortfall (required − on roll), added up. An extra person on one line never fills a gap on another.",
-  netNeed: "Still to find: short, minus the people on the way for that line (in training, or hired and joining).",
-  beingHired: "In hiring: the part of still to find that open hiring requests (awaiting approval, approved or recruiting) already cover, line by line.",
-  notRequested: "Not requested yet: still to find that no open hiring request covers (drafts don't count until they are sent).",
-  projected: "Short on lines at the end of the period, after approved hiring, trainees and known exits (no attrition estimate).",
-  leaving: "People on notice in planned designations.",
-} as const;
-
 export type WorkforceTone = "primary" | "success" | "warning" | "destructive" | "neutral";
 /** Pill tones for requirement statuses and priorities (one mapping for every Workforce screen). */
 export const REQ_STATUS_TONE: Record<string, WorkforceTone> = {
@@ -379,9 +367,6 @@ export const REQ_STATUS_TONE: Record<string, WorkforceTone> = {
   partially_fulfilled: "success", fulfilled: "neutral", cancelled: "neutral", rejected: "destructive",
 };
 export const PRIORITY_TONE: Record<string, WorkforceTone> = { critical: "destructive", high: "warning", medium: "primary", low: "neutral" };
-export const PRIORITY_DOT: Record<string, string> = {
-  critical: "bg-destructive", high: "bg-amber-500", medium: "bg-primary", low: "bg-muted-foreground/40",
-};
 
 /** The planning shift a raw shift counts as (itself when it has no group). */
 export function planningShiftId(shifts: PlanningShiftLike[], shiftId?: string | null): string | null {

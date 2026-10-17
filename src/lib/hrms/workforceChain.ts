@@ -1,10 +1,9 @@
 /**
- * The planning chain: the six steps every Organization and Workforce Planning screen belongs to,
- * what each step hands to the next, the words used for every number and the rules the system applies.
+ * The planning chain: the six steps from a designation to people on roll, what each step hands to the next,
+ * the words used for every number and the rules the system applies — shown in "How it works".
  *
- * One source for the chain map (Overview), the chain band (top of every page) and "How it works".
- * Numbers are only added up here from the staffing matrix (per-line values from the database and
- * deriveStaffingRow); nothing is recalculated.
+ * gapParts adds up the staffing matrix (per-line values from the database and deriveStaffingRow) for the
+ * Overview's status card and the Staffing plan's summary; nothing is recalculated.
  */
 import type { StaffingDerived } from "./workforce";
 
@@ -55,8 +54,6 @@ export const CHAIN_STEPS: readonly ChainStep[] = [
     feeds: "Shows where you will be short next.",
   },
 ];
-
-export const chainStep = (key: ChainStepKey): ChainStep => CHAIN_STEPS.find((s) => s.key === key)!;
 
 /** The words used for every Workforce number, defined once (shown in "How it works" and next to figures). */
 export const WF_WORDS = {
@@ -144,117 +141,6 @@ export function gapParts(rows: StaffingDerived[]): GapParts {
 }
 
 export type PlanningStatusLike = "planned" | "no_staff_needed" | "undecided" | "outside";
-export type FlagTone = "danger" | "warning" | "ok";
-
-export interface ChainFigure {
-  key: ChainStepKey;
-  /** null while loading. */
-  value: string | null;
-  unit: string;
-  detail: string;
-  flag: { text: string; tone: FlagTone } | null;
-  /** What this step hands to the next one, with today's number. */
-  handoff: string;
-}
-
-export interface ChainFigureInput {
-  /** Designations in scope (outside planning included) with their planning status; null while loading. */
-  designations: { id: string; status: PlanningStatusLike | null }[] | null;
-  /** Active desk groups in scope; null while loading. */
-  seats: { physical_seats?: number | null; is_training_only?: boolean | null }[] | null;
-  lines: StaffingDerived[];
-  /** Open requests in scope (awaiting approval, approved, recruiting, partly filled); null while loading. */
-  openRequests: { status: string }[] | null;
-  /** Draft requests in scope (they cover nothing until sent for approval); null when unknown. */
-  drafts?: number | null;
-  /** Approved or recruiting requests with no open ATS job; null when unknown. */
-  noJob: number | null;
-  /** Open or paused ATS jobs linked to the open requests; null when unknown. */
-  liveJobs: { openings?: number | null }[] | null;
-  forecast: { closing: number; required: number; lineGap: number; endLabel: string } | null;
-  /** People on notice in scope; null when unknown. */
-  leaving?: number | null;
-}
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
-/** Today's figure for each step of the chain, in CHAIN_STEPS order. */
-export function chainFigures(input: ChainFigureInput): ChainFigure[] {
-  const g = gapParts(input.lines);
-  const following = input.lines.filter((r) => r.follow_desks).length;
-
-  const des = input.designations;
-  const count = (s: PlanningStatusLike) => (des ?? []).filter((d) => d.status === s).length;
-  const planned = count("planned");
-  const undecided = count("undecided");
-  const noStaff = count("no_staff_needed");
-  const inPlanning = planned + undecided + noStaff;
-
-  const work = (input.seats ?? []).filter((s) => !s.is_training_only);
-  const desks = work.reduce((a, s) => a + (Number(s.physical_seats) || 0), 0);
-  const trainingSeats = (input.seats ?? []).filter((s) => s.is_training_only).reduce((a, s) => a + (Number(s.physical_seats) || 0), 0);
-
-  const open = input.openRequests;
-  const pending = (open ?? []).filter((r) => r.status === "pending_approval").length;
-  const jobs = input.liveJobs;
-  const openings = (jobs ?? []).reduce((a, j) => a + (Number(j.openings) || 0), 0);
-
-  return [
-    {
-      key: "designations",
-      value: des ? String(inPlanning) : null,
-      unit: "in workforce planning",
-      detail: des ? [`${planned} planned`, undecided ? `${undecided} not decided` : null, noStaff ? `${noStaff} no staff needed` : null].filter(Boolean).join(" · ") : "",
-      flag: !des ? null : undecided ? { text: `${undecided} to decide`, tone: "warning" } : { text: "All decided", tone: "ok" },
-      handoff: des ? `${planned} with staffing lines` : "",
-    },
-    {
-      key: "desks",
-      value: input.seats ? String(desks) : null,
-      unit: desks === 1 ? "desk" : "desks",
-      detail: input.seats ? `${plural(work.length, "desk group")}${trainingSeats ? ` · +${trainingSeats} training seats` : ""}` : "",
-      flag: null,
-      handoff: `${plural(following, "line")} ${following === 1 ? "follows its" : "follow their"} desks`,
-    },
-    {
-      key: "lines",
-      value: `${g.onRoll} / ${g.required}`,
-      unit: "on roll / required",
-      detail: `${plural(g.lines, "line")}${g.required ? ` · ${Math.round((g.filling / g.required) * 100)}% staffed` : ""}${g.extra ? ` · ${g.extra} extra` : ""}`,
-      flag: !g.lines ? { text: "No staffing lines", tone: "warning" } : g.short > 0 ? { text: `${g.short} short`, tone: "danger" } : { text: "Fully staffed", tone: "ok" },
-      handoff: g.lines ? `${g.stillToFind} still to find go to hiring` : "",
-    },
-    {
-      key: "hiring",
-      value: open ? String(g.inHiring) : null,
-      unit: "people in hiring",
-      detail: open
-        ? [plural(open.length, "open request"), input.drafts ? `${plural(input.drafts, "draft")} not sent` : null, g.notRequested ? `${g.notRequested} not requested yet` : null].filter(Boolean).join(" · ")
-        : "",
-      flag: !open || (!g.lines && !open.length) ? null : pending ? { text: `${pending} to approve`, tone: "warning" } : g.notRequested ? { text: `${g.notRequested} not requested`, tone: "warning" } : { text: "All requested", tone: "ok" },
-      handoff: input.noJob ? `${input.noJob} approved, waiting for an ATS job` : "Approved ones are ready for an ATS job",
-    },
-    {
-      key: "recruit",
-      value: jobs ? String(jobs.length) : null,
-      unit: jobs && jobs.length === 1 ? "ATS job open" : "ATS jobs open",
-      detail: jobs ? [`${plural(openings, "opening")}`, g.joining || g.training ? `${g.joining + g.training} on the way` : null].filter(Boolean).join(" · ") : "",
-      flag: input.noJob ? { text: `${input.noJob} without a job`, tone: "danger" } : null,
-      handoff: "Joiners count on roll",
-    },
-    {
-      key: "forecast",
-      value: input.forecast ? `${input.forecast.closing} / ${input.forecast.required}` : null,
-      unit: input.forecast ? `by ${input.forecast.endLabel}` : "in 90 days",
-      detail: input.forecast
-        ? [input.forecast.lineGap > 0 ? `${input.forecast.lineGap} short then` : "no line short then", input.leaving ? `${input.leaving} leaving` : null].filter(Boolean).join(" · ")
-        : "",
-      flag: !input.forecast || !g.lines ? null : input.forecast.lineGap > 0 ? { text: `${input.forecast.lineGap} short in 90 days`, tone: "warning" } : { text: "On track", tone: "ok" },
-      handoff: "",
-    },
-  ];
-}
-
 /** The stages every hiring request moves through (statuses change only via hr_requirement_transition). */
 export const REQUEST_STAGES = ["Awaiting approval", "Approved", "Recruiting", "Filled"] as const;
 
@@ -313,23 +199,3 @@ export function requestWhyShort(r: WhyRequest, line?: WhyLine | null): string {
     default: return "raised by hand";
   }
 }
-
-/** Which chain step each "Needs attention" topic belongs to (group keys from useWorkforceAttention). */
-export const ATTENTION_STEP: Record<string, ChainStepKey> = {
-  "unplanned-roles": "designations",
-  "no-desk": "desks",
-  "desks-no-line": "desks",
-  "full-desks": "desks",
-  "rebalance": "lines",
-  "unplanned-people": "lines",
-  "approvals": "hiring",
-  "needs-line": "hiring",
-  "over-requested": "hiring",
-  "paused": "hiring",
-  "deadline": "hiring",
-  "no-job": "recruit",
-  "overdue": "recruit",
-  "trained": "recruit",
-  "trainee-shift": "recruit",
-  "leaving": "forecast",
-};

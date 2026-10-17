@@ -99,6 +99,14 @@ interface Props {
 const TONE_TEXT = { short: "text-destructive", met: "text-success", over: "text-warning", covered: "text-primary" } as const;
 const TONE_BG = { short: "bg-destructive/[0.06] hover:bg-destructive/10", met: "hover:bg-muted/60", over: "bg-warning/[0.08] hover:bg-warning/15", covered: "bg-primary/[0.06] hover:bg-primary/10" } as const;
 
+/** A cell's note: nothing when the line has exactly what it requires, otherwise one short phrase. */
+export function cellNote(r: StaffingDerived): string | null {
+  const t = lineTone(r);
+  if (t === "met") return null;
+  if (t === "covered") return "on the way";
+  return t === "short" ? `${r.staffingGap} short` : `${-r.staffingGap} extra`;
+}
+
 function CellTip({ r }: { r: StaffingDerived }) {
   return (
     <div className="space-y-0.5 text-xs">
@@ -123,9 +131,11 @@ function Totals({ t, strong }: { t: ReturnType<typeof sum>; strong?: boolean }) 
   return (
     <span className="inline-flex flex-col items-center leading-tight">
       <span className={cn("tabular-nums text-foreground", strong ? "text-sm font-semibold" : "text-sm")}>{t.cur} / {t.req}</span>
-      <span className={cn("text-[10px] font-medium", t.short ? "text-destructive" : t.over ? "text-warning" : "text-success")}>
-        {t.short ? `short ${t.short}` : t.over ? `${t.over} extra` : "met"}{t.short && t.over ? ` · ${t.over} extra` : ""}
-      </span>
+      {(t.short > 0 || t.over > 0) && (
+        <span className={cn("text-[10px] font-medium", t.short ? "text-destructive" : "text-warning")}>
+          {t.short ? `${t.short} short` : `${t.over} extra`}{t.short && t.over ? ` · ${t.over} extra` : ""}
+        </span>
+      )}
     </span>
   );
 }
@@ -186,7 +196,6 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
       </tr>
       {rows.map((row) => {
         const cells = Array.from(row.cells.values());
-        const follows = cells.some((r) => r.follow_desks);
         return (
           <tr key={row.key} className="group border-b border-border/60 last:border-0">
             <td className="px-3 py-2 align-middle">
@@ -194,7 +203,7 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
                 {row.seat ? (
                   <Link to="/hrms/workforce-planning/capacity-seats" className="inline-flex items-center gap-1 hover:text-primary" title="Desk group">
-                    <Armchair className="h-3 w-3 shrink-0" /> {row.seat.physical_seats} desk{row.seat.physical_seats === 1 ? "" : "s"}{follows ? " · follows desks" : ""}
+                    <Armchair className="h-3 w-3 shrink-0" /> {row.seat.physical_seats} desk{row.seat.physical_seats === 1 ? "" : "s"}
                   </Link>
                 ) : (
                   <span>No desk group</span>
@@ -238,6 +247,7 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
               }
               const tone = lineTone(r);
               const idle = r.required_hc === 0 && r.current_hc === 0;
+              const note = cellNote(r);
               const cost = costs?.get(r.plan_id);
               return (
                 <td key={c.id} className="px-1.5 py-1.5 text-center align-middle">
@@ -251,11 +261,13 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
                           <span className="block text-sm text-muted-foreground/60">—</span>
                         ) : (
                           <>
-                            <span className="block text-sm font-semibold tabular-nums text-foreground">{r.current_hc} / {r.required_hc}</span>
-                            <span className={cn("mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium", TONE_TEXT[tone])}>
-                              {lineToneLabel(r)}
-                              {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Hiring held back" />}
-                            </span>
+                            <span className={cn("block text-sm tabular-nums", note ? "font-semibold text-foreground" : "text-muted-foreground")}>{r.current_hc} / {r.required_hc}</span>
+                            {(note || r.auto_paused_at) && (
+                              <span className={cn("mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium", TONE_TEXT[tone])}>
+                                {note}
+                                {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Hiring held back" />}
+                              </span>
+                            )}
                           </>
                         )}
                         {cost && (

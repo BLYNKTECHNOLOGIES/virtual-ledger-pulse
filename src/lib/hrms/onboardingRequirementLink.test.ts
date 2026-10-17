@@ -16,6 +16,8 @@ describe("onboarding requirement link", () => {
     expect(designationCleared(existing, { position_id: "" })).toBe(false);
     expect(designationCleared(existing, { ...existing, position_id: "" })).toBe(false);
     expect(designationCleared(existing, { ...existing, department_id: "cmp", position_id: "kyc" })).toBe(false);
+    // A form that hasn't loaded yet sends blanks for both: nothing is cleared.
+    expect(designationCleared(existing, { department_id: "", position_id: "", job_role: "" })).toBe(false);
   });
   test("a partial save with a blank link and the same role keeps it", () => {
     expect(requirementLinkCleared(existing, { hiring_requirement_id: "" })).toBe(false);

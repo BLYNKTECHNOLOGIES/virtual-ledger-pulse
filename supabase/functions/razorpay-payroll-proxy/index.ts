@@ -1170,6 +1170,15 @@ async function resolvePositionId(svc: SupabaseClient, rawTitle: string): Promise
   return hit?.id ? (hit.id as string) : null;
 }
 
+// RazorpayX designation / department values HRMS didn't take on import (no active match, or HRMS holds another).
+function unmatchedFields(projDiff: any, obDiff: any): string[] {
+  const all = new Set<string>([...(projDiff?.work_info?.conflicts ?? []), ...(obDiff?.conflicts ?? [])]);
+  const out: string[] = [];
+  if (all.has("job_position_id") || all.has("position_id")) out.push("designation");
+  if (all.has("department_id")) out.push("department");
+  return out;
+}
+
 // Resolve an active department by name the same way. Never creates one.
 async function resolveDepartmentId(svc: SupabaseClient, rawName: string): Promise<string | null> {
   const want = normName(rawName);
@@ -2385,6 +2394,7 @@ Deno.serve(async (req) => {
       return json(200, {
         ok: true, hr_employee_id: hrId, created, matched_by: match.matched_by,
         conflicts: { work_info: projDiff?.work_info?.conflicts ?? [], onboarding: obDiff?.conflicts ?? [] },
+        unmatched: unmatchedFields(projDiff, obDiff),
       });
     }
 
@@ -2850,6 +2860,7 @@ Deno.serve(async (req) => {
             rows[rows.length - 1].created = created;
             rows[rows.length - 1].hr_employee_id = hrId;
             rows[rows.length - 1].onboarding_prefilled = obDiff?.wrote?.length ?? 0;
+            rows[rows.length - 1].unmatched = unmatchedFields(projDiff, obDiff);
           } catch (rowErr: any) {
             const msg = String(rowErr?.message ?? rowErr).slice(0, 800);
             rows[rows.length - 1].applied = false;

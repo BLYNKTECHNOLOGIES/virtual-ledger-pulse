@@ -10,8 +10,9 @@ const blank = (v: any) => v === undefined || v === null || (typeof v === "string
  */
 export function designationCleared(existing: Record<string, any> | null, updates: Record<string, any>): boolean {
   if (!blank(updates?.position_id) || blank(existing?.position_id)) return false;
-  if (!("department_id" in (updates || {}))) return false;
-  const next = blank(updates.department_id) ? null : updates.department_id;
+  // Only a real department counts as a move: a blank one is never written (partial saves keep the stored value).
+  if (!("department_id" in (updates || {})) || blank(updates.department_id)) return false;
+  const next = updates.department_id;
   const prev = blank(existing?.department_id) ? null : existing!.department_id;
   return next !== prev;
 }

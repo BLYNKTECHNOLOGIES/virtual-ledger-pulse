@@ -111,6 +111,8 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   // Large writing mode (whole screen, past emails beside the composer); remembered per browser.
   const [wide, setWideState] = useState(() => { try { return localStorage.getItem(WIDE_KEY) !== "0"; } catch { return true; } });
   const setWide = (v: boolean) => { setWideState(v); try { localStorage.setItem(WIDE_KEY, v ? "1" : "0"); } catch { /* storage unavailable */ } };
+  // Large reading mode: the emails alone, over almost the whole screen, in bigger type.
+  const [reading, setReading] = useState(false);
   const [preset, setPreset] = useState<ComposerPreset | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const [showActivity, setShowActivity] = useState(readActivityPref);
@@ -121,10 +123,12 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   const firstName = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "this candidate";
 
   const openComposer = (p?: { code?: string; interviewId?: string | null; ai?: boolean }) => {
+    setReading(false);
     setComposing(true);
     setPreset(p ? { ...p, nonce: Date.now() } : null);
     setFocusNonce((n) => n + 1);
   };
+
 
   useEffect(() => { if (composeSignal) setComposing(true); }, [composeSignal]);
   const expanded = enabled && composing && wide && !!candidate.email;

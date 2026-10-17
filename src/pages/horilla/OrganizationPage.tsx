@@ -1,213 +1,57 @@
-import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Building2, Plus, Pencil, Trash2 } from "lucide-react";
-import { DepartmentFormDialog } from "@/components/hrms/DepartmentFormDialog";
-import { OrgChartView } from "@/components/hrms/OrgChartView";
-import { toast } from "sonner";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useSearchParams } from "react-router-dom";
+import { Briefcase, Building2, GitBranch, Network } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OrgChartView } from "@/components/hrms/OrgChartView";
+import { OrgStructureView } from "@/components/hrms/org/OrgStructureView";
+import DepartmentsPage from "./DepartmentsPage";
+import PositionsPage from "./PositionsPage";
 
+const TABS = ["structure", "reporting", "departments", "designations"] as const;
+type OrgTab = (typeof TABS)[number];
+
+/**
+ * The one place for the organisation's structure: the designed structure (designations and who they
+ * report to), people's reporting lines, departments and designations. Every other screen reads these.
+ */
 export default function OrganizationPage() {
-  const qc = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editDept, setEditDept] = useState<any>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  const { data: departments = [], isLoading } = useQuery({
-    queryKey: ["org_departments"],
-    queryFn: async () => {
-      const { data } = await supabase.from("departments").select("*").eq("is_active", true).order("hierarchy_level");
-      return data || [];
-    },
-  });
-
-  const { data: positions = [] } = useQuery({
-    queryKey: ["org_positions"],
-    queryFn: async () => {
-      const { data } = await supabase.from("positions").select("id, department_id").eq("is_active", true);
-      return data || [];
-    },
-  });
-
-  const { data: workInfos = [] } = useQuery({
-    queryKey: ["org_work_infos"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hr_employee_work_info").select("department_id");
-      return data || [];
-    },
-  });
-
-  // Count employees and positions per department
-  const deptEmpCounts: Record<string, number> = {};
-  workInfos.forEach((w: any) => { if (w.department_id) deptEmpCounts[w.department_id] = (deptEmpCounts[w.department_id] || 0) + 1; });
-
-  const deptPosCounts: Record<string, number> = {};
-  positions.forEach((p: any) => { if (p.department_id) deptPosCounts[p.department_id] = (deptPosCounts[p.department_id] || 0) + 1; });
-
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["org_departments"] });
-    qc.invalidateQueries({ queryKey: ["org_positions"] });
-    qc.invalidateQueries({ queryKey: ["org_work_infos"] });
-  };
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    const { error } = await supabase.from("departments").update({ is_active: false }).eq("id", deleteId);
-    if (error) toast.error("Couldn't deactivate the department"); else { toast.success("Department deactivated"); refresh(); }
-    setDeleteId(null);
+  const [params, setParams] = useSearchParams();
+  const raw = params.get("tab") ?? "";
+  const tab: OrgTab = (TABS as readonly string[]).includes(raw) ? (raw as OrgTab) : "structure";
+  // Switching tabs drops the other tab's filters (e.g. ?planning=undecided).
+  const setTab = (next: string) => {
+    const n = new URLSearchParams();
+    if (next !== "structure") n.set("tab", next);
+    setParams(n, { replace: true });
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
+    <div className="hrms-page space-y-4">
       <PageHeader
         title="Organization"
-        description="Manage departments and view your organizational structure"
-        actions={
-          <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-9 gap-1.5">
-            <Plus className="h-4 w-4" /> Add Department
-          </Button>
-        }
+        description="Designations, departments and who reports to whom. Every other screen uses these."
       />
-
-      {/* Department table */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Departments</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-4"><TableSkeleton rows={4} columns={6} /></div>
-          ) : (
-            <>
-              {/* Mobile card list */}
-              <div className="md:hidden divide-y divide-border">
-                {departments.length === 0 ? (
-                  <div className="p-4">
-                    <EmptyState
-                      icon={Building2}
-                      title="No departments yet"
-                      description="Add your first department to start building your organization."
-                      action={
-                        <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-11 gap-1.5 w-full">
-                          <Plus className="h-4 w-4" /> Add Department
-                        </Button>
-                      }
-                    />
-                  </div>
-                ) : departments.map((d: any) => (
-                  <div key={d.id} className="p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <Building2 className="h-4 w-4 text-primary shrink-0" />
-                        <span className="font-medium truncate">{d.name}</span>
-                      </div>
-                      <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium font-mono shrink-0">{d.code}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div><div className="text-muted-foreground">Level</div><div className="tabular-nums">{d.hierarchy_level ?? "—"}</div></div>
-                      <div><div className="text-muted-foreground">Employees</div><div className="tabular-nums">{deptEmpCounts[d.id] || 0}</div></div>
-                      <div><div className="text-muted-foreground">Positions</div><div className="tabular-nums">{deptPosCounts[d.id] || 0}</div></div>
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => { setEditDept(d); setDialogOpen(true); }}>
-                        <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
-                      </Button>
-                      <Button variant="outline" size="sm" className="flex-1 h-10 text-destructive" onClick={() => setDeleteId(d.id)}>
-                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Deactivate
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 border-b">
-                    <tr>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Department</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Code</th>
-                      <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Hierarchy Level</th>
-                      <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employees</th>
-                      <th className="text-center px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Positions</th>
-                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {departments.map((d: any) => (
-                      <tr key={d.id} className="border-b hover:bg-muted/20 transition-colors">
-                        <td className="px-4 py-3 font-medium flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-primary" />{d.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="bg-muted/10 border border-muted/20 rounded-full px-2 py-0.5 text-[10px] font-medium font-mono">{d.code}</span>
-                        </td>
-                        <td className="px-4 py-3 text-center tabular-nums text-muted-foreground">{d.hierarchy_level ?? "—"}</td>
-                        <td className="px-4 py-3 text-center tabular-nums">{deptEmpCounts[d.id] || 0}</td>
-                        <td className="px-4 py-3 text-center tabular-nums">{deptPosCounts[d.id] || 0}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 justify-end">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDept(d); setDialogOpen(true); }} aria-label={`Edit ${d.name}`} title="Edit">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(d.id)} aria-label={`Deactivate ${d.name}`} title="Deactivate">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {departments.length === 0 && (
-                      <tr>
-                        <td colSpan={6}>
-                          <EmptyState
-                            icon={Building2}
-                            title="No departments yet"
-                            description="Add your first department to start building your organization."
-                            action={
-                              <Button onClick={() => { setEditDept(null); setDialogOpen(true); }} className="h-9 gap-1.5">
-                                <Plus className="h-4 w-4" /> Add Department
-                              </Button>
-                            }
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Org Chart */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Organization Chart</CardTitle></CardHeader>
-        <CardContent><OrgChartView /></CardContent>
-      </Card>
-
-      <DepartmentFormDialog open={dialogOpen} onOpenChange={setDialogOpen} department={editDept} onSuccess={refresh} />
-
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <Trash2 className="h-4 w-4 text-destructive" /> Deactivate department?
-            </AlertDialogTitle>
-            <AlertDialogDescription>It disappears from department pickers. You can reactivate it from Employees › Departments.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="h-9 bg-destructive text-destructive-foreground hover:bg-destructive/90">Deactivate</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="structure" className="gap-1.5"><Network className="h-3.5 w-3.5" />Structure</TabsTrigger>
+          <TabsTrigger value="reporting" className="gap-1.5"><GitBranch className="h-3.5 w-3.5" />Reporting lines</TabsTrigger>
+          <TabsTrigger value="departments" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Departments</TabsTrigger>
+          <TabsTrigger value="designations" className="gap-1.5"><Briefcase className="h-3.5 w-3.5" />Designations</TabsTrigger>
+        </TabsList>
+        <TabsContent value="structure" className="mt-0">
+          <OrgStructureView onEditDesignations={() => setTab("designations")} />
+        </TabsContent>
+        <TabsContent value="reporting" className="mt-0">
+          <p className="mb-3 text-sm text-muted-foreground">Who each person actually reports to. Each card shows the person's designation and department.</p>
+          <OrgChartView />
+        </TabsContent>
+        <TabsContent value="departments" className="mt-0">
+          <DepartmentsPage embedded />
+        </TabsContent>
+        <TabsContent value="designations" className="mt-0">
+          <PositionsPage embedded />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

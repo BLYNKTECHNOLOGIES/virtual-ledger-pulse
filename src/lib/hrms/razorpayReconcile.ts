@@ -337,7 +337,7 @@ export function reconcileOnboarding(erp: ErpInput, rp: any): ReconcileDiff[] {
     },
     {
       field: "job_role",
-      label: "Job title",
+      label: "Designation",
       erp: norm(erp.job_role),
       razorpay: rpJobRole,
       rpRawValue: rpJobRole || null,

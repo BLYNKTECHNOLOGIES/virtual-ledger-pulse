@@ -68,7 +68,7 @@ export function SeatCapacityDialog({
   const trainingBlocked = !selectedShift?.is_training_shift
     ? "Pick a training shift first (mark one as a training shift on the Shifts page)."
     : form.position_id
-      ? "Training desks belong to no role — set Position to Whole department."
+      ? "Training desks belong to no designation — set Designation to Whole department."
       : null;
 
   // Lines staffing this desk group, in operating order.
@@ -120,7 +120,7 @@ export function SeatCapacityDialog({
             <p className="text-xs text-muted-foreground">
               {training && trainingBlocked
                 ? trainingBlocked
-                : "Used only by people on a training shift. No role, and operational capacity 0, so they never count as staffing."}
+                : "Used only by people on a training shift. No designation, and operational capacity 0, so they never count as staffing."}
             </p>
           </div>
           <Switch
@@ -171,7 +171,7 @@ export function SeatCapacityDialog({
         </div>
 
         <div className="space-y-1">
-          <Label>Position (optional)</Label>
+          <Label>Designation (optional)</Label>
           <Select
             value={form.position_id ?? "none"}
             onValueChange={(v) => {
@@ -200,7 +200,7 @@ export function SeatCapacityDialog({
 
         {form.position_id && (
           <div className="space-y-2 sm:col-span-2">
-            <Label>Inter-usable roles</Label>
+            <Label>Designations that share these desks</Label>
             <div className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-2">
               {positions.map((position) => {
                 const checked = form.eligible_position_ids.includes(position.id);
@@ -223,7 +223,7 @@ export function SeatCapacityDialog({
                 );
               })}
             </div>
-            <p className="text-[11px] text-muted-foreground">Selected roles can use any seat in this shared pool.</p>
+            <p className="text-[11px] text-muted-foreground">Selected designations can use any seat in this shared pool.</p>
           </div>
         )}
 

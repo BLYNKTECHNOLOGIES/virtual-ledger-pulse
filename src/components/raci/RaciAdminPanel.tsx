@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Users, FolderTree, ListTodo, Target, BarChart3, Settings, Grid3X3 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useRaciRoles, useRaciCategories, useRaciTasks, useRaciAssignments,
   useRoleKras, useRoleKpis, useRaciMutations,
@@ -59,56 +61,94 @@ export function RaciAdminPanel({ open, onOpenChange }: Props) {
 function RolesEditor() {
   const { data: roles = [] } = useRaciRoles();
   const { upsertRole, deleteRole } = useRaciMutations();
-  const [name, setName] = useState('');
+  // RACI roles are designations: name and department follow the designation (kept by the database).
+  const { data: designations = [] } = useQuery({
+    queryKey: ['hr_positions', 'raci'],
+    queryFn: async () => {
+      const [{ data: pos, error }, { data: depts }] = await Promise.all([
+        supabase.from('positions').select('id, title, department_id').eq('is_active', true).order('title'),
+        supabase.from('departments').select('id, name'),
+      ]);
+      if (error) throw error;
+      const deptName = new Map((depts || []).map((d: any) => [d.id, d.name as string]));
+      return (pos || []).map((p: any) => ({ id: p.id as string, title: p.title as string, department: deptName.get(p.department_id) ?? null }));
+    },
+  });
+  const [positionId, setPositionId] = useState('');
   const [description, setDescription] = useState('');
-  const [department, setDepartment] = useState('');
   const [color, setColor] = useState('#4F46E5');
+  const linked = new Set(roles.map(r => r.position_id).filter(Boolean) as string[]);
+  const choices = designations.filter(d => !linked.has(d.id));
 
   const handleAdd = () => {
-    if (!name.trim()) return;
+    const d = designations.find(x => x.id === positionId);
+    if (!d) return;
     upsertRole.mutate(
-      { name: name.trim(), description: description || null, department: department || null, color },
+      { position_id: d.id, name: d.title, description: description || null, department: d.department, color },
       {
-        onSuccess: () => { setName(''); setDescription(''); setDepartment(''); toast.success('Role added'); },
+        onSuccess: () => { setPositionId(''); setDescription(''); toast.success('Role added'); },
         onError: (e) => toast.error(e.message),
       }
+    );
+  };
+  const linkRole = (role: { id: string; color: string | null; description: string | null }, id: string) => {
+    const d = designations.find(x => x.id === id);
+    if (!d) return;
+    upsertRole.mutate(
+      { id: role.id, position_id: d.id, name: d.title, department: d.department, color: role.color, description: role.description },
+      { onSuccess: () => toast.success('Linked to the designation'), onError: (e) => toast.error(e.message) }
     );
   };
 
   return (
     <div className="space-y-4 pt-2">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <Label className="text-xs">Role Name *</Label>
-          <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Operations Manager" className="h-8 text-sm" />
-        </div>
-        <div>
-          <Label className="text-xs">Department</Label>
-          <Input value={department} onChange={e => setDepartment(e.target.value)} placeholder="e.g. Operations" className="h-8 text-sm" />
+          <Label className="text-xs">Designation *</Label>
+          <Select value={positionId} onValueChange={setPositionId}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={choices.length ? 'Choose a designation' : 'Every designation is already a role'} /></SelectTrigger>
+            <SelectContent>
+              {choices.map(d => <SelectItem key={d.id} value={d.id}>{d.title}{d.department ? ` · ${d.department}` : ''}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label className="text-xs">Description</Label>
           <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Brief description" className="h-8 text-sm" />
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 sm:col-span-2">
           <div>
             <Label className="text-xs">Color</Label>
             <Input type="color" value={color} onChange={e => setColor(e.target.value)} className="h-8 w-16" />
           </div>
-          <Button onClick={handleAdd} size="sm" className="gap-1" disabled={upsertRole.isPending}>
+          <Button onClick={handleAdd} size="sm" className="gap-1" disabled={upsertRole.isPending || !positionId}>
             <Plus className="h-3 w-3" /> Add
           </Button>
+          <p className="text-[11px] text-muted-foreground">The role's name and department follow the designation in HRMS.</p>
         </div>
       </div>
       <div className="space-y-1">
         {roles.map(role => (
-          <div key={role.id} className="flex items-center justify-between p-2 rounded-lg border border-border">
-            <div className="flex items-center gap-2">
-              {role.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color }} />}
-              <span className="text-sm font-medium">{role.name}</span>
-              {role.department && <Badge variant="secondary" className="text-[10px]">{role.department}</Badge>}
+          <div key={role.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-2 rounded-lg border border-border">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                {role.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color }} />}
+                <span className="text-sm font-medium">{role.name}</span>
+                {role.department && <Badge variant="secondary" className="text-[10px]">{role.department}</Badge>}
+              </div>
+              {!role.position_id && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-amber-600">Not linked to a designation</span>
+                  <Select value="" onValueChange={(v) => linkRole(role, v)}>
+                    <SelectTrigger className="h-7 w-56 text-xs"><SelectValue placeholder="Link to a designation" /></SelectTrigger>
+                    <SelectContent>
+                      {choices.map(d => <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteRole.mutate(role.id, { onSuccess: () => toast.success('Deleted') })}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Delete ${role.name}`} onClick={() => deleteRole.mutate(role.id, { onSuccess: () => toast.success('Deleted') })}>
               <Trash2 className="h-3 w-3 text-destructive" />
             </Button>
           </div>

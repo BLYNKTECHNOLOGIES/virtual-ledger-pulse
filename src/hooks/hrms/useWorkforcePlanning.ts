@@ -73,7 +73,7 @@ export function usePositionPlanningStatus(enabled = true) {
 }
 
 export const ROLE_NOT_PLANNED_MESSAGE = (title: string) =>
-  `${title} has no staffing line. Plan its lines in Workforce Planning, or take it out of workforce planning, before hiring for it.`;
+  `${title} has no staffing line. Plan its lines in Workforce Planning, or take the designation out of workforce planning, before hiring for it.`;
 
 /** A role blocks hiring when it is in planning but on no active line. */
 export function roleBlocksHiring(status?: PositionPlanningStatus | null): boolean {

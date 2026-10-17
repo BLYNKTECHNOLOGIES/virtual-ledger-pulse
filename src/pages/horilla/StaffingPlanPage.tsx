@@ -133,7 +133,7 @@ export default function StaffingPlanPage() {
     }
     if (lineId && rows.length) {
       const r = rows.find((x) => x.plan_id === lineId);
-      if (r) setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Role" });
+      if (r) setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Designation" });
       params.delete("line"); changed = true;
     }
     if (changed) setParams(params, { replace: true });
@@ -165,7 +165,7 @@ export default function StaffingPlanPage() {
 
   const openLine = (planId: string) => {
     const r = rows.find((x) => x.plan_id === planId);
-    if (r) setPanel({ planId, roleLabel: r.position_title || "Role" });
+    if (r) setPanel({ planId, roleLabel: r.position_title || "Designation" });
   };
 
   const shiftOptions = [
@@ -178,7 +178,7 @@ export default function StaffingPlanPage() {
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Staffing plan"
-        description="Every role in every shift: people on roll against what each line requires. Select a cell to see who is counted or to change the line."
+        description="Every designation in every shift: people on roll against what each line requires. Select a cell to see who is counted or to change the line."
         actions={
           <div className={cn("grid w-full gap-2 sm:flex sm:w-auto", canManage && "grid-cols-[repeat(2,minmax(0,1fr))]")}>
             <Button variant="outline" onClick={() => setHistoryOpen(true)}><History className="h-4 w-4" /> History</Button>
@@ -234,7 +234,7 @@ export default function StaffingPlanPage() {
           </Select>
           <div className="relative col-span-2 sm:w-64">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="h-9 pl-8 text-foreground" placeholder="Search role or department" aria-label="Search role or department"
+            <Input className="h-9 pl-8 text-foreground" placeholder="Search designation or department" aria-label="Search designation or department"
               value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <SegmentedControl
@@ -273,7 +273,7 @@ export default function StaffingPlanPage() {
         <ErrorState title="Couldn't load the staffing plan" error={matrix.error} onRetry={() => matrix.refetch()} />
       ) : rows.length === 0 ? (
         <EmptyState icon={ClipboardList} title="No staffing lines yet"
-          description="Add a line for each role and shift. People on roll and the pipeline are counted for you."
+          description="Add a line for each designation and shift. People on roll and the pipeline are counted for you."
           action={canManage ? <Button onClick={() => setAddSeed({})}><Plus className="h-4 w-4" /> Add line</Button> : undefined} />
       ) : filtered.length === 0 ? (
         <EmptyState icon={Search} title="No lines match" description="Change or clear the filters to see more lines."
@@ -308,7 +308,7 @@ export default function StaffingPlanPage() {
               <tbody>
                 {filtered.map((r) => {
                   const tone = lineTone(r);
-                  const openLine = () => setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Role" });
+                  const openLine = () => setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Designation" });
                   return (
                     <tr key={r.plan_id} className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30 focus-within:bg-muted/30"
                       onClick={openLine}>

@@ -254,7 +254,7 @@ export function findRebalances(rows: StaffingDerived[]): RebalanceHint[] {
     const overTotal = over.reduce((a, o) => a + o.by, 0);
     const shortTotal = short.reduce((a, s) => a + s.by, 0);
     const movable = Math.min(overTotal, shortTotal);
-    const role = list[0].position_title || "Role";
+    const role = list[0].position_title || "Designation";
     const overText = over.map((o) => `${o.shift} has ${o.by} more than required`).join(", ");
     const shortText = short.map((s) => `${s.shift} is short ${s.by}`).join(", ");
     const biggest = short.slice().sort((a, b) => b.by - a.by)[0];
@@ -336,13 +336,13 @@ export function rotaOrder<T extends { id: string; name: string; start_time?: str
 /** Plain-language definitions shown next to every Workforce figure (one source for every page). */
 export const WF_DEFINITIONS = {
   required: "People each staffing line needs, added up line by line.",
-  onRoll: "People on roll counted on a staffing line (planned roles only; people in training are counted separately).",
+  onRoll: "People on roll counted on a staffing line (planned designations only; people in training are counted separately).",
   short: "Each line's shortfall (required − on roll), added up. A surplus on one line never covers another.",
   netNeed: "Still needed: short now, minus people in training and people already hired for that line (selected or joining).",
   beingHired: "People still to find on open hiring requirements (awaiting approval, approved or recruiting).",
   notRequested: "Still needed that no open hiring requirement covers yet (drafts don't count until they are sent).",
   projected: "Short on lines at the end of the period, after approved hiring, trainees and known exits (no attrition estimate).",
-  leaving: "People on notice in planned roles.",
+  leaving: "People on notice in planned designations.",
 } as const;
 
 export type WorkforceTone = "primary" | "success" | "warning" | "destructive" | "neutral";

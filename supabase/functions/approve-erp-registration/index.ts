@@ -10,8 +10,9 @@ const corsHeaders = {
 const BodySchema = z.object({
   registrationId: z.string().uuid("Invalid registration id"),
   roleId: z.string().uuid("Invalid role id"),
-  departmentId: z.string().uuid("Invalid department id"),
-  positionId: z.string().uuid("Invalid position id"),
+  // Optional: a login's department and designation come from HRMS once it is linked to an employee.
+  departmentId: z.string().uuid("Invalid department id").nullish(),
+  positionId: z.string().uuid("Invalid designation id").nullish(),
 });
 
 function jsonResponse(body: unknown, status = 200) {
@@ -78,8 +79,8 @@ Deno.serve(async (req) => {
     const { data: rpcResult, error: rpcError } = await adminClient.rpc("approve_registration", {
       p_registration_id: registrationId,
       p_role_id: roleId,
-      p_department_id: departmentId,
-      p_position_id: positionId,
+      p_department_id: departmentId ?? null,
+      p_position_id: positionId ?? null,
       p_approved_by: caller.id,
     });
 

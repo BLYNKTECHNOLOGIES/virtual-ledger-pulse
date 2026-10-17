@@ -1157,9 +1157,10 @@ function pickPatch<T extends Record<string, any>>(current: T | null, incoming: R
   return { patch, wrote, conflicts };
 }
 
-// Resolve a positions.id by case-/whitespace-insensitive title match,
-// creating the row on first sight so RazorpayX titles never end up unlinked.
-async function resolveOrCreatePositionId(svc: SupabaseClient, rawTitle: string): Promise<string | null> {
+// Resolve a designation (positions.id) by case-/whitespace-insensitive title match. Never creates one:
+// designations are set up on Organization › Designations, and a RazorpayX title with no match is
+// reported as a conflict instead of becoming a new, unplanned designation with no department.
+async function resolvePositionId(svc: SupabaseClient, rawTitle: string): Promise<string | null> {
   const canonical = (rawTitle || "").trim();
   if (!canonical) return null;
   const norm = canonical.toLowerCase();
@@ -1178,14 +1179,7 @@ async function resolveOrCreatePositionId(svc: SupabaseClient, rawTitle: string):
     .ilike("title", `%${canonical}%`)
     .limit(20);
   const hit = (fuzzy || []).find((p: any) => (p.title || "").trim().toLowerCase() === norm);
-  if (hit?.id) return hit.id as string;
-  const { data: created, error } = await svc
-    .from("positions")
-    .insert({ title: canonical, is_active: true, hierarchy_level: 5 })
-    .select("id")
-    .maybeSingle();
-  if (error || !created?.id) return null;
-  return created.id as string;
+  return hit?.id ? (hit.id as string) : null;
 }
 
 async function projectSnapshotIntoErp(
@@ -1219,7 +1213,7 @@ async function projectSnapshotIntoErp(
     if (d?.id) departmentId = d.id;
   }
   if (jobTitle) {
-    jobPositionId = await resolveOrCreatePositionId(svc, jobTitle);
+    jobPositionId = await resolvePositionId(svc, jobTitle);
   }
   // Resolve manager-employee-id (RazorpayX numeric id) → local hr_employee_id via employee map.
   const rzMgrRaw = snap?.["manager-employee-id"] ?? snap?.manager_employee_id ?? snap?.manager?.id ?? snap?.manager?.["employee-id"];
@@ -1234,7 +1228,7 @@ async function projectSnapshotIntoErp(
     joining_date: parseDobIso(snap?.["date-of-hiring"] ?? snap?.date_of_hiring ?? snap?.hiring_date ?? snap?.["date-of-joining"] ?? snap?.date_of_joining ?? snap?.joining_date),
     department_id: departmentId,
     job_position_id: jobPositionId,
-    job_role: jobTitle,
+    // job_role is not written: the database keeps it equal to the designation's title.
     employee_type: pickString(snap?.employee_type, snap?.employment_type),
     work_email: pickString(snap?.work_email, snap?.email)?.toLowerCase() || null,
     location: pickString(snap?.location, snap?.work_location),
@@ -1243,6 +1237,8 @@ async function projectSnapshotIntoErp(
 
   const { data: wiCur } = await svc.from("hr_employee_work_info").select("*").eq("employee_id", hrId).maybeSingle();
   const wiPick = pickPatch(wiCur as any, wiIncoming);
+  // A RazorpayX title that matches no designation is a conflict to resolve, not a new designation.
+  if (jobTitle && !jobPositionId && !wiPick.conflicts.includes("job_position_id")) wiPick.conflicts.push("job_position_id");
   if (wiCur) {
     if (Object.keys(wiPick.patch).length) {
       await svc.from("hr_employee_work_info").update(wiPick.patch).eq("employee_id", hrId);
@@ -1299,7 +1295,7 @@ async function projectSnapshotIntoOnboarding(
     if (d?.id) departmentId = d.id;
   }
   if (jobTitle) {
-    positionId = await resolveOrCreatePositionId(svc, jobTitle);
+    positionId = await resolvePositionId(svc, jobTitle);
   }
 
   // CTC comes from the salary sub-response injected onto snap.__salary by the
@@ -1336,7 +1332,7 @@ async function projectSnapshotIntoOnboarding(
     date_of_birth: parseDobIso(snap?.["date-of-birth"] ?? snap?.date_of_birth ?? snap?.dob),
     department_id: departmentId,
     position_id: positionId,
-    job_role: jobTitle,
+    // job_role is not written: the database keeps it equal to the designation's title.
     employee_type: pickString(snap?.employee_type, snap?.employment_type),
     // Razorpay actually uses `date-of-hiring` (verified against production
     // snapshots); the *-joining aliases are kept for legacy/other tenants.

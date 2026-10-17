@@ -120,7 +120,7 @@ export default function HiringRequirementsPage() {
       <div className={cn("flex flex-wrap gap-1.5", block && "w-full")} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         {jobs.map((job) => (
           <Button key={job.id} size="sm" className={cn("h-8", block && "flex-1")} onClick={() => navigate(`/hrms/ats/jobs?edit=${job.id}&requirement=${r.id}`)}
-            title={`${job.job_code ?? "This job"} "${job.title}" is open for this role — add this request to it`}>
+            title={`${job.job_code ?? "This job"} "${job.title}" is open for this designation — add this request to it`}>
             Link {job.job_code ?? "open job"}
           </Button>
         ))}
@@ -197,7 +197,7 @@ export default function HiringRequirementsPage() {
           icon={ClipboardList}
           title={requirements.length === 0 ? "No hiring requirements yet" : "Nothing here"}
           description={requirements.length === 0
-            ? "Shortages on staffing lines raise requirements automatically. You can also create one when a role opens up."
+            ? "Shortages on staffing lines raise requirements automatically. You can also create one when a designation opens up."
             : search || dept !== "all" || shift !== "all" ? "No requirement matches these filters." : "No requirement has this status right now."}
         />
       ) : (
@@ -239,7 +239,7 @@ export default function HiringRequirementsPage() {
                       <td className="px-2 py-2.5">
                         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
                           <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[priority] ?? PRIORITY_DOT.medium)} aria-hidden />
-                          <p className="font-medium text-foreground">{r.positions?.title ?? "Role"} · {shiftName(r)}</p>
+                          <p className="font-medium text-foreground">{r.positions?.title ?? "Designation"} · {shiftName(r)}</p>
                           <span aria-hidden />
                           <p className="text-xs text-muted-foreground">
                             {r.departments?.name ?? "Department"} · {PRIORITY_LABEL[priority] ?? priority} priority
@@ -292,7 +292,7 @@ export default function HiringRequirementsPage() {
                       <p className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">{r.requirement_no} · {SOURCE[r.source] ?? "Manual"}</p>
                       <button type="button" onClick={(e) => { e.stopPropagation(); open(r); }}
                         className="rounded-sm text-left font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                        {r.positions?.title ?? "Role"}
+                        {r.positions?.title ?? "Designation"}
                       </button>
                       <p className="text-xs text-muted-foreground">
                         {shiftName(r)} · {r.departments?.name ?? "Department"} · {PRIORITY_LABEL[line?.priority ?? r.priority] ?? (line?.priority ?? r.priority)} priority

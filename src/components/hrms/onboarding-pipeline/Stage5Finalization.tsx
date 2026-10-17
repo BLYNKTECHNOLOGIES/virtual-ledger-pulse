@@ -308,8 +308,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       case "ctc":
       case "probation_end_date":
       case "employee_type":
-      case "job_role":
         return { onboardingPatch: { [diff.field]: rpVal } };
+      case "job_role": {
+        // The title always comes from the designation: taking RazorpayX's title means choosing the designation
+        // of that name (in this department first). Unknown titles change nothing — add the designation first.
+        const want = rpStr.trim().toLowerCase();
+        const named = (designations || []).filter((d: any) => String(d.title).trim().toLowerCase() === want);
+        const pick = named.find((d: any) => d.department_id === onboardingRecord?.department_id) || named[0];
+        return pick ? { onboardingPatch: { position_id: pick.id } } : {};
+      }
       case "department": {
         const dep = (departments || []).find((d: any) => String(d.name).trim().toLowerCase() === rpStr.trim().toLowerCase());
         return dep ? { onboardingPatch: { department_id: dep.id } } : {};
@@ -681,6 +688,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     },
   });
 
+  const { data: designations } = useQuery({
+    queryKey: ["designations-list-stage5"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("positions").select("id, title, department_id").eq("is_active", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
 
   // Re-run reconciliation when managers list finishes loading or the
   // reporting-manager selection changes, so the "Reporting manager" row
@@ -893,7 +909,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       { key: "pan", label: "PAN (from Stage 3)", ok: /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panFromDocs) },
       { key: "doj", label: "Date of Joining", ok: !!form.date_of_joining },
       { key: "dept", label: "Department", ok: !!onboardingRecord?.department_id },
-      { key: "title", label: "Position", ok: !!onboardingRecord?.job_role },
+      { key: "title", label: "Designation", ok: !!onboardingRecord?.position_id },
       { key: "ctc", label: "Annual CTC", ok: Number(onboardingRecord?.ctc) > 0 },
       { key: "bank_account", label: "Bank Account Number", ok: !!form.bank_account_number.trim() },
       { key: "bank_ifsc", label: "Bank IFSC (valid format)", ok: ifscOk },

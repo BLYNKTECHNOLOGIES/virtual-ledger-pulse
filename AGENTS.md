@@ -30,4 +30,4 @@
 - Auth owns sign-in times/logs; ERP-shell heartbeat is self-only for consistent presence. Legacy role_functions are immutable with retained role UUIDs after deletion, preserving history without blocking role removal.
 - Binance account access comes only from public.binance_accounts_for_user (screen + edge functions), so they cannot drift.
 
-- Database triggers derive designation copies and logins from positions/active HR work info; departed employees and closed onboarding retain history to prevent inconsistent copies.
+- One designation per person (a positions row): while employed, triggers copy its title (job_role), grade (level_band) and department onto work info (open onboarding too; leavers keep the title held at exit), and ERP logins and RACI roles follow it. hierarchy_level is the company grade (1 most senior … 8 Associate), reports_to_position_id the JD-Compendium structure; people's managers are separate. Departments and designations are edited only on HRMS › Organization and RazorpayX imports never create them, so every screen and letter shows one title.

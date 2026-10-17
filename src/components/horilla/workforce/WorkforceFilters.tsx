@@ -85,10 +85,10 @@ export function WorkforceFilters({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All roles</SelectItem>
+            <SelectItem value="all">All designations</SelectItem>
             {roles.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
             {value.positionId !== "all" && !roles.some((p) => p.id === value.positionId) && (
-              <SelectItem value={value.positionId}>{positions.find((p) => p.id === value.positionId)?.title ?? "Selected role"}</SelectItem>
+              <SelectItem value={value.positionId}>{positions.find((p) => p.id === value.positionId)?.title ?? "Selected designation"}</SelectItem>
             )}
           </SelectContent>
         </Select>

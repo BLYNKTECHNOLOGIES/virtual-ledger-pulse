@@ -40,41 +40,10 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     phone: "",
     badge_id: "",
     password: "",
-    confirmPassword: "",
-    department_id: "",
-    position_id: ""
+    confirmPassword: ""
   });
 
-  // Fetch departments and positions
-  const { data: departments = [] } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('departments')
-        .select('*')
-        .eq('is_active', true)
-        .order('hierarchy_level', { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: positions = [] } = useQuery({
-    queryKey: ['positions', formData.department_id],
-    queryFn: async () => {
-      if (!formData.department_id) return [];
-      const { data, error } = await supabase
-        .from('positions')
-        .select('*')
-        .eq('department_id', formData.department_id)
-        .eq('is_active', true)
-        .order('hierarchy_level', { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!formData.department_id,
-  });
-
+  // Department and designation are not chosen here: they come from HRMS once the login is linked to an employee.
   // Enhanced permission check with detailed logging
   const canCreateUsers = () => {
 
@@ -182,9 +151,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
           phone: "",
           badge_id: "",
           password: "",
-          confirmPassword: "",
-          department_id: "",
-          position_id: ""
+          confirmPassword: ""
         });
         setOpen(false);
       }
@@ -277,43 +244,9 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
                   className="font-mono placeholder:font-sans"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="department">Department</Label>
-                <Select
-                  value={formData.department_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, department_id: value, position_id: "" }))}
-                >
-                  <SelectTrigger id="department">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id}>
-                        {dept.icon} {dept.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="position">Position</Label>
-                <Select
-                  value={formData.position_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, position_id: value }))}
-                  disabled={!formData.department_id}
-                >
-                  <SelectTrigger id="position">
-                    <SelectValue placeholder={formData.department_id ? "Select position" : "Pick a department first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {positions.map((pos) => (
-                      <SelectItem key={pos.id} value={pos.id}>
-                        {pos.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <p className="self-end text-xs text-muted-foreground sm:col-span-2">
+                Department and designation come from the person's HRMS record once this login is linked to it.
+              </p>
             </div>
           </FormSection>
 

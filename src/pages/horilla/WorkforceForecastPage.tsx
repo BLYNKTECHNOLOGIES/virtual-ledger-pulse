@@ -173,7 +173,7 @@ export default function WorkforceForecastPage() {
             options={(lookups?.departments || []).map((d) => ({ value: d.id, label: d.name }))} />
           <ScopeSelect label="Shift" value={shift} onChange={setShift} all="All shifts"
             options={rotaOrder(planningShifts((lookups?.shifts || []) as any[])).map((s: any) => ({ value: s.name, label: s.name }))} />
-          <ScopeSelect label="Role" value={positionId} onChange={setPositionId} all="All roles"
+          <ScopeSelect label="Designation" value={positionId} onChange={setPositionId} all="All designations"
             options={(lookups?.positions || []).filter((p: any) => p.in_workforce_planning !== false)
               .filter((p: any) => departmentId === "all" || p.department_id === departmentId)
               .map((p: any) => ({ value: p.id, label: p.title }))} />
@@ -375,7 +375,7 @@ export default function WorkforceForecastPage() {
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {historyQ.isError ? "Actual history couldn't be loaded." : !historyQ.data ? "Loading the actual history…" :
-                `${actual.exits} exit${actual.exits === 1 ? "" : "s"} in the last ${actual.months} months = ${actual.pct}% a month (planned roles only).`}
+                `${actual.exits} exit${actual.exits === 1 ? "" : "s"} in the last ${actual.months} months = ${actual.pct}% a month (planned designations only).`}
               {" "}In use: <span className="font-medium text-foreground">{attritionPct}% — {sourceText}</span>.
               {override?.notes ? ` Note: ${override.notes}` : ""}
             </p>

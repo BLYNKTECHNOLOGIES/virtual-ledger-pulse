@@ -204,7 +204,7 @@ export default function HorillaDashboard() {
   const stats = [
     { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month · ${separatedCount} separated not counted`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
     { label: "Active Employees", to: "/hrms/employee", value: activeEmployees, sub: "separated staff excluded", icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
-    { label: "Open Positions", to: "/hrms/ats/jobs", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
+    { label: "Open jobs", to: "/hrms/ats/jobs", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
     { label: "Candidates", to: "/hrms/ats/candidates", value: atsCounts?.candidates ?? 0, sub: `${atsCounts?.hired ?? 0} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Present Today", to: "/hrms/attendance", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Pending Leaves", to: "/hrms/leave/requests", value: pendingCount, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },

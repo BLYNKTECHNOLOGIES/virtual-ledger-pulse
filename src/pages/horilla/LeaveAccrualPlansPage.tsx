@@ -157,7 +157,7 @@ export default function LeaveAccrualPlansPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Leave Accrual Plans"
-        description="Auto-allocate leave based on job position/department with configurable accrual periods"
+        description="Auto-allocate leave based on designation/department with configurable accrual periods"
         actions={
           <>
             <Button variant="outline" onClick={() => runAccrualMutation.mutate()} disabled={runAccrualMutation.isPending} className="h-9">
@@ -350,7 +350,7 @@ export default function LeaveAccrualPlansPage() {
                   <SelectContent>
                     <SelectItem value="all">All Employees</SelectItem>
                     <SelectItem value="department">Specific Department</SelectItem>
-                    <SelectItem value="position">Specific Position</SelectItem>
+                    <SelectItem value="position">Specific designation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

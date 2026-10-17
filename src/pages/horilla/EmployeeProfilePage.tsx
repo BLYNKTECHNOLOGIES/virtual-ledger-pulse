@@ -1,4 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { gradeLabel } from "@/lib/hrms/designations";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deriveEmployeeStatus, useEmployeeStatusContext } from "@/lib/hrms/employeeStatus";
 import { useProbationStatus } from "@/hooks/useProbationStatus";
@@ -412,7 +413,7 @@ export default function EmployeeProfilePage() {
   const { data: allPositions } = useQuery({
     queryKey: ["positions_list"],
     queryFn: async () => {
-      const { data } = await supabase.from("positions").select("id, title, department_id").eq("is_active", true).order("title");
+      const { data } = await supabase.from("positions").select("id, title, department_id, hierarchy_level").eq("is_active", true).order("title");
       return data || [];
     },
   });
@@ -709,10 +710,8 @@ export default function EmployeeProfilePage() {
         shift_id: workInfoForm.shift_id || null,
         department_id: workInfoForm.department_id || null,
         job_position_id: workInfoForm.job_position_id || null,
-        // Job Role is retired — Position is the single designation. We keep the
-        // legacy column in sync with the selected position title so downstream
-        // consumers (RazorpayX push, documents, drift scan) keep working.
-        job_role: (allPositions || []).find((p: any) => p.id === workInfoForm.job_position_id)?.title || null,
+        // The designation is the only title: the database copies its title (job_role) and grade (level_band)
+        // onto work info, and the department follows the designation.
         work_type: workInfoForm.work_type || null,
         employee_type: workInfoForm.employee_type || null,
         location: workInfoForm.location || null,
@@ -723,7 +722,6 @@ export default function EmployeeProfilePage() {
         joining_date: workInfoForm.joining_date || null,
         contract_end_date: workInfoForm.contract_end_date || null,
         experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
-        level_band: workInfoForm.level_band || null,
       };
 
       if (workInfo?.id) {
@@ -1164,15 +1162,23 @@ export default function EmployeeProfilePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Department</label>
-                      <select value={workInfoForm.department_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, department_id: e.target.value })} className={inputCls}>
+                      <select value={workInfoForm.department_id || ""} onChange={e => {
+                        // A designation belongs to one department: changing the department clears a designation from another one.
+                        const keep = (allPositions || []).some((p: any) => p.id === workInfoForm.job_position_id && p.department_id === e.target.value);
+                        setWorkInfoForm({ ...workInfoForm, department_id: e.target.value, job_position_id: keep ? workInfoForm.job_position_id : "" });
+                      }} className={inputCls}>
                         <option value="">Select Department</option>
                         {(departments || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Position</label>
-                      <select value={workInfoForm.job_position_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, job_position_id: e.target.value })} className={inputCls}>
-                        <option value="">Select Position</option>
+                      <label className="text-xs text-muted-foreground block mb-1">Designation</label>
+                      <select value={workInfoForm.job_position_id || ""} onChange={e => {
+                        // The department follows the designation.
+                        const pos: any = (allPositions || []).find((p: any) => p.id === e.target.value);
+                        setWorkInfoForm({ ...workInfoForm, job_position_id: e.target.value, department_id: pos?.department_id || workInfoForm.department_id });
+                      }} className={inputCls}>
+                        <option value="">Select designation</option>
                         {(allPositions || []).filter((p: any) => !workInfoForm.department_id || p.department_id === workInfoForm.department_id).map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}
                       </select>
                     </div>
@@ -1212,7 +1218,7 @@ export default function EmployeeProfilePage() {
                 <div className="md:hidden">
                   <MobileInfoGrid items={[
                     { label: "Badge ID", value: emp.badge_id },
-                    { label: "Position", value: position?.title || "None" },
+                    { label: "Designation", value: position?.title || "None" },
                     { label: "Department", value: dept?.name || "None" },
                     { label: "Shift", value: shift?.name || "None" },
                     { label: "Work Type", value: workTypeLabel(workInfo?.work_type) },
@@ -1225,7 +1231,7 @@ export default function EmployeeProfilePage() {
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Badge Id</th>
-                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Position</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Designation</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Department</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Shift</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Work Type</th>
@@ -1338,11 +1344,15 @@ export default function EmployeeProfilePage() {
                     <input type="number" value={workInfoForm.experience_years || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, experience_years: e.target.value })} className={inputCls} />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Level Band (drives training-period pay)</label>
-                    <select value={workInfoForm.level_band || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, level_band: e.target.value })} className={inputCls}>
-                      <option value="">— Not set —</option>
-                      {["L1","L2","L3","L4","L5","L6","L7","L8"].map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
+                    <label className="text-xs text-muted-foreground block mb-1">Grade (from the designation)</label>
+                    {(() => {
+                      const g = (allPositions || []).find((p: any) => p.id === workInfoForm.job_position_id)?.hierarchy_level;
+                      return (
+                        <p className="flex h-9 items-center rounded-md border border-dashed border-border px-3 text-sm text-muted-foreground">
+                          {!workInfoForm.job_position_id ? "Choose a designation" : g ? gradeLabel(g) : "Not graded — set it on Organization › Designations"}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

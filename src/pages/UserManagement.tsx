@@ -1165,7 +1165,7 @@ export default function UserManagement() {
                     {deletedIsHrmsActive && userBeingDeleted && (
                       <p className="flex items-start gap-1.5 font-medium text-warning">
                         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                        {personName(userBeingDeleted)} is still active in HRMS ({[hrmsOfDeleted?.department, hrmsOfDeleted?.position].filter(Boolean).join(" / ") || "no department / position"}). Offboarding them in HRMS removes access automatically after their last working day.
+                        {personName(userBeingDeleted)} is still active in HRMS ({[hrmsOfDeleted?.department, hrmsOfDeleted?.position].filter(Boolean).join(" / ") || "no department / designation"}). Offboarding them in HRMS removes access automatically after their last working day.
                       </p>
                     )}
                     <p>This permanently removes the login, the sign-in account and all Terminal access. Past orders and ledgers are kept, with the user reference removed. Their HRMS employee record is kept.</p>

@@ -95,7 +95,7 @@ export function WorkforceBudgetCard({ canManage, filtered = false }: { canManage
                   <Link className="text-primary underline-offset-2 hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${u.id}`}>
                     {u.requirement_no}
                   </Link>{" "}
-                  · {u.position_title ?? "Role"} × {u.people} · {u.per_person != null ? `${formatInr(u.per_person)} (${u.basis})` : "₹0 — no salary data"} · add a salary range
+                  · {u.position_title ?? "Designation"} × {u.people} · {u.per_person != null ? `${formatInr(u.per_person)} (${u.basis})` : "₹0 — no salary data"} · add a salary range
                 </li>
               ))}
             </ul>

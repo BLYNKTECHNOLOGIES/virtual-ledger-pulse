@@ -261,7 +261,7 @@ export function HiringRequirementDetailDialog({
           {(r.adds_headcount ?? 0) > 0 && <StatusPill tone="primary">Adds +{r.adds_headcount} headcount</StatusPill>}
         </span>
       }
-      description={`${r.positions?.title ?? "Position"} · ${r.departments?.name ?? "Department"} · ${line?.shiftLabel || r.shift_label || "Any shift"}`}
+      description={`${r.positions?.title ?? "Designation"} · ${r.departments?.name ?? "Department"} · ${line?.shiftLabel || r.shift_label || "Any shift"}`}
       contentClassName="md:max-w-5xl"
       focusContainer
       footer={footer}
@@ -327,7 +327,7 @@ export function HiringRequirementDetailDialog({
               <p className="rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground">
                 No ATS job yet.{recruiting
                   ? linkJobs.length
-                    ? ` ${linkJobs.map((j) => j.job_code ?? j.title).join(", ")} is already open for this role — link this request to it instead of posting again.`
+                    ? ` ${linkJobs.map((j) => j.job_code ?? j.title).join(", ")} is already open for this designation — link this request to it instead of posting again.`
                     : ` A new job will start with ${stillNeeded} opening${stillNeeded === 1 ? "" : "s"}.`
                   : " A job can be created once this is approved."}
               </p>
@@ -505,7 +505,7 @@ export function HiringRequirementDetailDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Approve {r.requirement_no}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {needed} {needed === 1 ? "person" : "people"} for {r.positions?.title ?? "this role"}. Once approved, an ATS job can be opened.
+              {needed} {needed === 1 ? "person" : "people"} for {r.positions?.title ?? "this designation"}. Once approved, an ATS job can be opened.
               {(r.adds_headcount ?? 0) > 0 && (line?.follow_desks
                 ? ` This request adds ${r.adds_headcount} beyond the line's required number, but the line follows its desk group and can't exceed its desks — switch the line to fixed numbers first (Staffing Plan) or add desks.`
                 : ` This request adds headcount: approving also raises the line's required number by ${r.adds_headcount}${line ? ` (${line.required_hc} → ${line.required_hc + r.adds_headcount})` : ""}, recorded in the line's history.`)}

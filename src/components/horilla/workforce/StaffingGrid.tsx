@@ -105,7 +105,7 @@ function CellTip({ r }: { r: StaffingDerived }) {
       <p className="font-medium">{r.current_hc} on roll of {r.required_hc} required</p>
       {(r.selected_hc > 0 || r.pending_joining_hc > 0) && <p>Joining {r.selected_hc + r.pending_joining_hc}{r.selected_hc ? ` (${r.selected_hc} without a joining date)` : ""}</p>}
       {r.in_training_hc > 0 && <p>In training {r.in_training_hc}{r.training_ready_date ? ` (ready ${formatIstDate(r.training_ready_date)})` : ""}</p>}
-      <p>In hiring {r.open_requirement_hc}{r.open_requirement_count ? ` in ${r.open_requirement_count} request${r.open_requirement_count === 1 ? "" : "s"}` : ""}</p>
+      <p>In requests {r.open_requirement_hc}{r.open_requirement_count ? ` (${r.open_requirement_count} request${r.open_requirement_count === 1 ? "" : "s"})` : ""}</p>
       {r.over_requested_hc > 0 && <p className="text-warning">Over-requested by {r.over_requested_hc}</p>}
       {r.netHiringRequirement > 0 && <p>Still to find {r.netHiringRequirement} · not requested yet {r.uncoveredHiringRequirement}</p>}
       {r.follow_desks && <p className="text-muted-foreground">Follows its desk group</p>}

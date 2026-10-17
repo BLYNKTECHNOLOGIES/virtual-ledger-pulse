@@ -204,7 +204,7 @@ export default function WorkforceForecastPage() {
               <Cell label={`By ${formatIstDate(end)}`} value={historyReady ? <>{t.closing}<span className="text-lg font-medium text-muted-foreground"> / {t.required}</span></> : "…"}
                 helper={`+${inflow} in · −${historyReady ? outflow : "…"} out`} />
               <Cell label="Short on lines then" tone={t.lineGap > 0 ? "danger" : "success"} value={t.lineGap}
-                helper={includePending ? "if approved and pending hiring lands on time" : "if approved hiring lands on its target date"} />
+                helper={`${includePending ? "if approved and pending hiring lands on time" : "if approved hiring lands on its target date"} · before the attrition estimate`} />
               <Cell label="Attrition estimate" tone={t.estimatedExtraNeed > 0 ? "warning" : "default"}
                 value={!historyReady ? "…" : !override && historyQ.isError ? "—" : `${attritionPct}%`}
                 helper={!override && historyQ.isError ? "history couldn't load"
@@ -340,7 +340,10 @@ export default function WorkforceForecastPage() {
                         {!e.plan_id && <StatusPill tone="neutral">Not on a staffing line</StatusPill>}
                         {e.related_requirement_no
                           ? <StatusPill tone="success">Replacement {e.related_requirement_no}</StatusPill>
-                          : <StatusPill tone="warning">No replacement request</StatusPill>}
+                          : <>
+                              <StatusPill tone="warning">No replacement request</StatusPill>
+                              <Link to="/hrms/employee/separation" className="self-center text-xs text-primary underline-offset-2 hover:underline">Raise one on Separation</Link>
+                            </>}
                       </div>
                     </div>
                   ))}

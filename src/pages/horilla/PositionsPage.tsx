@@ -780,14 +780,19 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
           {leaving && (leaveCheck.blocked || leaveCheck.pend.length > 0 || leaveCheck.drafts.length > 0) && (
             <div className="space-y-2 text-sm">
               {leaveCheck.blocked && <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-destructive">
-                <p>{confirmSwitch?.p.title} still has live hiring, so it can't leave workforce planning or become tentative yet. Close these, or move them to another designation's line, first:</p>
+                <p>
+                  {confirmSwitch?.p.title} still has live hiring, so it can't {confirmSwitch?.kind === "planning" ? "leave workforce planning" : "become tentative"} yet.
+                  First {[leaveCheck.hiring.length ? "cancel these requests" : null, leaveCheck.jobs.length ? "close these ATS jobs" : null].filter(Boolean).join(" and ")} (an approved request can't move to another designation):
+                </p>
                 <ul className="text-foreground">
                   {leaveCheck.hiring.map((q: any) => <li key={q.id}>{q.requirement_no} · {REQ_STATUS_LABEL[q.status] ?? q.status} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}
-                  {leaveCheck.jobs.map((j: any) => <li key={j.id}>{j.job_code ?? j.title} · {j.status} ATS job</li>)}
+                  {leaveCheck.jobs.map((j: any) => <li key={j.id}>{j.job_code ?? j.title} · {j.status === "draft" ? "Draft" : j.status === "paused" ? "Paused" : "Open"} ATS job</li>)}
                 </ul>
               </div>}
               {!leaveCheck.blocked && leaveCheck.pend.length > 0 && <div>
-                <p className="text-muted-foreground">These requests awaiting approval will be cancelled (reason: designation taken out of planning):</p>
+                <p className="text-muted-foreground">
+                  These requests awaiting approval will be cancelled (reason: “{confirmSwitch?.kind === "planning" ? "Position taken out of planning" : "Position marked tentative"}”):
+                </p>
                 <ul className="text-foreground">{leaveCheck.pend.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
               </div>}
               {!leaveCheck.blocked && leaveCheck.drafts.length > 0 && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-warning">
@@ -796,9 +801,12 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
               </div>}
             </div>
           )}
+          {leaving && openOnLines.isError && (
+            <p className="text-sm text-destructive">Couldn't check this designation's open hiring requests and ATS jobs, so this can't be confirmed now. Go back and try again.</p>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Back</AlertDialogCancel>
-            <AlertDialogAction disabled={leaving && (openOnLines.isLoading || leaveCheck.blocked)} onClick={() => {
+            <AlertDialogAction disabled={leaving && (openOnLines.isLoading || openOnLines.isError || leaveCheck.blocked)} onClick={() => {
               const c = confirmSwitch; setConfirmSwitch(null);
               if (!c) return;
               if (c.kind === "planning") planningMutation.mutate({ id: c.p.id, value: c.value });

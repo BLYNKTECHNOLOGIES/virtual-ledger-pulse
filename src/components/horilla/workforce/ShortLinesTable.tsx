@@ -158,7 +158,7 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
                       <td className="px-4 py-2.5">
                         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
                           <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
-                          <p className="truncate font-medium text-foreground" title={r.position_title ?? undefined}><DesignationLink id={r.position_id} label={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
+                          <p className="truncate font-medium text-foreground"><DesignationLink id={r.position_id} label={r.position_title ?? undefined} tooltip={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
                           <span aria-hidden />
                           <p className="truncate text-xs text-muted-foreground" title={r.priority_why ? priorityWhyText(r.priority_why) : undefined}>
                             {r.shiftLabel} · {r.department_name} · {priorityText(r)}
@@ -191,7 +191,7 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                     <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
                       <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
-                      <p className="truncate font-medium text-foreground"><DesignationLink id={r.position_id} label={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
+                      <p className="truncate font-medium text-foreground"><DesignationLink id={r.position_id} label={r.position_title ?? undefined} tooltip={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
                       <span aria-hidden />
                       <p className="text-xs text-muted-foreground">{r.shiftLabel} · {r.department_name} · {priorityText(r)}</p>
                     </div>

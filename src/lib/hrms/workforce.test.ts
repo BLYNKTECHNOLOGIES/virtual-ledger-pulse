@@ -71,6 +71,7 @@ describe("workforce rules", () => {
     expect(shiftShort("Management")).toBe("Management shift");
     expect(shiftShort("Any shift")).toBe("Any shift");
     expect(shiftShort(null)).toBe("Any shift");
+    expect(shiftShort("Morning Shift + Evening Shift")).toBe("Morning + Evening");
   });
 
   test("an exact duplicate line gets plain words", () => {

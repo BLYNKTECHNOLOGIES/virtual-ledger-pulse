@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { usePositionPlanningStatus } from "@/hooks/hrms/useWorkforcePlanning";
+import { usePositionPlanningStatus, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -93,6 +93,14 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
       return (data || []) as any[];
     },
   });
+  // Staffing-plan figures per department (same per-line sums as Workforce Planning).
+  const matrix = useStaffingMatrix();
+  const planIn = (deptId: string) => {
+    const lines = matrix.rows.filter((r) => r.department_id === deptId);
+    if (!lines.length) return null;
+    return lines.reduce((a, r) => ({ lines: a.lines + 1, required: a.required + r.required_hc, onRoll: a.onRoll + r.current_hc, short: a.short + Math.max(0, r.staffingGap) }),
+      { lines: 0, required: 0, onRoll: 0, short: 0 });
+  };
   const empCounts = (directory || []).reduce<Record<string, number>>((acc, d: any) => {
     if (d.department_id) acc[d.department_id] = (acc[d.department_id] || 0) + 1;
     return acc;
@@ -283,11 +291,20 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
               {d.description && <p className="text-sm text-muted-foreground mt-3 break-words">{d.description}</p>}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />
-                  {directory ? `${empCounts[d.id] || 0} on roll` : "…"}</span>
+                  {directory ? `${empCounts[d.id] || 0} ${(empCounts[d.id] || 0) === 1 ? "person" : "people"}` : "…"}</span>
                 <Link to={`/hrms/organization?tab=designations&department=${d.id}&status=active`} className="inline-flex items-center gap-1.5 underline-offset-2 hover:text-foreground hover:underline">
                   <Briefcase className="h-3.5 w-3.5" />{designationsIn(d.id)} designation{designationsIn(d.id) === 1 ? "" : "s"}
                 </Link>
               </div>
+              {(() => {
+                const p = planIn(d.id);
+                return p ? (
+                  <Link to={`/hrms/workforce-planning/staffing-plan?department=${d.id}`}
+                    className="mt-2 block text-xs text-primary underline-offset-2 hover:underline">
+                    Staffing plan: {p.onRoll} of {p.required} on roll on {p.lines} line{p.lines === 1 ? "" : "s"}{p.short ? ` · ${p.short} short` : " · fully staffed"}
+                  </Link>
+                ) : null;
+              })()}
               {canManageHeads && undecidedIn(d.id) > 0 && (
                 <Link to={`/hrms/organization?tab=designations&department=${d.id}&planning=undecided`}
                   className="mt-2 inline-block text-xs font-medium text-amber-600 underline-offset-2 hover:underline">

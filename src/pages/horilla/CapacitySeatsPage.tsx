@@ -535,7 +535,7 @@ export default function CapacitySeatsPage() {
     return m;
   }, [matrix.rows, allShifts]);
   const setsLine = (s: any) => {
-    if (s.is_training_only || matrix.isLoading) return null;
+    if (s.is_training_only || matrix.isLoading || (matrix.isError && !matrix.data)) return null;
     const list = deskSets.get(s.id) ?? [];
     if (!list.length) return <p className="text-[11px] text-warning">No staffing line uses these desks yet</p>;
     const follow = list.filter((x) => x.follow);

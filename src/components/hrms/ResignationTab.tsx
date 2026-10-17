@@ -1069,7 +1069,7 @@ export function ResignationTab() {
                   No replacement request now. After they leave, their line's automatic request covers the empty desk (100% occupancy).
                   To stop hiring for it, lower the line's required number or its desks in{" "}
                   <RouterLink className="text-primary hover:underline" to="/hrms/workforce-planning/staffing-plan">Staffing Plan</RouterLink> /{" "}
-                  <RouterLink className="text-primary hover:underline" to="/hrms/workforce-planning/capacity-seats">Capacity &amp; Seats</RouterLink>.
+                  <RouterLink className="text-primary hover:underline" to="/hrms/workforce-planning/capacity-seats">Desks</RouterLink>.
                 </p>
               )}
             </div>

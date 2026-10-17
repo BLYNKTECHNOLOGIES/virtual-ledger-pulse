@@ -66,7 +66,7 @@ export function HowItWorksSheet({ open, onOpenChange, current }: { open: boolean
           <section aria-label="The numbers" className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">The numbers</h3>
             <p className="rounded-lg border border-border px-3 py-2 text-sm text-foreground">
-              Required − on roll = <b>short</b> &nbsp;·&nbsp; short − on the way = <b>still to find</b> &nbsp;·&nbsp; still to find = <b>in hiring</b> + <b>not requested yet</b>
+              Required − filled by people on roll = <b>short</b> &nbsp;·&nbsp; short − on the way = <b>still to find</b> &nbsp;·&nbsp; still to find = <b>in hiring</b> + <b>not requested yet</b>
             </p>
             <dl className="divide-y divide-border rounded-lg border border-border">
               {Object.values(WF_WORDS).map((w) => (

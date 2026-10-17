@@ -137,15 +137,28 @@ export default function WorkforceOverviewPage() {
         if (HIRING.has(q.status) && jobs.length === 0) noJob = (noJob ?? 0) + 1;
       }
     }
-    return chainFigures({
+    const out = chainFigures({
       designations, seats, lines: filtered,
       openRequests: reqs.data ? openReqs : null,
+      drafts: reqs.data ? requirements.filter((r) => r.status === "draft" && inFilters(r)).length : null,
       noJob, liveJobs: reqJobs.data ? Array.from(live.values()) : null,
       forecast: projected,
       leaving: leavingQ.data ? leaving.length : null,
     });
+    // A step whose rows failed to load says so instead of loading for ever.
+    const failed: Record<string, boolean> = {
+      designations: (catalog.isError && !catalog.data) || (planning.isError && !planning.data),
+      desks: seatsQ.isError && !seatsQ.data,
+      hiring: reqs.isError && !reqs.data,
+      recruit: reqJobs.isError && !reqJobs.data,
+      forecast: events.isError && !events.data,
+    };
+    return out.map((f) => (f.value == null && failed[f.key] ? { ...f, value: "—", unit: "couldn't load", detail: "", flag: null, handoff: "" } : f));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalog.data, planning.data, seatsQ.data, filtered, reqs.data, reqJobs.data, projected, leaving, leavingQ.data, filters.departmentId, filters.positionId]);
+  }, [catalog.data, catalog.isError, planning.data, planning.isError, seatsQ.data, seatsQ.isError, filtered, reqs.data, reqs.isError,
+    reqJobs.data, reqJobs.isError, events.isError, events.data, projected, leaving, leavingQ.data, filters]);
+  // Steps 1 and 2 are narrowed only by department and designation; every other filter applies from step 3 on.
+  const narrowed = filters.shift !== "all" || filters.employmentType !== "all" || filters.status !== "all" || filters.priority !== "all" || !!filters.fromDate || !!filters.toDate;
 
   const byShift = useMemo<BreakdownRow[]>(() => {
     const m = new Map<string, BreakdownRow>();
@@ -220,35 +233,6 @@ export default function WorkforceOverviewPage() {
         </>
       ) : matrix.isError && rows.length === 0 ? (
         <ErrorState title="Couldn't load staffing figures" error={matrix.error} onRetry={() => matrix.refetch()} />
-      ) : rows.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="No staffing lines yet"
-          description="Add a line for each designation and shift in the staffing plan. People on roll and the pipeline are then counted for you."
-          action={<Button asChild><Link to="/hrms/workforce-planning/staffing-plan">Open the staffing plan</Link></Button>} />
-      ) : filtered.length === 0 ? (
-        <>
-          <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
-            description={filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId))
-              ? "This designation has no staffing line yet, so nobody can hire for it. Plan its lines, or clear the filters."
-              : "Change or clear the filters to see the figures again."}
-            action={
-              <div className="flex flex-wrap justify-center gap-2">
-                {canManage && filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId)) && (
-                  <Button asChild><Link to={`/hrms/workforce-planning/staffing-plan?plan_role=${filters.positionId}`}>Plan lines for this designation</Link></Button>
-                )}
-                <Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>
-              </div>
-            } />
-          <WorkforceAttention
-            rows={filtered}
-            canManage={canManage}
-            scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
-            shiftFiltered={filters.shift !== "all"}
-            shift={filters.shift}
-            onOpenRequirement={openReq}
-            onApprove={approve}
-            onReject={reject}
-          />
-        </>
       ) : (
         <>
           <div className="space-y-1.5">
@@ -256,49 +240,82 @@ export default function WorkforceOverviewPage() {
             <p className="text-xs text-muted-foreground">
               Each step feeds the next: planned designations get desks and staffing lines, every line's gap becomes a hiring request,
               approved requests get an ATS job, and joiners count on roll — which closes the gap.
+              {narrowed ? " Steps 1 and 2 count every shift and status: only the department and designation filters narrow them." : ""}
               {reqsFailed ? " Hiring requests couldn't load, so steps 4 and 5 are incomplete." : ""}
             </p>
           </div>
+          {rows.length === 0 ? (
+            <EmptyState icon={ClipboardList} title="No staffing lines yet"
+              description="Add a line for each designation and shift in the staffing plan. People on roll and the pipeline are then counted for you."
+              action={<Button asChild><Link to="/hrms/workforce-planning/staffing-plan">Open the staffing plan</Link></Button>} />
+          ) : filtered.length === 0 ? (
+            <>
+              <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
+                description={filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId))
+                  ? "This designation has no staffing line yet, so nobody can hire for it. Plan its lines, or clear the filters."
+                  : "Change or clear the filters to see the figures again."}
+                action={
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {canManage && filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId)) && (
+                      <Button asChild><Link to={`/hrms/workforce-planning/staffing-plan?plan_role=${filters.positionId}`}>Plan lines for this designation</Link></Button>
+                    )}
+                    <Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>
+                  </div>
+                } />
+              <WorkforceAttention
+                rows={filtered}
+                canManage={canManage}
+                scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
+                shiftFiltered={filters.shift !== "all"}
+                shift={filters.shift}
+                onOpenRequirement={openReq}
+                onApprove={approve}
+                onReject={reject}
+              />
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+                <GapWaterfall parts={parts} onExplain={() => setExplain(true)}
+                  nextReady={nextReady ? new Date(`${nextReady.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" }) : null} />
+                <WorkforceAttention
+                  rows={filtered}
+                  canManage={canManage}
+                  scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
+                  shiftFiltered={filters.shift !== "all"}
+                  shift={filters.shift}
+                  onOpenRequirement={openReq}
+                  onApprove={approve}
+                  onReject={reject}
+                />
+              </div>
 
-          <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <GapWaterfall parts={parts} onExplain={() => setExplain(true)}
-              nextReady={nextReady ? new Date(`${nextReady.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" }) : null} />
-            <WorkforceAttention
-              rows={filtered}
-              canManage={canManage}
-              scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
-              shiftFiltered={filters.shift !== "all"}
-              shift={filters.shift}
-              onOpenRequirement={openReq}
-              onApprove={approve}
-              onReject={reject}
-            />
-          </div>
+              <ShortLinesTable
+                rows={filtered}
+                reqsByLine={reqsByLine}
+                reqsError={reqsFailed}
+                jobsByReq={reqJobs.data}
+                jobsError={reqJobs.isError}
+                linkable={linkable.data}
+                canManage={canManage}
+                busy={transition.isPending}
+                onApprove={approve}
+                onReject={reject}
+                onCreate={create}
+                onOpenRequirement={openReq}
+              />
 
-          <ShortLinesTable
-            rows={filtered}
-            reqsByLine={reqsByLine}
-            reqsError={reqsFailed}
-            jobsByReq={reqJobs.data}
-            jobsError={reqJobs.isError}
-            linkable={linkable.data}
-            canManage={canManage}
-            busy={transition.isPending}
-            onApprove={approve}
-            onReject={reject}
-            onCreate={create}
-            onOpenRequirement={openReq}
-          />
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                <StaffingBreakdown title="By shift" description="On roll against required; shortfalls add up line by line."
+                  rows={byShift} onSelect={(k) => setFilters((f) => ({ ...f, shift: f.shift === k ? "all" : k }))} />
+                <StaffingBreakdown title="By department" description="Select a department to filter the page."
+                  rows={byDept} onSelect={(k) => setFilters((f) => ({ ...f, departmentId: f.departmentId === k ? "all" : k, positionId: "all" }))} />
+              </div>
 
-          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-            <StaffingBreakdown title="By shift" description="On roll against required; shortfalls add up line by line."
-              rows={byShift} onSelect={(k) => setFilters((f) => ({ ...f, shift: f.shift === k ? "all" : k }))} />
-            <StaffingBreakdown title="By department" description="Select a department to filter the page."
-              rows={byDept} onSelect={(k) => setFilters((f) => ({ ...f, departmentId: f.departmentId === k ? "all" : k, positionId: "all" }))} />
-          </div>
-
-          <WorkforceBudgetCard canManage={canManage}
-            filtered={filters.departmentId !== "all" || filters.positionId !== "all" || filters.shift !== "all" || filters.employmentType !== "all" || filters.status !== "all" || filters.priority !== "all" || !!filters.fromDate || !!filters.toDate} />
+              <WorkforceBudgetCard canManage={canManage}
+                filtered={filters.departmentId !== "all" || filters.positionId !== "all" || filters.shift !== "all" || filters.employmentType !== "all" || filters.status !== "all" || filters.priority !== "all" || !!filters.fromDate || !!filters.toDate} />
+            </>
+          )}
         </>
       )}
 

@@ -82,7 +82,7 @@ export function WorkforceTimingAlerts({ compact = false }: { compact?: boolean }
           <AlertDialogHeader>
             <AlertDialogTitle>Move {target?.full_name || "this trainee"} off the training shift?</AlertDialogTitle>
             <AlertDialogDescription>
-              From {formatIstDate(tomorrow)} they work {shiftId ? shiftName(shiftId) : "the shift you pick"} and count on that shift's staffing line. This is the same shift change as on the Employees shift screen.
+              From {formatIstDate(tomorrow)} they work {shiftId ? shiftName(shiftId) : "the shift you pick"} and count on that shift's staffing line. It is the same shift change you can make on Attendance › Shifts.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {!target?.post_training_shift_id && (

@@ -187,7 +187,7 @@ export function HiringRequirementDetailDialog({
     ? Math.max(1, needed - line.over_requested_hc, needed - stillNeeded)
     : null;
 
-  const askCancel = () => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "cancel", consequence: declineConsequence(r, shortAfter) });
+  const askCancel = () => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "cancel", consequence: declineConsequence(r, shortAfter, line) });
   const moreItems = [
     canManage && OPEN.includes(r.status) && { key: "edit", label: "Edit request", icon: Pencil, onSelect: () => setEditOpen(true) },
     canManage && recruiting && reduceTo !== null && { key: "reduce", label: `Reduce to line need (${needed} → ${reduceTo})`, disabled: move.isPending || reduce.isPending, onSelect: () => reduce.mutate() },
@@ -222,7 +222,7 @@ export function HiringRequirementDetailDialog({
       {canApprove && r.status === "pending_approval" && (
         <>
           <Button variant="outline" className="text-destructive"
-            onClick={() => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "reject", consequence: declineConsequence(r, shortAfter) })}>
+            onClick={() => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "reject", consequence: declineConsequence(r, shortAfter, line) })}>
             <ThumbsDown className="h-4 w-4" /> Reject
           </Button>
           <Button disabled={transition.isPending} onClick={() => setConfirmAction("approve")}>

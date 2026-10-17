@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ats/AtsUi";
 import { cn } from "@/lib/utils";
-import { PRIORITY_DOT, PRIORITY_LABEL, formatIstDate, priorityWhyText, type StaffingDerived } from "@/lib/hrms/workforce";
+import { formatIstDate, priorityWhyText, type StaffingDerived } from "@/lib/hrms/workforce";
 import type { OpenJobRef } from "@/lib/ats/jobRequirements";
 import { DesignationLink } from "./DesignationStory";
 
@@ -37,16 +37,19 @@ interface Props extends ShortLineHandlers {
 
 type Hiring = { tone: "warning" | "primary" | "success" | "destructive" | "neutral"; text: string; req?: any; noJob?: boolean; suggest?: OpenJobRef | null };
 
-const priorityText = (r: StaffingDerived) => `${PRIORITY_LABEL[r.priority] ?? r.priority} priority`;
+/** Only a critical line says its priority here; the rest is on the line itself. */
+const urgentText = (r: StaffingDerived) => (r.priority === "critical" ? " · Critical" : "");
 
 /** Lines still short after trainees and hires: who is short, by how much, and what hiring covers it. */
-export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsError, linkable, initial = 8, ...h }: Props) {
+export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsError, linkable, initial = 5, ...h }: Props) {
   const [all, setAll] = useState(false);
   const list = rows
     .filter((r) => r.netHiringRequirement > 0)
     .sort((a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority) || b.netHiringRequirement - a.netHiringRequirement);
   const shown = all ? list : list.slice(0, initial);
   const need = list.reduce((a, r) => a + r.netHiringRequirement, 0);
+  // Short today, but the people on the way fill it: not listed here.
+  const covered = rows.filter((r) => r.staffingGap > 0 && r.netHiringRequirement === 0).length;
 
   const describe = (r: StaffingDerived) => {
     const lineReqs = reqsByLine.get(r.plan_id) ?? [];
@@ -109,12 +112,13 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card" aria-label="Where we're short">
+    <section className="rounded-xl border border-border bg-card" aria-label="Where you're short">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <h2 className="font-display text-[15px] font-semibold text-foreground">Where we're short</h2>
+          <h2 className="font-display text-[15px] font-semibold text-foreground">Where you're short</h2>
           <p className="text-xs text-muted-foreground">
-            {list.length === 0 ? "Every line is staffed, or its gap is covered by people on the way." : `${list.length} line${list.length === 1 ? "" : "s"} · ${need} still to find after people on the way`}
+            {list.length === 0 ? "Every line is staffed, or people on the way will fill it." : `${list.length} line${list.length === 1 ? "" : "s"} still need${list.length === 1 ? "s" : ""} ${need} ${need === 1 ? "person" : "people"}, most urgent first`}
+            {list.length > 0 && covered > 0 ? ` · ${covered} more short line${covered === 1 ? " is" : "s are"} filled by people on the way` : ""}
           </p>
         </div>
         <Button asChild size="sm" variant="ghost" className="h-8 text-primary">
@@ -131,14 +135,14 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
         </div>
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="hidden md:block">
+          {/* Wide screens (narrower ones get the list: the table's columns don't fit there) */}
+          <div className="hidden xl:block">
             <table className="w-full table-fixed text-sm">
               <colgroup>
                 <col />
-                <col className="w-28" />
                 <col className="w-24" />
-                <col className="w-[28%]" />
+                <col className="w-28" />
+                <col className="w-[30%]" />
                 <col className="w-36" />
               </colgroup>
               <thead>
@@ -156,20 +160,16 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
                   return (
                     <tr key={r.plan_id} className="border-b border-border/60 last:border-0">
                       <td className="px-4 py-2.5">
-                        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
-                          <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
-                          <p className="truncate font-medium text-foreground"><DesignationLink id={r.position_id} label={r.position_title ?? undefined} tooltip={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
-                          <span aria-hidden />
-                          <p className="truncate text-xs text-muted-foreground" title={r.priority_why ? priorityWhyText(r.priority_why) : undefined}>
-                            {r.shiftLabel} · {r.department_name} · {priorityText(r)}
-                          </p>
-                        </div>
+                        <p className="truncate font-medium text-foreground"><DesignationLink id={r.position_id} label={r.position_title ?? undefined} tooltip={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
+                        <p className="truncate text-xs text-muted-foreground" title={r.priority_why ? priorityWhyText(r.priority_why) : undefined}>
+                          {r.shiftLabel} · {r.department_name}<span className="text-destructive">{urgentText(r)}</span>
+                        </p>
                       </td>
                       <td className="px-2 py-2.5">
                         <Staffed r={r} />
                       </td>
                       <td className="px-2 py-2.5 text-right">
-                        <span className="text-base font-semibold tabular-nums text-destructive">{r.netHiringRequirement}</span>
+                        <span className="text-sm font-semibold tabular-nums text-foreground">{r.netHiringRequirement}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <HiringPills d={d} onOpen={h.onOpenRequirement} unknown={reqsError} />
@@ -183,26 +183,22 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
           </div>
 
           {/* Phones */}
-          <ul className="divide-y divide-border md:hidden">
+          <ul className="divide-y divide-border xl:hidden">
             {shown.map((r) => {
               const d = describe(r);
               return (
                 <li key={r.plan_id} className="space-y-2 px-4 py-3">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
-                      <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
+                    <div className="min-w-0">
                       <p className="truncate font-medium text-foreground"><DesignationLink id={r.position_id} label={r.position_title ?? undefined} tooltip={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
-                      <span aria-hidden />
-                      <p className="text-xs text-muted-foreground">{r.shiftLabel} · {r.department_name} · {priorityText(r)}</p>
+                      <p className="text-xs text-muted-foreground">{r.shiftLabel} · {r.department_name} · {r.current_hc} of {r.required_hc} on roll<span className="text-destructive">{urgentText(r)}</span></p>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-lg font-semibold leading-none tabular-nums text-destructive">{r.netHiringRequirement}</p>
-                      <p className="text-[11px] text-muted-foreground">still to find</p>
-                    </div>
+                    <p className="shrink-0 text-right text-xs text-muted-foreground"><span className="block text-base font-semibold leading-tight tabular-nums text-foreground">{r.netHiringRequirement}</span>to find</p>
                   </div>
-                  <Staffed r={r} />
-                  <HiringPills d={d} onOpen={h.onOpenRequirement} unknown={reqsError} />
-                  {action(r, d, true)}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <HiringPills d={d} onOpen={h.onOpenRequirement} unknown={reqsError} />
+                    {action(r, d)}
+                  </div>
                 </li>
               );
             })}
@@ -222,18 +218,11 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
 }
 
 function Staffed({ r }: { r: StaffingDerived }) {
-  const pct = r.required_hc > 0 ? Math.min(100, (r.current_hc / r.required_hc) * 100) : 0;
-  const extra = [
-    r.in_training_hc ? `${r.in_training_hc} in training` : null,
-    r.selected_hc + r.pending_joining_hc ? `${r.selected_hc + r.pending_joining_hc} joining` : null,
-  ].filter(Boolean).join(" · ");
+  const way = r.in_training_hc + r.selected_hc + r.pending_joining_hc;
   return (
     <div className="min-w-0">
-      <p className="text-sm tabular-nums text-foreground"><span className="font-semibold">{r.current_hc}</span><span className="text-muted-foreground"> / {r.required_hc}</span></p>
-      <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-muted" aria-hidden>
-        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-      </div>
-      {extra && <p className="mt-0.5 text-[11px] text-muted-foreground">{extra}</p>}
+      <p className="text-sm tabular-nums text-foreground">{r.current_hc} <span className="text-muted-foreground">of {r.required_hc}</span></p>
+      {way > 0 && <p className="text-[11px] text-muted-foreground">+{way} on the way</p>}
     </div>
   );
 }

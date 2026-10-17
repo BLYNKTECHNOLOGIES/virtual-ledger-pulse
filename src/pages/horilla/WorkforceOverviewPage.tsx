@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, ClipboardList, Plus } from "lucide-react";
+import { ChevronDown, ClipboardList, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,32 +19,29 @@ import { ShortLinesTable } from "@/components/horilla/workforce/ShortLinesTable"
 import { StaffingBreakdown, type BreakdownRow } from "@/components/horilla/workforce/StaffingBreakdown";
 import { RequirementReasonDialog, declineConsequence, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
 import { WorkforceBudgetCard } from "@/components/horilla/workforce/WorkforceBudgetCard";
-import { GapWaterfall, WorkforceChainMap, WorkforceChainMapSkeleton } from "@/components/horilla/workforce/WorkforceChain";
-import { HowItWorksButton, HowItWorksSheet } from "@/components/horilla/workforce/HowItWorks";
+import { StaffingStatusCard, WorkforceTabs } from "@/components/horilla/workforce/WorkforceChain";
 import { DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 import {
-  useHiringRequirements, usePositionPlanningStatus, useRequirementTransition, useSeatCapacity, useStaffingMatrix, useWorkforceLookups,
-  useForecastEvents,
+  useForecastEvents, useHiringRequirements, useRequirementTransition, useStaffingMatrix, useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
-import { useDesignationCatalog } from "@/hooks/hrms/useDesignationCatalog";
 import { useRequirementJobs } from "@/hooks/hrms/useRequirementLifecycle";
 import { useHiringLinkableJobs } from "@/hooks/hrms/useWorkforceAttention";
 import { useLeavingSoon } from "@/hooks/hrms/useWorkforceRepair";
 import { buildForecast, horizonEndFor } from "@/lib/hrms/workforceForecast";
-import { chainFigures, gapParts } from "@/lib/hrms/workforceChain";
+import { gapParts } from "@/lib/hrms/workforceChain";
 import {
-  EMPTY_FILTERS, formatIstDate, istToday, matchesFilters, planningShifts, requirementMatchesFilters,
+  EMPTY_FILTERS, formatIstDate, istToday, matchesFilters, planningShifts,
   rotaOrder, type StaffingDerived, type WorkforceFilterState,
 } from "@/lib/hrms/workforce";
 import { cn } from "@/lib/utils";
 
 const OPEN = new Set(["pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
 const OPEN_OR_DRAFT = new Set(["draft", ...OPEN]);
-const HIRING = new Set(["approved", "recruitment_active", "partially_fulfilled"]);
-const LIVE_JOB = new Set(["open", "paused"]);
 
-const seatRoles = (s: any): string[] => (Array.isArray(s.eligible_position_ids) && s.eligible_position_ids.length ? s.eligible_position_ids : s.position_id ? [s.position_id] : []);
-
+/**
+ * Overview: one answer (how many people short, and what is already being done about it), the few things that
+ * need HR, and the lines that are short. Breakdowns and the budget wait behind "More detail".
+ */
 export default function WorkforceOverviewPage() {
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("hrms_manage");
@@ -54,7 +51,7 @@ export default function WorkforceOverviewPage() {
   const [reasonTarget, setReasonTarget] = useState<ReasonTarget | null>(null);
   const [approving, setApproving] = useState<any | null>(null);
   const [approveNote, setApproveNote] = useState("");
-  const [explain, setExplain] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const matrix = useStaffingMatrix();
   const { rows } = matrix;
@@ -64,9 +61,6 @@ export default function WorkforceOverviewPage() {
   const reqJobs = useRequirementJobs();
   const linkable = useHiringLinkableJobs();
   const transition = useRequirementTransition();
-  const catalog = useDesignationCatalog();
-  const planning = usePositionPlanningStatus();
-  const seatsQ = useSeatCapacity();
   const shifts = (lookups?.shifts || []) as any[];
 
   // Lines carry no target date of their own; the date filter uses their open requirements' target joining dates.
@@ -84,10 +78,8 @@ export default function WorkforceOverviewPage() {
   }, [reqsByLine]);
   const filtered = useMemo(() => rows.filter((r) => matchesFilters(r, filters, reqDates)), [rows, filters, reqDates]);
   const lineById = useMemo(() => new Map(rows.map((r) => [r.plan_id, r])), [rows]);
-  const inFilters = (r: any) => requirementMatchesFilters(r, lineById, filters);
-  const openReqs = requirements.filter((r) => OPEN.has(r.status) && inFilters(r));
 
-  // Projected position at day 90 — same calculation as the Forecast page (approved hiring only, no attrition).
+  // Position at day 90 — same calculation as the Forecast page (approved hiring only, no attrition).
   const events = useForecastEvents();
   const projected = useMemo(() => {
     if (!events.data) return null;
@@ -112,53 +104,9 @@ export default function WorkforceOverviewPage() {
   }), [leavingQ.data, filters, lineById]);
 
   const parts = useMemo(() => gapParts(filtered), [filtered]);
-  const figures = useMemo(() => {
-    const dept = filters.departmentId;
-    const pos = filters.positionId;
-    const designations = catalog.data && planning.data
-      ? catalog.data
-          .filter((p) => (dept === "all" || p.department_id === dept) && (pos === "all" || p.id === pos))
-          .map((p) => ({ id: p.id, status: planning.data!.get(p.id)?.status ?? null }))
-      : null;
-    const usedSeats = new Set(filtered.map((r) => r.seat_capacity_id).filter(Boolean));
-    const seats = seatsQ.data
-      ? (seatsQ.data as any[]).filter((s) => {
-          if (s.is_training_only) return dept === "all" && pos === "all";
-          if (dept !== "all" && s.department_id !== dept) return false;
-          return pos === "all" || seatRoles(s).includes(pos) || usedSeats.has(s.id);
-        })
-      : null;
-    const live = new Map<string, any>();
-    let noJob: number | null = reqJobs.data ? 0 : null;
-    if (reqJobs.data) {
-      for (const q of openReqs) {
-        const jobs = (reqJobs.data.get(q.id) ?? []).filter((j: any) => LIVE_JOB.has(j.status));
-        jobs.forEach((j: any) => live.set(j.id, j));
-        if (HIRING.has(q.status) && jobs.length === 0) noJob = (noJob ?? 0) + 1;
-      }
-    }
-    const out = chainFigures({
-      designations, seats, lines: filtered,
-      openRequests: reqs.data ? openReqs : null,
-      drafts: reqs.data ? requirements.filter((r) => r.status === "draft" && inFilters(r)).length : null,
-      noJob, liveJobs: reqJobs.data ? Array.from(live.values()) : null,
-      forecast: projected,
-      leaving: leavingQ.data ? leaving.length : null,
-    });
-    // A step whose rows failed to load says so instead of loading for ever.
-    const failed: Record<string, boolean> = {
-      designations: (catalog.isError && !catalog.data) || (planning.isError && !planning.data),
-      desks: seatsQ.isError && !seatsQ.data,
-      hiring: reqs.isError && !reqs.data,
-      recruit: reqJobs.isError && !reqJobs.data,
-      forecast: events.isError && !events.data,
-    };
-    return out.map((f) => (f.value == null && failed[f.key] ? { ...f, value: "—", unit: "couldn't load", detail: "", flag: null, handoff: "" } : f));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalog.data, catalog.isError, planning.data, planning.isError, seatsQ.data, seatsQ.isError, filtered, reqs.data, reqs.isError,
-    reqJobs.data, reqJobs.isError, events.isError, events.data, projected, leaving, leavingQ.data, filters]);
-  // Steps 1 and 2 are narrowed only by department and designation; every other filter applies from step 3 on.
-  const narrowed = filters.shift !== "all" || filters.employmentType !== "all" || filters.status !== "all" || filters.priority !== "all" || !!filters.fromDate || !!filters.toDate;
+  const shortLines = useMemo(() => filtered.filter((r) => r.staffingGap > 0).length, [filtered]);
+  const filtering = filters.departmentId !== "all" || filters.positionId !== "all" || filters.shift !== "all" || filters.employmentType !== "all"
+    || filters.status !== "all" || filters.priority !== "all" || !!filters.fromDate || !!filters.toDate;
 
   const byShift = useMemo<BreakdownRow[]>(() => {
     const m = new Map<string, BreakdownRow>();
@@ -196,26 +144,34 @@ export default function WorkforceOverviewPage() {
   const reject = (q: any) => setReasonTarget({ id: q.id, requirement_no: q.requirement_no, action: "reject", consequence: declineConsequence(q, null) });
 
   const reqsFailed = reqs.isError && !reqs.data;
-  const nextReady = filtered.map((r) => r.training_ready_date).filter(Boolean).sort()[0] ?? null;
+  const nextReadyDate = filtered.map((r) => r.training_ready_date).filter(Boolean).sort()[0] ?? null;
+  const nextReady = nextReadyDate
+    ? new Date(`${String(nextReadyDate).slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" })
+    : null;
   const loading = matrix.isLoading;
+  const attention = (
+    <WorkforceAttention
+      rows={filtered}
+      canManage={canManage}
+      limit={3}
+      scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
+      shiftFiltered={filters.shift !== "all"}
+      shift={filters.shift}
+      onOpenRequirement={openReq}
+      onApprove={approve}
+      onReject={reject}
+    />
+  );
 
   return (
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Workforce planning"
-        description="Six linked steps take a designation to people on roll: decide it, give it desks, plan its lines per shift, hire for the gap, recruit and onboard, and look ahead. Each card below opens its step."
-        actions={
-          <div className="grid w-full grid-cols-[repeat(2,minmax(0,1fr))] gap-2 sm:flex sm:w-auto">
-            <HowItWorksButton />
-            {canManage && (
-              <Button variant="outline" onClick={() => setSeed({})}><Plus className="h-4 w-4" /> Hiring request</Button>
-            )}
-            <Button asChild className={cn(canManage && "col-span-2 sm:col-span-1")}>
-              <Link to="/hrms/workforce-planning/staffing-plan">Staffing plan <ArrowRight className="h-4 w-4" /></Link>
-            </Button>
-          </div>
-        }
+        description="Who you need, who you have, and what is being done about the gap."
+        actions={canManage ? <Button variant="outline" onClick={() => setSeed({})}><Plus className="h-4 w-4" /> Hiring request</Button> : undefined}
       />
+
+      <WorkforceTabs current="overview" />
 
       <WorkforceFilters
         value={filters}
@@ -227,101 +183,84 @@ export default function WorkforceOverviewPage() {
 
       {loading ? (
         <>
-          <WorkforceChainMapSkeleton />
-          <Skeleton className="h-40 w-full rounded-xl" />
-          <Skeleton className="h-80 w-full rounded-xl" />
+          <Skeleton className="h-36 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </>
       ) : matrix.isError && rows.length === 0 ? (
         <ErrorState title="Couldn't load staffing figures" error={matrix.error} onRetry={() => matrix.refetch()} />
+      ) : rows.length === 0 ? (
+        <>
+          <EmptyState icon={ClipboardList} title="No staffing lines yet"
+            description="Add a line for each designation and shift in the staffing plan. People on roll and the pipeline are then counted for you."
+            action={<Button asChild><Link to="/hrms/workforce-planning/staffing-plan">Open the staffing plan</Link></Button>} />
+          {attention}
+        </>
+      ) : filtered.length === 0 ? (
+        <>
+          <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
+            description={filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId))
+              ? "This designation has no staffing line yet, so nobody can hire for it. Plan its lines, or clear the filters."
+              : "Change or clear the filters to see the figures again."}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {canManage && filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId)) && (
+                  <Button asChild><Link to={`/hrms/workforce-planning/staffing-plan?plan_role=${filters.positionId}`}>Plan lines for this designation</Link></Button>
+                )}
+                <Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>
+              </div>
+            } />
+          {attention}
+        </>
       ) : (
         <>
-          <div className="space-y-1.5">
-            <WorkforceChainMap figures={figures} />
-            <p className="text-xs text-muted-foreground">
-              Each step feeds the next: planned designations get desks and staffing lines, every line's gap becomes a hiring request,
-              approved requests get an ATS job, and joiners count on roll — which closes the gap.
-              {narrowed ? " Steps 1 and 2 count every shift and status: only the department and designation filters narrow them." : ""}
-              {reqsFailed ? " Hiring requests couldn't load, so steps 4 and 5 are incomplete." : ""}
-            </p>
-          </div>
-          {rows.length === 0 ? (
-            <EmptyState icon={ClipboardList} title="No staffing lines yet"
-              description="Add a line for each designation and shift in the staffing plan. People on roll and the pipeline are then counted for you."
-              action={<Button asChild><Link to="/hrms/workforce-planning/staffing-plan">Open the staffing plan</Link></Button>} />
-          ) : filtered.length === 0 ? (
-            <>
-              <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
-                description={filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId))
-                  ? "This designation has no staffing line yet, so nobody can hire for it. Plan its lines, or clear the filters."
-                  : "Change or clear the filters to see the figures again."}
-                action={
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {canManage && filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId)) && (
-                      <Button asChild><Link to={`/hrms/workforce-planning/staffing-plan?plan_role=${filters.positionId}`}>Plan lines for this designation</Link></Button>
-                    )}
-                    <Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>
-                  </div>
-                } />
-              <WorkforceAttention
-                rows={filtered}
-                canManage={canManage}
-                scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
-                shiftFiltered={filters.shift !== "all"}
-                shift={filters.shift}
-                onOpenRequirement={openReq}
-                onApprove={approve}
-                onReject={reject}
-              />
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-                <GapWaterfall parts={parts} onExplain={() => setExplain(true)}
-                  nextReady={nextReady ? new Date(`${nextReady.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" }) : null} />
-                <WorkforceAttention
-                  rows={filtered}
-                  canManage={canManage}
-                  scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
-                  shiftFiltered={filters.shift !== "all"}
-                  shift={filters.shift}
-                  onOpenRequirement={openReq}
-                  onApprove={approve}
-                  onReject={reject}
-                />
+          <StaffingStatusCard parts={parts} shortLines={shortLines} forecast={projected} forecastError={events.isError && !events.data}
+            leaving={leavingQ.data ? leaving.length : null} nextReady={nextReady} filtered={filtering} />
+
+          {attention}
+
+          <ShortLinesTable
+            rows={filtered}
+            reqsByLine={reqsByLine}
+            reqsError={reqsFailed}
+            jobsByReq={reqJobs.data}
+            jobsError={reqJobs.isError}
+            linkable={linkable.data}
+            canManage={canManage}
+            busy={transition.isPending}
+            onApprove={approve}
+            onReject={reject}
+            onCreate={create}
+            onOpenRequirement={openReq}
+          />
+
+          <section aria-label="More detail" className="rounded-xl border border-border bg-card">
+            {/* Not a <button>: HRMS phone styles keep button text on one line. */}
+            <div role="button" tabIndex={0} onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMoreOpen((o) => !o); } }}
+              className="grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="min-w-0 text-sm font-medium text-foreground">
+                More detail <span className="font-normal text-muted-foreground">· by shift, by department{canManage ? ", budget" : ""}</span>
+              </span>
+              <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", moreOpen && "rotate-180")} aria-hidden />
+            </div>
+            {moreOpen && (
+              <div className="space-y-4 border-t border-border p-4">
+                <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                  <StaffingBreakdown title="By shift" description="On roll against required; shortfalls add up line by line."
+                    rows={byShift} onSelect={(k) => setFilters((f) => ({ ...f, shift: f.shift === k ? "all" : k }))} />
+                  <StaffingBreakdown title="By department" description="Select a department to filter the page."
+                    rows={byDept} onSelect={(k) => setFilters((f) => ({ ...f, departmentId: f.departmentId === k ? "all" : k, positionId: "all" }))} />
+                </div>
+                <WorkforceBudgetCard canManage={canManage} filtered={filtering} />
               </div>
-
-              <ShortLinesTable
-                rows={filtered}
-                reqsByLine={reqsByLine}
-                reqsError={reqsFailed}
-                jobsByReq={reqJobs.data}
-                jobsError={reqJobs.isError}
-                linkable={linkable.data}
-                canManage={canManage}
-                busy={transition.isPending}
-                onApprove={approve}
-                onReject={reject}
-                onCreate={create}
-                onOpenRequirement={openReq}
-              />
-
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-                <StaffingBreakdown title="By shift" description="On roll against required; shortfalls add up line by line."
-                  rows={byShift} onSelect={(k) => setFilters((f) => ({ ...f, shift: f.shift === k ? "all" : k }))} />
-                <StaffingBreakdown title="By department" description="Select a department to filter the page."
-                  rows={byDept} onSelect={(k) => setFilters((f) => ({ ...f, departmentId: f.departmentId === k ? "all" : k, positionId: "all" }))} />
-              </div>
-
-              <WorkforceBudgetCard canManage={canManage}
-                filtered={filters.departmentId !== "all" || filters.positionId !== "all" || filters.shift !== "all" || filters.employmentType !== "all" || filters.status !== "all" || filters.priority !== "all" || !!filters.fromDate || !!filters.toDate} />
-            </>
-          )}
+            )}
+          </section>
         </>
       )}
 
       <HiringRequirementDialog open={!!seed} onOpenChange={(o) => !o && setSeed(null)} initial={seed ?? undefined} />
       <RequirementReasonDialog target={reasonTarget} onClose={() => setReasonTarget(null)} />
-      <HowItWorksSheet open={explain} onOpenChange={setExplain} />
       <DesignationStoryHost />
 
       <AlertDialog open={!!approving} onOpenChange={(o) => !o && setApproving(null)}>

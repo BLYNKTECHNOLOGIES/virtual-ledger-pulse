@@ -1,7 +1,7 @@
 // @ts-nocheck — run with `bun run test` (vitest)
 import { describe, expect, test } from "vitest";
 import { deriveStaffingRow, sumLines } from "./workforce";
-import { ATTENTION_STEP, CHAIN_STEPS, chainFigures, gapParts, requestStage, requestWhy, requestWhyShort } from "./workforceChain";
+import { CHAIN_STEPS, gapParts, requestStage, requestWhy, requestWhyShort } from "./workforceChain";
 
 const base = {
   plan_id: "p", department_id: "d", department_name: "Operations", position_id: "oa",
@@ -89,71 +89,9 @@ describe("hiring requests", () => {
   });
 });
 
-describe("chain figures", () => {
-  const rows = [
-    line({ plan_id: "m", current_hc: 4, open_requirement_hc: 4 }),
-    line({ plan_id: "n", current_hc: 0, follow_desks: false, open_requirement_hc: 8 }),
-  ];
-  const f = chainFigures({
-    designations: [{ id: "a", status: "planned" }, { id: "b", status: "undecided" }, { id: "c", status: "outside" }, { id: "d", status: "no_staff_needed" }],
-    seats: [{ physical_seats: 8 }, { physical_seats: 6, is_training_only: true }],
-    lines: rows,
-    openRequests: [{ status: "pending_approval" }, { status: "recruitment_active" }],
-    noJob: 1,
-    liveJobs: [{ openings: 12 }],
-    forecast: { closing: 10, required: 16, lineGap: 6, endLabel: "15 Jan 2027" },
-    leaving: 2,
-  });
-
-  test("one figure per chain step, in order", () => {
-    expect(f.map((x) => x.key)).toEqual(CHAIN_STEPS.map((s) => s.key));
-  });
-  test("designations: in planning = planned + not decided + no staff needed", () => {
-    expect(f[0].value).toBe("3");
-    expect(f[0].detail).toBe("1 planned · 1 not decided · 1 no staff needed");
-    expect(f[0].flag).toEqual({ text: "1 to decide", tone: "warning" });
-  });
-  test("desks: training seats are separate", () => {
-    expect(f[1].value).toBe("8");
-    expect(f[1].detail).toBe("1 desk group · +6 training seats");
-    expect(f[1].handoff).toBe("1 line follows its desks");
-  });
-  test("staffing plan and hiring use the same gap", () => {
-    expect(f[2].value).toBe("4 / 16");
-    expect(f[2].flag).toEqual({ text: "12 short", tone: "danger" });
-    expect(f[2].handoff).toBe("12 still to find go to hiring");
-    expect(f[3].value).toBe("12");
-    expect(f[3].flag).toEqual({ text: "1 to approve", tone: "warning" });
-    expect(f[3].handoff).toBe("1 approved, waiting for an ATS job");
-  });
-  test("recruit and forecast", () => {
-    expect(f[4].value).toBe("1");
-    expect(f[4].unit).toBe("ATS job open");
-    expect(f[4].flag).toEqual({ text: "1 without a job", tone: "danger" });
-    expect(f[5].value).toBe("10 / 16");
-    expect(f[5].unit).toBe("by 15 Jan 2027");
-    expect(f[5].detail).toBe("6 short then · 2 leaving");
-    expect(f[2].detail).toBe("2 lines · 25% staffed");
-  });
-  test("loading steps have no value", () => {
-    const g = chainFigures({ designations: null, seats: null, lines: [], openRequests: null, noJob: null, liveJobs: null, forecast: null });
-    expect(g[0].value).toBeNull();
-    expect(g[1].value).toBeNull();
-    expect(g[3].value).toBeNull();
-    expect(g[4].value).toBeNull();
-    expect(g[5].value).toBeNull();
-  });
-  test("drafts are named; no lines is not 'fully staffed'", () => {
-    const g = chainFigures({ designations: [], seats: [], lines: [], openRequests: [{ status: "approved" }], drafts: 2, noJob: 0, liveJobs: [],
-      forecast: { closing: 0, required: 0, lineGap: 0, endLabel: "15 Jan 2027" } });
-    expect(g[2].flag).toEqual({ text: "No staffing lines", tone: "warning" });
-    expect(g[2].handoff).toBe("");
-    expect(g[3].detail).toBe("1 open request · 2 drafts not sent");
-    expect(g[3].handoff).toBe("Approved ones are ready for an ATS job");
-    expect(g[5].flag).toBeNull();
-  });
-  test("every attention topic belongs to a step", () => {
-    const keys = new Set(CHAIN_STEPS.map((s) => s.key));
-    expect(Object.values(ATTENTION_STEP).every((k) => keys.has(k))).toBe(true);
+describe("the chain", () => {
+  test("six steps in order, each with a page to open", () => {
+    expect(CHAIN_STEPS.map((x) => x.n)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(CHAIN_STEPS.every((x) => x.to.startsWith("/hrms/"))).toBe(true);
   });
 });

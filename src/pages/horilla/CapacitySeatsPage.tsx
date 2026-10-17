@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { MetricStrip } from "@/components/ats/AtsUi";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { WorkforceFilters } from "@/components/horilla/workforce/WorkforceFilters";
 import { WorkforceAttention } from "@/components/horilla/workforce/WorkforceAttention";
 import { SeatCapacityDialog } from "@/components/horilla/workforce/SeatCapacityDialog";
@@ -22,8 +22,7 @@ import {
 import { EMPTY_FILTERS, matchesFilters, planningShiftId, planningShifts, rotaOrder, shiftShort, sortByOperatingOrder, type WorkforceFilterState } from "@/lib/hrms/workforce";
 import { useNavigate } from "react-router-dom";
 import { DeskGroupRemoveDialog } from "@/components/horilla/workforce/DeskGroupRemoveDialog";
-import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
-import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
+import { WorkforceTabs } from "@/components/horilla/workforce/WorkforceChain";
 import { DesignationLinks, DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +88,8 @@ export default function CapacitySeatsPage() {
   const [selectedMapShiftId, setSelectedMapShiftId] = useState("");
   const [dialog, setDialog] = useState<{ open: boolean; initial?: any }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  // Desk groups (what HR edits) first; the seat map and per-shift cards are one click away.
+  const [deskView, setDeskView] = useState<"groups" | "map">("groups");
 
   const { data: seats = [], isLoading, isError: seatsError, error: seatsErr, refetch: refetchSeats } = useSeatCapacity();
   const { data: lookups } = useWorkforceLookups();
@@ -144,6 +145,8 @@ export default function CapacitySeatsPage() {
         const matching = (people as SeatPerson[]).filter((p) => seatMatchesPerson(s, p));
         const totalOnRoll = matching.length;
         let current = totalOnRoll;
+        // The shift(s) that decide how full the group is ("-" = people with no current shift).
+        let peakShiftIds: string[] = s.shift_id && seatShift(s) ? [seatShift(s) as string] : [];
         if (!s.shift_id) {
           const perShift = new Map<string, number>();
           matching.forEach((p) => {
@@ -151,12 +154,14 @@ export default function CapacitySeatsPage() {
             perShift.set(k, (perShift.get(k) || 0) + 1);
           });
           current = perShift.size ? Math.max(...perShift.values()) : 0;
+          peakShiftIds = current > 0 ? Array.from(perShift.entries()).filter(([, n]) => n === current).map(([k]) => k) : [];
         }
         const physical = s.physical_seats || 0;
         const utilisation = physical > 0 ? (current / physical) * 100 : null;
         return {
           ...s,
           currentOccupancy: current,
+          peakShiftIds,
           totalOnRoll,
           availableSeats: physical - current,
           utilisation,
@@ -497,6 +502,15 @@ export default function CapacitySeatsPage() {
     const sname = best ? allShifts.find((x) => x.id === best![0])?.name ?? "its busiest shift" : "its busiest shift";
     return `${g.is_training_only ? "Training room" : g.positionTitle || "Whole department"} · ${sname}: ${g.currentOccupancy - (g.physical_seats || 0)} over`;
   })();
+  const workGroups = filtered.filter((x) => !x.is_training_only).length;
+  /** The shift with the most people in a desk group (the one that decides whether it is full). */
+  const busiestShiftName = (row: any): string | null => {
+    const ids: string[] = row.peakShiftIds ?? [];
+    if (!ids.length) return null;
+    const name = (id: string) => (id === "-" ? "no shift" : (allShifts.find((x) => x.id === id)?.name ?? "a shift").replace(/ Shift$/, ""));
+    if (ids.length === 1) return name(ids[0]);
+    return ids.length === 2 ? `${name(ids[0])} and ${name(ids[1])}` : "several shifts";
+  };
   const tableRows = useMemo(
     () => planningRows.slice().sort((a, b) =>
       Number(!!a.is_training_only) - Number(!!b.is_training_only)
@@ -563,16 +577,13 @@ export default function CapacitySeatsPage() {
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Desks"
-        description="Desk groups and how full they are in each shift. 2 desks worked in 3 shifts need 6 people; a desk group is as full as its busiest shift."
+        description="How many desks each designation has. Every shift uses the same desks, so a line that follows its desks needs one person per usable desk in each shift."
         actions={
-          <div className="grid w-full grid-cols-[repeat(2,minmax(0,1fr))] gap-2 sm:flex sm:w-auto">
-            <HowItWorksButton current="desks" />
-            {canManage && <Button onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /> Add desk group</Button>}
-          </div>
+          canManage ? <Button className="w-full sm:w-auto" onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /> Add desk group</Button> : undefined
         }
       />
 
-      <WorkforceChainBand current="desks" />
+      <WorkforceTabs current="desks" />
 
       <WorkforceFilters
         value={filters}
@@ -594,9 +605,7 @@ export default function CapacitySeatsPage() {
 
       {isLoading ? (
         <>
-          <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-card px-4 py-3.5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-7 w-14" /><Skeleton className="mt-2 h-3 w-28" /></div>
-          ))}</MetricStrip>
+          <Skeleton className="h-5 w-2/3" />
           <TableSkeleton />
         </>
       ) : seatsError && seats.length === 0 ? (
@@ -607,22 +616,20 @@ export default function CapacitySeatsPage() {
           action={canManage ? <Button onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /> Add desk group</Button> : undefined} />
       ) : (
         <>
-          <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">
-            <Cell label="Working desks" value={totals.physical}
-              helper={trainingSeats ? `+ ${trainingSeats} training seats` : totals.operational !== totals.physical ? `${totals.operational} usable` : "in the filtered desk groups"} />
-            <Cell label="Busiest shift" value={!showOccupancy ? "…" : workPeak ? <>{workPeak.assigned}<span className="text-lg font-medium text-muted-foreground"> / {workPeak.seats}</span></> : "—"}
-              helper={workPeak ? `${workPeak.name}: people / their desks` : "no current shift schedules"} />
-            <Cell label="Free in that shift" value={!showOccupancy ? "…" : workPeak ? Math.max(0, workPeak.seats - workPeak.assigned) : "—"}
-              helper={workPeak && workPeak.seats < workPeak.assigned ? `${workPeak.assigned - workPeak.seats} over` : "desks of designations working it"} />
-            <Cell label="Desk groups over" tone={overGroups.length ? "danger" : "default"} value={!showOccupancy ? "…" : overGroups.length}
-              helper={overText} />
-          </MetricStrip>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold tabular-nums text-foreground">{totals.physical}</span> desk{totals.physical === 1 ? "" : "s"}
+            {totals.operational !== totals.physical ? ` (${totals.operational} usable)` : ""} in {workGroups} desk group{workGroups === 1 ? "" : "s"}
+            {trainingSeats ? ` · +${trainingSeats} training seats` : ""}
+            {showOccupancy && workPeak ? <> · busiest shift {workPeak.name.replace(/ Shift$/, "")}: <span className="font-medium text-foreground">{workPeak.assigned} {workPeak.assigned === 1 ? "person" : "people"} for {workPeak.seats} desks</span>{workPeak.assigned > workPeak.seats ? <span className="font-medium text-destructive">{` (${workPeak.assigned - workPeak.seats} over)`}</span> : null}</> : null}
+            {showOccupancy && overGroups.length > 0 ? <span className="font-medium text-destructive"> · {overText}</span> : null}
+          </p>
 
           <WorkforceAttention
             rows={attentionRows}
             canManage={canManage}
             variant="compact"
             topics={["desks"]}
+            scopeNote="on desks"
             scope={{ departmentId: filters.departmentId, positionId: filters.positionId }}
             shiftFiltered={filters.shift !== "all"}
             shift={filters.shift}
@@ -633,62 +640,66 @@ export default function CapacitySeatsPage() {
             <EmptyState icon={LayoutGrid} title="No desk groups match these filters" description="Change the filters to see other desk groups." />
           ) : (
             <>
-              {mapShifts.length > 0 && (
-                <OfficeSeatMap
-                  shifts={mapShifts}
-                  selectedShiftId={activeMapShiftId}
-                  onShiftChange={setSelectedMapShiftId}
-                  roles={mapRoles}
-                  formatShiftTime={formatShiftTime}
-                />
-              )}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <SegmentedControl aria-label="View" size="sm" value={deskView} onValueChange={(v) => setDeskView(v as "groups" | "map")}
+                  options={[{ value: "groups", label: "Desk groups" }, { value: "map", label: "Seat map by shift" }]} />
+                <p className="text-xs text-muted-foreground">
+                  {deskView === "groups" ? "A desk group is as full as its busiest shift." : "Pick a shift to see who sits where."}
+                </p>
+              </div>
 
-              {showOccupancy && shiftCols.length > 0 && (
-                <section aria-label="By shift" className="space-y-2">
-                  <h2 className="font-display text-[15px] font-semibold text-foreground">By shift</h2>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
-                    {shiftCols.map((x) => {
-                      const training = trainingShiftIds.has(x.id);
-                      const over = x.assigned - x.seats;
-                      return (
-                        <div key={x.id} className="rounded-xl border border-border bg-card p-3">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                              {training && <GraduationCap className="mr-1 inline h-3.5 w-3.5 text-primary" aria-hidden />}{x.name}
-                            </p>
-                            <p className="shrink-0 text-sm tabular-nums"><span className="font-semibold text-foreground">{x.assigned}</span><span className="text-muted-foreground"> / {x.seats}</span></p>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            {x.id === "unassigned" ? "No current shift schedule" : `${formatShiftTime(x.start_time)} – ${formatShiftTime(x.end_time)} IST`}
-                            {" · "}{training ? "trainees / training seats" : "people / desks of their designations"}
-                          </p>
-                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-                            <div className={cn("h-full rounded-full", occupancyTone(x.utilisation))} style={{ width: `${Math.min(100, x.utilisation)}%` }} />
-                          </div>
-                          <p className={cn("mt-1 text-[11px] font-medium", over > 0 ? "text-destructive" : "text-muted-foreground")}>
-                            {over > 0 ? `${over} over` : `${-over} free`}{x.seats > 0 ? ` · ${Math.round(x.utilisation)}% full` : ""}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-
-              <section aria-label="Desk groups" className="space-y-2">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="font-display text-[15px] font-semibold text-foreground">Desk groups</h2>
-                  <p className="text-xs text-muted-foreground">People sitting in each shift; the busiest shift decides whether the group is full.</p>
-                </div>
-
+              {deskView === "map" ? (
                 <>
+                  {mapShifts.length > 0 && (
+                    <OfficeSeatMap
+                      shifts={mapShifts}
+                      selectedShiftId={activeMapShiftId}
+                      onShiftChange={setSelectedMapShiftId}
+                      roles={mapRoles}
+                      formatShiftTime={formatShiftTime}
+                    />
+                  )}
+
+                  {showOccupancy && shiftCols.length > 0 && (
+                    <section aria-label="By shift" className="space-y-2">
+                      <h2 className="font-display text-[15px] font-semibold text-foreground">By shift</h2>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
+                        {shiftCols.map((x) => {
+                          const training = trainingShiftIds.has(x.id);
+                          const over = x.assigned - x.seats;
+                          return (
+                            <div key={x.id} className="rounded-xl border border-border bg-card p-3">
+                              <div className="flex items-baseline justify-between gap-3">
+                                <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                                  {training && <GraduationCap className="mr-1 inline h-3.5 w-3.5 text-primary" aria-hidden />}{x.name}
+                                </p>
+                                <p className="shrink-0 text-sm tabular-nums"><span className="font-semibold text-foreground">{x.assigned}</span><span className="text-muted-foreground"> / {x.seats}</span></p>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground">
+                                {x.id === "unassigned" ? "No current shift schedule" : `${formatShiftTime(x.start_time)} – ${formatShiftTime(x.end_time)} IST`}
+                                {" · "}{training ? "trainees / training seats" : "people / desks of their designations"}
+                              </p>
+                              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                                <div className={cn("h-full rounded-full", occupancyTone(x.utilisation))} style={{ width: `${Math.min(100, x.utilisation)}%` }} />
+                              </div>
+                              <p className={cn("mt-1 text-[11px] font-medium", over > 0 ? "text-destructive" : "text-muted-foreground")}>
+                                {over > 0 ? `${over} over` : `${-over} free`}{x.seats > 0 ? ` · ${Math.round(x.utilisation)}% full` : ""}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+                </>
+              ) : (
+                <section aria-label="Desk groups" className="space-y-2">
                   <div className="hidden overflow-x-auto rounded-xl border border-border bg-card md:block">
-                    <table className="w-full min-w-[760px] text-sm">
+                    <table className="w-full min-w-[640px] text-sm">
                       <thead className="border-b border-border bg-muted/40">
                         <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                           <th className="px-4 py-2 font-medium">Desk group</th>
                           <th className="px-2 py-2 text-right font-medium">Desks</th>
-                          {shiftCols.map((x) => <th key={x.id} className="px-2 py-2 text-center font-medium" title={x.name}>{x.name.replace(/ Shift$/, "")}</th>)}
                           <th className="px-3 py-2 font-medium">Busiest shift</th>
                           {canManage && <th className="px-3 py-2" aria-label="Actions" />}
                         </tr>
@@ -698,6 +709,7 @@ export default function CapacitySeatsPage() {
                           const desks = row.physical_seats || 0;
                           const cur = row.currentOccupancy;
                           const over = cur - desks;
+                          const peak = busiestShiftName(row);
                           return (
                             <tr key={row.id} className="border-b border-border/60 last:border-0">
                               <td className="px-4 py-2.5">
@@ -708,25 +720,17 @@ export default function CapacitySeatsPage() {
                               <td className="px-2 py-2.5 text-right tabular-nums">
                                 {desks}{usable(row) != null && <span className="block text-[11px] text-muted-foreground">{usable(row)} usable</span>}
                               </td>
-                              {shiftCols.map((x) => {
-                                const n = row.byShift.get(x.id) || 0;
-                                const relevant = n > 0 || plannedIn(row, x.id) || (row.is_training_only && trainingShiftIds.has(x.id));
-                                return (
-                                  <td key={x.id} className="px-2 py-2.5 text-center tabular-nums">
-                                    {!showOccupancy ? <span className="text-muted-foreground/50">…</span> : !relevant ? <span className="text-muted-foreground/40">·</span> : (
-                                      <span className={cn(n > desks ? "font-semibold text-destructive" : n === desks && n > 0 ? "font-semibold text-foreground" : "text-foreground")}>{n}</span>
-                                    )}
-                                  </td>
-                                );
-                              })}
                               <td className="px-3 py-2.5">
                                 {!showOccupancy ? <span className="text-muted-foreground">…</span> : (
                                   <span className="inline-flex flex-col">
                                     <span className="tabular-nums text-foreground">{cur} of {desks}</span>
-                                    <span className={cn("text-[11px] font-medium", over > 0 ? "text-destructive" : over === 0 && desks > 0 ? "text-success" : "text-muted-foreground")}>
-                                      {over > 0 ? `${over} over` : over === 0 && desks > 0 ? "full" : `${-over} free`}
+                                    <span className="text-[11px]">
+                                      <span className={cn("font-medium", over > 0 ? "text-destructive" : over === 0 && desks > 0 ? "text-success" : "text-muted-foreground")}>
+                                        {over > 0 ? `${over} over` : over === 0 && desks > 0 ? "full" : `${-over} free`}
+                                      </span>
+                                      {peak && <span className="text-muted-foreground"> · {peak}</span>}
                                     </span>
-                                    <span className="text-[11px] text-muted-foreground">{row.totalOnRoll} on roll in all shifts</span>
+                                    {!row.shift_id && row.totalOnRoll > cur && <span className="text-[11px] text-muted-foreground">{row.totalOnRoll} on roll across shifts</span>}
                                   </span>
                                 )}
                               </td>
@@ -744,48 +748,41 @@ export default function CapacitySeatsPage() {
                       </tbody>
                     </table>
                   </div>
-                </>
 
-                <div className="space-y-2 md:hidden">
-                  {tableRows.map((row) => {
-                    const desks = row.physical_seats || 0;
-                    const cur = row.currentOccupancy;
-                    const over = cur - desks;
-                    return (
-                      <div key={row.id} className="rounded-xl border border-border bg-card p-3">
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{groupLabel(row)}</p>
-                            <p className="text-xs text-muted-foreground">{row.is_training_only ? "Trainees" : row.departmentName || "No department"} · {desks} desk{desks === 1 ? "" : "s"}</p>
-                            {setsLine(row)}
+                  <div className="space-y-2 md:hidden">
+                    {tableRows.map((row) => {
+                      const desks = row.physical_seats || 0;
+                      const cur = row.currentOccupancy;
+                      const over = cur - desks;
+                      const peak = busiestShiftName(row);
+                      return (
+                        <div key={row.id} className="rounded-xl border border-border bg-card p-3">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground">{groupLabel(row)}</p>
+                              <p className="text-xs text-muted-foreground">{row.is_training_only ? "Trainees" : row.departmentName || "No department"} · {desks} desk{desks === 1 ? "" : "s"}</p>
+                              {setsLine(row)}
+                            </div>
+                            {showOccupancy && (
+                              <p className={cn("text-right text-xs font-medium", over > 0 ? "text-destructive" : over === 0 && desks > 0 ? "text-success" : "text-muted-foreground")}>
+                                <span className="block text-sm tabular-nums text-foreground">{cur} of {desks}</span>
+                                {over > 0 ? `${over} over` : over === 0 && desks > 0 ? "full" : `${-over} free`}{peak ? ` · ${peak}` : ""}
+                                {!row.shift_id && row.totalOnRoll > cur && <span className="block font-normal text-muted-foreground">{row.totalOnRoll} across shifts</span>}
+                              </p>
+                            )}
                           </div>
-                          {showOccupancy && (
-                            <p className={cn("text-right text-xs font-medium", over > 0 ? "text-destructive" : over === 0 && desks > 0 ? "text-success" : "text-muted-foreground")}>
-                              <span className="block text-sm tabular-nums text-foreground">{cur} of {desks}</span>
-                              {over > 0 ? `${over} over` : over === 0 && desks > 0 ? "full" : `${-over} free`}
-                            </p>
+                          {canManage && (
+                            <div className="mt-2 flex justify-end gap-1">
+                              <Button size="sm" variant="ghost" className="h-8" onClick={() => editSeat(row)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+                              <Button size="sm" variant="ghost" className="h-8 text-destructive" onClick={() => setDeleteTarget(row)}><Trash2 className="h-3.5 w-3.5" /> Remove</Button>
+                            </div>
                           )}
                         </div>
-                        {showOccupancy && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {shiftCols.filter((x) => (row.byShift.get(x.id) || 0) > 0).map((x) => (
-                              <span key={x.id} className={cn("rounded-full bg-muted px-2 py-0.5 text-[11px] text-foreground", (row.byShift.get(x.id) || 0) > desks && "bg-destructive/10 text-destructive")}>
-                                {x.name.replace(/ Shift$/, "")}: {row.byShift.get(x.id)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {canManage && (
-                          <div className="mt-2 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
-                            <Button size="sm" variant="outline" onClick={() => editSeat(row)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-                            <Button size="sm" variant="outline" className="text-destructive" onClick={() => setDeleteTarget(row)}><Trash2 className="h-3.5 w-3.5" /> Remove</Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
             </>
           )}
         </>
@@ -801,17 +798,6 @@ export default function CapacitySeatsPage() {
         lineLabel={(p: any) => `${(lookups?.positions || []).find((x: any) => x.id === p.position_id)?.title || "Designation"} · ${allShifts.find((x) => x.id === p.shift_id)?.name || p.shift_label || "Any shift"}`}
         onClose={() => setDeleteTarget(null)} />
       <DesignationStoryHost />
-    </div>
-  );
-}
-
-const CELL_TONE: Record<string, string> = { default: "text-foreground", danger: "text-destructive" };
-function Cell({ label, value, helper, tone = "default" }: { label: string; value: React.ReactNode; helper?: React.ReactNode; tone?: keyof typeof CELL_TONE }) {
-  return (
-    <div className="min-w-0 bg-card px-4 py-3.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className={cn("mt-1 font-display text-[28px] font-semibold leading-8 tabular-nums", CELL_TONE[tone])}>{value}</div>
-      <div className="mt-0.5 min-h-4 text-xs leading-4 text-muted-foreground">{helper}</div>
     </div>
   );
 }

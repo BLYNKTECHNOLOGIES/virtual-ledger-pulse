@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ClipboardList, History, LayoutGrid, List, Plus, Search } from "lucide-react";
+import { ClipboardList, History, LayoutGrid, List, PauseCircle, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,24 +12,22 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
-import { BUDGET_SOURCE_LABEL, useWorkforceBudget } from "@/hooks/hrms/useWorkforceBudget";
+import { BUDGET_SOURCE_LABEL, formatInr, useWorkforceBudget, type BudgetLine } from "@/hooks/hrms/useWorkforceBudget";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { AddLineDialog, type AddLineSeed } from "@/components/horilla/workforce/AddLineDialog";
 import { LinePanel } from "@/components/horilla/workforce/LinePanel";
 import { PlanHistoryDrawer } from "@/components/horilla/workforce/PlanHistoryDrawer";
-import { RoleLinks, StaffingGrid, buildStaffingGrid, type GridRow } from "@/components/horilla/workforce/StaffingGrid";
+import { RoleLinks, StaffingGrid, buildStaffingGrid, cellNote, type GridRow } from "@/components/horilla/workforce/StaffingGrid";
 import { WorkforceAttention } from "@/components/horilla/workforce/WorkforceAttention";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
-import { InfoTip } from "@/components/ats/AtsUi";
-import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
-import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
+import { WorkforceTabs } from "@/components/horilla/workforce/WorkforceChain";
 import { DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 import { gapParts } from "@/lib/hrms/workforceChain";
 import {
   useHeadcountPlans, useHiringRequirements, useSeatCapacity, useStaffingMatrix, useUnplannedScopes, useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
 import {
-  WF_DEFINITIONS, formatIstDate, lineTone, lineToneLabel, planningShiftId, planningShifts, rotaOrder, sumLines, type StaffingDerived,
+  formatIstDate, lineTone, lineToneLabel, planningShiftId, planningShifts, rotaOrder, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { cn } from "@/lib/utils";
 
@@ -112,7 +110,6 @@ export default function StaffingPlanPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filtered, plans, seats, shifts, unplanned, lookups?.positions],
   );
-  const totals = useMemo(() => sumLines(filtered), [filtered]);
   const gap = useMemo(() => gapParts(filtered), [filtered]);
 
   // Deep links: ?plan_desk=<seat> and ?plan_role=<position>[&plan_shift=<shift>] open "Add line"; ?line=<plan> opens the panel.
@@ -191,37 +188,35 @@ export default function StaffingPlanPage() {
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Staffing plan"
-        description="Each cell is one staffing line: on roll / required. Select a cell to see who is counted, or to change the line."
+        description="One line per designation and shift: how many people it needs and who is on roll. Select a cell to see the people or change the line."
         actions={
           <div className="grid w-full grid-cols-[repeat(2,minmax(0,1fr))] gap-2 sm:flex sm:w-auto">
-            <HowItWorksButton current="lines" />
-            <Button variant="outline" onClick={() => setHistoryOpen(true)}><History className="h-4 w-4" /> History</Button>
-            {canManage && <Button className="col-span-2 sm:col-span-1" onClick={() => setAddSeed({})}><Plus className="h-4 w-4" /> Add line</Button>}
+            <Button variant="outline" className={cn(!canManage && "col-span-2 sm:col-span-1")} onClick={() => setHistoryOpen(true)}><History className="h-4 w-4" /> History</Button>
+            {canManage && <Button onClick={() => setAddSeed({})}><Plus className="h-4 w-4" /> Add line</Button>}
           </div>
         }
       />
 
-      <WorkforceChainBand current="lines" />
+      <WorkforceTabs current="lines" />
 
       {!matrix.isLoading && rows.length > 0 && (
-        <dl className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <Stat label="Required" value={totals.required} sub={`${totals.lines} line${totals.lines === 1 ? "" : "s"}`} info={WF_DEFINITIONS.required} />
-          <Stat label="On roll" value={totals.current} info={WF_DEFINITIONS.onRoll} />
-          {totals.inTraining > 0 && <Stat label="In training" value={totals.inTraining} />}
-          <Stat label="Short" value={totals.shortNow} tone={totals.shortNow > 0 ? "text-destructive" : "text-success"} info={WF_DEFINITIONS.short} />
-          {totals.netNeed !== totals.shortNow && <Stat label="Still to find" value={totals.netNeed} info={WF_DEFINITIONS.netNeed} />}
-          {totals.overNow > 0 && <Stat label="Extra" value={totals.overNow} tone="text-warning" />}
-          <Stat label="In hiring" value={gap.inHiring} info={WF_DEFINITIONS.beingHired} />
-          {totals.uncovered > 0 && <Stat label="Not requested yet" value={totals.uncovered} tone="text-warning" info={WF_DEFINITIONS.notRequested} />}
-          {totals.overRequested > 0 && <Stat label="Over-requested" value={totals.overRequested} tone="text-warning" />}
-          {filtering && <span className="self-center text-xs text-muted-foreground">for the filtered lines</span>}
-        </dl>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold tabular-nums text-foreground">{gap.filling}</span> of <span className="font-semibold tabular-nums text-foreground">{gap.required}</span> places filled on {gap.lines} line{gap.lines === 1 ? "" : "s"}
+          {" · "}{gap.short > 0 ? <span className="font-semibold text-destructive">{gap.short} short</span> : <span className="font-medium text-success">fully staffed</span>}
+          {gap.onTheWay > 0 ? ` · ${gap.onTheWay} on the way` : ""}
+          {gap.inHiring > 0 ? ` · ${gap.inHiring} in hiring` : ""}
+          {gap.notRequested > 0 ? <span className="text-warning">{` · ${gap.notRequested} not requested yet`}</span> : null}
+          {gap.extra > 0 ? ` · ${gap.extra} extra on full lines` : ""}
+          {filtering ? " · filtered" : ""}
+        </p>
       )}
 
       <WorkforceAttention
         rows={filtered}
         canManage={canManage}
         variant="compact"
+        topics={["plan", "desks", "people"]}
+        scopeNote="on the plan"
         scope={{ departmentId: dept }}
         shiftFiltered={shift !== "all"}
         shift={shift === "all" ? "all" : orderedShifts.find((s: any) => s.id === shift)?.name}
@@ -273,7 +268,7 @@ export default function StaffingPlanPage() {
               <Switch checked={showCost} onCheckedChange={setShowCost} /> Show cost
             </label>
           )}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <SegmentedControl aria-label="View" size="sm" value={view} onValueChange={(v) => setView(v as View)}
               options={[
                 { value: "grid", label: "Grid", icon: <LayoutGrid className="h-3.5 w-3.5" /> },
@@ -296,16 +291,16 @@ export default function StaffingPlanPage() {
           action={<Button variant="outline" onClick={() => { setDept("all"); setShift("all"); setStatus("all"); setSearch(""); }}>Clear filters</Button>} />
       ) : (
         <>
-          <div className={view === "grid" ? "hidden md:block" : "hidden"}>
+          <div className={view === "grid" ? "hidden lg:block" : "hidden"}>
             <StaffingGrid columns={grid.columns} rows={grid.rows} canManage={canManage}
               onOpenLine={(r, roleLabel) => setPanel({ planId: r.plan_id, roleLabel })} onPlanCell={planCell} costs={costs} />
             <p className="mt-2 text-xs text-muted-foreground">
-              Each cell is on roll / required. Trainees count on their line as "in training", not as on roll.
+              Each cell is on roll / required. Red: short · amber: more than required · blue: people on the way will fill it. Trainees are not on roll yet.
               {costs ? ` Monthly cost if fully staffed. ${BUDGET_SOURCE_LABEL}. Lines with one person on roll are counted only in the department total.` : ""}
             </p>
           </div>
 
-          <div className={view === "list" ? "hidden overflow-x-auto rounded-xl border border-border bg-card md:block" : "hidden"}>
+          <div className={view === "list" ? "hidden overflow-x-auto rounded-xl border border-border bg-card lg:block" : "hidden"}>
             <table className="w-full min-w-[760px] text-sm">
               <thead className="border-b border-border bg-muted/40">
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -356,7 +351,7 @@ export default function StaffingPlanPage() {
             </table>
           </div>
 
-          <MobileLines rows={grid.rows} columns={grid.columns} onOpen={(r, roleLabel) => setPanel({ planId: r.plan_id, roleLabel })} />
+          <MobileLines rows={grid.rows} columns={grid.columns} costs={costs} onOpen={(r, roleLabel) => setPanel({ planId: r.plan_id, roleLabel })} />
         </>
       )}
 
@@ -370,21 +365,13 @@ export default function StaffingPlanPage() {
   );
 }
 
-function Stat({ label, value, sub, tone, info }: { label: string; value: number; sub?: string; tone?: string; info?: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <dt className="inline-flex items-center gap-1 text-xs text-muted-foreground">{label}{info && <InfoTip label={label} text={info} />}</dt>
-      <dd className={cn("font-semibold tabular-nums text-foreground", tone)}>{value}</dd>
-      {sub && <dd className="text-xs text-muted-foreground">({sub})</dd>}
-    </div>
-  );
-}
-
 /** Phones: one card per role with a chip per shift; tap a chip to open that line. */
-function MobileLines({ rows, columns, onOpen }: { rows: GridRow[]; columns: { id: string; name: string }[]; onOpen: (r: StaffingDerived, roleLabel: string) => void }) {
+function MobileLines({ rows, columns, costs, onOpen }: {
+  rows: GridRow[]; columns: { id: string; name: string }[]; costs?: Map<string, BudgetLine>; onOpen: (r: StaffingDerived, roleLabel: string) => void;
+}) {
   const departments = Array.from(new Set(rows.map((r) => r.departmentName)));
   return (
-    <div className="space-y-4 md:hidden">
+    <div className="space-y-4 lg:hidden">
       {departments.map((d) => (
         <section key={d} className="space-y-2" aria-label={d}>
           <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{d}</h2>
@@ -401,6 +388,8 @@ function MobileLines({ rows, columns, onOpen }: { rows: GridRow[]; columns: { id
                   {cells.map(({ c, r }) => {
                     const idle = r.required_hc === 0 && r.current_hc === 0;
                     const tone = lineTone(r);
+                    const note = cellNote(r);
+                    const cost = costs?.get(r.plan_id);
                     return (
                       <div key={c.id} role="button" tabIndex={0} onClick={() => onOpen(r, row.roleLabel)}
                         aria-label={`${row.roleLabel} ${c.name}: ${idle ? "not staffed" : `${r.current_hc} of ${r.required_hc}, ${lineToneLabel(r)}`}`}
@@ -410,11 +399,15 @@ function MobileLines({ rows, columns, onOpen }: { rows: GridRow[]; columns: { id
                         <p className="text-sm tabular-nums">
                           {idle ? <span className="text-muted-foreground">not staffed</span> : (
                             <>
-                              <span className="font-semibold text-foreground">{r.current_hc} / {r.required_hc}</span>
-                              <span className={cn("ml-1.5 text-[11px] font-medium", TONE_TEXT[tone])}>{lineToneLabel(r)}</span>
+                              <span className={cn(note ? "font-semibold text-foreground" : "text-muted-foreground")}>{r.current_hc} / {r.required_hc}</span>
+                              {note && <span className={cn("ml-1.5 text-[11px] font-medium", TONE_TEXT[tone])}>{note}</span>}
+                              {r.auto_paused_at && <PauseCircle className="ml-1 inline h-3 w-3 text-warning" aria-label="Hiring held back" />}
                             </>
                           )}
                         </p>
+                        {cost && (
+                          <p className="font-mono text-[10px] text-muted-foreground">{cost.full_cost != null ? `${formatInr(cost.full_cost)}/mo` : "in dept. total"}</p>
+                        )}
                       </div>
                     );
                   })}

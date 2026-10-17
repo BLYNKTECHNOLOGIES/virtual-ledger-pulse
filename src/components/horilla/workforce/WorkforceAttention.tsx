@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle, Armchair, CheckCircle2, ChevronDown, ClipboardList, LayoutGrid, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +10,6 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { ATTENTION_STEP, chainStep } from "@/lib/hrms/workforceChain";
 import { formatIstDate, istNextDay, type StaffingDerived } from "@/lib/hrms/workforce";
 import type { AlertScope } from "@/hooks/hrms/useWorkforceAlerts";
 import { useWorkforceLookups, type TraineeRow } from "@/hooks/hrms/useWorkforcePlanning";
@@ -33,6 +32,10 @@ interface Props {
   variant?: "full" | "compact";
   /** Two columns of topics on wide screens. */
   columns?: 1 | 2;
+  /** Show only the first N topics (most urgent first), with "Show N more". */
+  limit?: number;
+  /** Compact bar: where the listed things are (e.g. "on the plan"), so a partial list isn't read as everything. */
+  scopeNote?: string;
   onOpenLine?: (planId: string, tab?: "people") => void;
   onOpenRequirement?: (reqId: string) => void;
   /** Approve / reject a pending request here; without them the request's details open instead. */
@@ -43,12 +46,11 @@ interface Props {
 }
 
 const DOT: Record<AttentionSeverity, string> = { high: "bg-destructive", medium: "bg-warning", low: "bg-muted-foreground/40" };
-const TOPIC_ICON = { hiring: ClipboardList, people: Users, desks: Armchair, plan: LayoutGrid } as const;
 const SHOW = 6;
 
 /** The one list of things HR has to act on: approvals, jobs, joiners, desks, plan gaps. */
 export function WorkforceAttention({
-  rows, canManage, scope, shiftFiltered, shift, topics, variant = "full", columns = 1, onOpenLine, onOpenRequirement, onApprove, onReject, onPlanDesks, className,
+  rows, canManage, scope, shiftFiltered, shift, topics, variant = "full", columns = 1, limit, scopeNote, onOpenLine, onOpenRequirement, onApprove, onReject, onPlanDesks, className,
 }: Props) {
   const navigate = useNavigate();
   const a = useWorkforceAttention(rows, { scope, shiftFiltered, shift, canManage });
@@ -58,6 +60,7 @@ export function WorkforceAttention({
   const urgent = groups.filter((g) => g.severity === "high").length;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState(variant === "full");
+  const [allTopics, setAllTopics] = useState(false);
   const [moving, setMoving] = useState<TraineeRow | null>(null);
   const resume = useResumeAutoHiring();
 
@@ -78,26 +81,37 @@ export function WorkforceAttention({
   if (variant === "compact" && groups.length === 0) return null;
 
   const isOpen = (g: AttentionGroup) => !!open[g.key] || groups.length === 1;
+  const visible = limit && !allTopics ? groups.slice(0, limit) : groups;
+  const hidden = groups.length - visible.length;
   // In two columns an opened topic spans both, so its neighbour doesn't stretch into an empty box.
-  const cells = groups.reduce((n, g) => n + (isOpen(g) ? 2 : 1), 0);
+  const cells = visible.reduce((n, g) => n + (isOpen(g) ? 2 : 1), 0);
   const list = (
     <ul className={cn(columns === 2 ? "grid grid-flow-row-dense grid-cols-1 gap-px overflow-hidden rounded-b-xl bg-border lg:grid-cols-2" : "divide-y divide-border")}>
-      {groups.map((g) => (
+      {visible.map((g) => (
         <GroupRow key={g.key} g={g} open={isOpen(g)} wide={columns === 2 && isOpen(g)} onToggle={() => setOpen((o) => ({ ...o, [g.key]: !o[g.key] }))}
           run={run} busy={resume.isPending} />
       ))}
       {columns === 2 && cells % 2 === 1 && <li aria-hidden className="hidden bg-card lg:block" />}
+      {limit && groups.length > limit && (
+        <li className={cn("bg-card px-4 py-2", columns === 2 && "lg:col-span-2")}>
+          <Button size="sm" variant="link" className="h-auto px-0 text-xs" onClick={() => setAllTopics((v) => !v)}>
+            {allTopics ? "Show fewer" : `Show ${hidden} more`}
+          </Button>
+        </li>
+      )}
     </ul>
   );
 
   return (
-    <section className={cn("rounded-xl border border-border bg-card", className)} aria-label="Needs attention">
+    <section className={cn("overflow-hidden rounded-xl border border-border bg-card", className)} aria-label="Needs attention">
       {variant === "compact" ? (
         <button type="button" onClick={() => setExpanded((e) => !e)} aria-expanded={expanded}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <AlertTriangle className={cn("h-4 w-4 shrink-0", actionable ? "text-warning" : "text-muted-foreground")} aria-hidden />
           <span className="min-w-0 flex-1 text-sm">
-            <span className="font-medium text-foreground">{actionable ? `${actionable} ${actionable === 1 ? "thing needs" : "things need"} attention` : "Notes on the plan"}</span>
+            <span className="font-medium text-foreground">
+              {actionable ? `${actionable} ${actionable === 1 ? "thing" : "things"}${scopeNote ? ` ${scopeNote}` : ""} ${actionable === 1 ? "needs" : "need"} attention` : "Notes on the plan"}
+            </span>
             {urgent > 0 && <span className="ml-1.5 text-xs font-medium text-destructive">{urgent} urgent</span>}
             <span className="ml-2 hidden text-muted-foreground sm:inline">{groups.slice(0, 3).map((g) => g.title).join(" · ")}{groups.length > 3 ? " …" : ""}</span>
           </span>
@@ -105,10 +119,10 @@ export function WorkforceAttention({
         </button>
       ) : (
         <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h2 className="font-display text-[15px] font-semibold text-foreground">Needs attention</h2>
+          <h2 className="font-display text-[15px] font-semibold text-foreground">Needs your attention</h2>
           {!a.loading && groups.length > 0 && (
             <span className="text-xs text-muted-foreground">
-              {urgent} urgent · {groups.length} in all
+              {urgent ? <span className="font-medium text-destructive">{urgent} urgent · </span> : null}{groups.length} in all
             </span>
           )}
         </header>
@@ -134,26 +148,17 @@ export function WorkforceAttention({
 
 function GroupRow({ g, open, wide, onToggle, run, busy }: { g: AttentionGroup; open: boolean; wide?: boolean; onToggle: () => void; run: (x: AttentionAction) => void; busy: boolean }) {
   const [all, setAll] = useState(false);
-  const Icon = TOPIC_ICON[g.topic];
   const items = all ? g.items : g.items.slice(0, SHOW);
   return (
     <li className={cn("bg-card", wide && "lg:col-span-2")}>
       <div className="flex items-start gap-3 px-4 py-3">
-        <span className="relative mt-0.5 shrink-0">
-          <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
-          <span className={cn("absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-2 ring-card", DOT[g.severity])} aria-hidden />
-        </span>
+        <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", DOT[g.severity])} aria-hidden />
         {/* Not a <button>: HRMS phone styles keep button text on one line. */}
         <div role="button" tabIndex={0} onClick={onToggle} aria-expanded={open}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
           className="min-w-0 flex-1 cursor-pointer rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="text-sm font-medium text-foreground">{g.title}</span>
-            {ATTENTION_STEP[g.key] && (
-              <span className="whitespace-nowrap rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground" title="Step of the planning chain">
-                Step {chainStep(ATTENTION_STEP[g.key]).n} · {chainStep(ATTENTION_STEP[g.key]).label}
-              </span>
-            )}
+          <span className="block text-sm font-medium text-foreground">
+            {g.title}{g.severity === "high" && <span className="ml-1.5 text-[11px] font-medium text-destructive">Urgent</span>}
           </span>
           <span className="block text-xs text-muted-foreground">{g.hint}</span>
         </div>
@@ -169,7 +174,7 @@ function GroupRow({ g, open, wide, onToggle, run, busy }: { g: AttentionGroup; o
         </div>
       </div>
       {open && (
-        <ul className="space-y-1 px-4 pb-3 pl-11">
+        <ul className="space-y-1 px-4 pb-3 pl-9">
           {items.map((it) => (
             <li key={it.key} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md bg-muted/40 px-2.5 py-1.5">
               <div className="min-w-0 flex-1">

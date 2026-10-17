@@ -5,7 +5,6 @@ import { useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, UserPlus, Users, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase, FileUp, Building2, MapPin, Clock,
-  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

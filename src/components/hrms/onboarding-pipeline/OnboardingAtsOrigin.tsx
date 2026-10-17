@@ -13,8 +13,12 @@ export function OnboardingAtsOrigin({ applicationId }: { applicationId?: string 
       if (error) throw error;
       if (!app?.job_id) return { app, job: null as any, req: null as any };
       const { data: job } = await supabase.from("ats_jobs").select("id, job_code, requisition_id").eq("id", app.job_id).maybeSingle();
-      const { data: req } = job?.requisition_id
-        ? await supabase.from("hr_hiring_requirements").select("id, requirement_no").eq("id", job.requisition_id).maybeSingle()
+      // The requirement this onboarding actually fills (a shared job feeds several); the job's main link only as fallback.
+      const { data: ob } = await supabase.from("hr_employee_onboarding").select("hiring_requirement_id")
+        .eq("ats_application_id", app.id).neq("status", "cancelled").limit(1).maybeSingle();
+      const reqId = (ob as any)?.hiring_requirement_id ?? job?.requisition_id ?? null;
+      const { data: req } = reqId
+        ? await supabase.from("hr_hiring_requirements").select("id, requirement_no").eq("id", reqId).maybeSingle()
         : { data: null };
       return { app, job, req };
     },

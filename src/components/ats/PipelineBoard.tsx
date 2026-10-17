@@ -1,3 +1,4 @@
+import { invalidatePlanning } from "@/hooks/hrms/useWorkforcePlanning";
 import { UnreadMailMark } from "./UnreadMailMark";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -90,6 +91,7 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
     await qc.invalidateQueries({ queryKey: candKeys.all });
     qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
     qc.invalidateQueries({ queryKey: atsKeys.overview });
+    invalidatePlanning(qc);
     setOverride((o) => { const n = { ...o }; delete n[id]; return n; });
   };
 
@@ -166,7 +168,7 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
           <HireShiftPicker shifts={jobShifts.data ?? []} value={hireShift} onChange={setHireShift} />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={(jobShifts.data?.length ?? 0) > 1 && !hireShift}
+            <AlertDialogAction disabled={jobShifts.isLoading || ((jobShifts.data?.length ?? 0) > 1 && !hireShift)}
               onClick={() => { const c = confirm!; setConfirm(null); doMove(c.row, c.stage, hireShift); }}>Mark as hired</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

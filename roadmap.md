@@ -7,3 +7,9 @@
 - [x] §4 renames
 - [x] §5 review fixes
 - [x] Verify + STATE_LOG
+
+## DS1 — Designation authority
+- [x] Read live definitions and baseline counts
+- [x] Install copy, department, grade, reporting and login/RACI rules
+- [x] Apply approved catalogue and synchronization data
+- [x] Rollback probes and final resolution table

@@ -204,7 +204,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="client-management-dialog md:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Seller</DialogTitle>
         </DialogHeader>
@@ -235,7 +235,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                     </ul>
                   </div>
                 )}
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => { setDuplicateWarning(null); }}>
                     Go Back & Edit
                   </Button>
@@ -247,7 +247,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
             </Alert>
           )}
           {/* Client Name */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Client Name*</Label>
               <Input
@@ -269,7 +269,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
           </div>
 
           {/* Email and Phone */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -293,7 +293,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
           </div>
 
           {/* Client Type and Risk Appetite */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="client_type">Client Type*</Label>
               <Select
@@ -410,7 +410,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
         </div>
 
         {/* Form Actions */}
-        <div className="flex justify-end gap-3 pt-6 border-t">
+        <div className="flex flex-wrap justify-end gap-3 pt-6 border-t">
           <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>

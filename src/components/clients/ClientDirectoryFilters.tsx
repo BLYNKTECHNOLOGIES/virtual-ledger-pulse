@@ -355,7 +355,7 @@ function RangeFilter({
     onChange: (v: string) => void,
     ph: string
   ) => (
-    <div className="relative flex-1">
+    <div className="relative min-w-0 flex-1">
       {prefix && (
         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
           {prefix}
@@ -705,7 +705,7 @@ export function ClientDirectoryFilterPanel({
       {/* ---- Section 1: Client Profile ---- */}
       <div className="border-t border-border p-4 space-y-3">
         <SectionHeader icon={Users}>Client Profile</SectionHeader>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           <Field label="Risk Level">
             <MultiSelectFilter
               label="Risk Level"

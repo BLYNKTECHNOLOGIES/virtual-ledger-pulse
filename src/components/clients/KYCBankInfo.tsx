@@ -194,7 +194,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
         {/* Legacy Aadhaar/PAN display for older clients */}
         {!hasNewKycDocs && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium">PAN Card</span>
               <div className="flex items-center gap-2">
                 {getStatusIcon(!!client.pan_card_url)}
@@ -209,11 +209,11 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
               </div>
             </div>
             
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium">Aadhar Card</span>
               <div className="flex items-center gap-2">
                 {getStatusIcon(hasLegacyAadhaar)}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {client.aadhar_front_url && (
                     <button onClick={() => handleViewDocument(client.aadhar_front_url!)} className="text-sm text-primary hover:underline flex items-center gap-1">
                       Front <ExternalLink className="h-3 w-3" />
@@ -229,7 +229,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
               </div>
             </div>
             
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium">Other Docs</span>
               <div className="flex flex-wrap gap-2">
                 {client.other_documents_urls && client.other_documents_urls.length > 0 ? (
@@ -260,7 +260,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
             <div className="space-y-2 mt-1">
               {bankDetails.map((bank) => (
                 <div key={bank.id} className="bg-muted rounded-md p-2 border text-sm space-y-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">
                       {bank.bank_name} <span className="text-muted-foreground">x{bank.last_four_digits}</span>
                     </span>
@@ -317,7 +317,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
 
         {/* Pattern mismatch and re-kyc for buyers only */}
         {!isSeller && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Pattern Mismatch</label>
               <Badge variant="outline" className="text-success border-success/20 bg-success/10">

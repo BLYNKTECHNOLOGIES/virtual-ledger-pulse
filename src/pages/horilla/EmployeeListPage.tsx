@@ -503,13 +503,13 @@ export default function EmployeeListPage() {
   // Every "assign X to many employees" action funnels through here so behaviour
   // is identical: creates the work-info row when an employee has none, checks
   // the error on every write, and reports exact success/failure counts.
-  type BulkFieldKey = "department_id" | "job_position_id" | "shift_id" | "work_type" | "employee_type";
+  type BulkFieldKey = "job_position_id" | "shift_id" | "work_type" | "employee_type";
   const [bulkField, setBulkField] = useState<BulkFieldKey | null>(null);
   const [bulkValue, setBulkValue] = useState("");
 
   const BULK_FIELDS: Record<BulkFieldKey, { title: string; label: string; options: () => { value: string; label: string }[] }> = {
-    department_id: { title: "Transfer department", label: "Department", options: () => (departments || []).map((d: any) => ({ value: d.id, label: d.name })) },
-    job_position_id: { title: "Assign job position", label: "Job position", options: () => (positions || []).map((p: any) => ({ value: p.id, label: p.title })) },
+    // The department follows the designation (kept by the database), so there is no department-only transfer.
+    job_position_id: { title: "Assign designation", label: "Designation", options: () => (positions || []).map((p: any) => ({ value: p.id, label: p.department_id ? `${p.title} · ${getDeptName(p.department_id)}` : p.title })) },
     shift_id: { title: "Assign shift", label: "Shift", options: () => (shifts || []).map((s: any) => ({ value: s.id, label: s.name })) },
     work_type: { title: "Set work type", label: "Work type", options: () => [
       ...WORK_TYPES.map(w => ({ value: w.value, label: w.label })),
@@ -522,8 +522,11 @@ export default function EmployeeListPage() {
   const runBulkWorkInfo = async () => {
     if (!bulkField || !bulkValue || selectedIds.size === 0) return;
     setBusyAction("workinfo");
-    let ok = 0; const failures: string[] = [];
+    let ok = 0; let skipped = 0; const failures: string[] = [];
+    const activeIds = new Set((employees || []).filter((e: any) => e.is_active).map((e: any) => e.id));
     for (const id of selectedIds) {
+      // People who have left keep the designation they held at exit.
+      if (bulkField === "job_position_id" && !activeIds.has(id)) { skipped++; continue; }
       const wi = getWorkInfo(id);
       const { error } = wi
         ? await supabase.from("hr_employee_work_info").update({ [bulkField]: bulkValue } as any).eq("id", wi.id)
@@ -532,7 +535,9 @@ export default function EmployeeListPage() {
     }
     setBusyAction(null);
     queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+    queryClient.invalidateQueries({ queryKey: ["org_directory"] });
     if (ok) toast.success(`${BULK_FIELDS[bulkField].title} — updated ${ok} employee(s)`);
+    if (skipped) toast.info(`${skipped} ${skipped === 1 ? "person who has" : "people who have"} left kept the designation held at exit`);
     if (failures.length) toast.error(`${failures.length} failed — ${failures[0]}`);
     if (!failures.length) setSelectedIds(new Set());
     setBulkField(null);
@@ -664,11 +669,8 @@ export default function EmployeeListPage() {
                 <Download className="h-3.5 w-3.5" /> Export {hasSelection ? "selected" : "all"} (CSV)
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("department_id")}>
-                <Building2 className="h-3.5 w-3.5" /> Transfer department
-              </DropdownMenuItem>
               <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("job_position_id")}>
-                <Briefcase className="h-3.5 w-3.5" /> Assign job position
+                <Briefcase className="h-3.5 w-3.5" /> Assign designation
               </DropdownMenuItem>
               <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("shift_id")}>
                 <Clock className="h-3.5 w-3.5" /> Assign shift

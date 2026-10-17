@@ -184,20 +184,19 @@ export function OrgStructureView({ onEditDesignations }: { onEditDesignations?: 
       {filtering && matches.size === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No designation matches.</p>
       ) : (
-        <div role="tree" aria-label="Designed structure" className="overflow-hidden rounded-lg border border-border bg-card">
+        <div role="list" aria-label="Designed structure" className="overflow-hidden rounded-lg border border-border bg-card">
           {rows.map(({ node, depth }) => {
             const r = node.row;
             const names = holders.get(r.id) || [];
             const hasKids = node.children.length > 0;
             const isCollapsed = !filtering && collapsed.has(r.id);
-            const st = r.in_workforce_planning !== false ? planning.data?.get(r.id)?.status : undefined;
+            const st = planning.data?.get(r.id)?.status;
             const dim = filtering && !matches.has(r.id);
             return (
               <div
                 key={r.id}
-                role="treeitem"
+                role="listitem"
                 aria-level={depth + 1}
-                aria-expanded={hasKids ? !isCollapsed : undefined}
                 style={{ ["--d" as any]: Math.min(depth, 8) }}
                 className={cn(
                   "grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-2 border-b border-border py-2.5 pr-3 last:border-b-0",
@@ -210,6 +209,7 @@ export function OrgStructureView({ onEditDesignations }: { onEditDesignations?: 
                     type="button"
                     disabled={filtering}
                     onClick={() => toggle(r.id)}
+                    aria-expanded={!isCollapsed}
                     aria-label={isCollapsed ? `Show designations under ${r.title}` : `Hide designations under ${r.title}`}
                     className="mt-0.5 flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
                   >

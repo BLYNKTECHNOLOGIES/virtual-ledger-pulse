@@ -18,7 +18,7 @@ import { invalidatePlanning, useHeadcountPlans, usePositionPlanningStatus, useSe
 import { usePermissions } from "@/hooks/usePermissions";
 import { JobDescriptionViewer } from "@/components/horilla/positions/JobDescriptionViewer";
 import { JobDescriptionLibraryDialog } from "@/components/horilla/positions/JobDescriptionLibraryDialog";
-import { GRADE_OPTIONS, designationSubtree, compareDesignations, gradeLabel, gradeShort } from "@/lib/hrms/designations";
+import { GRADE_OPTIONS, designationSubtree, compareDesignations, deleteRefusalText, gradeLabel, gradeShort, invalidateDesignationCopies } from "@/lib/hrms/designations";
 
 
 type PlanningChoice = "" | "plan" | "no_staff" | "outside";
@@ -49,7 +49,11 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
   const EMPTY_FORM = { title: "", department_id: "", is_active: true, grade: "", reports_to: "" };
   const [form, setForm] = useState(EMPTY_FORM);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "tentative">("all");
+  // ?status=active|tentative opens the list with that filter (the Departments cards link with status=active).
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "tentative">(() => {
+    const s = params.get("status");
+    return s === "active" || s === "tentative" ? s : "all";
+  });
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [viewingJd, setViewingJd] = useState<JobDescriptionRow | null>(null);
@@ -78,8 +82,9 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
     },
   });
 
+  // Its own key: the Departments tab keeps every department, with all its fields, under ["hr_departments"].
   const { data: departments } = useQuery({
-    queryKey: ["hr_departments"],
+    queryKey: ["hr_departments", "active-names"],
     queryFn: async () => {
       const { data } = await supabase.from("departments").select("id, name").eq("is_active", true).order("name");
       return data || [];
@@ -112,7 +117,7 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
     },
     onSuccess: (res) => {
       toast.success(editId ? "Designation updated" : "Designation created");
-      queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
+      invalidateDesignationCopies(queryClient);
       invalidatePlanning(queryClient);
       closeDialog();
       if (res.choice === "plan" && res.id) navigate(`/hrms/workforce-planning/staffing-plan?plan_role=${res.id}`);
@@ -127,9 +132,9 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
     },
     onSuccess: () => {
       toast.success("Designation deleted");
-      queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
+      invalidateDesignationCopies(queryClient);
     },
-    onError: (e: any) => toast.error(`Failed to delete the designation: ${e?.message || "unknown error"}`),
+    onError: (e: any) => toast.error(deleteRefusalText(e, "designation")),
   });
 
   const toggleActiveMutation = useMutation({
@@ -138,7 +143,7 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
+      invalidateDesignationCopies(queryClient);
       invalidatePlanning(queryClient);
       toast.success("Designation status updated");
     },
@@ -283,6 +288,11 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
 
   const blockIfOccupied = (p: any, action: "tentative" | "delete") => {
     const count = hiredCount(p.id);
+    const below = action === "delete" ? ((positions || []) as any[]).filter((x) => x.reports_to_position_id === p.id).length : 0;
+    if (count === 0 && below > 0) {
+      toast.error(`${below} designation${below === 1 ? " reports" : "s report"} to ${p.title} — change ${below === 1 ? "its" : "their"} Reports to first.`);
+      return true;
+    }
     if (count === 0) return false;
     toast.error(
       action === "tentative"
@@ -489,6 +499,7 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
                 >
                   <Switch
                     checked={p.is_active !== false}
+                    aria-label={p.is_active !== false ? `Mark ${p.title} tentative` : `Mark ${p.title} active`}
                     disabled={toggleActiveMutation.isPending || !canManagePlanning || !occupancy || (p.is_active !== false && hiredCount(p.id) > 0)}
                     onCheckedChange={() => {
                       if (p.is_active !== false && blockIfOccupied(p, "tentative")) return;
@@ -603,12 +614,12 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
       >
         <div className="space-y-3">
           <div>
-            <Label>Title *</Label>
-            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" />
+            <Label htmlFor="designation-title">Title *</Label>
+            <Input id="designation-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" />
           </div>
           <div>
-            <Label>Department</Label>
-            <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Label htmlFor="designation-department">Department</Label>
+            <select id="designation-department" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <option value="">Select</option>
               {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>

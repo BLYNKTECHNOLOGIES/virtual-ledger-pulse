@@ -702,9 +702,13 @@ export default function EmployeeProfilePage() {
     }
   };
 
+  // An active person must keep a designation: changing the department clears one from another department.
+  const designationMissing = !!emp?.is_active && !!workInfo?.job_position_id && !workInfoForm.job_position_id;
+
   // ─── Work Info Save Mutation ───
   const saveWorkInfoMutation = useMutation({
     mutationFn: async () => {
+      if (designationMissing) throw new Error("Choose a designation. The department follows it.");
       const updateData: any = {
         reporting_manager_id: workInfoForm.reporting_manager_id || null,
         shift_id: workInfoForm.shift_id || null,
@@ -723,6 +727,15 @@ export default function EmployeeProfilePage() {
         contract_end_date: workInfoForm.contract_end_date || null,
         experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
       };
+      // People who have left keep their own copy of the title (the database leaves history alone), so a
+      // correction made here updates it too.
+      if (emp && !emp.is_active && workInfoForm.job_position_id && workInfoForm.job_position_id !== workInfo?.job_position_id) {
+        const pos: any = (allPositions || []).find((p: any) => p.id === workInfoForm.job_position_id);
+        if (pos) {
+          updateData.job_role = pos.title;
+          updateData.level_band = pos.hierarchy_level ? `L${pos.hierarchy_level}` : null;
+        }
+      }
 
       if (workInfo?.id) {
         const { error } = await supabase.from("hr_employee_work_info").update(updateData).eq("id", workInfo.id);
@@ -740,6 +753,8 @@ export default function EmployeeProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["pos_for_emp"] });
       queryClient.invalidateQueries({ queryKey: ["shift_for_emp"] });
       queryClient.invalidateQueries({ queryKey: ["reporting_mgr"] });
+      queryClient.invalidateQueries({ queryKey: ["org_directory"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
       // Work info drives designation / department / joining date / employee type in RazorpayX.
       void syncToRazorpay("employment");
     },
@@ -1148,7 +1163,7 @@ export default function EmployeeProfilePage() {
                 {editingWorkInfo ? (
                   <div className="flex gap-2">
                     <button onClick={() => setEditingWorkInfo(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted">Cancel</button>
-                    <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-primary-foreground bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
+                    <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending || designationMissing} title={designationMissing ? "Choose a designation first" : undefined} className="text-xs text-primary-foreground bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
                       {saveWorkInfoMutation.isPending ? "Saving..." : "Save"}
                     </button>
                   </div>
@@ -1181,6 +1196,7 @@ export default function EmployeeProfilePage() {
                         <option value="">Select designation</option>
                         {(allPositions || []).filter((p: any) => !workInfoForm.department_id || p.department_id === workInfoForm.department_id).map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}
                       </select>
+                      {designationMissing && <p className="mt-1 text-[11px] text-destructive">Choose a designation in this department. The department follows it.</p>}
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Reporting Manager</label>
@@ -1270,7 +1286,7 @@ export default function EmployeeProfilePage() {
               {editingWorkInfo ? (
                 <div className="flex gap-2">
                   <button onClick={() => setEditingWorkInfo(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted">Cancel</button>
-                  <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-primary-foreground bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
+                  <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending || designationMissing} title={designationMissing ? "Choose a designation first" : undefined} className="text-xs text-primary-foreground bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
                     {saveWorkInfoMutation.isPending ? "Saving..." : "Save"}
                   </button>
                 </div>

@@ -28,7 +28,7 @@ interface JobDescriptionLibraryDialogProps {
   positions: PositionOption[];
 }
 
-/** Full JD library: every role charter, its linked position, and a view action. */
+/** Full JD library: every job description, the designation it is linked to, and a view action. */
 export function JobDescriptionLibraryDialog({
   open,
   onOpenChange,
@@ -76,7 +76,8 @@ export function JobDescriptionLibraryDialog({
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search roles or reference..."
+                placeholder="Search designations or reference..."
+                aria-label="Search job descriptions"
                 className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
             </div>
@@ -129,7 +130,7 @@ export function JobDescriptionLibraryDialog({
                       </div>
                       <div className="flex flex-col gap-2 border-t border-border pt-2 sm:flex-row sm:items-center">
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Link2 className="h-3.5 w-3.5" /> Linked position
+                          <Link2 className="h-3.5 w-3.5" /> Linked designation
                         </span>
                         <Select
                           value={jd.position_id ?? "none"}
@@ -140,7 +141,7 @@ export function JobDescriptionLibraryDialog({
                             })
                           }
                         >
-                          <SelectTrigger className="h-8 w-full text-foreground sm:max-w-xs">
+                          <SelectTrigger aria-label={`Designation linked to ${jd.role_title}`} className="h-8 w-full text-foreground sm:max-w-xs">
                             <SelectValue placeholder="Not linked" />
                           </SelectTrigger>
                           <SelectContent>
@@ -178,7 +179,7 @@ export function JobDescriptionLibraryDialog({
         open={viewFull}
         onOpenChange={setViewFull}
         title="Job Description Compendium"
-        subtitle="BVT/HR/JD/2026/COMP-01 · v4.2 · all 41 role descriptions"
+        subtitle="BVT/HR/JD/2026/COMP-01 · v4.2 · all 41 job descriptions"
         storagePath={JD_FULL_COMPENDIUM_PATH}
       />
     </>

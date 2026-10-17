@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { requirementLinkCleared } from "@/lib/hrms/onboardingRequirementLink";
+import { designationCleared, requirementLinkCleared } from "@/lib/hrms/onboardingRequirementLink";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -172,6 +172,8 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       // "Fills hiring requirement" is cleared deliberately: HR chose "None", or the
       // department/position changed in this same save (the old link no longer fits).
       if (key === "hiring_requirement_id" && requirementLinkCleared(existing, updates || {})) { normalizedUpdates[key] = null; return; }
+      // Moving to another department clears the designation on purpose (it belonged to the old department).
+      if ((key === "position_id" || key === "job_role") && designationCleared(existing, updates || {})) { normalizedUpdates[key] = null; return; }
       if (persistentFields.has(key) && isBlankValue(value) && hasValue(existingValue)) {
         // Stage 5 must be able to clear stale, unverified ESSL badge IDs.
         // Otherwise old numeric PINs keep reappearing before RazorpayX ID verification.

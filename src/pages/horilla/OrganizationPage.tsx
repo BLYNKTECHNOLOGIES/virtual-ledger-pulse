@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Briefcase, Building2, GitBranch, Network } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -25,6 +26,12 @@ export default function OrganizationPage() {
     setParams(n, { replace: true });
   };
 
+  // Phones scroll the tab strip sideways: keep the open tab in view (links land straight on later tabs).
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    tabsRef.current?.querySelector('[data-state="active"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [tab]);
+
   return (
     <div className="hrms-page space-y-4">
       <PageHeader
@@ -32,7 +39,7 @@ export default function OrganizationPage() {
         description="Designations, departments and who reports to whom. Every other screen uses these."
       />
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList>
+        <TabsList ref={tabsRef}>
           <TabsTrigger value="structure" className="gap-1.5"><Network className="h-3.5 w-3.5" />Structure</TabsTrigger>
           <TabsTrigger value="reporting" className="gap-1.5"><GitBranch className="h-3.5 w-3.5" />Reporting lines</TabsTrigger>
           <TabsTrigger value="departments" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Departments</TabsTrigger>

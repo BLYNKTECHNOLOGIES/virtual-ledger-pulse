@@ -399,6 +399,12 @@ export function HorillaSidebar({
       return current.startsWith(pathname);
     }
     if (current !== pathname) return false;
+    // Organization tabs: only ?tab picks the entry (filters and old links add other parameters).
+    if (pathname === "/hrms/organization") {
+      const want = query ? new URLSearchParams(query).get("tab") : null;
+      const tab = new URLSearchParams(location.search).get("tab");
+      return want ? tab === want : !tab || tab === "structure";
+    }
     if (!query) return !location.search;
     return location.search === `?${query}`;
   };

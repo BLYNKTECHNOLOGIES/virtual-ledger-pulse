@@ -465,6 +465,7 @@ export function HiringRequirementDialog({
                 </SelectContent>
               </Select>
             </div>
+            )}
             <div className="space-y-1 sm:col-span-2">
               <Label>Note</Label>
               <Textarea

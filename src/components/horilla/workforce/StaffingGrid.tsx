@@ -8,6 +8,7 @@ import {
   type PlanningShiftLike, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
+import { DesignationLinks } from "./DesignationStory";
 
 export interface GridColumn { id: string; name: string }
 export interface GridRow {
@@ -16,6 +17,8 @@ export interface GridRow {
   departmentName: string;
   roleLabel: string;
   roleIds: string[];
+  /** Title of each of roleIds ("" when unknown). */
+  roleTitles: string[];
   seat: any | null;
   cells: Map<string, StaffingDerived>;
   notice: number;
@@ -51,6 +54,7 @@ export function buildStaffingGrid(
         departmentName: r.department_name || "No department",
         roleLabel: roleIds.map(title).filter(Boolean).join(" / ") || r.position_title || "Designation",
         roleIds,
+        roleTitles: roleIds.map((id) => title(id) ?? ""),
         seat: r.seat_capacity_id ? seatById.get(r.seat_capacity_id) ?? null : null,
         cells: new Map(),
         notice: 0,
@@ -73,6 +77,13 @@ export function buildStaffingGrid(
     (a, b) => a.departmentName.localeCompare(b.departmentName) || a.roleLabel.localeCompare(b.roleLabel),
   );
   return { columns, rows: list };
+}
+
+/** The row's designation name(s), each opening its journey. */
+export function RoleLinks({ row }: { row: GridRow }) {
+  const titles = new Map(row.roleIds.map((id, i) => [id, row.roleTitles?.[i] || ""]));
+  if (!row.roleIds.some((id) => titles.get(id))) return <>{row.roleLabel}</>;
+  return <DesignationLinks ids={row.roleIds} titleOf={(id) => titles.get(id) || undefined} />;
 }
 
 interface Props {
@@ -179,7 +190,7 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
         return (
           <tr key={row.key} className="group border-b border-border/60 last:border-0">
             <td className="px-3 py-2 align-middle">
-              <p className="truncate font-medium text-foreground" title={row.roleLabel}>{row.roleLabel}</p>
+              <p className="truncate font-medium text-foreground" title={row.roleLabel}><RoleLinks row={row} /></p>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
                 {row.seat ? (
                   <Link to="/hrms/workforce-planning/capacity-seats" className="inline-flex items-center gap-1 hover:text-primary" title="Desk group">

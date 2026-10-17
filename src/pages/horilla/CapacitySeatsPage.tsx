@@ -22,6 +22,9 @@ import {
 import { EMPTY_FILTERS, matchesFilters, planningShiftId, rotaOrder, sortByOperatingOrder, type WorkforceFilterState } from "@/lib/hrms/workforce";
 import { useNavigate } from "react-router-dom";
 import { DeskGroupRemoveDialog } from "@/components/horilla/workforce/DeskGroupRemoveDialog";
+import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
+import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
+import { DesignationLinks, DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 import { cn } from "@/lib/utils";
 
 type SeatPerson = {
@@ -520,6 +523,13 @@ export default function CapacitySeatsPage() {
     },
   });
   const groupName = (s: any) => (s.is_training_only ? "Training room" : s.positionTitle || "Whole department");
+  const deskRoles = (s: any): string[] => (Array.isArray(s.eligible_position_ids) && s.eligible_position_ids.length ? s.eligible_position_ids : s.position_id ? [s.position_id] : []);
+  const deskTitle = (s: any, id: string): string | undefined =>
+    (lookups?.positions || []).find((p: any) => p.id === id)?.title ?? (s.position_id === id ? s.positions?.title : undefined);
+  // Designation names open their journey; training rooms and whole-department groups stay plain text.
+  const groupLabel = (s: any) => (s.is_training_only || !deskRoles(s).some((id) => deskTitle(s, id))
+    ? groupName(s)
+    : <DesignationLinks ids={deskRoles(s)} titleOf={(id) => deskTitle(s, id)} />);
   const usable = (s: any) => (!s.is_training_only && s.max_operational_capacity != null && s.max_operational_capacity !== s.physical_seats ? s.max_operational_capacity : null);
   const plannedIn = (s: any, shiftId: string) => !!plannedSeatShifts.get(s.id)?.has(shiftId) || !!plannedSeatShifts.get(s.id)?.has("any");
   const showOccupancy = !occupancyLoading && !occupancyError;
@@ -527,12 +537,17 @@ export default function CapacitySeatsPage() {
   return (
     <div className="hrms-page space-y-4">
       <PageHeader
-        title="Capacity & seats"
-        description="Desk groups and how full they are in each shift. Desks are shared across shifts, so a desk group is as full as its busiest shift."
-        actions={canManage && (
-          <Button onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /> Add desk group</Button>
-        )}
+        title="Desks"
+        description="Desk groups and how full they are in each shift. 2 desks worked in 3 shifts need 6 people; a desk group is as full as its busiest shift."
+        actions={
+          <div className="grid w-full grid-cols-[repeat(2,minmax(0,1fr))] gap-2 sm:flex sm:w-auto">
+            <HowItWorksButton current="desks" />
+            {canManage && <Button onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /> Add desk group</Button>}
+          </div>
+        }
       />
+
+      <WorkforceChainBand current="desks" />
 
       <WorkforceFilters
         value={filters}
@@ -661,7 +676,7 @@ export default function CapacitySeatsPage() {
                           return (
                             <tr key={row.id} className="border-b border-border/60 last:border-0">
                               <td className="px-4 py-2.5">
-                                <p className="font-medium text-foreground">{groupName(row)}</p>
+                                <p className="font-medium text-foreground">{groupLabel(row)}</p>
                                 <p className="text-xs text-muted-foreground">{row.is_training_only ? "Trainees of every department" : row.departmentName || "No department"}</p>
                               </td>
                               <td className="px-2 py-2.5 text-right tabular-nums">
@@ -714,7 +729,7 @@ export default function CapacitySeatsPage() {
                       <div key={row.id} className="rounded-xl border border-border bg-card p-3">
                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                           <div className="min-w-0">
-                            <p className="font-medium text-foreground">{groupName(row)}</p>
+                            <p className="font-medium text-foreground">{groupLabel(row)}</p>
                             <p className="text-xs text-muted-foreground">{row.is_training_only ? "Trainees" : row.departmentName || "No department"} · {desks} desk{desks === 1 ? "" : "s"}</p>
                           </div>
                           {showOccupancy && (
@@ -758,6 +773,7 @@ export default function CapacitySeatsPage() {
       <DeskGroupRemoveDialog seat={deleteTarget} seats={seats as any[]} plans={headcountPlans as any[]}
         lineLabel={(p: any) => `${(lookups?.positions || []).find((x: any) => x.id === p.position_id)?.title || "Designation"} · ${allShifts.find((x) => x.id === p.shift_id)?.name || p.shift_label || "Any shift"}`}
         onClose={() => setDeleteTarget(null)} />
+      <DesignationStoryHost />
     </div>
   );
 }

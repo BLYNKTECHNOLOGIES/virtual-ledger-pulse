@@ -11,6 +11,9 @@ import { CountPill, StatusPill } from "@/components/ats/AtsUi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { HiringRequirementDetailDialog } from "@/components/horilla/workforce/HiringRequirementDetailDialog";
+import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
+import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
+import { DesignationLink, DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 import { useHeadcountPlans, useHiringRequirements, useStaffingMatrix, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
 import { requirementLineIssues } from "@/hooks/hrms/useWorkforceAlerts";
 import { useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
@@ -136,12 +139,17 @@ export default function HiringRequirementsPage() {
   return (
     <div className="hrms-page space-y-4">
       <PageHeader
-        title="Hiring requirements"
+        title="Hiring requests"
         description="Every request to hire — who, how many, which shift and by when — from approval through recruitment to joining."
-        actions={canManage && (
-          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" /> New requirement</Button>
-        )}
+        actions={
+          <div className="grid w-full grid-cols-[repeat(2,minmax(0,1fr))] gap-2 sm:flex sm:w-auto">
+            <HowItWorksButton current="hiring" />
+            {canManage && <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" /> New request</Button>}
+          </div>
+        }
       />
+
+      <WorkforceChainBand current="hiring" />
 
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Requirement status">
         {TABS.map((t) => (
@@ -239,7 +247,7 @@ export default function HiringRequirementsPage() {
                       <td className="px-2 py-2.5">
                         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
                           <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[priority] ?? PRIORITY_DOT.medium)} aria-hidden />
-                          <p className="font-medium text-foreground">{r.positions?.title ?? "Designation"} · {shiftName(r)}</p>
+                          <p className="font-medium text-foreground"><DesignationLink id={r.position_id} label={r.positions?.title}>{r.positions?.title ?? "Designation"}</DesignationLink> · {shiftName(r)}</p>
                           <span aria-hidden />
                           <p className="text-xs text-muted-foreground">
                             {r.departments?.name ?? "Department"} · {PRIORITY_LABEL[priority] ?? priority} priority
@@ -323,6 +331,7 @@ export default function HiringRequirementsPage() {
         canApprove={canManage}
         canManage={canManage}
       />
+      <DesignationStoryHost />
     </div>
   );
 }

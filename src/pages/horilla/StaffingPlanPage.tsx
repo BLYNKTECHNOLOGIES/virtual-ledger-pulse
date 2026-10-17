@@ -16,10 +16,13 @@ import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRe
 import { AddLineDialog, type AddLineSeed } from "@/components/horilla/workforce/AddLineDialog";
 import { LinePanel } from "@/components/horilla/workforce/LinePanel";
 import { PlanHistoryDrawer } from "@/components/horilla/workforce/PlanHistoryDrawer";
-import { StaffingGrid, buildStaffingGrid, type GridRow } from "@/components/horilla/workforce/StaffingGrid";
+import { RoleLinks, StaffingGrid, buildStaffingGrid, type GridRow } from "@/components/horilla/workforce/StaffingGrid";
 import { WorkforceAttention } from "@/components/horilla/workforce/WorkforceAttention";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
 import { InfoTip } from "@/components/ats/AtsUi";
+import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
+import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
+import { DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
 import {
   useHeadcountPlans, useHiringRequirements, useSeatCapacity, useStaffingMatrix, useUnplannedScopes, useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
@@ -178,14 +181,17 @@ export default function StaffingPlanPage() {
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Staffing plan"
-        description="Every designation in every shift: people on roll against what each line requires. Select a cell to see who is counted or to change the line."
+        description="Each cell is one staffing line: on roll / required. Select a cell to see who is counted, or to change the line."
         actions={
-          <div className={cn("grid w-full gap-2 sm:flex sm:w-auto", canManage && "grid-cols-[repeat(2,minmax(0,1fr))]")}>
+          <div className="grid w-full grid-cols-[repeat(2,minmax(0,1fr))] gap-2 sm:flex sm:w-auto">
+            <HowItWorksButton current="lines" />
             <Button variant="outline" onClick={() => setHistoryOpen(true)}><History className="h-4 w-4" /> History</Button>
-            {canManage && <Button onClick={() => setAddSeed({})}><Plus className="h-4 w-4" /> Add line</Button>}
+            {canManage && <Button className="col-span-2 sm:col-span-1" onClick={() => setAddSeed({})}><Plus className="h-4 w-4" /> Add line</Button>}
           </div>
         }
       />
+
+      <WorkforceChainBand current="lines" />
 
       {!matrix.isLoading && rows.length > 0 && (
         <dl className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 text-sm">
@@ -351,6 +357,7 @@ export default function StaffingPlanPage() {
         onOpenChange={(o) => !o && setPanel(null)} onHire={hire} />
       <HiringRequirementDialog open={!!reqSeed} onOpenChange={(o) => !o && setReqSeed(null)} initial={reqSeed ?? undefined} />
       <PlanHistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} />
+      <DesignationStoryHost />
     </div>
   );
 }
@@ -377,7 +384,7 @@ function MobileLines({ rows, columns, onOpen }: { rows: GridRow[]; columns: { id
             const cells = columns.map((c) => ({ c, r: row.cells.get(c.id) })).filter((x) => !!x.r) as { c: { id: string; name: string }; r: StaffingDerived }[];
             return (
               <div key={row.key} className="rounded-xl border border-border bg-card p-3">
-                <p className="font-medium text-foreground">{row.roleLabel}</p>
+                <p className="font-medium text-foreground"><RoleLinks row={row} /></p>
                 <p className="text-xs text-muted-foreground">
                   {row.seat ? `${row.seat.physical_seats} desk${row.seat.physical_seats === 1 ? "" : "s"}` : "No desk group"}
                   {row.trainees ? ` · ${row.trainees} in training` : ""}{row.notice ? ` · ${row.notice} on notice` : ""}

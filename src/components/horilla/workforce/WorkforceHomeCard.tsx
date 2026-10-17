@@ -22,10 +22,15 @@ export function WorkforceHomeCard() {
   const figures = useMemo(() => {
     const t = sumLines(matrix.rows);
     const awaiting = ((reqs.data || []) as any[]).filter((r) => r.status === "pending_approval").length;
-    const joining = (events.data || []).filter((e) => e.kind === "joiner" && (e.event_date || "").slice(0, 7) <= month).length;
+    // Same people in both figures: joiners on a staffing line; "this month" = those dated in this IST month.
+    const lineIds = new Set(matrix.rows.map((r) => r.plan_id));
+    const onLine = (events.data || []).filter((e) => e.kind === "joiner" && !!e.plan_id && lineIds.has(e.plan_id));
+    const joining = onLine.filter((e) => (e.event_date || "").slice(0, 7) === month).reduce((a, e) => a + (Number(e.qty) || 1), 0);
+    const joiningAll = onLine.reduce((a, e) => a + (Number(e.qty) || 1), 0);
     const leavingAll = leaving.data || [];
     const leavingMonth = leavingAll.filter((p: any) => (p.last_working_day || "").slice(0, 7) <= month && p.last_working_day).length;
-    return { short: t.shortNow, awaiting, joining, joiningAll: t.joining, leavingMonth, leavingAll: leavingAll.length };
+    void t.joining;
+    return { short: t.shortNow, awaiting, joining, joiningAll, leavingMonth, leavingAll: leavingAll.length };
   }, [matrix.rows, reqs.data, events.data, leaving.data, month]);
 
   if (!allowed || matrix.isError) return null;

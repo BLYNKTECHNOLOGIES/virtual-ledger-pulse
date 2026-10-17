@@ -63,6 +63,8 @@ export default function AtsJobDetailPage() {
   const emps = useEmployeesLookup();
   const reqs = useRequirementsLookup();
   const extraReqLinks = useJobRequirementLinks(jobId);
+  const reqPipe = useRequirementPipeline();
+  const qc = useQueryClient();
   const [closeOpen, setCloseOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -73,7 +75,7 @@ export default function AtsJobDetailPage() {
     {
       invalidate: () => [...jobKeys(jobId), ["workforce_hiring_requirements"], ["workforce_staffing_matrix"]],
       success: (v) => ({ open: "Job is open", paused: "Job paused", closed: "Job closed" } as Record<string, string>)[v.status] ?? "Saved",
-      onSuccess: () => { setCloseOpen(false); setReason(""); setNote(""); },
+      onSuccess: () => { invalidatePlanning(qc); setCloseOpen(false); setReason(""); setNote(""); },
     },
   );
   const del = useAtsMutation(() => deleteJob(jobId!), {
@@ -104,6 +106,9 @@ export default function AtsJobDetailPage() {
   const linkedReqIds = [...new Set([j.requisition_id, ...(extraReqLinks.data ?? [])].filter(Boolean))] as string[];
   const total = s?.total_applications ?? 0;
   const busy = setStatus.isPending;
+  // Decided across every linked requirement, once per job: pausing stops all of the job's shifts.
+  const openLinked = linkedReqIds.map((rid) => reqPipe.data?.get(rid)).filter((p, i) => p && OPEN_REQ.includes(String(reqStatus(linkedReqIds[i]) ?? "")));
+  const nothingLeft = openLinked.length > 0 && openLinked.length === linkedReqIds.filter((rid) => OPEN_REQ.includes(String(reqStatus(rid) ?? ""))).length && openLinked.every((p) => p!.still_needed === 0);
 
   const submitClose = () => {
     if (!reason) return;
@@ -186,8 +191,16 @@ export default function AtsJobDetailPage() {
           </SectionCard>
 
           <CareersJobCard job={j} />
-          {linkedReqIds.map((rid) => <WorkforceJobCard key={rid} requirementId={rid} jobStatus={j.status} pausing={busy} onPause={() => setStatus.mutate({ status: "paused" })} />)}
-          {linkedReqIds.map((rid) => <JobLineShiftNotice key={rid} requirementId={rid} jobShiftIds={(j.shift_ids ?? []) as string[]} />)}
+          {linkedReqIds.map((rid) => <WorkforceJobCard key={rid} requirementId={rid} />)}
+          {nothingLeft && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
+              <span className="text-foreground">Nothing left to find on any linked requirement — everyone needed is hired or joining.{j.status === "open" ? " The job still shows an opening on the careers page." : ""}</span>
+              {j.status === "open" && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus.mutate({ status: "paused" })}><Pause className="h-3.5 w-3.5" /> Pause job</Button>
+              )}
+            </div>
+          )}
+          {linkedReqIds[0] && <JobLineShiftNotice requirementId={j.requisition_id ?? linkedReqIds[0]} jobShiftIds={(j.shift_ids ?? []) as string[]} />}
 
           <SectionCard title="Key facts">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

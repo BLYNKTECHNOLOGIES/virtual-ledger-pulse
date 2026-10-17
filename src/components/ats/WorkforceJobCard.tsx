@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Pause } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { SectionCard } from "@/components/ats/AtsBits";
@@ -11,9 +9,7 @@ import { useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
 import { REQ_STATUS_CLASS, REQ_STATUS_LABEL } from "@/lib/hrms/workforce";
 
 /** Workforce Planning context for an ATS job linked to a hiring requirement. */
-export function WorkforceJobCard({ requirementId, jobStatus, onPause, pausing }: {
-  requirementId: string; jobStatus?: string; onPause?: () => void; pausing?: boolean;
-}) {
+export function WorkforceJobCard({ requirementId }: { requirementId: string }) {
   // Own cache key: the requirement details dialog caches the full row under ["workforce_hiring_requirements","one",id].
   const req = useQuery({
     queryKey: ["workforce_hiring_requirements", "job_card", requirementId],
@@ -33,8 +29,6 @@ export function WorkforceJobCard({ requirementId, jobStatus, onPause, pausing }:
   const line = r.staffing_plan_id ? matrix.rows.find((l) => l.plan_id === r.staffing_plan_id) : undefined;
   const pct = r.number_required > 0 ? Math.min(100, (r.positions_filled / r.number_required) * 100) : 0;
   const p = pipeline.data?.get(r.id);
-  const open = ["approved", "recruitment_active", "partially_fulfilled"].includes(r.status);
-  const nothingLeft = !!p && open && p.still_needed === 0;
   return (
     <SectionCard title="Workforce">
       <div className="space-y-2 text-sm">
@@ -57,14 +51,6 @@ export function WorkforceJobCard({ requirementId, jobStatus, onPause, pausing }:
           <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Filled</span><span>{r.positions_filled} of {r.number_required}</span></div>
           <Progress value={pct} />
         </div>
-        {nothingLeft && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
-            <span className="text-foreground">Nothing left to find — everyone needed is hired or joining.{jobStatus === "open" ? " The job still shows an opening on the careers page." : ""}</span>
-            {jobStatus === "open" && onPause && (
-              <Button size="sm" variant="outline" disabled={pausing} onClick={onPause}><Pause className="h-3.5 w-3.5" /> Pause job</Button>
-            )}
-          </div>
-        )}
       </div>
     </SectionCard>
   );

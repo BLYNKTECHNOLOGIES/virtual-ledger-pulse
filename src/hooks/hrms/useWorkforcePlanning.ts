@@ -13,12 +13,12 @@ import type { AttritionMonth, ForecastEvent } from "@/lib/hrms/workforceForecast
 
 const STALE = 60_000;
 
-/** Departments, positions, shifts and employees used by the planning forms. */
+/** Departments, positions and shifts used by the planning forms (employees load separately, only where picked). */
 export function useWorkforceLookups() {
   return useQuery({
     queryKey: ["workforce_lookups"],
     queryFn: async () => {
-      const [departments, positions, shifts, employees] = await Promise.all([
+      const [departments, positions, shifts] = await Promise.all([
         supabase.from("departments").select("id, name").eq("is_active", true).order("name"),
         supabase.from("positions").select("id, title, department_id, in_workforce_planning").eq("is_active", true).order("title"),
         supabase
@@ -26,21 +26,58 @@ export function useWorkforceLookups() {
           .select("id, name, start_time, end_time, planning_shift_id, is_training_shift")
           .eq("is_active", true)
           .order("start_time"),
-        supabase
-          .from("hr_employees")
-          .select("id, badge_id, first_name, last_name, resignation_status")
-          .eq("is_active", true)
-          .order("first_name"),
       ]);
       return {
         departments: departments.data || [],
         positions: positions.data || [],
         shifts: shifts.data || [],
-        employees: employees.data || [],
       };
     },
     staleTime: 5 * 60_000,
   });
+}
+
+/** Active employees for the replacement picker — load only where that picker is shown. */
+export function useWorkforceEmployees(enabled = true) {
+  return useQuery({
+    queryKey: ["workforce_employees"],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_employees")
+        .select("id, badge_id, first_name, last_name, resignation_status")
+        .eq("is_active", true)
+        .order("first_name");
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Planning status of every position: planned / no_staff_needed / undecided / outside. */
+export type PositionPlanningStatus = "planned" | "no_staff_needed" | "undecided" | "outside";
+export function usePositionPlanningStatus(enabled = true) {
+  return useQuery({
+    queryKey: ["workforce_position_planning_status"],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("hr_wf_position_planning_status");
+      if (error) throw error;
+      const m = new Map<string, { status: PositionPlanningStatus; line_count: number }>();
+      for (const r of (data || []) as any[]) m.set(r.position_id, { status: r.status, line_count: Number(r.line_count) || 0 });
+      return m;
+    },
+    staleTime: 60_000,
+  });
+}
+
+export const ROLE_NOT_PLANNED_MESSAGE = (title: string) =>
+  `${title} has no staffing line. Plan its lines in Workforce Planning, or take it out of workforce planning, before hiring for it.`;
+
+/** A role blocks hiring when it is in planning but on no active line. */
+export function roleBlocksHiring(status?: PositionPlanningStatus | null): boolean {
+  return status === "undecided" || status === "no_staff_needed";
 }
 
 /** Derived staffing matrix — current headcount, pipeline and seats come from live records. */

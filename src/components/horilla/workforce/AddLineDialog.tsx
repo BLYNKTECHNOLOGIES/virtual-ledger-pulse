@@ -9,7 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { PRIORITIES, PRIORITY_LABEL, planningShifts } from "@/lib/hrms/workforce";
-import { useSaveHeadcountPlan, useSeatCapacity, useSeatOccupancy, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
+import { invalidatePlanning, useSaveHeadcountPlan, useSeatCapacity, useSeatOccupancy, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AddLineSeed {
   department_id?: string;
@@ -39,6 +42,8 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
   const { data: lookups } = useWorkforceLookups();
   const { data: seats = [] } = useSeatCapacity();
   const save = useSaveHeadcountPlan();
+  const qc = useQueryClient();
+  const invalidate = () => invalidatePlanning(qc);
   const occupancy = useSeatOccupancy();
   const [multi, setMulti] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);

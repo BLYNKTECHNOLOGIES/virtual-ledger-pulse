@@ -193,7 +193,8 @@ export interface HeadcountPlanInput {
   approved_hc: number;
   required_hc: number;
   target_date: string | null;
-  priority: string;
+  /** HR's pin; null = automatic. */
+  priority: string | null;
   notes: string | null;
   seat_capacity_id?: string | null;
   follow_desks?: boolean;

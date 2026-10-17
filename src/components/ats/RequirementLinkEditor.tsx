@@ -12,7 +12,7 @@ export interface ReqOption { id: string; label: string; status: string; raw: any
 
 /**
  * Hiring-requirement links for a job. One shift → a single picker (the job's requisition_id).
- * Several shifts → one picker per shift; the first non-empty slot stays the job's primary link,
+ * Several shifts → one picker per shift; the job's existing main link stays the main link,
  * the rest are written to ats_job_requirements. Requirements already linked to another active
  * job are hidden behind an expander.
  */

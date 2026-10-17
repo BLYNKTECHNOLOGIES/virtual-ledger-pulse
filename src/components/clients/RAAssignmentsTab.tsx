@@ -103,7 +103,7 @@ export function RAAssignmentsTab() {
           {raSummaries.map((s) => (
             <div key={s.ra.id} className="border rounded-lg">
               <button
-                className="w-full flex items-center justify-between gap-3 p-4 hover:bg-muted/40"
+                className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 hover:bg-muted/40"
                 onClick={() => setExpandedRA(expandedRA === s.ra.id ? null : s.ra.id)}
               >
                 <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export function RAAssignmentsTab() {
                   {s.assignments.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-2">No clients assigned.</p>
                   ) : (
-                    <table className="w-full text-sm">
+                    <table className="client-record-table w-full text-sm">
                       <thead>
                         <tr className="border-b">
                           <th className="text-left py-2 px-3 font-medium text-muted-foreground">Client</th>
@@ -149,7 +149,7 @@ export function RAAssignmentsTab() {
                           const lr = lastRemarkByClient.get(a.client_id);
                           return (
                             <tr key={a.id} className="border-b hover:bg-muted/30">
-                              <td className="py-2 px-3">
+                              <td data-label="Client" className="py-2 px-3">
                                 <button
                                   className="text-primary hover:underline"
                                   onClick={() => navigate(`/clients/${a.client_id}`)}
@@ -158,7 +158,7 @@ export function RAAssignmentsTab() {
                                   {clientLabel(a.client_id)}
                                 </button>
                               </td>
-                              <td className="py-2 px-3">
+                              <td data-label="Status" className="py-2 px-3">
                                 {a.status === "converted" ? (
                                   <Badge className="bg-success/10 text-success border-success/20">Converted</Badge>
                                 ) : a.status === "not_interested" ? (
@@ -169,10 +169,10 @@ export function RAAssignmentsTab() {
                                   <Badge className="bg-warning/10 text-warning border-warning/20">Pending</Badge>
                                 )}
                               </td>
-                              <td className="py-2 px-3 max-w-[240px] truncate text-muted-foreground">
+                              <td data-label="Last Remark" className="py-2 px-3 sm:max-w-[240px] sm:truncate text-muted-foreground">
                                 {lr ? lr.remark : "—"}
                               </td>
-                              <td className="py-2 px-3">
+                              <td data-label="Actions" className="py-2 px-3">
                                 <div className="flex items-center gap-1">
                                   <Button
                                     size="sm"

@@ -348,7 +348,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
 
   const renderOrderTable = (orders: any[], isBuyOrder: boolean) => (
     <div className="overflow-x-auto">
-      <Table>
+      <Table className="client-record-table">
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead className="font-semibold">Order Number</TableHead>
@@ -365,7 +365,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
         <TableBody>
           {orders.map((order) => (
             <TableRow key={order.id} className="hover:bg-muted/30 border-b border-border">
-              <TableCell className="font-medium text-primary font-mono">
+              <TableCell data-label="Order Number" className="font-medium text-primary font-mono">
                 <button
                   type="button"
                   className="underline decoration-muted-foreground/30 underline-offset-2 hover:text-primary/80"
@@ -377,35 +377,35 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
                   {order.order_number}
                 </button>
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Date">
                 {new Date(order.order_date).toLocaleDateString()}
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Type">
                 {isBuyOrder ? (
                   <Badge className="bg-success/10 text-success border-success/20">Buy</Badge>
                 ) : (
                   <Badge className="bg-warning/10 text-warning border-warning/20">Sell</Badge>
                 )}
               </TableCell>
-              <TableCell className="max-w-32 truncate">
+              <TableCell data-label="Description" className="sm:max-w-32 sm:truncate">
                 {order.description || order.notes || 'USDT Transaction'}
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Quantity">
                 {order.quantity}
               </TableCell>
-              <TableCell className="font-semibold">
+              <TableCell data-label="Amount" className="font-semibold">
                 ₹{order.total_amount?.toLocaleString('en-IN')}
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Platform">
                 {isBuyOrder 
                   ? (order.wallet?.wallet_name || order.platform || 'Off Market')
                   : getPurchaseWalletName(order)
                 }
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Status">
                 {getStatusBadge(order.status, order.payment_status)}
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Actions">
                 <Button 
                   size="sm" 
                   variant="ghost" 
@@ -426,17 +426,17 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
             Order History - {client.name}
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-wrap gap-2 xl:w-auto">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input 
                 placeholder="Search orders..." 
-                className="pl-10 w-48"
+                className="pl-10 w-full sm:w-48"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -509,7 +509,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
 
       {/* Order Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="client-management-dialog md:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
           </DialogHeader>

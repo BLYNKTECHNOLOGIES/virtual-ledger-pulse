@@ -128,6 +128,8 @@ export default function AtsJobDetailPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="break-words font-display text-2xl font-semibold leading-8 text-foreground">{j.title}</h2>
+              {(() => { const t = posTitles.data?.find((p) => p.id === j.position_id)?.label; return t && t.trim().toLowerCase() !== j.title.trim().toLowerCase()
+                ? <p className="text-sm text-muted-foreground">Position: {t}</p> : null; })()}
               <JobStatusBadge status={j.status} />
               {j.is_published && <StatusPill tone="primary" icon={Globe}>On careers page</StatusPill>}
             </div>

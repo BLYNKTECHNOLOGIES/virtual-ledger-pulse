@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { CountPill, HiringProgress, StatusPill } from "@/components/ats/AtsUi";
 import { JobStatusBadge, QueryError, RowsSkeleton } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
-import { useAtsJobSummary, useAtsJobs, useDepartmentsLookup } from "@/lib/ats/api";
+import { useAtsJobSummary, useAtsJobs, useDepartmentsLookup, usePositionsLookup } from "@/lib/ats/api";
 import { fmtDateTime, fmtRelative } from "@/lib/ats/format";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,6 +70,12 @@ export default function AtsJobsPage() {
   }, [filter, jobs.isSuccess, counts.open]);
 
   const deptName = (id?: string | null) => depts.data?.find((d) => d.id === id)?.label ?? "—";
+  // Job titles are the careers-page ad; when the position has since been renamed, show its current name too.
+  const posLookup = usePositionsLookup();
+  const posNote = (j: { title: string; position_id?: string | null }) => {
+    const t = posLookup.data?.find((p) => p.id === j.position_id)?.label;
+    return t && t.trim().toLowerCase() !== j.title.trim().toLowerCase() ? t : null;
+  };
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -134,7 +140,7 @@ export default function AtsJobsPage() {
                   <button type="button" onClick={() => navigate(`/hrms/ats/jobs/${j.id}`)}
                     className="w-full rounded-xl border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <div className="min-w-0">
-                      <div className="break-words font-medium text-foreground">{j.title}</div>
+                      <div className="break-words font-medium text-foreground">{j.title}{posNote(j) && <span className="ml-1.5 text-xs font-normal text-muted-foreground">· {posNote(j)}</span>}</div>
                       <div className="t-mono text-xs text-muted-foreground">{j.job_code} · {deptName(j.department_id)}</div>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5"><JobStatusBadge status={j.status} />{j.is_published && <CareersPill />}</div>
@@ -170,7 +176,7 @@ export default function AtsJobsPage() {
                       onClick={() => navigate(`/hrms/ats/jobs/${j.id}`)}
                       onKeyDown={(e) => e.key === "Enter" && navigate(`/hrms/ats/jobs/${j.id}`)}>
                       <TableCell>
-                        <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-foreground">{j.title}</span>{j.is_published && <CareersPill />}</div>
+                        <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-foreground">{j.title}</span>{posNote(j) && <span className="text-xs text-muted-foreground">Position: {posNote(j)}</span>}{j.is_published && <CareersPill />}</div>
                         <div className="t-mono whitespace-nowrap text-xs text-muted-foreground">{j.job_code}</div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">{deptName(j.department_id)}</TableCell>

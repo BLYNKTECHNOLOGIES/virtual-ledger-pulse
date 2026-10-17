@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.hr_employees_block_delete_without_separation() FROM PUBLIC, anon, authenticated;

@@ -1,6 +1,7 @@
 # Roadmap
 
-## Optional pre-joining onboarding — plan only
+## Optional pre-joining onboarding
+- [ ] Provide isolated sample package, uploads, submission, correction and HR-review preview; no real candidate writes or emails
 - [x] Assess the existing candidate link and joining side effects
 - [x] Prepare the detailed optional-flow plan for owner review
 - [x] Implement shared joining-date foundation and concrete rule tests

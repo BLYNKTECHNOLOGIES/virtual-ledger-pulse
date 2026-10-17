@@ -87,8 +87,8 @@ export function useRaiseReplacement() {
       if (error) throw error;
       return data as string;
     },
-    onSuccess: () => { invalidatePlanning(qc); toast.success("Replacement requirement raised — awaiting approval"); },
-    onError: (e: any) => toast.error(e?.message || "Could not raise the replacement requirement"),
+    onSuccess: () => { invalidatePlanning(qc); toast.success("Replacement request raised — awaiting approval"); },
+    onError: (e: any) => toast.error(e?.message || "Could not raise the replacement request"),
   });
 }
 

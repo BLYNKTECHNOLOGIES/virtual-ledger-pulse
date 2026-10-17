@@ -24,7 +24,7 @@ export function WorkforceJobCard({ requirementId }: { requirementId: string }) {
   const pipeline = useRequirementPipeline();
   const r = req.data;
   if (req.isLoading) return null;
-  if (req.isError) return <SectionCard title="Workforce"><p className="text-sm text-destructive">Couldn't load the linked hiring requirement.</p></SectionCard>;
+  if (req.isError) return <SectionCard title="Workforce"><p className="text-sm text-destructive">Couldn't load the linked hiring request.</p></SectionCard>;
   if (!r) return null;
   const line = r.staffing_plan_id ? matrix.rows.find((l) => l.plan_id === r.staffing_plan_id) : undefined;
   const pct = r.number_required > 0 ? Math.min(100, (r.positions_filled / r.number_required) * 100) : 0;

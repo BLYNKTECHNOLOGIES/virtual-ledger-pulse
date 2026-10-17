@@ -20,6 +20,7 @@ import { useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequ
 import { useHiringLinkableJobs } from "@/hooks/hrms/useWorkforceAttention";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PRIORITY_DOT, PRIORITY_LABEL, REQ_STATUS_LABEL, REQ_STATUS_TONE, formatIstDate, planningShifts, rotaOrder } from "@/lib/hrms/workforce";
+import { requestWhyShort } from "@/lib/hrms/workforceChain";
 import { cn } from "@/lib/utils";
 
 type Tab = "open" | "pending" | "nojob" | "active" | "closed" | "all";
@@ -151,7 +152,7 @@ export default function HiringRequirementsPage() {
 
       <WorkforceChainBand current="hiring" />
 
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Requirement status">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Request status">
         {TABS.map((t) => (
           <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => setTab(t.value)}
             className={cn("inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -168,7 +169,7 @@ export default function HiringRequirementsPage() {
       <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2 sm:flex sm:flex-wrap sm:items-center">
         <div className="relative col-span-2 sm:w-72">
           <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="h-9 pl-8 text-foreground" placeholder="Search number, role or department" aria-label="Search requirements"
+          <Input className="h-9 pl-8 text-foreground" placeholder="Search number, role or department" aria-label="Search requests"
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={dept} onValueChange={setDept}>
@@ -197,16 +198,16 @@ export default function HiringRequirementsPage() {
       {isLoading || (!jobsKnown && reqJobs.isLoading && (tab === "nojob" || tab === "active")) ? (
         <TableSkeleton />
       ) : isError && requirements.length === 0 ? (
-        <ErrorState title="Couldn't load hiring requirements" error={error} onRetry={() => refetch()} />
+        <ErrorState title="Couldn't load hiring requests" error={error} onRetry={() => refetch()} />
       ) : !jobsKnown && (tab === "nojob" || tab === "active") ? (
         <EmptyState icon={ClipboardList} title="ATS jobs not loaded" description="This list needs the ATS job links. Try again above, or use the Open tab." />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={requirements.length === 0 ? "No hiring requirements yet" : "Nothing here"}
+          title={requirements.length === 0 ? "No hiring requests yet" : "Nothing here"}
           description={requirements.length === 0
-            ? "Shortages on staffing lines raise requirements automatically. You can also create one when a designation opens up."
-            : search || dept !== "all" || shift !== "all" ? "No requirement matches these filters." : "No requirement has this status right now."}
+            ? "Shortages on staffing lines raise requests automatically. You can also create one when a designation opens up."
+            : search || dept !== "all" || shift !== "all" ? "No request matches these filters." : "No request has this status right now."}
         />
       ) : (
         <>
@@ -214,7 +215,7 @@ export default function HiringRequirementsPage() {
             <table className="w-full min-w-[680px] text-sm">
               <thead className="border-b border-border bg-muted/40">
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Requirement</th>
+                  <th className="px-4 py-2 font-medium">Request</th>
                   <th className="px-2 py-2 font-medium">Line</th>
                   <th className="px-2 py-2 font-medium">Status</th>
                   <th className="px-2 py-2 font-medium">Filled</th>
@@ -250,9 +251,7 @@ export default function HiringRequirementsPage() {
                           <p className="font-medium text-foreground"><DesignationLink id={r.position_id} label={r.positions?.title}>{r.positions?.title ?? "Designation"}</DesignationLink> · {shiftName(r)}</p>
                           <span aria-hidden />
                           <p className="text-xs text-muted-foreground">
-                            {r.departments?.name ?? "Department"} · {PRIORITY_LABEL[priority] ?? priority} priority
-                            {line ? ` · line needs ${line.netHiringRequirement}` : ""}
-                            {(r.adds_headcount ?? 0) > 0 ? ` · adds +${r.adds_headcount}` : ""}
+                            {r.departments?.name ?? "Department"} · {PRIORITY_LABEL[priority] ?? priority} priority · {requestWhyShort(r, line)}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-1 pl-4 pt-1 empty:hidden">
@@ -310,7 +309,7 @@ export default function HiringRequirementsPage() {
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">{filled} of {needed} filled</span>
-                    {line ? ` · line needs ${line.netHiringRequirement}` : ""}{pp ? ` · ${pp.applied} applied` : ""}
+                    {` · ${requestWhyShort(r, line)}`}{pp ? ` · ${pp.applied} applied` : ""}
                     {` · ${r.target_joining_date ? `target ${formatIstDate(r.target_joining_date)}` : "no target date"}`}
                   </p>
                   {jobs.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{jobs.map((j: any) => <StatusPill key={j.id} tone={j.status === "open" ? "success" : "warning"}>{j.job_code}{j.status === "paused" ? " · paused" : ""}</StatusPill>)}</div>}

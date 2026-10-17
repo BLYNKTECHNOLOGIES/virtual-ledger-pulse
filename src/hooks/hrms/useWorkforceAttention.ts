@@ -204,11 +204,11 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     if (alerts.overRequested.length) groups.push({
       key: "over-requested", severity: "medium", topic: "hiring",
       title: `${plural(alerts.overRequested.length, "line")} asking for more than needed`,
-      hint: "Open requests add up to more than the line's need. Reduce them to the line need.",
+      hint: "Open requests add up to more than the line still has to find. Reduce them to what the line needs.",
       items: alerts.overRequested.map((r) => {
         const req = requirements.find((q) => q.staffing_plan_id === r.plan_id && OPEN_STATUSES.includes(q.status));
         return {
-          key: r.plan_id, title: lineName(r), detail: `${r.open_requirement_hc} requested, line needs ${r.netHiringRequirement} — ${r.over_requested_hc} too many`,
+          key: r.plan_id, title: lineName(r), detail: `${r.open_requirement_hc} in requests, ${r.netHiringRequirement} still to find — ${r.over_requested_hc} over-requested`,
           actions: [req ? { kind: "requirement", label: "Open request", reqId: req.id } : { kind: "line", label: "Open line", planId: r.plan_id }],
         };
       }),
@@ -220,21 +220,21 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     const over = rows.filter((r) => r.staffingGap < 0 && !rebalKeys.has(`${r.department_id ?? "-"}|${r.position_id ?? "-"}`));
     if (rebal.length || over.length) groups.push({
       key: "rebalance", severity: "medium", topic: "people",
-      title: rebal.length ? `Move people before hiring (${plural(rebal.length, "designation")})` : `${plural(over.length, "line")} overstaffed`,
+      title: rebal.length ? `Move people before hiring (${plural(rebal.length, "designation")})` : `${plural(over.length, "line")} with extra people`,
       hint: rebal.length ? "One shift has more people than required while another is short." : "More people on roll than the line requires.",
       items: [
         ...rebal.map((h) => ({ key: h.key, title: h.role, detail: h.message.replace(`${h.role}: `, ""), actions: [] as AttentionAction[] })),
-        ...over.map((r) => ({ key: r.plan_id, title: lineName(r), detail: `${-r.staffingGap} more than required`, actions: [{ kind: "line", label: "Open line", planId: r.plan_id } as AttentionAction] })),
+        ...over.map((r) => ({ key: r.plan_id, title: lineName(r), detail: `${-r.staffingGap} extra`, actions: [{ kind: "line", label: "Open line", planId: r.plan_id } as AttentionAction] })),
       ],
     });
 
     // 9. Automatic hiring paused by a decision.
     if (alerts.paused.length) groups.push({
       key: "paused", severity: "medium", topic: "hiring",
-      title: `Automatic hiring paused on ${plural(alerts.paused.length, "line")}`,
-      hint: "A request was rejected, cancelled or lowered. Raise it again when the need is real.",
+      title: `Hiring held back on ${plural(alerts.paused.length, "line")}`,
+      hint: "Part of an automatic request was declined or lowered. Raise it again on the line when the need is real.",
       items: alerts.paused.map((r) => ({
-        key: r.plan_id, title: lineName(r), detail: pauseText(r)?.replace(/^Automatic hiring paused( for \d+)? — /, "") ?? "",
+        key: r.plan_id, title: lineName(r), detail: pauseText(r)?.replace(/^Hiring held back( for \d+)? — /, "") ?? "",
         actions: [{ kind: "line", label: "Open line", planId: r.plan_id } as AttentionAction, ...(canManage ? [{ kind: "resume", label: "Raise again", planId: r.plan_id } as AttentionAction] : [])],
       })),
     });

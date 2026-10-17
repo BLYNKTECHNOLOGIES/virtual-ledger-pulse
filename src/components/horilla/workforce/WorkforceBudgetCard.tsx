@@ -39,8 +39,8 @@ export function WorkforceBudgetCard({ canManage, filtered = false }: { canManage
         <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">
           <Figure label="Cost today" value={formatInr(c.on_roll_cost)}
             hint={`${c.on_roll_hc} on roll${c.training_hc ? ` (incl. ${c.training_hc} in training)` : ""}`} />
-          <Figure label="Hired, joining" value={formatInr(c.joining_cost)} hint={`${c.joining_hc} selected or joining`} />
-          <Figure label="Being hired" value={formatInr(c.hiring_cost)} hint={`${c.hiring_hc} people in open requests`} />
+          <Figure label="Joining" value={formatInr(c.joining_cost)} hint={`${c.joining_hc} hired, not joined yet`} />
+          <Figure label="In hiring" value={formatInr(c.hiring_cost)} hint={`${c.hiring_hc} people in open requests`} />
           <Figure label="If fully staffed" value={formatInr(c.full_cost)} hint={`${c.required_hc} required on all lines`} />
         </MetricStrip>
 
@@ -53,7 +53,7 @@ export function WorkforceBudgetCard({ canManage, filtered = false }: { canManage
                     <th className="py-1.5 font-medium">Department</th>
                     <th className="px-1 text-right font-medium">Today</th>
                     <th className="px-1 text-right font-medium">Joining</th>
-                    <th className="px-1 text-right font-medium">Being hired</th>
+                    <th className="px-1 text-right font-medium">In hiring</th>
                     <th className="pl-1 text-right font-medium">Fully staffed</th>
                   </tr>
                 </thead>
@@ -77,7 +77,7 @@ export function WorkforceBudgetCard({ canManage, filtered = false }: { canManage
                   <dl className="mt-1 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-x-3 gap-y-0.5 text-xs tabular-nums">
                     <dt className="text-muted-foreground">Today</dt><dd className="text-right">{formatInr(d.on_roll_cost)}</dd>
                     <dt className="text-muted-foreground">Joining</dt><dd className="text-right">{formatInr(d.joining_cost)}</dd>
-                    <dt className="text-muted-foreground">Being hired</dt><dd className="text-right">{formatInr(d.hiring_cost)}</dd>
+                    <dt className="text-muted-foreground">In hiring</dt><dd className="text-right">{formatInr(d.hiring_cost)}</dd>
                     <dt className="text-muted-foreground">Fully staffed</dt><dd className="text-right font-medium text-foreground">{formatInr(d.full_cost)}</dd>
                   </dl>
                 </div>

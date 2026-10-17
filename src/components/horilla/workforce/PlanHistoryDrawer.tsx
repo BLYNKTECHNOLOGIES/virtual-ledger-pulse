@@ -13,7 +13,7 @@ const PAGE = 50;
 const TYPE_LABEL: Record<string, string> = {
   headcount_plan: "Staffing line",
   seat_capacity: "Desk group",
-  hiring_requirement: "Requirement",
+  hiring_requirement: "Hiring request",
   position: "Designation",
   employee: "Employee",
   onboarding: "Onboarding",
@@ -101,7 +101,7 @@ export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpe
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Plan history</SheetTitle>
-          <SheetDescription>Every change to staffing lines, desk groups and hiring requirements. Times in IST.</SheetDescription>
+          <SheetDescription>Every change to staffing lines, desk groups and hiring requests. Times in IST.</SheetDescription>
         </SheetHeader>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[180px_1fr]">
           <Select value={type} onValueChange={(v) => { setType(v); setLimit(PAGE); }}>

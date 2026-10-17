@@ -95,8 +95,8 @@ export function SeatCapacityDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={form.id ? "Edit seat capacity" : "Add seat capacity"}
-      description="Physical seats are desks and workstations. They are tracked separately from sanctioned and required headcount."
+      title={form.id ? "Edit desk group" : "Add desk group"}
+      description="Desks used by one or more designations. Shifts share them: a staffing line that follows this group requires one person per desk in each shift it works, and its hiring request resizes by itself when you save."
       contentClassName="md:max-w-2xl"
       focusContainer
       footer={
@@ -120,7 +120,7 @@ export function SeatCapacityDialog({
             <p className="text-xs text-muted-foreground">
               {training && trainingBlocked
                 ? trainingBlocked
-                : "Used only by people on a training shift. No designation, and operational capacity 0, so they never count as staffing."}
+                : "Used only by people on a training shift. No designation and 0 usable desks, so they never count as staffing."}
             </p>
           </div>
           <Switch
@@ -248,7 +248,7 @@ export function SeatCapacityDialog({
         </div>
 
         <div className="space-y-1">
-          <Label>Total physical seats</Label>
+          <Label>Desks</Label>
           <Input
             type="number"
             min={0}
@@ -259,7 +259,7 @@ export function SeatCapacityDialog({
         </div>
 
         <div className="space-y-1">
-          <Label>Maximum operational capacity</Label>
+          <Label>Usable desks (if fewer)</Label>
           <Input
             type="number"
             min={0}

@@ -72,17 +72,39 @@ export function autoPriority(input: {
   return { priority: "medium", why: `${net} of ${required} still needed` };
 }
 
-/** "High · automatic — 4 of 8 still needed" / "Critical · set by HR". */
-export function linePriorityText(r: Pick<StaffingMatrixRow, "priority" | "priority_pinned" | "priority_why">): string {
-  const label = PRIORITY_LABEL[r.priority] ?? r.priority;
-  return r.priority_pinned ? `${label} · set by HR` : `${label} · automatic${r.priority_why ? ` — ${r.priority_why}` : ""}`;
+/** The database's priority reason in the screens' words ("4 of 8 still needed" → "4 of 8 still to find"). */
+export function priorityWhyText(why?: string | null): string {
+  return (why ?? "").replace(/still needed/g, "still to find");
 }
 
-/** "Automatic hiring paused — declined by <name> on <date>: <reason>" (null when not paused). */
+/** "High · automatic — 4 of 8 still to find" / "Critical · set by HR". */
+export function linePriorityText(r: Pick<StaffingMatrixRow, "priority" | "priority_pinned" | "priority_why">): string {
+  const label = PRIORITY_LABEL[r.priority] ?? r.priority;
+  return r.priority_pinned ? `${label} · set by HR` : `${label} · automatic${r.priority_why ? ` — ${priorityWhyText(r.priority_why)}` : ""}`;
+}
+
+/** "Hiring held back for 2 — declined or lowered by <name> on <date>: <reason>" (null when nothing is held back). */
 export function pauseText(r: Pick<StaffingMatrixRow, "auto_paused_at" | "auto_paused_by_name" | "auto_paused_reason"> & { auto_paused_need?: number | null }): string | null {
   if (!r.auto_paused_at) return null;
   const need = Number(r.auto_paused_need) || 0;
-  return `Automatic hiring paused${need ? ` for ${need}` : ""} — declined or lowered by ${r.auto_paused_by_name || "a manager"} on ${formatIstDate(r.auto_paused_at)}${r.auto_paused_reason ? `: ${r.auto_paused_reason}` : ""}. Growth beyond this is still requested.`;
+  return `Hiring held back${need ? ` for ${need}` : ""} — declined or lowered by ${r.auto_paused_by_name || "a manager"} on ${formatIstDate(r.auto_paused_at)}${r.auto_paused_reason ? `: ${r.auto_paused_reason}` : ""}. Anything needed beyond this is still requested.`;
+}
+
+/** A shift name for short lists: "Morning Shift" → "Morning"; a shift named like a team ("Management") → "Management shift". */
+export function shiftShort(name?: string | null): string {
+  const n = (name ?? "").trim();
+  if (!n) return "Any shift";
+  if (/^any shift$/i.test(n)) return "Any shift";
+  return / shift$/i.test(n) ? n.replace(/ shift$/i, "") : `${n} shift`;
+}
+
+/** Plain words for a refused line save (an exact duplicate line otherwise shows the raw unique-index error). */
+export function lineSaveErrorText(e: { code?: string; message?: string } | null | undefined, fallback = "Could not save the staffing line"): string {
+  const msg = String(e?.message || "");
+  if (e?.code === "23505" || msg.includes("hr_headcount_plans_scope_uk") || msg.includes("duplicate key")) {
+    return "This designation already has an active line in this shift. Open that line in the staffing plan to change its numbers.";
+  }
+  return msg || fallback;
 }
 
 /** A desk group belongs to a shift only when its line there requires more than 0. */
@@ -337,10 +359,10 @@ export function rotaOrder<T extends { id: string; name: string; start_time?: str
 export const WF_DEFINITIONS = {
   required: "People each staffing line needs, added up line by line.",
   onRoll: "People on roll counted on a staffing line (planned designations only; people in training are counted separately).",
-  short: "Each line's shortfall (required − on roll), added up. A surplus on one line never covers another.",
-  netNeed: "Still needed: short now, minus people in training and people already hired for that line (selected or joining).",
-  beingHired: "People still to find on open hiring requirements (awaiting approval, approved or recruiting).",
-  notRequested: "Still needed that no open hiring requirement covers yet (drafts don't count until they are sent).",
+  short: "Each line's shortfall (required − on roll), added up. An extra person on one line never fills a gap on another.",
+  netNeed: "Still to find: short, minus the people on the way for that line (in training, or hired and joining).",
+  beingHired: "In hiring: people open hiring requests (awaiting approval, approved or recruiting) still have to find.",
+  notRequested: "Not requested yet: still to find that no open hiring request covers (drafts don't count until they are sent).",
   projected: "Short on lines at the end of the period, after approved hiring, trainees and known exits (no attrition estimate).",
   leaving: "People on notice in planned designations.",
 } as const;
@@ -386,23 +408,23 @@ export const GAP_CHIP_CLASS: Record<GapTone, string> = {
   over: "bg-warning/15 text-warning border-warning/30",
 };
 export function gapLabel(gap: number): string {
-  return gap > 0 ? `short ${gap}` : gap < 0 ? `over ${-gap}` : "met";
+  return gap > 0 ? `short ${gap}` : gap < 0 ? `${-gap} extra` : "met";
 }
 
-/** A line's tone on every staffing screen: "covered" = short today, but trainees and hires cover it all. */
+/** A line's tone on every staffing screen: "covered" = short today, but the people on the way (trainees, joiners) cover it all. */
 export type LineTone = GapTone | "covered";
 export function lineTone(r: { staffingGap: number; netHiringRequirement: number }): LineTone {
   return r.staffingGap > 0 && r.netHiringRequirement === 0 ? "covered" : gapTone(r.staffingGap);
 }
 export function lineToneLabel(r: { staffingGap: number; netHiringRequirement: number }): string {
-  return lineTone(r) === "covered" ? `short ${r.staffingGap} · covered` : gapLabel(r.staffingGap);
+  return lineTone(r) === "covered" ? `short ${r.staffingGap} · on the way` : gapLabel(r.staffingGap);
 }
 
 /** Status filter options. */
 export const STATUS_FILTER_OPTIONS: { value: StaffingStatus; label: string }[] = [
   { value: "understaffed", label: "Short" },
   { value: "fully_staffed", label: "Met" },
-  { value: "overstaffed", label: "Over" },
+  { value: "overstaffed", label: "Extra" },
 ];
 
 export const PRIORITIES = ["critical", "high", "medium", "low"] as const;
@@ -436,11 +458,11 @@ export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
 
 export const REQ_STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
-  pending_approval: "Pending approval",
+  pending_approval: "Awaiting approval",
   approved: "Approved",
-  recruitment_active: "Recruitment active",
-  partially_fulfilled: "Partially fulfilled",
-  fulfilled: "Fulfilled",
+  recruitment_active: "Recruiting",
+  partially_fulfilled: "Partly filled",
+  fulfilled: "Filled",
   cancelled: "Cancelled",
   rejected: "Rejected",
 };

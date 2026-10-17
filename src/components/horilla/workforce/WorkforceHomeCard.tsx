@@ -42,8 +42,8 @@ export function WorkforceHomeCard() {
   const state = (q: { isLoading: boolean; isError: boolean; data?: unknown }) => (q.data !== undefined ? "ready" : q.isError ? "error" : "loading");
   const matrixState = matrix.rows.length || !matrix.isLoading ? "ready" : "loading";
   const items = [
-    { label: "Short now", value: figures.short, tone: figures.short > 0 ? "text-destructive" : "text-foreground", icon: AlertTriangle, state: matrixState,
-      sub: figures.net !== figures.short ? `${figures.net} still needed after trainees and hires` : "across all staffing lines", to: "/hrms/workforce-planning/staffing-plan?status=understaffed" },
+    { label: "Short", value: figures.short, tone: figures.short > 0 ? "text-destructive" : "text-foreground", icon: AlertTriangle, state: matrixState,
+      sub: figures.net !== figures.short ? `${figures.net} still to find after people on the way` : "across all staffing lines", to: "/hrms/workforce-planning/staffing-plan?status=understaffed" },
     { label: "Awaiting approval", value: figures.awaiting, tone: "text-foreground", icon: ClipboardCheck, state: state(reqs),
       sub: figures.awaiting ? `request${figures.awaiting === 1 ? "" : "s"} · ${figures.awaitingPeople} ${figures.awaitingPeople === 1 ? "person" : "people"}` : "nothing to approve", to: "/hrms/workforce-planning/hiring-requirements?tab=pending" },
     { label: "Joining this month", value: figures.joining, tone: "text-foreground", icon: UserPlus, state: matrixState === "ready" ? state(events) : "loading",

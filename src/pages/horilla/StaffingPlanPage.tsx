@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { ClipboardList, History, LayoutGrid, List, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,10 +128,14 @@ export default function StaffingPlanPage() {
     if (roleId && lookups) {
       const role: any = (lookups.positions || []).find((p: any) => p.id === roleId);
       const shiftId = params.get("plan_shift");
-      if (role && canManage) {
+      if (role && canManage && role.in_workforce_planning !== false) {
         setAddSeed(shiftId
           ? { department_id: role.department_id ?? undefined, position_id: role.id, shift_id: planningShiftId(shifts, shiftId) }
           : { department_id: role.department_id ?? undefined, position_id: role.id, multiShift: true });
+      } else {
+        // Say why nothing opened instead of failing silently.
+        toast.info(!canManage ? "Only HRMS managers can plan staffing lines."
+          : "This designation is tentative or outside workforce planning. Make it active and in planning on Organization › Designations first.");
       }
       params.delete("plan_role"); params.delete("plan_shift"); changed = true;
     }
@@ -198,11 +203,11 @@ export default function StaffingPlanPage() {
           <Stat label="Required" value={totals.required} sub={`${totals.lines} line${totals.lines === 1 ? "" : "s"}`} info={WF_DEFINITIONS.required} />
           <Stat label="On roll" value={totals.current} info={WF_DEFINITIONS.onRoll} />
           {totals.inTraining > 0 && <Stat label="In training" value={totals.inTraining} />}
-          <Stat label="Short now" value={totals.shortNow} tone={totals.shortNow > 0 ? "text-destructive" : "text-success"} info={WF_DEFINITIONS.short} />
-          {totals.netNeed !== totals.shortNow && <Stat label="Still needed" value={totals.netNeed} info={WF_DEFINITIONS.netNeed} />}
-          {totals.overNow > 0 && <Stat label="Over" value={totals.overNow} tone="text-warning" />}
-          <Stat label="Being hired" value={totals.requested} info={WF_DEFINITIONS.beingHired} />
-          {totals.uncovered > 0 && <Stat label="Not yet requested" value={totals.uncovered} tone="text-warning" info={WF_DEFINITIONS.notRequested} />}
+          <Stat label="Short" value={totals.shortNow} tone={totals.shortNow > 0 ? "text-destructive" : "text-success"} info={WF_DEFINITIONS.short} />
+          {totals.netNeed !== totals.shortNow && <Stat label="Still to find" value={totals.netNeed} info={WF_DEFINITIONS.netNeed} />}
+          {totals.overNow > 0 && <Stat label="Extra" value={totals.overNow} tone="text-warning" />}
+          <Stat label="In hiring" value={totals.requested} info={WF_DEFINITIONS.beingHired} />
+          {totals.uncovered > 0 && <Stat label="Not requested yet" value={totals.uncovered} tone="text-warning" info={WF_DEFINITIONS.notRequested} />}
           {totals.overRequested > 0 && <Stat label="Over-requested" value={totals.overRequested} tone="text-warning" />}
           {filtering && <span className="self-center text-xs text-muted-foreground">for the filtered lines</span>}
         </dl>
@@ -253,7 +258,7 @@ export default function StaffingPlanPage() {
               { value: "all", label: "All" },
               { value: "understaffed", label: "Short" },
               { value: "fully_staffed", label: "Met" },
-              { value: "overstaffed", label: "Over" },
+              { value: "overstaffed", label: "Extra" },
             ]}
           />
         </div>
@@ -301,12 +306,11 @@ export default function StaffingPlanPage() {
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Line</th>
                   <th className="px-2 py-2 text-right font-medium">On roll / req.</th>
-                  <th className="hidden px-2 py-2 text-right font-medium xl:table-cell">Approved</th>
                   <th className="px-2 py-2 text-right font-medium">In training</th>
                   <th className="px-2 py-2 text-right font-medium">Joining</th>
                   <th className="px-2 py-2 text-right font-medium">Candidates</th>
-                  <th className="px-2 py-2 text-right font-medium">Being hired</th>
-                  <th className="px-2 py-2 text-right font-medium">Still needed</th>
+                  <th className="px-2 py-2 text-right font-medium">In hiring</th>
+                  <th className="px-2 py-2 text-right font-medium">Still to find</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="hidden px-3 py-2 font-medium lg:table-cell">Target joining</th>
                 </tr>
@@ -326,14 +330,13 @@ export default function StaffingPlanPage() {
                         <p className="text-xs text-muted-foreground">{r.department_name}{r.follow_desks ? " · follows desks" : ""}</p>
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.current_hc} / {r.required_hc}</td>
-                      <td className="hidden px-2 py-2 text-right tabular-nums xl:table-cell">{r.approved_hc}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.in_training_hc || "—"}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.selected_hc + r.pending_joining_hc || "—"}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.pipeline_hc || "—"}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{r.open_requirement_hc || "—"}</td>
                       <td className="px-2 py-2 text-right font-semibold tabular-nums">
                         {r.netHiringRequirement || "—"}
-                        {r.uncoveredHiringRequirement > 0 && <span className="ml-1 text-xs font-normal text-warning">({r.uncoveredHiringRequirement} not requested)</span>}
+                        {r.uncoveredHiringRequirement > 0 && <span className="ml-1 text-xs font-normal text-warning">({r.uncoveredHiringRequirement} not requested yet)</span>}
                       </td>
                       <td className={cn("px-3 py-2 text-xs font-medium", r.required_hc === 0 && r.current_hc === 0 ? "text-muted-foreground" : TONE_TEXT[tone])}>
                         {r.required_hc === 0 && r.current_hc === 0 ? "not staffed" : lineToneLabel(r)}

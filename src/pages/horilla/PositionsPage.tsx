@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DesignationLink } from "@/components/horilla/workforce/DesignationStory";
+import { REQ_STATUS_LABEL } from "@/lib/hrms/workforce";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -155,6 +156,16 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
 
   // Editing a department: preview what moves with the designation (lines, desk groups, requests, jobs, people) and confirm once.
   const submitPosition = async () => {
+    // Clearing the department would move the designation's lines, desks, requests and people to "no department".
+    if (editId && editOriginalDept && !form.department_id) {
+      const { data, error } = await (supabase.rpc as any)("hr_wf_position_move_preview", { p_position: editId, p_new_department: null });
+      if (error) { toast.error(error.message); return; }
+      const pv = data as MovePreview;
+      if (pv.total > 0 || pv.users > 0) {
+        toast.error(`${form.title.trim() || "This designation"} has staffing lines, desk groups, requests or people in its department. Pick the department to move them to, instead of none.`);
+        return;
+      }
+    }
     if (editId && (form.department_id || "") !== editOriginalDept && form.department_id) {
       const { data, error } = await (supabase.rpc as any)("hr_wf_position_move_preview", { p_position: editId, p_new_department: form.department_id });
       if (error) { toast.error(error.message); return; }
@@ -274,18 +285,40 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
         return roles.includes(confirmSwitch.p.id) && roles.filter((x) => x !== confirmSwitch.p.id).length === 0;
       }).map((pl) => pl.id as string)
     : [];
+  // Same scope as the database's check (hr_wf_position_guard): requests for this designation or on its own lines, and its live ATS jobs.
+  const leavingId = leaving ? confirmSwitch!.p.id as string : null;
   const openOnLines = useQuery({
-    queryKey: ["workforce_hiring_requirements", "open-on-lines", confirmPlanIds.join(",")],
-    enabled: leaving && confirmPlanIds.length > 0,
+    queryKey: ["workforce_hiring_requirements", "open-on-lines", leavingId, confirmPlanIds.join(",")],
+    enabled: !!leavingId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("hr_hiring_requirements")
-        .select("id, requirement_no, status, number_required, shift_label, source")
-        .in("staffing_plan_id", confirmPlanIds)
-        .in("status", ["draft", "pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
-      if (error) throw error;
-      return data ?? [];
+      const statuses = ["draft", "pending_approval", "approved", "recruitment_active", "partially_fulfilled"];
+      const cols = "id, requirement_no, status, number_required, shift_label, source, staffing_plan_id";
+      const [own, onLines, jobs] = await Promise.all([
+        supabase.from("hr_hiring_requirements").select(cols).eq("position_id", leavingId!).in("status", statuses),
+        confirmPlanIds.length
+          ? supabase.from("hr_hiring_requirements").select(cols).in("staffing_plan_id", confirmPlanIds).in("status", statuses)
+          : Promise.resolve({ data: [] as any[], error: null }),
+        supabase.from("ats_jobs").select("id, job_code, title, status").eq("position_id", leavingId!).in("status", ["draft", "open", "paused"]),
+      ]);
+      if (own.error) throw own.error;
+      if (onLines.error) throw onLines.error;
+      if (jobs.error) throw jobs.error;
+      const seen = new Set<string>();
+      const reqs = [...(own.data ?? []), ...(onLines.data ?? [])].filter((q: any) => (seen.has(q.id) ? false : (seen.add(q.id), true)));
+      return { reqs, jobs: jobs.data ?? [] };
     },
   });
+  const leaveCheck = (() => {
+    const reqs = (openOnLines.data?.reqs ?? []) as any[];
+    const onRemoved = (q: any) => !!q.staffing_plan_id && confirmPlanIds.includes(q.staffing_plan_id);
+    const hiring = reqs.filter((q) => ["approved", "recruitment_active", "partially_fulfilled"].includes(q.status));
+    const jobs = (openOnLines.data?.jobs ?? []) as any[];
+    return {
+      pend: reqs.filter((q) => q.status === "pending_approval" && onRemoved(q)),
+      drafts: reqs.filter((q) => q.status === "draft" && onRemoved(q)),
+      hiring, jobs, blocked: hiring.length > 0 || jobs.length > 0,
+    };
+  })();
 
   const blockIfOccupied = (p: any, action: "tentative" | "delete") => {
     const count = hiredCount(p.id);
@@ -744,26 +777,28 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
               {confirmLines.map((r) => <li key={r.plan_id}>{r.position_title} · {r.shiftLabel} — required {r.required_hc}, on roll {r.current_hc}</li>)}
             </ul>
           )}
-          {leaving && (openOnLines.data?.length ?? 0) > 0 && (() => {
-            const all = openOnLines.data!;
-            const pend = all.filter((q: any) => q.status === "pending_approval");
-            const live = all.filter((q: any) => q.status !== "pending_approval");
-            return (
-              <div className="space-y-2 text-sm">
-                {pend.length > 0 && <div>
-                  <p className="text-muted-foreground">These requests not yet approved will be cancelled (reason: designation taken out of planning):</p>
-                  <ul className="text-foreground">{pend.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
-                </div>}
-                {live.length > 0 && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-warning">
-                  <p>Drafts and approved or recruiting requests stay open on the removed lines — move them to another line or cancel them in Hiring Requirements:</p>
-                  <ul>{live.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
-                </div>}
-              </div>
-            );
-          })()}
+          {leaving && (leaveCheck.blocked || leaveCheck.pend.length > 0 || leaveCheck.drafts.length > 0) && (
+            <div className="space-y-2 text-sm">
+              {leaveCheck.blocked && <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-destructive">
+                <p>{confirmSwitch?.p.title} still has live hiring, so it can't leave workforce planning or become tentative yet. Close these, or move them to another designation's line, first:</p>
+                <ul className="text-foreground">
+                  {leaveCheck.hiring.map((q: any) => <li key={q.id}>{q.requirement_no} · {REQ_STATUS_LABEL[q.status] ?? q.status} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}
+                  {leaveCheck.jobs.map((j: any) => <li key={j.id}>{j.job_code ?? j.title} · {j.status} ATS job</li>)}
+                </ul>
+              </div>}
+              {!leaveCheck.blocked && leaveCheck.pend.length > 0 && <div>
+                <p className="text-muted-foreground">These requests awaiting approval will be cancelled (reason: designation taken out of planning):</p>
+                <ul className="text-foreground">{leaveCheck.pend.map((q: any) => <li key={q.id}>{q.requirement_no} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
+              </div>}
+              {!leaveCheck.blocked && leaveCheck.drafts.length > 0 && <div className="rounded-md border border-warning/40 bg-warning/10 p-2 text-warning">
+                <p>These drafts stay on the removed lines — move them to another line or cancel them in Hiring requests:</p>
+                <ul>{leaveCheck.drafts.map((q: any) => <li key={q.id}>{q.requirement_no ?? "Draft"} · {q.shift_label || "Any shift"} ×{q.number_required}</li>)}</ul>
+              </div>}
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Back</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
+            <AlertDialogAction disabled={leaving && (openOnLines.isLoading || leaveCheck.blocked)} onClick={() => {
               const c = confirmSwitch; setConfirmSwitch(null);
               if (!c) return;
               if (c.kind === "planning") planningMutation.mutate({ id: c.p.id, value: c.value });

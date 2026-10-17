@@ -102,12 +102,12 @@ const TONE_BG = { short: "bg-destructive/[0.06] hover:bg-destructive/10", met: "
 function CellTip({ r }: { r: StaffingDerived }) {
   return (
     <div className="space-y-0.5 text-xs">
-      <p className="font-medium">{r.current_hc} on roll of {r.required_hc} required{r.approved_hc !== r.required_hc ? ` (approved ${r.approved_hc})` : ""}</p>
-      {(r.selected_hc > 0 || r.pending_joining_hc > 0) && <p>Selected {r.selected_hc} · Joining {r.pending_joining_hc}</p>}
+      <p className="font-medium">{r.current_hc} on roll of {r.required_hc} required</p>
+      {(r.selected_hc > 0 || r.pending_joining_hc > 0) && <p>Joining {r.selected_hc + r.pending_joining_hc}{r.selected_hc ? ` (${r.selected_hc} without a joining date)` : ""}</p>}
       {r.in_training_hc > 0 && <p>In training {r.in_training_hc}{r.training_ready_date ? ` (ready ${formatIstDate(r.training_ready_date)})` : ""}</p>}
-      <p>Being hired {r.open_requirement_hc}{r.open_requirement_count ? ` in ${r.open_requirement_count} request${r.open_requirement_count === 1 ? "" : "s"}` : ""}</p>
+      <p>In hiring {r.open_requirement_hc}{r.open_requirement_count ? ` in ${r.open_requirement_count} request${r.open_requirement_count === 1 ? "" : "s"}` : ""}</p>
       {r.over_requested_hc > 0 && <p className="text-warning">Over-requested by {r.over_requested_hc}</p>}
-      {r.netHiringRequirement > 0 && <p>Still needed {r.netHiringRequirement} · not yet requested {r.uncoveredHiringRequirement}</p>}
+      {r.netHiringRequirement > 0 && <p>Still to find {r.netHiringRequirement} · not requested yet {r.uncoveredHiringRequirement}</p>}
       {r.follow_desks && <p className="text-muted-foreground">Follows its desk group</p>}
       {pauseText(r) && <p className="text-warning">{pauseText(r)}</p>}
     </div>
@@ -124,7 +124,7 @@ function Totals({ t, strong }: { t: ReturnType<typeof sum>; strong?: boolean }) 
     <span className="inline-flex flex-col items-center leading-tight">
       <span className={cn("tabular-nums text-foreground", strong ? "text-sm font-semibold" : "text-sm")}>{t.cur} / {t.req}</span>
       <span className={cn("text-[10px] font-medium", t.short ? "text-destructive" : t.over ? "text-warning" : "text-success")}>
-        {t.short ? `short ${t.short}` : t.over ? `over ${t.over}` : "met"}{t.short && t.over ? ` · over ${t.over}` : ""}
+        {t.short ? `short ${t.short}` : t.over ? `${t.over} extra` : "met"}{t.short && t.over ? ` · ${t.over} extra` : ""}
       </span>
     </span>
   );
@@ -254,7 +254,7 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell, cost
                             <span className="block text-sm font-semibold tabular-nums text-foreground">{r.current_hc} / {r.required_hc}</span>
                             <span className={cn("mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium", TONE_TEXT[tone])}>
                               {lineToneLabel(r)}
-                              {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Automatic hiring paused" />}
+                              {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Hiring held back" />}
                             </span>
                           </>
                         )}

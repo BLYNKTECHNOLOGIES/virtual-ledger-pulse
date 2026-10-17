@@ -6,6 +6,7 @@ import type { Json } from "@/integrations/supabase/types";
 import {
   deriveStaffingRow,
   istToday,
+  lineSaveErrorText,
   type StaffingDerived,
   type StaffingMatrixRow,
 } from "@/lib/hrms/workforce";
@@ -253,9 +254,9 @@ export function useSaveHeadcountPlan() {
     },
     onSuccess: () => {
       invalidatePlanning(qc);
-      toast.success("Staffing plan saved");
+      toast.success("Staffing line saved", { description: "Its hiring request is raised or resized by itself." });
     },
-    onError: (e: any) => toast.error(e?.message || "Could not save the staffing plan"),
+    onError: (e: any) => toast.error(lineSaveErrorText(e)),
   });
 }
 
@@ -325,9 +326,9 @@ export function useSaveSeatCapacity() {
     },
     onSuccess: () => {
       invalidatePlanning(qc);
-      toast.success("Seat capacity saved");
+      toast.success("Desk group saved", { description: "Lines that follow it, and their hiring requests, update by themselves." });
     },
-    onError: (e: any) => toast.error(e?.message || "Could not save seat capacity"),
+    onError: (e: any) => toast.error(e?.message || "Could not save the desk group"),
   });
 }
 
@@ -343,9 +344,9 @@ export function useDeleteSeatCapacity() {
     },
     onSuccess: () => {
       invalidatePlanning(qc);
-      toast.success("Seat capacity removed");
+      toast.success("Desk group removed");
     },
-    onError: (e: any) => toast.error(e?.message || "Could not remove seat capacity"),
+    onError: (e: any) => toast.error(e?.message || "Could not remove the desk group"),
   });
 }
 
@@ -445,9 +446,9 @@ export function useSaveHiringRequirement() {
 
     onSuccess: () => {
       invalidatePlanning(qc);
-      toast.success("Hiring requirement saved");
+      toast.success("Hiring request saved");
     },
-    onError: (e: any) => toast.error(e?.message || "Could not save the hiring requirement"),
+    onError: (e: any) => toast.error(e?.message || "Could not save the hiring request"),
   });
 }
 
@@ -469,9 +470,9 @@ export function useRequirementTransition() {
       const word: Record<RequirementAction, string> = {
         submit: "submitted for approval", approve: "approved", reject: "rejected", cancel: "cancelled", reopen: "reopened as a draft",
       };
-      toast.success(`Requirement ${word[v.action]}`);
+      toast.success(`Request ${word[v.action]}`);
     },
-    onError: (e: any) => toast.error(e?.message || "Could not update the requirement"),
+    onError: (e: any) => toast.error(e?.message || "Could not update the request"),
   });
 }
 

@@ -149,8 +149,8 @@ export function HiringRequirementDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={form.id ? "Edit hiring requirement" : "Create hiring requirement"}
-      description={`Raised on ${formatIstDate((initial as any)?.requested_at ?? (initial as any)?.created_at ?? istToday())}. Once approved it can be sent to recruitment as an opening.`}
+      title={form.id ? "Edit hiring request" : "New hiring request"}
+      description={`Raised on ${formatIstDate((initial as any)?.requested_at ?? (initial as any)?.created_at ?? istToday())}. Once approved, an ATS job can recruit for it.`}
       contentClassName="md:max-w-3xl"
       focusContainer
       footer={
@@ -179,7 +179,7 @@ export function HiringRequirementDialog({
       <div className="space-y-4">
         {limited && (
           <p className="rounded-lg border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
-            This requirement is approved. You can change the number, target date, salary range, skills and note — with a reason.
+            This request is approved. You can change the number, target date, salary range, skills and note — with a reason.
             Other fields are locked.
           </p>
         )}
@@ -197,7 +197,7 @@ export function HiringRequirementDialog({
             </SelectContent>
           </Select>
           {needsLine && !form.staffing_plan_id && (
-            <p className="text-xs text-destructive">This designation has staffing lines — pick the one this requirement is for. The shift comes from the line.</p>
+            <p className="text-xs text-destructive">This designation has staffing lines — pick the one this request is for. The shift comes from the line.</p>
           )}
           {becomesManual && (
             <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
@@ -322,7 +322,7 @@ export function HiringRequirementDialog({
         <Separator />
 
         <div>
-          <p className="mb-2 text-sm font-semibold text-foreground">Business requirement</p>
+          <p className="mb-2 text-sm font-semibold text-foreground">Why it is needed</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>Reason</Label>
@@ -439,7 +439,7 @@ export function HiringRequirementDialog({
               <div className="space-y-1 sm:col-span-2">
                 <Label>Reason for this change (required)</Label>
                 <Input className="text-foreground" value={editReason} onChange={(e) => setEditReason(e.target.value)}
-                  placeholder="Why the approved requirement is changing" />
+                  placeholder="Why the approved request is changing" />
               </div>
             )}
             {form.staffing_plan_id && matrix.rows.find((r) => r.plan_id === form.staffing_plan_id) ? (

@@ -6,6 +6,7 @@
 - [ ] Verify signed-in real-record flows — blocked: external unmanaged sign-in prevents authenticated checks
 
 ## Optional pre-joining onboarding
+- [x] Add four chronological joining choices to the sample and reflect selection in sample HR review; date changes invalidate signed offer/confirmation; 24 tests and mobile end-to-end passed
 - [x] Provide isolated sample package, uploads, submission, correction and HR-review preview; verified desktop/phone flow and 22 tests; no real candidate writes or emails
 - [x] Assess the existing candidate link and joining side effects
 - [x] Prepare the detailed optional-flow plan for owner review

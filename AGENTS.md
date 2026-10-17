@@ -17,7 +17,7 @@
 - Leave accrual (run_leave_accrual) skips anyone whose last working day is before the accrual month's end, because a mid-month leaver earns no leave for the leaving month.
 - hr_attendance_daily is attendance truth (device then HR override); hr_attendance is a trigger-kept mirror whose HR edits route into the calendar, keeping payroll/screens consistent.
 - Attendance screens use resolveDayStatus/hr_attendance_day_range; employee cards use hr_attendance_month_summary (self-only for non-HR), keeping figures identical.
-- RazorpayX additions are pushed only under exact names from hr_razorpay_component_catalog, which mirrors the Component names in RazorpayX Settings → Salary Component Library (proxy maps or rejects; our wording goes in remarks), because RazorpayX rejects addition names that are not library components.
+- RazorpayX additions use exact hr_razorpay_component_catalog names, mirroring Settings → Salary Component Library; proxy maps or rejects, custom wording goes in remarks, because non-library names fail.
 - A mid-month CTC revision is held from RazorpayX until that month's cockpit Step 7 (payroll run complete) is done, then pushed automatically, because RazorpayX must pay the old CTC for the month being processed.
 - Reports use hr_payslips_v; employer cost = gross + employer contributions; leave is day totals; availability is evidence-backed attendance; owner exclusions cover metrics, drill-downs and exports.
 - Salary-register importer sums two headers for one figure only if they resolve to different columns (aliases can double a deduction).
@@ -32,4 +32,4 @@
 
 - Designation authority is positions: triggers sync title/grade/department to employed people, open onboarding, ERP logins and RACI; leavers preserve exit history. hierarchy_level is company grade, reports_to_position_id is JD structure, managers are separate. Edit departments/designations only in HRMS Organization; RazorpayX imports never create them, keeping titles consistent.
 - Joining previews and dispatch share `_shared/joiningBatch.ts` through an HRMS re-export, preventing browser/server scheduling drift.
-- The sample-prejoining link is browser-only, never calling onboarding services, keeping sample evidence out of real records.
+- The sample-prejoining link is browser-only; joining choices reuse the shared calendar, and date changes invalidate signed offer/confirmation, keeping sample evidence out of real records.

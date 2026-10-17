@@ -28,7 +28,7 @@ import { WorkforceJobCard } from "@/components/ats/WorkforceJobCard";
 import { JobLineShiftNotice } from "@/components/ats/JobLineShiftNotice";
 import { PipelineBoard } from "@/components/ats/PipelineBoard";
 import { candidateHref, saveNavCtx, useCandidateList } from "@/lib/ats/candidates";
-import { useAtsSettings } from "@/lib/ats/api";
+import { useAtsSettings, usePositionsLookup } from "@/lib/ats/api";
 import {
   deleteJob, jobKeys, updateJob, useAtsJob, useAtsJobEvents, useAtsJobSummary, useAtsMutation, useAtsStages,
   useDepartmentsLookup, useEmployeesLookup, useRequirementsLookup, useShiftsLookup,
@@ -58,6 +58,7 @@ export default function AtsJobDetailPage() {
   const idleDays = atsSettings.data?.idle_alert_days ?? 7;
   const jobCands = useCandidateList({ job: jobId, status: "all", applied: "all", sort: "newest" }, 0, idleDays, !!jobId);
   const job = useAtsJob(jobId);
+  const posTitles = usePositionsLookup();
   const summary = useAtsJobSummary();
   const stages = useAtsStages();
   const events = useAtsJobEvents(jobId);

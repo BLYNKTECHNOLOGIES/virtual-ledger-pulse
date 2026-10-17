@@ -237,12 +237,12 @@ export default function StaffingPlanPage() {
             <Input className="h-9 pl-8 text-foreground" placeholder="Search role or department" aria-label="Search role or department"
               value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <SegmentedControl<StatusFilter>
+          <SegmentedControl
             aria-label="Staffing status"
             className="col-span-2 w-fit"
             size="sm"
             value={status}
-            onValueChange={setStatus}
+            onValueChange={(v) => setStatus(v as StatusFilter)}
             options={[
               { value: "all", label: "All" },
               { value: "understaffed", label: "Short" },

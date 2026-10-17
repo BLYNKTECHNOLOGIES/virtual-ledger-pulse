@@ -1,8 +1,8 @@
 # Roadmap
 
 ## Optional pre-joining onboarding — plan only
-- [ ] Assess the existing candidate link and joining side effects
-- [ ] Present the detailed optional-flow plan for owner review
+- [x] Assess the existing candidate link and joining side effects
+- [x] Prepare the detailed optional-flow plan for owner review
 
 ## WF7 — Workforce Planning rules (17 Oct) — done
 - [x] §1 automatic priority

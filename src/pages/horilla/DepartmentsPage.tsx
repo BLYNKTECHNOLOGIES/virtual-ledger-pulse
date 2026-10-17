@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash2, Building2, Search, Users, Briefcase } from "lucide-react";
 import { getDepartmentVisual } from "@/lib/departmentIcon";
+import { deleteRefusalText, invalidateDesignationCopies } from "@/lib/hrms/designations";
 
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -134,7 +135,7 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
           duration: 10000,
         });
       } else toast.success(editId ? "Department updated" : "Department created");
-      queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
+      invalidateDesignationCopies(queryClient);
       closeDialog();
     },
     onError: (e: any) => toast.error(e?.message?.includes("head") ? e.message : "Failed to save department"),
@@ -147,9 +148,9 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
     },
     onSuccess: () => {
       toast.success("Department deleted");
-      queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
+      invalidateDesignationCopies(queryClient);
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to delete department"),
+    onError: (e: any) => toast.error(deleteRefusalText(e, "department")),
   });
 
   const toggleActiveMutation = useMutation({
@@ -158,7 +159,7 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
+      invalidateDesignationCopies(queryClient);
       toast.success("Status updated");
     },
     onError: (e: any) => toast.error(e?.message || "Could not change the status"),
@@ -178,7 +179,7 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
 
   const filteredDepts = (departments || []).filter(d => {
     const term = searchTerm.toLowerCase();
-    return d.name.toLowerCase().includes(term) || d.code.toLowerCase().includes(term);
+    return (d.name || "").toLowerCase().includes(term) || (d.code || "").toLowerCase().includes(term);
   });
 
   const addButton = (
@@ -209,6 +210,7 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
         <input
           type="text"
           placeholder="Search departments..."
+          aria-label="Search departments"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full"
@@ -255,6 +257,9 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => toggleActiveMutation.mutate({ id: d.id, isActive: d.is_active })}
+                    aria-pressed={!!d.is_active}
+                    aria-label={d.is_active ? `${d.name} is active. Switch it to inactive` : `${d.name} is inactive. Switch it to active`}
+                    title={d.is_active ? "Active. Click to switch to inactive" : "Inactive. Click to switch to active"}
                     className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
                       d.is_active
                         ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
@@ -263,10 +268,10 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
                   >
                     {d.is_active ? "Active" : "Inactive"}
                   </button>
-                  <button onClick={() => openEdit(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground">
+                  <button onClick={() => openEdit(d)} aria-label={`Edit ${d.name}`} title="Edit" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => setDeleteTarget({ id: d.id, name: d.name })} className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                  <button onClick={() => setDeleteTarget({ id: d.id, name: d.name })} aria-label={`Delete ${d.name}`} title="Delete" className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -276,7 +281,7 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />
                   {directory ? `${empCounts[d.id] || 0} on roll` : "…"}</span>
-                <Link to={`/hrms/organization?tab=designations&department=${d.id}`} className="inline-flex items-center gap-1.5 underline-offset-2 hover:text-foreground hover:underline">
+                <Link to={`/hrms/organization?tab=designations&department=${d.id}&status=active`} className="inline-flex items-center gap-1.5 underline-offset-2 hover:text-foreground hover:underline">
                   <Briefcase className="h-3.5 w-3.5" />{designationsIn(d.id)} designation{designationsIn(d.id) === 1 ? "" : "s"}
                 </Link>
               </div>
@@ -307,23 +312,23 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
       >
         <div className="space-y-3">
           <div>
-            <Label>Name *</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-9 mt-1" />
+            <Label htmlFor="department-name">Name *</Label>
+            <Input id="department-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-9 mt-1" />
           </div>
           <div>
-            <Label>Code *</Label>
-            <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="h-9 mt-1" placeholder="e.g. ENG" />
+            <Label htmlFor="department-code">Code *</Label>
+            <Input id="department-code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="h-9 mt-1" placeholder="e.g. ENG" />
           </div>
           <div>
-            <Label>List order</Label>
-            <Input type="number" min={1} value={form.order} onChange={(e) => setForm({ ...form, order: e.target.value })} className="h-9 mt-1" placeholder="e.g. 2" />
+            <Label htmlFor="department-order">List order</Label>
+            <Input id="department-order" type="number" min={1} value={form.order} onChange={(e) => setForm({ ...form, order: e.target.value })} className="h-9 mt-1" placeholder="e.g. 2" />
             <p className="mt-1 text-xs text-muted-foreground">Lower numbers are listed first (Management is 1).</p>
           </div>
           {canManageHeads && (
             <div>
-              <Label>Head of department</Label>
+              <Label htmlFor="department-head">Head of department</Label>
               <Select value={form.head_employee_id || "none"} onValueChange={(v) => setForm({ ...form, head_employee_id: v === "none" ? "" : v })}>
-                <SelectTrigger className="h-9 mt-1 text-foreground"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="department-head" className="h-9 mt-1 text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No head</SelectItem>
                   {departed(form.head_employee_id) && (
@@ -338,8 +343,9 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
             </div>
           )}
           <div>
-            <Label>Description</Label>
+            <Label htmlFor="department-description">Description</Label>
             <textarea
+              id="department-description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="mt-1 min-h-[76px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"

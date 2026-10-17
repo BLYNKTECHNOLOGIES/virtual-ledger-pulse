@@ -1157,28 +1157,25 @@ function pickPatch<T extends Record<string, any>>(current: T | null, incoming: R
   return { patch, wrote, conflicts };
 }
 
-// Resolve a designation (positions.id) by case-/whitespace-insensitive title match. Never creates one:
-// designations are set up on Organization › Designations, and a RazorpayX title with no match is
-// reported as a conflict instead of becoming a new, unplanned designation with no department.
+// Resolve an active designation (positions.id) by title, compared as plain text with case and spacing ignored
+// (never as a LIKE pattern). Never creates one: designations are set up on Organization › Designations, and a
+// RazorpayX title with no active match is reported as a conflict instead of becoming an unplanned designation.
+const normName = (s: unknown) => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
 async function resolvePositionId(svc: SupabaseClient, rawTitle: string): Promise<string | null> {
-  const canonical = (rawTitle || "").trim();
-  if (!canonical) return null;
-  const norm = canonical.toLowerCase();
-  const { data: existing } = await svc
-    .from("positions")
-    .select("id,title")
-    .ilike("title", canonical)
-    .limit(1)
-    .maybeSingle();
-  if (existing?.id) return existing.id as string;
-  // Extra safety: scan for any title whose trimmed lowercase equals ours (handles
-  // legacy rows with embedded whitespace). If found, reuse; otherwise create.
-  const { data: fuzzy } = await svc
-    .from("positions")
-    .select("id,title")
-    .ilike("title", `%${canonical}%`)
-    .limit(20);
-  const hit = (fuzzy || []).find((p: any) => (p.title || "").trim().toLowerCase() === norm);
+  const want = normName(rawTitle);
+  if (!want) return null;
+  const { data } = await svc.from("positions").select("id,title").eq("is_active", true);
+  const hit = (data || []).find((p: any) => normName(p.title) === want);
+  return hit?.id ? (hit.id as string) : null;
+}
+
+// Resolve an active department by name the same way. Never creates one.
+async function resolveDepartmentId(svc: SupabaseClient, rawName: string): Promise<string | null> {
+  const want = normName(rawName);
+  if (!want) return null;
+  const { data } = await svc.from("departments").select("id,name").eq("is_active", true);
+  const hit = (data || []).find((d: any) => normName(d.name) === want);
   return hit?.id ? (hit.id as string) : null;
 }
 
@@ -1208,10 +1205,7 @@ async function projectSnapshotIntoErp(
   const jobTitle = pickString(snap?.title, snap?.designation, snap?.job_title);
   let departmentId: string | null = null;
   let jobPositionId: string | null = null;
-  if (deptName) {
-    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName.trim()).limit(1).maybeSingle();
-    if (d?.id) departmentId = d.id;
-  }
+  if (deptName) departmentId = await resolveDepartmentId(svc, deptName);
   if (jobTitle) {
     jobPositionId = await resolvePositionId(svc, jobTitle);
   }
@@ -1239,6 +1233,7 @@ async function projectSnapshotIntoErp(
   const wiPick = pickPatch(wiCur as any, wiIncoming);
   // A RazorpayX title that matches no designation is a conflict to resolve, not a new designation.
   if (jobTitle && !jobPositionId && !wiPick.conflicts.includes("job_position_id")) wiPick.conflicts.push("job_position_id");
+  if (deptName && !departmentId && !wiPick.conflicts.includes("department_id")) wiPick.conflicts.push("department_id");
   if (wiCur) {
     if (Object.keys(wiPick.patch).length) {
       await svc.from("hr_employee_work_info").update(wiPick.patch).eq("employee_id", hrId);
@@ -1290,10 +1285,7 @@ async function projectSnapshotIntoOnboarding(
   const jobTitle = pickString(snap?.title, snap?.designation, snap?.job_title);
   let departmentId: string | null = null;
   let positionId: string | null = null;
-  if (deptName) {
-    const { data: d } = await svc.from("departments").select("id").ilike("name", deptName.trim()).limit(1).maybeSingle();
-    if (d?.id) departmentId = d.id;
-  }
+  if (deptName) departmentId = await resolveDepartmentId(svc, deptName);
   if (jobTitle) {
     positionId = await resolvePositionId(svc, jobTitle);
   }
@@ -1347,6 +1339,10 @@ async function projectSnapshotIntoOnboarding(
     ctc: ctcAnnual && ctcAnnual > 0 ? ctcAnnual : null,
   };
   const picked = pickPatch(ob as any, incoming);
+  // A RazorpayX title or department that matches no active HRMS designation / department is a conflict to
+  // resolve (Stage 5 or Data Health), not something to drop silently.
+  if (jobTitle && !positionId && !picked.conflicts.includes("position_id")) picked.conflicts.push("position_id");
+  if (deptName && !departmentId && !picked.conflicts.includes("department_id")) picked.conflicts.push("department_id");
   if (Object.keys(picked.patch).length) {
     await svc.from("hr_employee_onboarding").update(picked.patch).eq("id", (ob as any).id);
   }
@@ -2381,11 +2377,15 @@ Deno.serve(async (req) => {
             bank: projDiff.bank.wrote,
           } : null,
           onboarding_prefilled: obDiff?.wrote ?? null,
+          conflicts: projDiff || obDiff ? { work_info: projDiff?.work_info?.conflicts ?? [], onboarding: obDiff?.conflicts ?? [] } : null,
         },
         actor_user_id: authed.userId,
       });
       await stampLastImport(svc);
-      return json(200, { ok: true, hr_employee_id: hrId, created, matched_by: match.matched_by });
+      return json(200, {
+        ok: true, hr_employee_id: hrId, created, matched_by: match.matched_by,
+        conflicts: { work_info: projDiff?.work_info?.conflicts ?? [], onboarding: obDiff?.conflicts ?? [] },
+      });
     }
 
     // ---------- unlock_bulk / unlock_bulk_push: human gate after pilot verification ----------
@@ -2842,6 +2842,7 @@ Deno.serve(async (req) => {
                   bank: projDiff.bank.wrote,
                 } : null,
                 onboarding_prefilled: obDiff?.wrote ?? null,
+                conflicts: projDiff || obDiff ? { work_info: projDiff?.work_info?.conflicts ?? [], onboarding: obDiff?.conflicts ?? [] } : null,
               },
               actor_user_id: authed.userId,
             });

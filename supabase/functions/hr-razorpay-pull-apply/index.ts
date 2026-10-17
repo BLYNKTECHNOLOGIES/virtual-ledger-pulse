@@ -110,16 +110,26 @@ function razorpayValueFor(field: string, snap: any, dismissed: boolean): string 
 }
 
 // Departments and designations are set up on HRMS › Organization only. Taking a RazorpayX value that
-// matches none of them is refused with a clear reason instead of creating an unplanned one.
+// matches none of them is refused with a clear reason instead of creating an unplanned one. Names are
+// compared as plain text (case and spacing ignored, never as LIKE patterns) and only active rows count.
+const sameName = (a: any, b: string) =>
+  String(a ?? "").trim().toLowerCase().replace(/\s+/g, " ") === String(b ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
 async function resolveDepartmentId(svc: any, name: string): Promise<string> {
-  const { data: found } = await svc.from("departments").select("id").ilike("name", name.trim()).limit(1).maybeSingle();
-  if (found?.id) return found.id;
+  const { data } = await svc.from("departments").select("id, name, is_active");
+  const named = (data || []).filter((d: any) => sameName(d.name, name));
+  const hit = named.find((d: any) => d.is_active !== false);
+  if (hit?.id) return hit.id;
+  if (named.length) throw new Error(`The HRMS department "${name}" is inactive. Switch it to Active on Organization › Departments, or correct it in RazorpayX.`);
   throw new Error(`No HRMS department is called "${name}". Add it on Organization › Departments, or correct it in RazorpayX.`);
 }
 
 async function resolvePositionId(svc: any, title: string): Promise<string> {
-  const { data: found } = await svc.from("positions").select("id").ilike("title", title.trim()).limit(1).maybeSingle();
-  if (found?.id) return found.id;
+  const { data } = await svc.from("positions").select("id, title, is_active");
+  const named = (data || []).filter((p: any) => sameName(p.title, title));
+  const hit = named.find((p: any) => p.is_active !== false);
+  if (hit?.id) return hit.id;
+  if (named.length) throw new Error(`The HRMS designation "${title}" is tentative, so nobody can hold it. Mark it active on Organization › Designations, or correct it in RazorpayX.`);
   throw new Error(`No HRMS designation is called "${title}". Add it on Organization › Designations, or correct it in RazorpayX.`);
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStructure, compareDesignations, designationSubtree, flattenStructure, gradeLabel, gradeShort, type DesignationRow } from "./designations";
+import { buildStructure, compareDesignations, deleteRefusalText, designationByTitle, designationSubtree, flattenStructure, gradeLabel, gradeShort, type DesignationRow } from "./designations";
 
 const row = (id: string, title: string, reports: string | null, grade: number | null = null, active = true): DesignationRow => ({
   id, title, department_id: null, hierarchy_level: grade, reports_to_position_id: reports, is_active: active,
@@ -56,6 +56,33 @@ describe("buildStructure", () => {
     const tree = buildStructure(loop);
     const a = tree.find((n) => n.row.id === "a")!;
     expect(a.children.map((n) => n.row.id)).toEqual(["c"]);
+  });
+});
+
+describe("designationByTitle", () => {
+  const rows = [
+    { id: "oa-ops", title: "Operations Associate", department_id: "ops" },
+    { id: "oa-qc", title: "Operations  associate ", department_id: "qc" },
+    { id: "kyc", title: "KYC Associate", department_id: "cmp" },
+  ];
+  it("matches the title with case and spacing ignored, preferring the given departments in order", () => {
+    expect(designationByTitle(rows, "operations associate")?.id).toBe("oa-ops");
+    expect(designationByTitle(rows, "Operations Associate", ["qc", "ops"])?.id).toBe("oa-qc");
+    expect(designationByTitle(rows, "Operations Associate", [null, "ops"])?.id).toBe("oa-ops");
+  });
+  it("returns null for an unknown or empty title", () => {
+    expect(designationByTitle(rows, "Ops Lead")).toBe(null);
+    expect(designationByTitle(rows, "  ")).toBe(null);
+  });
+});
+
+describe("deleteRefusalText", () => {
+  it("explains reports-to and other references in plain words", () => {
+    const fk = (c: string) => ({ code: "23503", message: `update or delete on table "positions" violates foreign key constraint "${c}"` });
+    expect(deleteRefusalText(fk("positions_reports_to_position_id_fkey"), "designation")).toMatch(/report to this one/);
+    expect(deleteRefusalText(fk("positions_reports_to_position_id_fkey"), "department")).toMatch(/another department/);
+    expect(deleteRefusalText(fk("hr_employee_work_info_job_position_id_fkey"), "designation")).toMatch(/Mark it tentative/);
+    expect(deleteRefusalText({ message: "boom" }, "department")).toBe("Failed to delete the department: boom");
   });
 });
 

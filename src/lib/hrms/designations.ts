@@ -6,6 +6,7 @@
  * positions.reports_to_position_id is the designed structure (JD Compendium); people's real managers
  * live on hr_employee_work_info.reporting_manager_id and are shown separately.
  */
+import type { QueryClient } from "@tanstack/react-query";
 
 export const GRADE_NAMES: Record<number, string> = {
   8: "Associate",
@@ -107,6 +108,55 @@ export function buildStructure<T extends DesignationRow>(rows: T[]): StructureNo
   roots.forEach(finish);
   roots.sort((a, b) => b.size - a.size || compareDesignations(a.row, b.row));
   return roots;
+}
+
+/**
+ * The designation a title points to (e.g. RazorpayX's): same title with case and spacing ignored, in the first
+ * preferred department that has one, else any. Pass active designations only. Null when none has that title.
+ */
+export function designationByTitle<T extends { id: string; title: string; department_id: string | null }>(
+  rows: readonly T[],
+  title: string,
+  preferDepartments: (string | null | undefined)[] = [],
+): T | null {
+  const norm = (s: string) => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const want = norm(title);
+  if (!want) return null;
+  const named = rows.filter((r) => norm(r.title) === want);
+  for (const d of preferDepartments) {
+    const hit = d ? named.find((r) => r.department_id === d) : undefined;
+    if (hit) return hit;
+  }
+  return named[0] ?? null;
+}
+
+/** Plain words for a refused delete of a designation or a department (foreign-key errors otherwise show raw). */
+export function deleteRefusalText(e: { code?: string; message?: string } | null | undefined, what: "designation" | "department"): string {
+  const msg = String(e?.message || "");
+  if (e?.code === "23503" && msg.includes("reports_to_position_id")) {
+    return what === "designation"
+      ? "Other designations report to this one. Change their Reports to on the Designations tab first."
+      : "A designation in another department reports to one of this department's designations. Change its Reports to on the Designations tab first.";
+  }
+  if (e?.code === "23503") {
+    return what === "designation"
+      ? "This designation is still used elsewhere (past employees, onboarding or a quiz test), so it can't be deleted. Mark it tentative instead."
+      : "This department is still used elsewhere (past employees, onboarding or other records), so it can't be deleted. Switch it to Inactive instead.";
+  }
+  return `Failed to delete the ${what}: ${msg || "unknown error"}`;
+}
+
+/**
+ * Designation and department edits spread through database triggers (holders' title, grade and department,
+ * JDs, RACI roles, ERP logins). Refresh every screen that shows one of those copies.
+ */
+export function invalidateDesignationCopies(qc: QueryClient) {
+  const keys = [
+    ["hr_positions"], ["positions_list"], ["designations-list-stage5"], ["hr_departments"], ["departments_list"],
+    ["hr_job_descriptions"], ["raci-roles"], ["hr_employee_work_info"], ["hr_employee_work_infos"],
+    ["pos_for_emp"], ["dept_for_emp"], ["org_directory"],
+  ];
+  keys.forEach((queryKey) => qc.invalidateQueries({ queryKey }));
 }
 
 /** Flatten a tree to rows with their depth, in display order. */

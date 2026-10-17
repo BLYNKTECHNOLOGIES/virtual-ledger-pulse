@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActiveJobRequirementLinks } from "@/lib/ats/jobRequirements";
-import { hiddenRequirementOptions, requirementCoversShift as covers } from "@/lib/ats/requirementOptions";
+import { buildRequirementSlots, hiddenRequirementOptions, requirementCoversShift as covers, slotsToLinks } from "@/lib/ats/requirementOptions";
 
 const NONE = "__none";
 
@@ -31,25 +31,15 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
   const linkedElsewhere = useActiveJobRequirementLinks(jobId);
   const [showLinked, setShowLinked] = useState(false);
   const [slots, setSlots] = useState<Record<string, string>>({});
-  const dirty = useRef(false);
 
   const multi = shiftIds.length > 1;
   const shiftName = (id: string) => shiftOptions.find((s) => s.id === id)?.label ?? "Shift";
+  const rawOf = (id: string) => reqOptions.find((o) => o.id === id)?.raw;
 
-  // (Re)build slots from the incoming links until HR touches a picker.
+  // Rebuild from the links whenever they or the job's shifts change; earlier picks keep their slot
+  // and the main link (requisition_id) is placed first, so it is never swapped or shown as "Not linked".
   useEffect(() => {
-    if (dirty.current) return;
-    const pool = [primaryId, ...extraIds].filter(Boolean);
-    const next: Record<string, string> = {};
-    const rest: string[] = [];
-    for (const id of pool) {
-      const raw = reqOptions.find((o) => o.id === id)?.raw;
-      const slot = shiftIds.length === 0 && !next.__single ? "__single" :
-        shiftIds.find((s) => !next[s] && (!raw || covers(raw, s))) ?? shiftIds.find((s) => !next[s]);
-      if (slot) next[slot] = id; else rest.push(id);
-    }
-    rest.forEach((id, i) => { next[`__extra_${i}`] = id; });
-    setSlots(next);
+    setSlots((prev) => buildRequirementSlots(shiftIds, primaryId, extraIds, rawOf, prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, primaryId, extraIds.join(","), shiftIds.join(","), reqOptions.length]);
 
@@ -63,16 +53,11 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
   const optionVisible = (o: ReqOption) => showLinked || chosenIds.has(o.id) || !linkedElsewhere.data?.has(o.id);
 
   const setSlot = (slot: string, reqId: string) => {
-    dirty.current = true;
     const next = { ...slots, [slot]: reqId };
     if (!reqId) delete next[slot];
     setSlots(next);
-    const values = [
-      ...shiftIds.map((s) => next[s]).filter(Boolean),
-      ...(next.__single ? [next.__single] : []),
-      ...Object.keys(next).filter((k) => k.startsWith("__extra_")).sort().map((k) => next[k]).filter(Boolean),
-    ];
-    onChange(values[0] ?? "", values.slice(1));
+    const { primary, extras } = slotsToLinks(next, shiftIds, primaryId);
+    onChange(primary, extras);
     if (reqId && !slots[slot]) onPick(reqId);
   };
 
@@ -89,6 +74,9 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
           <SelectTrigger className="text-foreground"><SelectValue placeholder="Not linked" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={NONE}>Not linked</SelectItem>
+            {value && !opts.some((o) => o.id === value) && (
+              <SelectItem value={value}>{reqOptions.find((o) => o.id === value)?.label ?? "Linked requirement (no longer open for recruitment)"}</SelectItem>
+            )}
             {opts.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 <span>{o.label}</span>
@@ -130,7 +118,10 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
               <p className="break-words text-sm text-foreground">{o.label}</p>
               <p className="break-words text-xs text-muted-foreground">Linked to {linkedElsewhere.data?.get(o.id)?.jobTitle}</p>
               <div className="flex flex-wrap gap-2">
-                {(multi ? shiftIds.filter((s) => covers(o.raw, s)) : [shiftIds[0] ?? "__single"]).map((s) => (
+                {(multi ? shiftIds.filter((s) => covers(o.raw, s)) : [shiftIds[0] ?? "__single"]).every((s) => slots[s]) && (
+                  <p className="text-xs text-muted-foreground">Set the {multi ? "matching shift's" : ""} picker to "Not linked" first to use this one instead.</p>
+                )}
+                {(multi ? shiftIds.filter((s) => covers(o.raw, s)) : [shiftIds[0] ?? "__single"]).filter((s) => !slots[s]).map((s) => (
                   <Button key={s} type="button" variant="outline" size="sm" className="h-auto whitespace-normal text-left" onClick={() => setSlot(s, o.id)}>
                     <Plus className="h-3.5 w-3.5 shrink-0" />{multi ? `Use for ${shiftName(s)}` : "Use requirement"}
                   </Button>

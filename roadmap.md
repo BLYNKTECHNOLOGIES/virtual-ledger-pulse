@@ -1,5 +1,9 @@
 # Roadmap
 
+## Client Management phone layouts
+- [ ] Optimize directory, approvals, assignments, client details and related forms without changing business logic
+- [ ] Verify narrow and desktop layouts; authenticated checks blocked by external unmanaged sign-in
+
 ## Optional pre-joining onboarding
 - [x] Provide isolated sample package, uploads, submission, correction and HR-review preview; verified desktop/phone flow and 22 tests; no real candidate writes or emails
 - [x] Assess the existing candidate link and joining side effects

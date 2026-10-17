@@ -83,7 +83,7 @@ export default function ClientDetail() {
   const showAsSellerOnly = !isBuyer && (isSeller || legacySeller);
 
   return (
-    <div className="space-y-6 p-6 page-mount">
+    <div className="client-management-page min-w-0 space-y-4 p-3 sm:space-y-6 sm:p-6 page-mount">
       <BackButton fallbackTo="/clients" label="Back to Clients" />
       <PageHeader
         title={

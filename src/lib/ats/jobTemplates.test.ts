@@ -180,6 +180,18 @@ const HEADINGS = new Set([
   "Standard terms", "What to test in the interview", "Keep in mind",
 ]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// Public template text describes the role and the person in general fintech terms, never how the company works
+// inside: no crypto or digital assets, trading, platforms, counterparties, account restrictions or internal controls.
+const INTERNAL_WORKING = new RegExp([
+  "crypto", "digital[- ]assets?", "virtual digital", "\\bvdas?\\b", "\\busdt\\b", "tether", "bitcoin", "stable ?coins?", "\\bcoins?\\b",
+  "\\btokens?\\b", "blockchain", "on-chain", "\\bwallets?\\b", "\\btrad(e|es|ed|ing|er|ers)\\b", "buy and sell", "buy/sell", "buy-side",
+  "sell-side", "\\bbuyers?\\b", "\\bsellers?\\b", "order ?books?", "(?<!in )(?<!purchase )\\borders?\\b", "\\bspreads?\\b", "\\badverts?\\b",
+  "\\bp2p\\b", "peer-to-peer", "\\bexchanges?\\b", "counterpart", "binance|wazirx|coindcx|bybit|\\bokx\\b|kucoin", "\\bliens?\\b", "freez",
+  "frozen", "restricted (funds|accounts?)", "blocked (funds|accounts?)", "\\brecover(y|ies)\\b", "cyber[- ]?(cell|crime)", "police station",
+  "\\bcourts?\\b", "summons", "nodal", "chargebacks?", "\\bappeals?\\b", "(?<!press )\\breleas", "screenshots?", "\\bterminal\\b", "\\bfiu\\b",
+  "\\bstrs?\\b", "reporting entity", "194s",
+].join("|"), "i");
+const BUSINESS_WORDS = /crypto|digital[- ]assets?|virtual digital|\bvdas?\b|\busdt\b|bitcoin|blockchain|\bwallets?\b|\bp2p\b|peer-to-peer|counterpart|\badverts?\b|binance|wazirx|coindcx|bybit|\bokx\b|kucoin/i;
 
 describe("JOB_TEMPLATE_DEFAULTS", () => {
   it("has one template per designation", () => {
@@ -227,7 +239,10 @@ describe("JOB_TEMPLATE_DEFAULTS", () => {
           // "gate" as in a KPI gate; the security guard's "gate pass" is the right public term.
           expect(t[k], k).not.toMatch(/Authority and Limits|Notes for HR|Performance Standards|Balwant Arcade|Binance|\bgate\b(?!\s+pass)/i);
           expect(t[k], k).not.toMatch(/Women are rostered|security deposit|hiring standard/i);
+          expect(t[k], k).not.toMatch(INTERNAL_WORKING);
         }
+        // HR reads the interview checks out to candidates, so the brief uses the same neutral words.
+        expect(t.hr_notes).not.toMatch(BUSINESS_WORDS);
         expect(t.hr_notes.startsWith("Standard terms\n")).toBe(true);
         expect(t.hr_notes).toMatch(/Source: JD Compendium v4\.2, BVT\/HR\/JD\/2026\/\d{3}$/);
       });

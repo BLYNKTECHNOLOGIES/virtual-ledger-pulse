@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Fingerprint, Landmark, Cloud, XCircle, RotateCcw, ArrowRight } from "lucide-react";
 import { reconcileOnboarding, isReconciled, unresolvedCount, type ReconcileDiff } from "@/lib/hrms/razorpayReconcile";
-import { designationByTitle } from "@/lib/hrms/designations";
+import {
+  designationChoiceProblem, hrmsChoiceProblem, rpChoiceProblem, rpDesignationFor, sameText, type ChoiceContext,
+} from "@/lib/hrms/onboardingDesignationChoice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { suggestNextEmployeeId } from "@/lib/hrms/suggestEmployeeId";
 import { Sparkles } from "lucide-react";
@@ -170,6 +172,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       return;
     }
     setVerifyingRpId(true);
+    // Designations or departments added meanwhile (e.g. on Organization in another tab) count straight away.
+    void queryClient.invalidateQueries({ queryKey: ["designations-list-stage5"] });
+    void queryClient.invalidateQueries({ queryKey: ["departments-list-stage5"] });
     const t = toast.loading(`Verifying Employee ID ${idStr} with RazorpayX…`);
     try {
       const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
@@ -276,21 +281,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     }
   };
 
-  // The HRMS designation RazorpayX's title points to: same name, in RazorpayX's department first, then this onboarding's.
-  const rpDesignation = (title: string): any => {
-    const rpDept = String((reconcileDiffs || []).find((x) => x.field === "department")?.rpRawValue ?? "").trim().toLowerCase();
-    const rpDeptId = rpDept ? (departments || []).find((d: any) => String(d.name).trim().toLowerCase() === rpDept)?.id : null;
-    return designationByTitle((designations || []) as any[], title, [rpDeptId, onboardingRecord?.department_id]);
-  };
-  // "Use RazorpayX" for the title or the department needs an HRMS designation / department of that name.
-  const rpUnmatchedReason = (d: ReconcileDiff): string | null => {
-    const v = String(d.rpRawValue ?? "").trim();
-    if (!v) return null;
-    if (d.field === "job_role" && !rpDesignation(v)) return `No designation is called "${v}". Add it on Organization › Designations, or use HRMS.`;
-    if (d.field === "department" && !(departments || []).some((x: any) => String(x.name).trim().toLowerCase() === v.toLowerCase()))
-      return `No department is called "${v}". Add it on Organization › Departments, or use HRMS.`;
-    return null;
-  };
+  // Designation / department choices (see lib/hrms/onboardingDesignationChoice). The context is read when a check
+  // runs: the department and designation lists are loaded further down.
+  const choiceCtx = (): ChoiceContext => ({
+    diffs: reconcileDiffs, departments: departments as any, designations: designations as any, onboarding: onboardingRecord as any,
+  });
+  const rpDesignation = (title: string): any => rpDesignationFor(choiceCtx(), title);
+  const rpUnmatchedReason = (d: ReconcileDiff) => rpChoiceProblem(choiceCtx(), d);
+  const hrmsUnmatchedReason = (d: ReconcileDiff) => hrmsChoiceProblem(d);
+  const choiceBlockFor = (ov: Record<string, 'hrms' | 'razorpay'>) => designationChoiceProblem(choiceCtx(), ov);
 
   // Copy the RazorpayX value for a specific field back into the ERP draft, then
   // re-run reconcile so the row flips to green. Only the fields we know how to
@@ -336,7 +335,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
           : {};
       }
       case "department": {
-        const dep = (departments || []).find((d: any) => String(d.name).trim().toLowerCase() === rpStr.trim().toLowerCase());
+        const dep = (departments || []).find((d: any) => sameText(d.name, rpStr));
         return dep ? { onboardingPatch: { department_id: dep.id } } : {};
       }
       case "pan":
@@ -699,6 +698,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
   const { data: departments } = useQuery({
     queryKey: ["departments-list-stage5"],
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase.from("departments").select("id, name").order("name");
       if (error) throw error;
@@ -708,8 +708,10 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
   const { data: designations } = useQuery({
     queryKey: ["designations-list-stage5"],
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await supabase.from("positions").select("id, title, department_id").eq("is_active", true);
+      // Every designation: only active ones can be taken; a tentative one is named as such.
+      const { data, error } = await supabase.from("positions").select("id, title, department_id, is_active");
       if (error) throw error;
       return data || [];
     },
@@ -878,7 +880,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
   const razorpayCreateRequest = onboardingReconciliationMeta?.create_request || null;
 
   const reconcileUnresolved = reconcileDiffs ? unresolvedCount(reconcileDiffs, reconcileOverrides) : 0;
-  const reconcileReady = !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, reconcileOverrides));
+  // A designation / department choice HRMS can't carry out blocks Finalize too (choiceBlockFor).
+  const reconcileChoiceBlock = rpVerification?.ok && reconcileDiffs ? choiceBlockFor(reconcileOverrides) : "";
+  const reconcileReady = !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, reconcileOverrides)) && !reconcileChoiceBlock;
   const reconcileBlockReasonBase = alreadyInRazorpay
     ? !rpVerification?.ok
       ? "Refresh the RazorpayX tally before finalizing."
@@ -909,26 +913,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
 
 
 
-  // A "Use RazorpayX" choice HRMS can't carry out (no designation / department of that name) blocks Finalize.
-  const rpPickBlocked = (reconcileDiffs || [])
-    .filter((d) => d.status !== "match" && reconcileOverrides[d.field] === "razorpay")
-    .map((d) => rpUnmatchedReason(d))
-    .find(Boolean) || "";
-  // Taking RazorpayX's title brings that designation's department into HRMS. RazorpayX must end up with the same
-  // department, or the after-Finalize tally reopens the onboarding.
-  const rpDeptClash = (() => {
-    const t = (reconcileDiffs || []).find((d) => d.field === "job_role" && d.status !== "match" && reconcileOverrides.job_role === "razorpay");
-    const pick = t ? rpDesignation(String(t.rpRawValue ?? "")) : null;
-    if (!pick?.department_id) return "";
-    const dep = (reconcileDiffs || []).find((d) => d.field === "department");
-    const nameOf = (id: any) => (departments || []).find((x: any) => x.id === id)?.name as string | undefined;
-    const pushesHrms = !!dep && dep.status !== "match" && reconcileOverrides.department === "hrms";
-    const rpEnds = pushesHrms ? nameOf(onboardingRecord?.department_id) : dep?.rpRawValue != null ? String(dep.rpRawValue) : undefined;
-    const pickDept = nameOf(pick.department_id);
-    if (!rpEnds || !pickDept || rpEnds.trim().toLowerCase() === pickDept.trim().toLowerCase()) return "";
-    return `${pick.title} belongs to ${pickDept}, but RazorpayX will have ${rpEnds}. ${pushesHrms ? "Use RazorpayX for the department too" : "Correct the department in RazorpayX"}, or use HRMS for the designation.`;
-  })();
-  const reconcileBlockReason = reconcileBlockReasonBase || rpPickBlocked || rpDeptClash;
+  const reconcileBlockReason = reconcileBlockReasonBase || reconcileChoiceBlock;
 
   const ifscValid = !form.bank_ifsc_code || /^[A-Z0-9]{11}$/.test(form.bank_ifsc_code.trim().toUpperCase());
 
@@ -1102,10 +1087,12 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       return;
     }
     const activeOverrides = { ...reconcileOverridesRef.current };
-    const activeReconcileReady = !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, activeOverrides));
+    const activeChoiceBlock = rpVerification?.ok && reconcileDiffs ? choiceBlockFor(activeOverrides) : "";
+    const activeReconcileReady = !!(rpVerification?.ok && reconcileDiffs && isReconciled(reconcileDiffs, activeOverrides)) && !activeChoiceBlock;
     if (!activeReconcileReady) {
-      toast.error(reconcileBlockReason || "Resolve RazorpayX ↔ ERP field differences before finalizing.");
-      setFinalizeFeedback({ kind: "error", message: reconcileBlockReason || "Reconciliation incomplete." });
+      const why = activeChoiceBlock || reconcileBlockReason;
+      toast.error(why || "Resolve RazorpayX ↔ ERP field differences before finalizing.");
+      setFinalizeFeedback({ kind: "error", message: why || "Reconciliation incomplete." });
       return;
     }
     setFinalizing(true);
@@ -1667,7 +1654,9 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                             ? "Verified against RazorpayX API"
                             : reconcileReady
                               ? "All fields reconciled"
-                              : `${reconcileUnresolved} unresolved`}
+                              : reconcileUnresolved === 0 && reconcileChoiceBlock
+                                ? "Check a choice"
+                                : `${reconcileUnresolved} unresolved`}
                         </Badge>
                       </div>
                       {mismatchDiffs.length === 0 ? (
@@ -1702,6 +1691,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                               const hrmsActive = choice === 'hrms';
                               const rpActive = choice === 'razorpay';
                               const rpBlocked = rpUnmatchedReason(d);
+                              const hrmsBlocked = hrmsUnmatchedReason(d);
                               return (
                                 <div key={d.field} className="py-2 grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_auto] gap-2 items-start text-xs">
                                   <div className="flex items-center gap-1.5">
@@ -1733,7 +1723,8 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                       </button>
                                       <button
                                         type="button"
-                                        disabled={readOnly}
+                                        disabled={readOnly || !!hrmsBlocked}
+                                        title={hrmsBlocked || undefined}
                                         onClick={() => setChoice(d.field, 'hrms')}
                                         className={`h-6 px-2 text-[11px] border-l border-border transition-colors ${hrmsActive ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                                       >
@@ -1741,7 +1732,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                                       </button>
 
                                     </div>
-                                    {rpBlocked && <p className="max-w-[16rem] text-[10px] text-muted-foreground sm:text-right">{rpBlocked}</p>}
+                                    {(rpBlocked || hrmsBlocked) && <p className="max-w-[16rem] text-[10px] text-muted-foreground sm:text-right">{rpBlocked || hrmsBlocked}</p>}
                                   </div>
                                 </div>
                               );

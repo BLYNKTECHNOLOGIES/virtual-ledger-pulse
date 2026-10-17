@@ -155,6 +155,7 @@ export function invalidateDesignationCopies(qc: QueryClient) {
     ["hr_positions"], ["positions_list"], ["designations-list-stage5"], ["hr_departments"], ["departments_list"],
     ["hr_job_descriptions"], ["raci-roles"], ["hr_employee_work_info"], ["hr_employee_work_infos"],
     ["pos_for_emp"], ["dept_for_emp"], ["org_directory"],
+    ["departments-list-stage5"], ["departments-list"], ["positions-list"],
   ];
   keys.forEach((queryKey) => qc.invalidateQueries({ queryKey }));
 }

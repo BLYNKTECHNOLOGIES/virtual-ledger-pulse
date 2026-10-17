@@ -499,7 +499,7 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
                 >
                   <Switch
                     checked={p.is_active !== false}
-                    aria-label={p.is_active !== false ? `Mark ${p.title} tentative` : `Mark ${p.title} active`}
+                    aria-label={`${p.title} active`}
                     disabled={toggleActiveMutation.isPending || !canManagePlanning || !occupancy || (p.is_active !== false && hiredCount(p.id) > 0)}
                     onCheckedChange={() => {
                       if (p.is_active !== false && blockIfOccupied(p, "tentative")) return;
@@ -555,7 +555,7 @@ export default function PositionsPage({ embedded = false }: { embedded?: boolean
                 <div className="flex items-center gap-2 shrink-0">
                   <Switch
                     checked={p.is_active !== false}
-                    aria-label={p.is_active !== false ? `Mark ${p.title} tentative` : `Mark ${p.title} active`}
+                    aria-label={`${p.title} active`}
                     disabled={toggleActiveMutation.isPending || !canManagePlanning || !occupancy || (p.is_active !== false && hiredCount(p.id) > 0)}
                     onCheckedChange={() => {
                       if (p.is_active !== false && blockIfOccupied(p, "tentative")) return;

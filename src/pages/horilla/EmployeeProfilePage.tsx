@@ -704,6 +704,8 @@ export default function EmployeeProfilePage() {
 
   // An active person must keep a designation: changing the department clears one from another department.
   const designationMissing = !!emp?.is_active && !!workInfo?.job_position_id && !workInfoForm.job_position_id;
+  // People who have left: department and designation are history (experience letters use the title held at exit).
+  const leaver = !!emp && !emp.is_active;
 
   // ─── Work Info Save Mutation ───
   const saveWorkInfoMutation = useMutation({
@@ -727,14 +729,10 @@ export default function EmployeeProfilePage() {
         contract_end_date: workInfoForm.contract_end_date || null,
         experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
       };
-      // People who have left keep their own copy of the title (the database leaves history alone), so a
-      // correction made here updates it too.
-      if (emp && !emp.is_active && workInfoForm.job_position_id && workInfoForm.job_position_id !== workInfo?.job_position_id) {
-        const pos: any = (allPositions || []).find((p: any) => p.id === workInfoForm.job_position_id);
-        if (pos) {
-          updateData.job_role = pos.title;
-          updateData.level_band = pos.hierarchy_level ? `L${pos.hierarchy_level}` : null;
-        }
+      // People who have left keep the department and designation held at exit (letters print that title).
+      if (leaver) {
+        delete updateData.department_id;
+        delete updateData.job_position_id;
       }
 
       if (workInfo?.id) {
@@ -1177,26 +1175,33 @@ export default function EmployeeProfilePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Department</label>
-                      <select value={workInfoForm.department_id || ""} onChange={e => {
+                      <select value={workInfoForm.department_id || ""} disabled={leaver} onChange={e => {
                         // A designation belongs to one department: changing the department clears a designation from another one.
                         const keep = (allPositions || []).some((p: any) => p.id === workInfoForm.job_position_id && p.department_id === e.target.value);
                         setWorkInfoForm({ ...workInfoForm, department_id: e.target.value, job_position_id: keep ? workInfoForm.job_position_id : "" });
                       }} className={inputCls}>
                         <option value="">Select Department</option>
+                        {workInfoForm.department_id && !(departments || []).some((d: any) => d.id === workInfoForm.department_id) && (
+                          <option value={workInfoForm.department_id}>{dept?.name || "Current department"}</option>
+                        )}
                         {(departments || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Designation</label>
-                      <select value={workInfoForm.job_position_id || ""} onChange={e => {
+                      <select value={workInfoForm.job_position_id || ""} disabled={leaver} onChange={e => {
                         // The department follows the designation.
                         const pos: any = (allPositions || []).find((p: any) => p.id === e.target.value);
                         setWorkInfoForm({ ...workInfoForm, job_position_id: e.target.value, department_id: pos?.department_id || workInfoForm.department_id });
                       }} className={inputCls}>
                         <option value="">Select designation</option>
+                        {workInfoForm.job_position_id && !(allPositions || []).some((p: any) => p.id === workInfoForm.job_position_id) && (
+                          <option value={workInfoForm.job_position_id}>{position?.title || workInfo?.job_role || "Current designation"}</option>
+                        )}
                         {(allPositions || []).filter((p: any) => !workInfoForm.department_id || p.department_id === workInfoForm.department_id).map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}
                       </select>
                       {designationMissing && <p className="mt-1 text-[11px] text-destructive">Choose a designation in this department. The department follows it.</p>}
+                      {leaver && <p className="mt-1 text-[11px] text-muted-foreground">Kept as at exit: letters use the designation held then.</p>}
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Reporting Manager</label>

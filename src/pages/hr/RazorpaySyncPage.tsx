@@ -153,6 +153,8 @@ interface DryRunRow {
   hr_employee_id?: string | null;
   applied?: boolean; created?: boolean;
   note?: string;
+  /** "designation" / "department": RazorpayX values HRMS didn't take (no active match, or HRMS holds another). */
+  unmatched?: string[];
   /** Populated by the edge fn on server errors / apply exceptions. */
   error?: string;
 }
@@ -366,13 +368,16 @@ export default function RazorpaySyncPage() {
   const runApplyPilot = async () => {
     setApplyingPilot(true);
     try {
-      const d = await invoke<{ ok: boolean; hr_employee_id: string; created: boolean; matched_by: string | null }>({
+      const d = await invoke<{ ok: boolean; hr_employee_id: string; created: boolean; matched_by: string | null; unmatched?: string[] }>({
         action: "apply_one", employee_id: Number(pilotId),
       });
-      if (d.ok) setPilotApplied({ ...d, employee_id: Number(pilotId) });
+      if (d.ok) setPilotApplied({ hr_employee_id: d.hr_employee_id, created: d.created, matched_by: d.matched_by, employee_id: Number(pilotId) });
+      const unmatched = d.unmatched?.length
+        ? ` RazorpayX's ${d.unmatched.join(" and ")} ${d.unmatched.length > 1 ? "don't" : "doesn't"} match HRMS. ${d.created ? "Resolve it at onboarding Stage 5." : "Resolve it on Data Health."}`
+        : "";
       toast({
         title: d.ok ? "Pilot applied — please verify" : "Apply failed",
-        description: d.ok ? `${d.created ? "Created draft" : "Matched"} (${d.matched_by ?? "new"}). Bulk sync stays LOCKED until you unlock.` : undefined,
+        description: d.ok ? `${d.created ? "Created draft" : "Matched"} (${d.matched_by ?? "new"}). Bulk sync stays LOCKED until you unlock.${unmatched}` : undefined,
         variant: d.ok ? "default" : "destructive",
       });
       await reloadSettings();
@@ -2292,8 +2297,14 @@ export default function RazorpaySyncPage() {
                           </div>
                         )}
                       </td>
-                      <td className="p-2">{r.title ?? "—"}</td>
-                      <td className="p-2">{r.department ?? "—"}</td>
+                      <td className="p-2">
+                        {r.title ?? "—"}
+                        {r.unmatched?.includes("designation") && <div className="text-[10px] text-warning">not matched in HRMS</div>}
+                      </td>
+                      <td className="p-2">
+                        {r.department ?? "—"}
+                        {r.unmatched?.includes("department") && <div className="text-[10px] text-warning">not matched in HRMS</div>}
+                      </td>
                       <td className="p-2">{r.matched_by ?? "—"}</td>
                       <td className="p-2">
                         {r.action_planned === "match" && <span className="text-success">Match</span>}

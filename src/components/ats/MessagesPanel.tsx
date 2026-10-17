@@ -130,18 +130,19 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   };
 
 
-  useEffect(() => { if (composeSignal) setComposing(true); }, [composeSignal]);
+  useEffect(() => { if (composeSignal) { setReading(false); setComposing(true); } }, [composeSignal]);
   const expanded = enabled && composing && wide && !!candidate.email;
-  // Esc leaves large mode (the draft stays) unless a dialog or menu is open.
+  // Esc leaves large mode (reading or writing; the draft stays) unless a dialog or menu is open.
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded && !reading) return;
     const h = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || document.querySelector("[role=dialog],[role=alertdialog],[role=menu],[role=listbox]")) return;
-      setWide(false);
+      if (reading) setReading(false); else setWide(false);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [expanded]);
+  }, [expanded, reading]);
+
 
   // "r" opens the composer (panel visible, not typing, no dialog open).
   const openRef = useRef(openComposer);

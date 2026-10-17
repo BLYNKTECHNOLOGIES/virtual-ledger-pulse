@@ -17,6 +17,8 @@ export type AttentionTopic = "hiring" | "people" | "desks" | "plan";
 export type AttentionAction =
   | { kind: "line"; label: string; planId: string }
   | { kind: "requirement"; label: string; reqId: string }
+  | { kind: "approve"; label: string; req: any }
+  | { kind: "reject"; label: string; req: any }
   | { kind: "link"; label: string; to: string }
   | { kind: "plan-desks"; label: string; seat: any }
   | { kind: "move-training"; label: string; trainee: TraineeRow }
@@ -62,7 +64,7 @@ export function useHiringLinkableJobs() {
  * Everything on the Workforce screens that needs a person to act, in one list. rows are the page's
  * (already filtered) lines; scope narrows items that sit on no line by department and role.
  */
-export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: AlertScope; shiftFiltered?: boolean; canManage: boolean }) {
+export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: AlertScope; shiftFiltered?: boolean; shift?: string; canManage: boolean }) {
   const { scope, canManage } = opts;
   const alerts = useWorkforceAlerts(rows, scope);
   const reqs = useHiringRequirements();
@@ -72,11 +74,11 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
   const overdue = useOverdueJoiners();
   const leaving = useLeavingSoon();
   const { data: lookups } = useWorkforceLookups();
-  const planning = usePositionPlanningStatus(!opts.shiftFiltered);
+  const planning = usePositionPlanningStatus();
   // Titles of every position (tentative ones too), for roles nobody has decided on yet.
   const allPositions = useQuery({
-    queryKey: ["workforce_positions_all"],
-    enabled: !opts.shiftFiltered,
+    // Under "hr_positions" so saving a position on the Positions page refreshes it too.
+    queryKey: ["hr_positions", "workforce-attention"],
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.from("positions").select("id, title, department_id, is_active");
@@ -98,9 +100,12 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     const title = (id?: string | null) => (lookups?.positions ?? []).find((p: any) => p.id === id)?.title;
     const lineName = (r: StaffingDerived) => `${r.position_title ?? "Role"} · ${r.shiftLabel}`;
     const inScope = (d?: string | null, p?: string | null) => (!dep || d === dep) && (!pos || p === pos);
+    // With a shift filter, things that sit on no line still show — marked "all shifts" (they can't be placed in one).
+    const allShifts = opts.shiftFiltered ? " · all shifts" : "";
     const groups: AttentionGroup[] = [];
     const requirements = ((reqs.data ?? []) as any[]).filter((r) =>
-      r.staffing_plan_id ? lineById.has(r.staffing_plan_id) : !opts.shiftFiltered && inScope(r.department_id, r.position_id));
+      r.staffing_plan_id && lineById.has(r.staffing_plan_id) ? true : !r.staffing_plan_id && inScope(r.department_id, r.position_id));
+    const noLine = (r: { staffing_plan_id?: string | null; plan_id?: string | null }) => !(r.staffing_plan_id ?? r.plan_id);
     const reqLabel = (r: any) => {
       const line = r.staffing_plan_id ? lineById.get(r.staffing_plan_id) : undefined;
       return `${r.requirement_no} · ${r.positions?.title ?? "Role"} · ${line?.shiftLabel ?? r.shift_label ?? "Any shift"}`;
@@ -115,8 +120,10 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       cta: { label: "Review", to: "/hrms/workforce-planning/hiring-requirements?tab=pending" },
       items: pending.map((r) => ({
         key: r.id, title: reqLabel(r),
-        detail: `${(r.adds_headcount ?? 0) > 0 ? `adds +${r.adds_headcount}` : `${r.number_required} needed`} · target ${formatIstDate(r.target_joining_date)} · ${r.source === "capacity_occupancy" ? "raised automatically" : `raised by ${r.requested_by_name || "—"}`}`,
-        actions: [{ kind: "requirement", label: "Open", reqId: r.id }],
+        detail: `${(r.adds_headcount ?? 0) > 0 ? `adds +${r.adds_headcount}` : `${r.number_required} needed`} · target ${formatIstDate(r.target_joining_date)} · ${r.source === "capacity_occupancy" ? "raised automatically" : `raised by ${r.requested_by_name || "—"}`}${noLine(r) ? allShifts : ""}`,
+        actions: canManage
+          ? [{ kind: "approve", label: "Approve", req: r }, { kind: "reject", label: "Reject", req: r }, { kind: "requirement", label: "Open", reqId: r.id }] as AttentionAction[]
+          : [{ kind: "requirement", label: "Open", reqId: r.id }] as AttentionAction[],
       })),
     });
 
@@ -136,7 +143,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
           if (canManage && job) actions.push({ kind: "link", label: `Link ${job.job_code ?? "open job"}`, to: `/hrms/ats/jobs?edit=${job.id}&requirement=${r.id}` });
           if (canManage) actions.push({ kind: "link", label: job ? "New job" : "Create job", to: `/hrms/ats/jobs?new=1&requirement=${r.id}` });
           if (!canManage) actions.push({ kind: "requirement", label: "Open", reqId: r.id });
-          return { key: r.id, title: reqLabel(r), detail: `${left} to hire${job ? ` · ${job.job_code ?? "A job"} "${job.title}" is open for this role` : ""}`, actions };
+          return { key: r.id, title: reqLabel(r), detail: `${left} to hire${job ? ` · ${job.job_code ?? "A job"} "${job.title}" is open for this role` : ""}${noLine(r) ? allShifts : ""}`, actions };
         }),
       });
     }
@@ -156,14 +163,14 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
 
     // 4. Training finished — move to the working shift.
     const ended = (trainees.data ?? []).filter((t) => trainingEnded(t.training_end_date, today) && !upcoming.data?.get(t.employee_id)
-      && (t.plan_id ? lineById.has(t.plan_id) : !opts.shiftFiltered && inScope(t.department_id, t.position_id)));
+      && (t.plan_id ? lineById.has(t.plan_id) : inScope(t.department_id, t.position_id)));
     if (ended.length) groups.push({
       key: "trained", severity: "high", topic: "people",
       title: `${plural(ended.length, "trainee")} finished training`,
       hint: "Move them to their working shift so they count on their line.",
       items: ended.map((t) => ({
         key: t.employee_id, title: t.full_name || "Trainee",
-        detail: `${t.position_title ?? "Role"} · ended ${formatIstDate(t.training_end_date)} · to ${t.post_training_shift_name || "shift not set"}`,
+        detail: `${t.position_title ?? "Role"} · ended ${formatIstDate(t.training_end_date)} · to ${t.post_training_shift_name || "shift not set"}${t.plan_id ? "" : allShifts}`,
         actions: canManage ? [{ kind: "move-training", label: "Move shift", trainee: t }] : [],
       })),
     });
@@ -181,14 +188,14 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     });
 
     // 6. Requirements that count nowhere.
-    const lineIssues = [...alerts.onInactiveLine, ...alerts.unlinked].filter((r: any) => !opts.shiftFiltered || (r.staffing_plan_id && lineById.has(r.staffing_plan_id)));
+    const lineIssues = [...alerts.onInactiveLine, ...alerts.unlinked].filter((r: any) => inScope(r.department_id, r.position_id));
     if (lineIssues.length) groups.push({
       key: "needs-line", severity: "high", topic: "hiring",
       title: `${plural(lineIssues.length, "request")} not on a staffing line`,
       hint: "They count on no line until you link or move them.",
       items: lineIssues.map((r: any) => ({
         key: r.id, title: `${r.requirement_no} · ${r.positions?.title ?? "Role"}`,
-        detail: alerts.onInactiveLine.includes(r) ? "Its line was removed" : "Not linked to a staffing line",
+        detail: `${alerts.onInactiveLine.includes(r) ? "Its line was removed" : "Not linked to a staffing line"}${allShifts}`,
         actions: [{ kind: "requirement", label: alerts.onInactiveLine.includes(r) ? "Move" : "Link", reqId: r.id }],
       })),
     });
@@ -246,21 +253,23 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     });
 
     // 11. People and trainees the plan doesn't cover.
-    const trainShift = alerts.traineesWithoutShift.filter((t) => t.plan_id ? lineById.has(t.plan_id) : !opts.shiftFiltered);
+    const trainShift = alerts.traineesWithoutShift.filter((t) => t.plan_id ? lineById.has(t.plan_id) : inScope(t.department_id, t.position_id));
     if (trainShift.length) groups.push({
       key: "trainee-shift", severity: "medium", topic: "people",
       title: `${plural(trainShift.length, "trainee")} without an after-training shift`,
       hint: "Set the shift they move to, so the right line counts them.",
       items: trainShift.map((t) => ({
-        key: t.employee_id, title: t.full_name || "Trainee", detail: `${t.position_title ?? "Role"} · ${t.line_label ? `covering ${t.line_label}` : "no line"}`,
+        key: t.employee_id, title: t.full_name || "Trainee", detail: `${t.position_title ?? "Role"} · ${t.line_label ? `covering ${t.line_label}` : `no line${allShifts}`}`,
         actions: t.plan_id ? [{ kind: "line", label: "Set shift", planId: t.plan_id }] : [],
       })),
     });
-    if (!opts.shiftFiltered && alerts.unplanned.length) groups.push({
+    // People on no line do have a shift: with a shift filter, only those working that shift.
+    const unplannedHere = (alerts.unplanned as any[]).filter((u) => !opts.shiftFiltered || !opts.shift || u.shift_name === opts.shift);
+    if (unplannedHere.length) groups.push({
       key: "unplanned-people", severity: "medium", topic: "plan",
-      title: `${plural(alerts.unplanned.reduce((a: number, u: any) => a + (u.current_hc ?? 0), 0), "person", "people")} on no staffing line`,
+      title: `${plural(unplannedHere.reduce((a: number, u: any) => a + (u.current_hc ?? 0), 0), "person", "people")} on no staffing line`,
       hint: "Their role and shift have no line, so they count nowhere. Add a line or fix their shift.",
-      items: alerts.unplanned.map((u: any, i: number) => ({
+      items: unplannedHere.map((u: any, i: number) => ({
         key: `${u.department_id}-${u.position_id}-${u.shift_id}-${i}`,
         title: `${u.position_title ?? "No role"} · ${u.shift_name ?? "No shift"}`, detail: `${u.department_name ?? "No department"} · ${u.current_hc} on roll`,
         actions: canManage && u.position_id ? [{ kind: "link", label: "Add line", to: `/hrms/workforce-planning/staffing-plan?plan_role=${u.position_id}${u.shift_id ? `&plan_shift=${u.shift_id}` : ""}` }] : [],
@@ -268,7 +277,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     });
 
     // 12. Roles in planning nobody has decided on (no line, not "no staff needed now"): nobody can hire for them yet.
-    if (!opts.shiftFiltered && planning.data && allPositions.data) {
+    if (planning.data && allPositions.data) {
       const roles = allPositions.data.filter((p) => planning.data!.get(p.id)?.status === "undecided" && inScope(p.department_id, p.id))
         .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
       if (roles.length) {
@@ -276,10 +285,10 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
         groups.push({
           key: "unplanned-roles", severity: "medium", topic: "plan",
           title: `${plural(roles.length, "role")} in planning not decided yet`,
-          hint: "Hiring for them is blocked until you plan their lines, mark \"no staff needed now\" or take them out of planning.",
+          hint: "Nobody can hire for them until they get a staffing line. Decide each one: plan its lines, \"no staff needed now\", or out of planning.",
           cta: { label: "Decide", to: "/hrms/employee/positions?planning=undecided" },
           items: roles.map((p) => ({
-            key: p.id, title: p.title, detail: `${dn(p.department_id)}${p.is_active === false ? " · tentative" : ""}`,
+            key: p.id, title: p.title, detail: `${dn(p.department_id)}${p.is_active === false ? " · tentative" : ""}${allShifts}`,
             actions: canManage ? [{ kind: "link", label: "Plan lines", to: `/hrms/workforce-planning/staffing-plan?plan_role=${p.id}` } as AttentionAction] : [],
           })),
         });
@@ -293,13 +302,13 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       hint: "These desks aren't planned in any shift.",
       items: alerts.desksWithoutLine.map((s: any) => ({
         key: s.id, title: seatRoleIds(s).map(title).filter(Boolean).join(" / ") || "Whole department",
-        detail: `${s.departments?.name ?? "—"} · ${s.physical_seats} desks`,
+        detail: `${s.departments?.name ?? "—"} · ${s.physical_seats} desk${s.physical_seats === 1 ? "" : "s"}${allShifts}`,
         actions: canManage ? [{ kind: "plan-desks", label: "Plan these desks", seat: s }] : [],
       })),
     });
 
     // 14. Leaving soon.
-    const leavers = (leaving.data ?? []).filter((p) => p.plan_id ? lineById.has(p.plan_id) : !opts.shiftFiltered && inScope(p.department_id, p.position_id));
+    const leavers = (leaving.data ?? []).filter((p) => p.plan_id ? lineById.has(p.plan_id) : inScope(p.department_id, p.position_id));
     if (leavers.length) groups.push({
       key: "leaving", severity: "low", topic: "people",
       title: `${plural(leavers.length, "person", "people")} leaving (on notice)`,
@@ -309,7 +318,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
         const line = p.plan_id ? lineById.get(p.plan_id) : undefined;
         return {
           key: p.employee_id, title: line ? lineName(line) : `${title(p.position_id) ?? "Role"} · not on a staffing line`,
-          detail: p.last_working_day ? `last day ${formatIstDate(p.last_working_day)}` : "last day not set",
+          detail: `${p.last_working_day ? `last day ${formatIstDate(p.last_working_day)}` : "last day not set"}${line ? "" : allShifts}`,
           actions: line ? [{ kind: "line", label: "Open line", planId: line.plan_id } as AttentionAction] : [],
         };
       }),
@@ -332,8 +341,8 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       /** Topics (not single items) that need someone to act. */
       actionable: visible.filter((g) => g.severity !== "low").length,
       loading: reqs.isLoading || trainees.isLoading,
-      error: trainees.isError || overdue.isError || leaving.isError || reqJobs.isError,
+      error: reqs.isError || trainees.isError || overdue.isError || leaving.isError || reqJobs.isError,
     };
-  }, [rows, alerts, reqs.data, reqs.isLoading, reqJobs.data, reqJobs.isError, linkable.data, trainees.data, trainees.isLoading, trainees.isError,
-      upcoming.data, overdue.data, overdue.isError, leaving.data, leaving.isError, lookups, planning.data, allPositions.data, dep, pos, canManage, opts.shiftFiltered]);
+  }, [rows, alerts, reqs.data, reqs.isLoading, reqs.isError, reqJobs.data, reqJobs.isError, linkable.data, trainees.data, trainees.isLoading, trainees.isError,
+      upcoming.data, overdue.data, overdue.isError, leaving.data, leaving.isError, lookups, planning.data, allPositions.data, dep, pos, canManage, opts.shiftFiltered, opts.shift]);
 }

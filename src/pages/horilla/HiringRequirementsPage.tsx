@@ -68,6 +68,8 @@ export default function HiringRequirementsPage() {
   const shiftOptions = rotaOrder(planningShifts(shifts));
 
   const liveJobs = (r: any) => (reqJobs.data?.get(r.id) ?? []).filter((j: any) => ["open", "paused"].includes(j.status));
+  // Until the job links load (or when they fail), "no job" and "recruiting" can't be told apart.
+  const jobsKnown = !!reqJobs.data;
   const noJob = (r: any) => HIRING.includes(r.status) && !!reqJobs.data && liveJobs(r).length === 0;
   const inTab = (r: any, t: Tab) => {
     switch (t) {
@@ -148,7 +150,9 @@ export default function HiringRequirementsPage() {
               tab === t.value ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground",
               t.value === "nojob" && counts.nojob > 0 && tab !== t.value && "border-destructive/40 text-destructive")}>
             {t.label}
-            <CountPill n={counts[t.value]} className={cn(tab === t.value && "bg-primary/15")} />
+            {!jobsKnown && (t.value === "nojob" || t.value === "active")
+              ? <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] text-muted-foreground" aria-label="not known yet">…</span>
+              : <CountPill n={counts[t.value]} className={cn(tab === t.value && "bg-primary/15")} />}
           </button>
         ))}
       </div>
@@ -175,10 +179,19 @@ export default function HiringRequirementsPage() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {reqJobs.isError && !reqJobs.data && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          Couldn't load which ATS jobs recruit for each request, so "Approved, no job" and "Recruiting" are unknown.{" "}
+          <button type="button" className="underline" onClick={() => reqJobs.refetch()}>Try again</button>
+        </div>
+      )}
+
+      {isLoading || (!jobsKnown && reqJobs.isLoading && (tab === "nojob" || tab === "active")) ? (
         <TableSkeleton />
       ) : isError && requirements.length === 0 ? (
         <ErrorState title="Couldn't load hiring requirements" error={error} onRetry={() => refetch()} />
+      ) : !jobsKnown && (tab === "nojob" || tab === "active") ? (
+        <EmptyState icon={ClipboardList} title="ATS jobs not loaded" description="This list needs the ATS job links. Try again above, or use the Open tab." />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
@@ -190,16 +203,16 @@ export default function HiringRequirementsPage() {
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-xl border border-border bg-card md:block">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[680px] text-sm">
               <thead className="border-b border-border bg-muted/40">
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Requirement</th>
                   <th className="px-2 py-2 font-medium">Line</th>
                   <th className="px-2 py-2 font-medium">Status</th>
                   <th className="px-2 py-2 font-medium">Filled</th>
-                  <th className="px-2 py-2 font-medium">Candidates</th>
+                  <th className="hidden px-2 py-2 font-medium xl:table-cell">Candidates</th>
                   <th className="px-2 py-2 font-medium">ATS job</th>
-                  <th className="px-4 py-2 font-medium">Target</th>
+                  <th className="hidden px-4 py-2 font-medium xl:table-cell">Target</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,23 +225,28 @@ export default function HiringRequirementsPage() {
                   const jobs = liveJobs(r);
                   const priority = line?.priority ?? r.priority;
                   return (
-                    <tr key={r.id} tabIndex={0} onClick={() => open(r)} onKeyDown={(e) => { if (e.key === "Enter") open(r); }}
-                      className="cursor-pointer border-b border-border/60 align-top last:border-0 hover:bg-muted/30 focus-visible:bg-muted/40 focus-visible:outline-none">
+                    <tr key={r.id} onClick={() => open(r)}
+                      className="cursor-pointer border-b border-border/60 align-top last:border-0 hover:bg-muted/30 focus-within:bg-muted/30">
                       <td className="px-4 py-2.5">
-                        <p className="font-mono text-xs text-foreground">{r.requirement_no}</p>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); open(r); }}
+                          className="whitespace-nowrap rounded-sm font-mono text-xs text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label={`Open ${r.requirement_no}`}>
+                          {r.requirement_no}
+                        </button>
                         <p className="text-[11px] text-muted-foreground">{SOURCE[r.source] ?? "Manual"}{r.source === "department_request" && r.requested_by_name ? ` · ${r.requested_by_name}` : ""}</p>
+                        <p className="text-[11px] text-muted-foreground xl:hidden">{r.target_joining_date ? `target ${formatIstDate(r.target_joining_date)}` : "no target date"}</p>
                       </td>
                       <td className="px-2 py-2.5">
-                        <p className="flex items-center gap-2 font-medium text-foreground">
-                          <span className={cn("h-2 w-2 shrink-0 rounded-full", PRIORITY_DOT[priority] ?? PRIORITY_DOT.medium)}
-                            title={`${PRIORITY_LABEL[priority] ?? priority} priority`} aria-label={`${PRIORITY_LABEL[priority] ?? priority} priority`} />
-                          {r.positions?.title ?? "Role"} · {shiftName(r)}
-                        </p>
-                        <p className="pl-4 text-xs text-muted-foreground">
-                          {r.departments?.name ?? "Department"}
-                          {line ? ` · line needs ${line.netHiringRequirement}` : ""}
-                          {(r.adds_headcount ?? 0) > 0 ? ` · adds +${r.adds_headcount}` : ""}
-                        </p>
+                        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
+                          <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[priority] ?? PRIORITY_DOT.medium)} aria-hidden />
+                          <p className="font-medium text-foreground">{r.positions?.title ?? "Role"} · {shiftName(r)}</p>
+                          <span aria-hidden />
+                          <p className="text-xs text-muted-foreground">
+                            {r.departments?.name ?? "Department"} · {PRIORITY_LABEL[priority] ?? priority} priority
+                            {line ? ` · line needs ${line.netHiringRequirement}` : ""}
+                            {(r.adds_headcount ?? 0) > 0 ? ` · adds +${r.adds_headcount}` : ""}
+                          </p>
+                        </div>
                         <div className="flex flex-wrap gap-1 pl-4 pt-1 empty:hidden">
                           {lineIssue.unlinked.has(r.id) && <StatusPill tone="destructive">Not on a staffing line</StatusPill>}
                           {lineIssue.inactive.has(r.id) && <StatusPill tone="destructive">Line removed — move it</StatusPill>}
@@ -239,16 +257,19 @@ export default function HiringRequirementsPage() {
                       <td className="px-2 py-2.5">
                         <p className="text-xs tabular-nums text-foreground">{filled} of {needed}</p>
                         <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-muted" aria-hidden><div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} /></div>
+                        {pp && <p className="mt-1 text-[11px] text-muted-foreground xl:hidden">{pp.applied} applied</p>}
                       </td>
-                      <td className="px-2 py-2.5 text-xs text-muted-foreground">
+                      <td className="hidden px-2 py-2.5 text-xs text-muted-foreground xl:table-cell">
                         {pp ? <>{pp.applied} applied{pp.hired ? ` · ${pp.hired} hired` : ""}{pp.joining ? ` · ${pp.joining} joining` : ""}</> : "—"}
                       </td>
                       <td className="px-2 py-2.5">
-                        {jobs.length > 0 ? (
+                        {!jobsKnown && HIRING.includes(r.status) ? (
+                          <span className="text-xs text-muted-foreground">{reqJobs.isError ? "not loaded" : "…"}</span>
+                        ) : jobs.length > 0 ? (
                           <div className="flex flex-wrap gap-1">{jobs.map((j: any) => <StatusPill key={j.id} tone={j.status === "open" ? "success" : "warning"}>{j.job_code}{j.status === "paused" ? " · paused" : ""}</StatusPill>)}</div>
                         ) : noJob(r) ? (canManage ? jobAction(r) : <StatusPill tone="destructive">No job</StatusPill>) : <span className="text-xs text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{r.target_joining_date ? formatIstDate(r.target_joining_date) : "No date"}</td>
+                      <td className="hidden px-4 py-2.5 text-xs text-muted-foreground xl:table-cell">{r.target_joining_date ? formatIstDate(r.target_joining_date) : "No date"}</td>
                     </tr>
                   );
                 })}
@@ -264,13 +285,18 @@ export default function HiringRequirementsPage() {
               const jobs = liveJobs(r);
               const pp = pipeline.data?.get(r.id);
               return (
-                <div key={r.id} role="button" tabIndex={0} onClick={() => open(r)} onKeyDown={(e) => { if (e.key === "Enter") open(r); }}
-                  className="cursor-pointer rounded-xl border border-border bg-card p-3 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <div key={r.id} onClick={() => open(r)}
+                  className="cursor-pointer rounded-xl border border-border bg-card p-3 hover:border-primary/40 focus-within:border-primary/40">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                     <div className="min-w-0">
-                      <p className="font-mono text-[11px] text-muted-foreground">{r.requirement_no} · {SOURCE[r.source] ?? "Manual"}</p>
-                      <p className="font-medium text-foreground">{r.positions?.title ?? "Role"}</p>
-                      <p className="text-xs text-muted-foreground">{shiftName(r)} · {r.departments?.name ?? "Department"}</p>
+                      <p className="whitespace-nowrap font-mono text-[11px] text-muted-foreground">{r.requirement_no} · {SOURCE[r.source] ?? "Manual"}</p>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); open(r); }}
+                        className="rounded-sm text-left font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        {r.positions?.title ?? "Role"}
+                      </button>
+                      <p className="text-xs text-muted-foreground">
+                        {shiftName(r)} · {r.departments?.name ?? "Department"} · {PRIORITY_LABEL[line?.priority ?? r.priority] ?? (line?.priority ?? r.priority)} priority
+                      </p>
                     </div>
                     <StatusPill tone={REQ_STATUS_TONE[r.status] ?? "neutral"}>{REQ_STATUS_LABEL[r.status] ?? r.status}</StatusPill>
                   </div>
@@ -279,7 +305,7 @@ export default function HiringRequirementsPage() {
                     {line ? ` · line needs ${line.netHiringRequirement}` : ""}{pp ? ` · ${pp.applied} applied` : ""}
                     {` · ${r.target_joining_date ? `target ${formatIstDate(r.target_joining_date)}` : "no target date"}`}
                   </p>
-                  {jobs.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{jobs.map((j: any) => <StatusPill key={j.id} tone="success">{j.job_code}</StatusPill>)}</div>}
+                  {jobs.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{jobs.map((j: any) => <StatusPill key={j.id} tone={j.status === "open" ? "success" : "warning"}>{j.job_code}{j.status === "paused" ? " · paused" : ""}</StatusPill>)}</div>}
                   {noJob(r) && <div className="mt-2">{canManage ? jobAction(r, true) : <StatusPill tone="destructive">No ATS job</StatusPill>}</div>}
                 </div>
               );

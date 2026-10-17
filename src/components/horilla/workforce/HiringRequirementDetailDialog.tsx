@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ExternalLink, MoreHorizontal, Pencil, Send, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -107,6 +107,11 @@ export function HiringRequirementDetailDialog({
   const [approveDate, setApproveDate] = useState("");
   const [allHistory, setAllHistory] = useState(false);
   const [moving, setMoving] = useState(false);
+  // Opening another request starts clean: nothing typed or picked for the last one carries over.
+  useEffect(() => {
+    setNote(""); setConfirmAction(null); setEditOpen(false); setMoveTo(""); setMoveReason("");
+    setApproveDate(""); setAllHistory(false); setMoving(false); setReasonTarget(null);
+  }, [requirement?.id]);
 
   // Live row (the list snapshot may be stale after an action)
   const live = useQuery({
@@ -248,9 +253,9 @@ export function HiringRequirementDetailDialog({
         <span className="flex flex-wrap items-center gap-2">
           <span className="font-mono">{r.requirement_no}</span>
           <StatusPill tone={REQ_STATUS_TONE[r.status] ?? "neutral"}>{REQ_STATUS_LABEL[r.status] ?? r.status}</StatusPill>
-          {r.priority && (
+          {(line?.priority ?? r.priority) && (
             <span title={line ? `Line priority: ${linePriorityText(line)}` : undefined}>
-              <StatusPill tone={PRIORITY_TONE[r.priority] ?? "neutral"}>{PRIORITY_LABEL[r.priority] ?? r.priority} priority</StatusPill>
+              <StatusPill tone={PRIORITY_TONE[line?.priority ?? r.priority] ?? "neutral"}>{PRIORITY_LABEL[line?.priority ?? r.priority] ?? (line?.priority ?? r.priority)} priority</StatusPill>
             </span>
           )}
           {(r.adds_headcount ?? 0) > 0 && <StatusPill tone="primary">Adds +{r.adds_headcount} headcount</StatusPill>}
@@ -294,7 +299,9 @@ export function HiringRequirementDetailDialog({
           <Section title="Candidates" aside={jobs.length > 1 ? <span className="text-xs text-muted-foreground">all {jobs.length} linked jobs</span> : undefined}>
             {pipeline.isError ? (
               <p className="text-sm text-destructive">Couldn't load the candidates. <button type="button" className="underline" onClick={() => pipeline.refetch()}>Try again</button></p>
-            ) : !jobs.length && !(p?.applied) && !filled ? (
+            ) : jobsQ.isLoading || pipeline.isLoading ? (
+              <div className="h-14 animate-pulse rounded-xl bg-muted/60" aria-label="Loading candidates" />
+            ) : jobsQ.isError ? null : !jobs.length && !(p?.applied) && !filled ? (
               <p className="rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground">
                 No candidates yet — they show here once an ATS job recruits for this request.
               </p>

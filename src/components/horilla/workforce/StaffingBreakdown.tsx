@@ -9,6 +9,8 @@ export interface BreakdownRow {
   /** Σ line shortfalls (a surplus on one line never covers another). */
   short: number;
   over: number;
+  /** false = shown but not usable as a filter (e.g. lines with no department). */
+  selectable?: boolean;
 }
 
 /** On roll against required, one bar per shift or department; shortfalls are per-line sums. */
@@ -48,7 +50,7 @@ export function StaffingBreakdown({ title, description, rows, onSelect, classNam
             );
             return (
               <li key={r.key}>
-                {onSelect ? (
+                {onSelect && r.selectable !== false ? (
                   <button type="button" onClick={() => onSelect(r.key)}
                     className="-mx-2 block w-[calc(100%+1rem)] rounded-md px-2 py-1 text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     {content}

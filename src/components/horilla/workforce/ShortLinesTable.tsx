@@ -23,17 +23,23 @@ interface Props extends ShortLineHandlers {
   rows: StaffingDerived[];
   /** Open and draft requirements, keyed by line. */
   reqsByLine: Map<string, any[]>;
-  /** ATS jobs recruiting for each requirement (requirement id → jobs). */
+  /** The requirements couldn't load: the Hiring column is unknown, not empty. */
+  reqsError?: boolean;
+  /** ATS jobs recruiting for each requirement (requirement id → jobs); undefined while loading. */
   jobsByReq?: Map<string, any[]>;
+  /** The job links couldn't load (approved requests must not look as if no job recruits for them). */
+  jobsError?: boolean;
   /** Open ATS jobs each approved requirement could be linked to (requirement id → jobs). */
   linkable?: Map<string, OpenJobRef[]>;
   initial?: number;
 }
 
-type Hiring = { tone: "warning" | "primary" | "success" | "destructive" | "neutral"; text: string; req?: any; job?: any; suggest?: OpenJobRef | null };
+type Hiring = { tone: "warning" | "primary" | "success" | "destructive" | "neutral"; text: string; req?: any; noJob?: boolean; suggest?: OpenJobRef | null };
 
-/** Lines still short after trainees and joiners: who is short, by how much, and what hiring covers it. */
-export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial = 8, ...h }: Props) {
+const priorityText = (r: StaffingDerived) => `${PRIORITY_LABEL[r.priority] ?? r.priority} priority`;
+
+/** Lines still short after trainees and hires: who is short, by how much, and what hiring covers it. */
+export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsError, linkable, initial = 8, ...h }: Props) {
   const [all, setAll] = useState(false);
   const list = rows
     .filter((r) => r.netHiringRequirement > 0)
@@ -46,20 +52,28 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
     const open = lineReqs.filter((q) => OPEN.includes(q.status));
     const drafts = lineReqs.filter((q) => q.status === "draft");
     const draftHc = drafts.reduce((a, q) => a + (Number(q.number_required) || 0), 0);
-    // Drafts don't count as requested (the engine ignores them), so they stay inside "not requested".
+    // Drafts don't count as requested (the engine ignores them), so they stay inside "not requested";
+    // a new request is only offered for what no draft covers yet.
     const notRequested = Math.max(0, r.uncoveredHiringRequirement);
+    const requestable = Math.max(0, notRequested - draftHc);
     const pills: Hiring[] = open.map((q) => {
-      const jobs = (jobsByReq?.get(q.id) ?? []).filter((j: any) => ["open", "paused"].includes(j.status));
       if (q.status === "pending_approval") return { tone: "warning", text: `Awaiting approval · ${q.number_required}`, req: q };
-      if (jobs.length) return { tone: "success", text: `Recruiting · ${jobs.map((j: any) => j.job_code).join(", ")}`, req: q, job: jobs[0] };
-      return { tone: "destructive", text: "Approved · no ATS job", req: q, suggest: linkable?.get(q.id)?.[0] ?? null };
+      if (jobsError && !jobsByReq) return { tone: "neutral", text: "ATS jobs couldn't load", req: q };
+      if (!jobsByReq) return { tone: "neutral", text: "Checking ATS jobs…", req: q };
+      const jobs = (jobsByReq.get(q.id) ?? []).filter((j: any) => ["open", "paused"].includes(j.status));
+      if (jobs.length) {
+        const paused = jobs.every((j: any) => j.status === "paused");
+        return { tone: paused ? "warning" : "success", text: `${paused ? "Paused" : "Recruiting"} · ${jobs.map((j: any) => j.job_code).join(", ")}`, req: q };
+      }
+      return { tone: "destructive", text: "Approved · no ATS job", req: q, noJob: true, suggest: linkable?.get(q.id)?.[0] ?? null };
     });
     if (drafts.length) pills.push({ tone: "neutral", text: `Draft · ${draftHc} not sent`, req: drafts[0] });
-    return { pills, notRequested, pending: open.find((q) => q.status === "pending_approval"), first: open[0] ?? drafts[0] };
+    return { pills, notRequested, requestable, drafts, pending: open.find((q) => q.status === "pending_approval"), first: open[0] ?? drafts[0] };
   };
 
   const action = (r: StaffingDerived, d: ReturnType<typeof describe>, block = false) => {
     const cls = cn("h-8", block && "w-full sm:w-auto");
+    if (reqsError) return null;
     if (h.canManage && d.pending) {
       return (
         <div className={cn("flex gap-1.5", block && "w-full")}>
@@ -72,7 +86,7 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
         </div>
       );
     }
-    const noJob = d.pills.find((p) => p.text.startsWith("Approved · no ATS job"));
+    const noJob = d.pills.find((p) => p.noJob);
     if (h.canManage && noJob) {
       return (
         <Button asChild size="sm" variant="outline" className={cls}>
@@ -82,8 +96,12 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
         </Button>
       );
     }
-    if (h.canManage && d.notRequested > 0) {
-      return <Button size="sm" className={cls} onClick={() => h.onCreate(r, d.notRequested)}>Request {d.notRequested}</Button>;
+    // A draft on the line comes first: finish and send it instead of raising a second request.
+    if (h.canManage && d.drafts.length) {
+      return <Button size="sm" variant="outline" className={cls} onClick={() => h.onOpenRequirement(d.drafts[0].id)}>Open draft</Button>;
+    }
+    if (h.canManage && d.requestable > 0) {
+      return <Button size="sm" className={cls} onClick={() => h.onCreate(r, d.requestable)}>Request {d.requestable}</Button>;
     }
     if (d.first) return <Button size="sm" variant="outline" className={cls} onClick={() => h.onOpenRequirement(d.first.id)}>Open</Button>;
     return null;
@@ -95,13 +113,16 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
         <div className="min-w-0">
           <h2 className="font-display text-[15px] font-semibold text-foreground">Where we're short</h2>
           <p className="text-xs text-muted-foreground">
-            {list.length === 0 ? "Every line is staffed or covered by trainees and joiners." : `${list.length} line${list.length === 1 ? "" : "s"} · ${need} still needed after trainees and joiners`}
+            {list.length === 0 ? "Every line is staffed or covered by trainees and hires." : `${list.length} line${list.length === 1 ? "" : "s"} · ${need} still needed after trainees and hires`}
           </p>
         </div>
         <Button asChild size="sm" variant="ghost" className="h-8 text-primary">
           <Link to="/hrms/workforce-planning/staffing-plan">Staffing plan <ArrowRight className="h-3.5 w-3.5" /></Link>
         </Button>
       </header>
+      {reqsError && (
+        <p className="border-b border-border bg-destructive/5 px-4 py-2 text-xs text-destructive">Couldn't load the hiring requests, so the Hiring column is missing.</p>
+      )}
 
       {list.length === 0 ? (
         <div className="flex items-center gap-2 px-4 py-8 text-sm text-muted-foreground">
@@ -114,18 +135,18 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
             <table className="w-full table-fixed text-sm">
               <colgroup>
                 <col />
-                <col className="w-32" />
-                <col className="w-20" />
-                <col className="w-[34%]" />
-                <col className="w-40" />
+                <col className="w-28" />
+                <col className="w-24" />
+                <col className="w-[28%]" />
+                <col className="w-36" />
               </colgroup>
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Line</th>
                   <th className="px-2 py-2 font-medium">On roll</th>
-                  <th className="px-2 py-2 text-right font-medium">Needed</th>
+                  <th className="px-2 py-2 text-right font-medium">Still needed</th>
                   <th className="px-3 py-2 font-medium">Hiring</th>
-                  <th className="px-4 py-2" aria-label="Action" />
+                  <th className="px-4 py-2"><span className="sr-only">Action</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -134,12 +155,14 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
                   return (
                     <tr key={r.plan_id} className="border-b border-border/60 last:border-0">
                       <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className={cn("h-2 w-2 shrink-0 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)}
-                            title={`${PRIORITY_LABEL[r.priority] ?? r.priority} priority`} aria-label={`${PRIORITY_LABEL[r.priority] ?? r.priority} priority`} />
-                          <p className="truncate font-medium text-foreground" title={`${r.position_title} · ${r.shiftLabel}`}>{r.position_title} · {r.shiftLabel}</p>
+                        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
+                          <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
+                          <p className="truncate font-medium text-foreground" title={r.position_title ?? undefined}>{r.position_title}</p>
+                          <span aria-hidden />
+                          <p className="truncate text-xs text-muted-foreground" title={r.priority_why ?? undefined}>
+                            {r.shiftLabel} · {r.department_name} · {priorityText(r)}
+                          </p>
                         </div>
-                        <p className="truncate pl-4 text-xs text-muted-foreground">{r.department_name}</p>
                       </td>
                       <td className="px-2 py-2.5">
                         <Staffed r={r} />
@@ -148,7 +171,7 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
                         <span className="text-base font-semibold tabular-nums text-destructive">{r.netHiringRequirement}</span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <HiringPills d={d} onOpen={h.onOpenRequirement} />
+                        <HiringPills d={d} onOpen={h.onOpenRequirement} unknown={reqsError} />
                       </td>
                       <td className="px-4 py-2.5"><div className="flex justify-end">{action(r, d)}</div></td>
                     </tr>
@@ -165,20 +188,19 @@ export function ShortLinesTable({ rows, reqsByLine, jobsByReq, linkable, initial
               return (
                 <li key={r.plan_id} className="space-y-2 px-4 py-3">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 font-medium text-foreground">
-                        <span className={cn("h-2 w-2 shrink-0 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
-                        <span className="truncate">{r.position_title}</span>
-                      </p>
-                      <p className="pl-4 text-xs text-muted-foreground">{r.shiftLabel} · {r.department_name}</p>
+                    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2">
+                      <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
+                      <p className="truncate font-medium text-foreground">{r.position_title}</p>
+                      <span aria-hidden />
+                      <p className="text-xs text-muted-foreground">{r.shiftLabel} · {r.department_name} · {priorityText(r)}</p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-lg font-semibold leading-none tabular-nums text-destructive">{r.netHiringRequirement}</p>
-                      <p className="text-[11px] text-muted-foreground">needed</p>
+                      <p className="text-[11px] text-muted-foreground">still needed</p>
                     </div>
                   </div>
                   <Staffed r={r} />
-                  <HiringPills d={d} onOpen={h.onOpenRequirement} />
+                  <HiringPills d={d} onOpen={h.onOpenRequirement} unknown={reqsError} />
                   {action(r, d, true)}
                 </li>
               );
@@ -202,7 +224,7 @@ function Staffed({ r }: { r: StaffingDerived }) {
   const pct = r.required_hc > 0 ? Math.min(100, (r.current_hc / r.required_hc) * 100) : 0;
   const extra = [
     r.in_training_hc ? `${r.in_training_hc} in training` : null,
-    r.selected_hc + r.pending_joining_hc ? `${r.selected_hc + r.pending_joining_hc} joining` : null,
+    r.selected_hc + r.pending_joining_hc ? `${r.selected_hc + r.pending_joining_hc} hired, joining` : null,
   ].filter(Boolean).join(" · ");
   return (
     <div className="min-w-0">
@@ -215,7 +237,8 @@ function Staffed({ r }: { r: StaffingDerived }) {
   );
 }
 
-function HiringPills({ d, onOpen }: { d: { pills: Hiring[]; notRequested: number }; onOpen: (id: string) => void }) {
+function HiringPills({ d, onOpen, unknown }: { d: { pills: Hiring[]; notRequested: number }; onOpen: (id: string) => void; unknown?: boolean }) {
+  if (unknown) return <span className="text-xs text-muted-foreground">Not loaded</span>;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {d.pills.map((p) => (

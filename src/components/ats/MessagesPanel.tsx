@@ -538,7 +538,7 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
   );
 }
 
-function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread, onPickTime }: { m: AtsMessage; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void; onPickTime: (t: ProposedTime) => void }) {
+function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread, onPickTime, large = false }: { m: AtsMessage; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void; onPickTime: (t: ProposedTime) => void; large?: boolean }) {
   const times = useMemo(() => (m.direction === "inbound" ? proposedTimes(m.intent_data) : []), [m.direction, m.intent_data]);
   const isAdmin = useIsHrAdmin().data === true;
   const out = m.direction === "outbound";
@@ -574,7 +574,8 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
 
   return (
     <div className={cn("flex", out ? "justify-end" : "justify-start")}>
-      <div className={cn("w-full max-w-[88%] rounded-xl p-3 ring-1 ring-inset", out ? cn("bg-primary/10", m.status === "failed" ? "ring-destructive/30" : "ring-primary/20") : "bg-muted ring-transparent")}>
+      <div className={cn("w-full rounded-xl p-3 ring-1 ring-inset", large ? "max-w-full p-4" : "max-w-[88%]", out ? cn("bg-primary/10", m.status === "failed" ? "ring-destructive/30" : "ring-primary/20") : "bg-muted ring-transparent")}>
+
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 text-xs text-muted-foreground">
             {out
@@ -605,14 +606,15 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
           {!out && m.is_automatic && <Badge variant="outline" className="font-normal">Automatic reply</Badge>}
         </div>
         {!out && m.from_other_address && <p className="mt-1 text-xs text-muted-foreground">Sent from {m.from_address}, not the candidate's saved address.</p>}
-        <p className="mt-1 break-words text-sm font-semibold text-foreground">{m.subject || "(no subject)"}</p>
-        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{main}</p>
+        <p className={cn("mt-1 break-words font-semibold text-foreground", large ? "text-base" : "text-sm")}>{m.subject || "(no subject)"}</p>
+        <p className={cn("mt-1 whitespace-pre-wrap break-words text-foreground", large ? "text-[16px] leading-7" : "text-sm")}>{main}</p>
+
         {quoted && (
           <div className="mt-1">
             <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => setShowQuoted((v) => !v)}>
               {showQuoted ? "Hide quoted text" : "Show quoted text"}
             </button>
-            {showQuoted && <p className="mt-1 whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-xs text-muted-foreground">{quoted}</p>}
+            {showQuoted && <p className={cn("mt-1 whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-muted-foreground", large ? "text-sm" : "text-xs")}>{quoted}</p>}
           </div>
         )}
         {!out && times.length > 0 && (

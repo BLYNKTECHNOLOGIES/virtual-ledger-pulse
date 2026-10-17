@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import DOMPurify from "dompurify";
 import {
-  AlertTriangle, ArrowRightLeft, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, Clock, Loader2, Mail, MessageCircle,
+  AlertTriangle, ArrowRightLeft, BookOpen, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, Clock, Loader2, Mail, MessageCircle,
   Maximize2, Minimize2, MoreVertical, Paperclip, Phone, RefreshCw, Reply, RotateCcw, Send, Sparkles, Upload, UserX,
 } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -111,6 +112,8 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   // Large writing mode (whole screen, past emails beside the composer); remembered per browser.
   const [wide, setWideState] = useState(() => { try { return localStorage.getItem(WIDE_KEY) !== "0"; } catch { return true; } });
   const setWide = (v: boolean) => { setWideState(v); try { localStorage.setItem(WIDE_KEY, v ? "1" : "0"); } catch { /* storage unavailable */ } };
+  // Large reading mode: the emails alone, over almost the whole screen, in bigger type.
+  const [reading, setReading] = useState(false);
   const [preset, setPreset] = useState<ComposerPreset | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const [showActivity, setShowActivity] = useState(readActivityPref);
@@ -121,23 +124,26 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
   const firstName = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "this candidate";
 
   const openComposer = (p?: { code?: string; interviewId?: string | null; ai?: boolean }) => {
+    setReading(false);
     setComposing(true);
     setPreset(p ? { ...p, nonce: Date.now() } : null);
     setFocusNonce((n) => n + 1);
   };
 
-  useEffect(() => { if (composeSignal) setComposing(true); }, [composeSignal]);
+
+  useEffect(() => { if (composeSignal) { setReading(false); setComposing(true); } }, [composeSignal]);
   const expanded = enabled && composing && wide && !!candidate.email;
-  // Esc leaves large mode (the draft stays) unless a dialog or menu is open.
+  // Esc leaves large mode (reading or writing; the draft stays) unless a dialog or menu is open.
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded && !reading) return;
     const h = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || document.querySelector("[role=dialog],[role=alertdialog],[role=menu],[role=listbox]")) return;
-      setWide(false);
+      if (reading) setReading(false); else setWide(false);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [expanded]);
+  }, [expanded, reading]);
+
 
   // "r" opens the composer (panel visible, not typing, no dialog open).
   const openRef = useRef(openComposer);
@@ -319,8 +325,9 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
 
   return (
     <>
-    {expanded && <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" aria-hidden onClick={() => setWide(false)} />}
-    <div className={cn("flex min-h-0 flex-col", expanded ? "fixed inset-2 z-50 rounded-xl border border-border bg-card shadow-2xl sm:inset-4" : "h-full", !expanded && className)}>
+    {(expanded || reading) && <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" aria-hidden onClick={() => (reading ? setReading(false) : setWide(false))} />}
+    <div className={cn("flex min-h-0 flex-col", expanded || reading ? "fixed inset-2 z-50 rounded-xl border border-border bg-card shadow-2xl sm:inset-4" : "h-full", !(expanded || reading) && className)}>
+
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">Messages</p>
@@ -340,7 +347,21 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
             </Button>
           </TooltipTrigger><TooltipContent>Check for new emails</TooltipContent></Tooltip></TooltipProvider>
         )}
+        {enabled && (
+          <TooltipProvider><Tooltip><TooltipTrigger asChild>
+            <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5 px-2.5 text-xs" aria-pressed={reading}
+              onClick={() => { setReading(!reading); if (!reading) setWide(false); }}>
+              {reading ? <><Minimize2 className="h-4 w-4" /> Read normally</> : <><BookOpen className="h-4 w-4" /> Read larger</>}
+            </Button>
+          </TooltipTrigger><TooltipContent>{reading ? "Back to the normal panel (Esc)" : "Read the emails in a large full-screen view"}</TooltipContent></Tooltip></TooltipProvider>
+        )}
+        {reading && enabled && candidate.email && (
+          <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5 px-2.5 text-xs" onClick={() => openComposer()}>
+            <Send className="h-3.5 w-3.5" aria-hidden /> Write an email
+          </Button>
+        )}
           <DropdownMenu>
+
             <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More email actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem disabled={!enabled || !candidate.email || finding} onSelect={findOlder}>
@@ -352,9 +373,10 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
         </div>
       </div>
 
-      <div className={cn("flex min-h-0 flex-1 flex-col", expanded && "lg:flex-row")}>
-      <div className={cn("flex min-h-0 flex-col", expanded ? "max-h-[35%] shrink-0 border-b border-border lg:max-h-none lg:w-[42%] lg:border-b-0 lg:border-r" : "flex-1")}>
-      <div className="min-h-[180px] flex-1 space-y-3 overflow-y-auto p-3">
+      <div className={cn("flex min-h-0 flex-1 flex-col", expanded && !reading && "lg:flex-row")}>
+      <div className={cn("flex min-h-0 flex-col", reading ? "flex-1" : expanded ? "max-h-[45%] shrink-0 border-b border-border lg:max-h-none lg:w-[42%] lg:border-b-0 lg:border-r" : "flex-1")}>
+      <div className={cn("min-h-[240px] flex-1 space-y-3 overflow-y-auto p-3", reading && "mx-auto w-full max-w-4xl space-y-4 p-4 sm:p-6")}>
+
         {thread.isLoading || st.isLoading ? <RowsSkeleton rows={5} /> : thread.isError ? <QueryError error={thread.error} onRetry={() => thread.refetch()} /> : (
           <>
             {!enabled && (
@@ -370,7 +392,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
                 <Fragment key={it.kind === "msg" ? it.m.id : `ev-${it.ev.id}`}>
                   {showDay && <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />{fmtDate(it.at)}<span className="h-px flex-1 bg-border" /></div>}
                   {it.kind === "msg"
-                    ? <MessageBubble m={it.m} fileIds={fileIds} onOpenFile={onOpenFile} onChanged={refreshAll} mailOn={enabled} onMarkedUnread={(id) => keepUnreadRef.current.add(id)} onPickTime={pickTime} />
+                    ? <MessageBubble m={it.m} fileIds={fileIds} onOpenFile={onOpenFile} onChanged={refreshAll} mailOn={enabled} onMarkedUnread={(id) => keepUnreadRef.current.add(id)} onPickTime={pickTime} large={reading} />
                     : <ActivityRow ev={it.ev} />}
                 </Fragment>
               );
@@ -387,8 +409,9 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       )}
       </div>
 
-      {enabled && (
+      {enabled && !reading && (
         <div className={cn("overflow-y-auto p-3", expanded ? "flex min-h-0 flex-1 flex-col" : "min-h-[260px] max-h-[78%] shrink-0 border-t border-border")}>
+
           {!composing ? (
             <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => openComposer()}>Write an email…</Button>
           ) : !candidate.email ? (
@@ -515,7 +538,7 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
   );
 }
 
-function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread, onPickTime }: { m: AtsMessage; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void; onPickTime: (t: ProposedTime) => void }) {
+function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread, onPickTime, large = false }: { m: AtsMessage; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void; onPickTime: (t: ProposedTime) => void; large?: boolean }) {
   const times = useMemo(() => (m.direction === "inbound" ? proposedTimes(m.intent_data) : []), [m.direction, m.intent_data]);
   const isAdmin = useIsHrAdmin().data === true;
   const out = m.direction === "outbound";
@@ -551,7 +574,8 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
 
   return (
     <div className={cn("flex", out ? "justify-end" : "justify-start")}>
-      <div className={cn("w-full max-w-[88%] rounded-xl p-3 ring-1 ring-inset", out ? cn("bg-primary/10", m.status === "failed" ? "ring-destructive/30" : "ring-primary/20") : "bg-muted ring-transparent")}>
+      <div className={cn("w-full rounded-xl p-3 ring-1 ring-inset", large ? "max-w-full p-4" : "max-w-[88%]", out ? cn("bg-primary/10", m.status === "failed" ? "ring-destructive/30" : "ring-primary/20") : "bg-muted ring-transparent")}>
+
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 text-xs text-muted-foreground">
             {out
@@ -582,14 +606,15 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
           {!out && m.is_automatic && <Badge variant="outline" className="font-normal">Automatic reply</Badge>}
         </div>
         {!out && m.from_other_address && <p className="mt-1 text-xs text-muted-foreground">Sent from {m.from_address}, not the candidate's saved address.</p>}
-        <p className="mt-1 break-words text-sm font-semibold text-foreground">{m.subject || "(no subject)"}</p>
-        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{main}</p>
+        <p className={cn("mt-1 break-words font-semibold text-foreground", large ? "text-base" : "text-sm")}>{m.subject || "(no subject)"}</p>
+        <p className={cn("mt-1 whitespace-pre-wrap break-words text-foreground", large ? "text-[16px] leading-7" : "text-sm")}>{main}</p>
+
         {quoted && (
           <div className="mt-1">
             <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => setShowQuoted((v) => !v)}>
               {showQuoted ? "Hide quoted text" : "Show quoted text"}
             </button>
-            {showQuoted && <p className="mt-1 whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-xs text-muted-foreground">{quoted}</p>}
+            {showQuoted && <p className={cn("mt-1 whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-muted-foreground", large ? "text-sm" : "text-xs")}>{quoted}</p>}
           </div>
         )}
         {!out && times.length > 0 && (

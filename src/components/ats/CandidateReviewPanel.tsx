@@ -570,11 +570,11 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           </TabsList>
           <TabsContent value="resume"><div className="h-[70vh] overflow-hidden rounded-lg border border-border">{viewer}</div></TabsContent>
           <TabsContent value="profile" className="space-y-3">{sidePanels}</TabsContent>
-          <TabsContent value="messages"><div className="h-[70vh] overflow-hidden rounded-lg border border-border">{messages}</div></TabsContent>
+          <TabsContent value="messages"><div className="h-[80vh] overflow-hidden rounded-lg border border-border">{messages}</div></TabsContent>
           <TabsContent value="activity"><ActivityCard candidateId={candidateId} /></TabsContent>
         </Tabs>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-[58fr_42fr]">
+        <div className={cn("grid min-h-0 flex-1", paneTab === "messages" ? "grid-cols-[70fr_30fr]" : "grid-cols-[58fr_42fr]")}>
           <div className="flex min-h-0 flex-col overflow-hidden border-r border-border">
             <div className="flex shrink-0 gap-1 border-b border-border px-2 py-1.5" role="tablist" aria-label="Left pane">
               {(["resume", "messages"] as const).map((t) => (

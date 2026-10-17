@@ -193,7 +193,8 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       onOpenChange={onOpenChange}
       title="Add staffing line"
       description="One line per role and shift. People on roll, trainees and the pipeline are counted for you."
-      contentClassName="max-w-2xl"
+      contentClassName="md:max-w-2xl"
+      focusContainer
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

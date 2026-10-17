@@ -69,7 +69,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const transition = useRequirementTransition();
   const [moveTo, setMoveTo] = useState<Record<string, string>>({});
 
-  const [form, setForm] = useState({ required: 0, approved: 0, follow: false, target: "", priority: "medium", reason: "",
+  const [form, setForm] = useState({ required: 0, approved: 0, follow: false, target: "", priority: "auto", reason: "",
     shift: "any", seat: "none", roles: [] as string[] });
   const [pendingUnfollow, setPendingUnfollow] = useState<null | { key: "required" | "approved"; value: number }>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -89,7 +89,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
       approved: line.approved_hc,
       follow: line.follow_desks,
       target: line.target_date ?? "",
-      priority: line.priority || "medium",
+      priority: line.priority_pinned || "auto",
       reason: "",
       shift: lineShift(plan),
       seat: plan.seat_capacity_id ?? "none",
@@ -122,7 +122,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
       form.approved !== line.approved_hc ||
       form.follow !== line.follow_desks ||
       (form.target || null) !== (line.target_date || null) ||
-      form.priority !== line.priority);
+      form.priority !== (line.priority_pinned || "auto"));
 
   const editNumber = (key: "required" | "approved", value: number) => {
     if (form.follow) setPendingUnfollow({ key, value });
@@ -154,7 +154,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
         approved_hc: following ? chosenDesks : form.approved,
         required_hc: following ? chosenDesks : form.required,
         target_date: form.target || null,
-        priority: form.priority,
+        priority: form.priority === "auto" ? null : form.priority,
         notes: form.reason.trim(),
         seat_capacity_id: seatId,
         follow_desks: following,
@@ -288,7 +288,10 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                       <Label>Priority</Label>
                       <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}>
                         <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
-                        <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                          <SelectItem value="auto">Automatic{line?.priority_auto ? ` (now ${PRIORITY_LABEL[line.priority_auto] ?? line.priority_auto})` : ""}</SelectItem>
+                          {PRIORITIES.map((p) => <SelectItem key={p} value={p}>Always {PRIORITY_LABEL[p].toLowerCase()}</SelectItem>)}
+                        </SelectContent>
                       </Select>
                     </div>
                   </div>

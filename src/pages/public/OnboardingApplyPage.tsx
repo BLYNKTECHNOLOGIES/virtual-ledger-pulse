@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, CheckCircle2, Upload, FileCheck2, AlertCircle } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { toast } from "sonner";
+import PrejoiningDemo from "./PrejoiningDemo";
 
 type Doc = { key: string; label: string; required: boolean; multiple?: boolean };
 
@@ -35,6 +36,12 @@ const emptyForm: Record<string, any> = {
 };
 
 export default function OnboardingApplyPage() {
+  const { token } = useParams();
+  if (token === "sample-prejoining") return <PrejoiningDemo />;
+  return <LiveOnboardingApplyPage />;
+}
+
+function LiveOnboardingApplyPage() {
   const { token = "" } = useParams();
   const [loading, setLoading] = useState(true);
   const [fatal, setFatal] = useState<string | null>(null);

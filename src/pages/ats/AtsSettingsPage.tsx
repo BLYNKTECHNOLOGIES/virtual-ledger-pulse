@@ -21,6 +21,7 @@ import { QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits"
 import { CareersSettingsSection } from "@/components/ats/CareersSettingsSection";
 import { EmailSettingsSection } from "@/components/ats/EmailSettingsSection";
 import { InterviewSettingsSection } from "@/components/ats/InterviewSettingsSection";
+import { JobTemplatesSection } from "@/components/ats/JobTemplatesSection";
 import { useSearchParams } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusPill, stageDotClass } from "@/components/ats/AtsUi";
@@ -382,12 +383,13 @@ const TAB_META = [
   { v: "stages", l: "Stages", d: "The steps every application moves through" },
   { v: "sources", l: "Sources", d: "Where applicants come from" },
   { v: "reasons", l: "Rejection reasons", d: "Why applications end" },
+  { v: "templates", l: "Job templates", d: "Job details filled in for each designation" },
   { v: "careers", l: "Careers page", d: "Website link and connection" },
   { v: "email", l: "Email", d: "Candidate email and templates" },
   { v: "interviews", l: "Interviews", d: "Defaults, office address and reminders" },
   { v: "general", l: "General", d: "Location, idle alert and how long to keep data" },
 ];
-const SETTINGS_TABS = ["stages", "sources", "reasons", "careers", "email", "interviews", "general"];
+const SETTINGS_TABS = ["stages", "sources", "reasons", "templates", "careers", "email", "interviews", "general"];
 
 export default function AtsSettingsPage() {
   const [sp, setSp] = useSearchParams();
@@ -396,6 +398,7 @@ export default function AtsSettingsPage() {
   const onTab = (v: string) => {
     const next = new URLSearchParams(sp);
     if (v === "stages") next.delete("tab"); else next.set("tab", v);
+    next.delete("designation");
     setSp(next, { replace: true });
   };
   const canManage = useCanManageAtsSettings().data === true;
@@ -426,6 +429,7 @@ export default function AtsSettingsPage() {
         <TabsContent value="stages" className="mt-0">{lock(<StagesSection />)}</TabsContent>
         <TabsContent value="sources" className="mt-0"><SourcesSection readOnly={!canManage} /></TabsContent>
         <TabsContent value="reasons" className="mt-0">{lock(<ReasonsSection />)}</TabsContent>
+        <TabsContent value="templates" className="mt-0"><JobTemplatesSection /></TabsContent>
         <TabsContent value="careers" className="mt-0"><CareersSettingsSection /></TabsContent>
         <TabsContent value="email" className="mt-0"><EmailSettingsSection /></TabsContent>
         <TabsContent value="interviews" className="mt-0">{lock(<InterviewSettingsSection />)}</TabsContent>

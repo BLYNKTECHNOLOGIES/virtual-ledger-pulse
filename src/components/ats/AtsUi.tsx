@@ -11,7 +11,9 @@ import { continueJobList, formatJobList, pasteJobList } from "./jobTextFormattin
 export const JobDetailsInput = forwardRef<HTMLTextAreaElement, {
   id: string; label: string; value: string; onChange: (value: string) => void;
   onBlur: () => void; name: string; rows?: number; invalid?: boolean;
-}>(({ id, label, value, onChange, onBlur, name, rows = 5, invalid }, forwardedRef) => {
+  /** Text can still be selected, copied and scrolled, but not changed (no formatting toolbar). */
+  readOnly?: boolean;
+}>(({ id, label, value, onChange, onBlur, name, rows = 5, invalid, readOnly = false }, forwardedRef) => {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const apply = (edit: { value: string; start: number; end: number }) => {
     onChange(edit.value);
@@ -21,7 +23,7 @@ export const JobDetailsInput = forwardRef<HTMLTextAreaElement, {
     });
   };
   return <div className="min-w-0 overflow-hidden rounded-lg border border-input bg-surface-subtle focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background">
-    <TooltipProvider delayDuration={150}>
+    {!readOnly && <TooltipProvider delayDuration={150}>
       <div role="toolbar" aria-label={`${label} formatting`} className="flex items-center gap-1 border-b border-border bg-muted/40 p-1">
         {[{ label: "Bulleted list", icon: List, ordered: false }, { label: "Numbered list", icon: ListOrdered, ordered: true }].map(({ label: toolLabel, icon: Icon, ordered }) => <Tooltip key={toolLabel}>
           <TooltipTrigger asChild>
@@ -34,18 +36,19 @@ export const JobDetailsInput = forwardRef<HTMLTextAreaElement, {
           <TooltipContent>{toolLabel}</TooltipContent>
         </Tooltip>)}
       </div>
-    </TooltipProvider>
-    <Textarea id={id} name={name} aria-label={label} aria-invalid={invalid} rows={rows} value={value} onBlur={onBlur}
+    </TooltipProvider>}
+    <Textarea id={id} name={name} aria-label={label} aria-invalid={invalid} rows={rows} value={value} onBlur={onBlur} readOnly={readOnly}
       ref={(el) => { ref.current = el; if (typeof forwardedRef === "function") forwardedRef(el); else if (forwardedRef) forwardedRef.current = el; }}
       className="rounded-none border-0 bg-transparent text-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
       onChange={(event) => onChange(event.target.value)}
       onPaste={(event) => {
+        if (readOnly) return;
         const el = event.currentTarget;
         const edit = pasteJobList(value, el.selectionStart, el.selectionEnd, event.clipboardData.getData("text/plain"), event.clipboardData.getData("text/html"));
         if (edit) { event.preventDefault(); apply(edit); }
       }}
       onKeyDown={(event) => {
-        if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+        if (readOnly || event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
         const el = event.currentTarget;
         const edit = continueJobList(value, el.selectionStart, el.selectionEnd);
         if (edit) { event.preventDefault(); apply(edit); }

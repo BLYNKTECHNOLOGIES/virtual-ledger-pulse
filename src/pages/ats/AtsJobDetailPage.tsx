@@ -28,13 +28,15 @@ import { WorkforceJobCard } from "@/components/ats/WorkforceJobCard";
 import { JobLineShiftNotice } from "@/components/ats/JobLineShiftNotice";
 import { PipelineBoard } from "@/components/ats/PipelineBoard";
 import { candidateHref, saveNavCtx, useCandidateList } from "@/lib/ats/candidates";
-import { useAtsSettings, usePositionsLookup } from "@/lib/ats/api";
+import { useAtsSettings, useCanManageAtsSettings, usePositionsLookup } from "@/lib/ats/api";
 import {
   deleteJob, jobKeys, updateJob, useAtsJob, useAtsJobEvents, useAtsJobSummary, useAtsMutation, useAtsStages,
   useDepartmentsLookup, useEmployeesLookup, useRequirementsLookup, useShiftsLookup,
 } from "@/lib/ats/api";
 import { employmentLabel, fieldLabels, fmtDate, fmtDateTime, fmtExperience, fmtPay, fmtRelative } from "@/lib/ats/format";
 import { useJobRequirementLinks } from "@/lib/ats/jobRequirements";
+import { templateSettingsHref, textDiffersFromTemplate, useJobTemplates } from "@/lib/ats/jobTemplates";
+import { HiringBrief, TemplateSourceLine } from "@/components/ats/JobTemplateBits";
 
 const CLOSE_REASONS = ["Filled", "Cancelled", "On hold / budget", "Other"];
 const EVENT_ICON: Record<string, typeof Activity> = {
@@ -91,6 +93,10 @@ export default function AtsJobDetailPage() {
 
   const j = job.data;
   const s = jobId ? summary.data?.get(jobId) : undefined;
+  const templates = useJobTemplates(!!j?.position_id);
+  // Shown only once HR's saved versions have loaded, so the built-in default is never mistaken for HR's version.
+  const jobTemplate = templates.ready && j?.position_id ? templates.map.get(j.position_id) ?? null : null;
+  const canEditTemplates = useCanManageAtsSettings().data === true;
   const stageStrip = useMemo(
     () => (stages.data ?? []).filter((st) => st.is_active).map((st) => ({ id: st.id, name: st.name, kind: st.kind, count: s?.stage_counts?.[st.code] ?? 0 })),
     [stages.data, s],
@@ -225,6 +231,23 @@ export default function AtsJobDetailPage() {
               {j.status === "closed" && <Fact label="Closed">{j.closed_reason ?? fmtDateTime(j.closed_at)}{j.closed_reason && <span className="block text-xs text-muted-foreground">{fmtDateTime(j.closed_at)}</span>}</Fact>}
             </dl>
           </SectionCard>
+
+          {jobTemplate && (
+            <SectionCard title="Template" description={<TemplateSourceLine template={jobTemplate} designation={posTitles.data?.find((p) => p.id === j.position_id)?.label} canEdit={canEditTemplates} />}>
+              <div className="space-y-3">
+                {j.status !== "closed" && textDiffersFromTemplate({ summary: j.summary ?? "", description: j.description ?? "", requirements: j.requirements ?? "", benefits: j.benefits ?? "" }, jobTemplate) && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/30 p-2 text-xs">
+                    <span className="min-w-0 text-foreground">This job's text differs from its designation's template. To use the template's text, edit the job and press “Fill from template”.</span>
+                    <span className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" className="h-8" asChild><Link to={templateSettingsHref(j.position_id!)}>View template</Link></Button>
+                      <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => openJobEditor(j)}><Pencil className="h-3.5 w-3.5" aria-hidden /> Edit job</Button>
+                    </span>
+                  </div>
+                )}
+                <HiringBrief template={jobTemplate} designation={posTitles.data?.find((p) => p.id === j.position_id)?.label} defaultOpen={false} />
+              </div>
+            </SectionCard>
+          )}
 
           {(["summary", "description", "requirements", "benefits"] as const).map((k) =>
             j[k] ? (

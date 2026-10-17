@@ -30,7 +30,7 @@ const TABS = [
   { label: "Interviews", icon: CalendarClock, description: "Every interview, grouped by day. All times are IST.", to: "/hrms/ats/interviews", match: (p: string) => p.startsWith("/hrms/ats/interviews") },
   { label: "Jobs", icon: Briefcase, description: "Your openings, their status and their pipelines.", to: "/hrms/ats/jobs", match: (p: string) => p.startsWith("/hrms/ats/jobs") },
   { label: "Reports", icon: BarChart3, description: "Hiring numbers for any period, with an Excel download.", to: "/hrms/ats/reports", match: (p: string) => p.startsWith("/hrms/ats/reports") },
-  { label: "Settings", icon: Settings2, description: "Stages, sources, rejection reasons, careers page, email and interviews.", to: "/hrms/ats/settings", match: (p: string) => p.startsWith("/hrms/ats/settings") },
+  { label: "Settings", icon: Settings2, description: "Stages, sources, rejection reasons, job templates, careers page, email and interviews.", to: "/hrms/ats/settings", match: (p: string) => p.startsWith("/hrms/ats/settings") },
 ];
 
 export default function AtsWorkspace() {

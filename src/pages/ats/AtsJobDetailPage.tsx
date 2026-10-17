@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidatePlanning } from "@/hooks/hrms/useWorkforcePlanning";
+import { useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, UserPlus, Users, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase, FileUp, Building2, MapPin, Clock,
+  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -107,8 +111,8 @@ export default function AtsJobDetailPage() {
   const total = s?.total_applications ?? 0;
   const busy = setStatus.isPending;
   // Decided across every linked requirement, once per job: pausing stops all of the job's shifts.
-  const openLinked = linkedReqIds.map((rid) => reqPipe.data?.get(rid)).filter((p, i) => p && OPEN_REQ.includes(String(reqStatus(linkedReqIds[i]) ?? "")));
-  const nothingLeft = openLinked.length > 0 && openLinked.length === linkedReqIds.filter((rid) => OPEN_REQ.includes(String(reqStatus(rid) ?? ""))).length && openLinked.every((p) => p!.still_needed === 0);
+  const openReqIds = linkedReqIds.filter((rid) => (reqs.data ?? []).some((r: any) => r.id === rid)); // lookup holds open requirements only
+  const nothingLeft = openReqIds.length > 0 && openReqIds.every((rid) => reqPipe.data?.get(rid)?.still_needed === 0);
 
   const submitClose = () => {
     if (!reason) return;

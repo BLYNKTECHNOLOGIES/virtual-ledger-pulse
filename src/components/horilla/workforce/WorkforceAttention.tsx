@@ -10,6 +10,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { ATTENTION_STEP, chainStep } from "@/lib/hrms/workforceChain";
 import { formatIstDate, istNextDay, type StaffingDerived } from "@/lib/hrms/workforce";
 import type { AlertScope } from "@/hooks/hrms/useWorkforceAlerts";
 import { useWorkforceLookups, type TraineeRow } from "@/hooks/hrms/useWorkforcePlanning";
@@ -146,7 +147,14 @@ function GroupRow({ g, open, wide, onToggle, run, busy }: { g: AttentionGroup; o
         <div role="button" tabIndex={0} onClick={onToggle} aria-expanded={open}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
           className="min-w-0 flex-1 cursor-pointer rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="block text-sm font-medium text-foreground">{g.title}</span>
+          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="text-sm font-medium text-foreground">{g.title}</span>
+            {ATTENTION_STEP[g.key] && (
+              <span className="whitespace-nowrap rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground" title="Step of the planning chain">
+                Step {chainStep(ATTENTION_STEP[g.key]).n} · {chainStep(ATTENTION_STEP[g.key]).label}
+              </span>
+            )}
+          </span>
           <span className="block text-xs text-muted-foreground">{g.hint}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1">

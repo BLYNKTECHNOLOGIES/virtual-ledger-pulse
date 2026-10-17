@@ -200,7 +200,7 @@ export default function AtsJobDetailPage() {
           {linkedReqIds.map((rid) => <WorkforceJobCard key={rid} requirementId={rid} />)}
           {nothingLeft && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
-              <span className="text-foreground">Nothing left to find on any linked requirement — everyone needed is hired or joining.{j.status === "open" ? " The job still shows an opening on the careers page." : ""}</span>
+              <span className="text-foreground">Nothing left to find on any linked hiring request — everyone needed is hired or joining.{j.status === "open" ? " The job still shows an opening on the careers page." : ""}</span>
               {j.status === "open" && (
                 <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus.mutate({ status: "paused" })}><Pause className="h-3.5 w-3.5" /> Pause job</Button>
               )}
@@ -217,7 +217,7 @@ export default function AtsJobDetailPage() {
               <Fact label="Experience">{fmtExperience(j.experience_min_years, j.experience_max_years)}</Fact>
               <Fact label="Hiring manager">{manager ?? "—"}</Fact>
               <Fact label="Target date">{fmtDate(j.target_close_date)}</Fact>
-<Fact label={`Hiring requirement${linkedReqIds.length > 1 ? "s" : ""}`}>{linkedReqIds.length ? linkedReqIds.map((rid, i) => (
+<Fact label={`Hiring request${linkedReqIds.length > 1 ? "s" : ""}`}>{linkedReqIds.length ? linkedReqIds.map((rid, i) => (
                 <span key={rid}>{i > 0 && " · "}<Link className="t-mono text-primary hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${rid}`}>{reqs.data?.find((r: any) => r.id === rid)?.requirement_no ?? (i === 0 && reqNo === "Linked" ? "Open" : "Linked")}</Link></span>
               )) : "—"}</Fact>
               <Fact label="Created">{j.created_by_name ?? "—"}<span className="block text-xs text-muted-foreground">{fmtDateTime(j.created_at)}</span></Fact>

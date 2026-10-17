@@ -1060,9 +1060,9 @@ export function ResignationTab() {
               </label>
               {replaceOnApprove ? (
                 <>
-                  <Input className="text-foreground" placeholder="Optional note for the replacement requirement"
+                  <Input className="text-foreground" placeholder="Optional note for the replacement request"
                     value={replaceNote} onChange={(e) => setReplaceNote(e.target.value)} />
-                  <p className="text-xs text-muted-foreground">A hiring requirement awaiting approval is raised for this person's role and shift. It covers their desk once they leave; it does not count against desks that are empty today. No email is sent.</p>
+                  <p className="text-xs text-muted-foreground">A hiring request awaiting approval is raised for this person's role and shift. It covers their desk once they leave; it does not count against desks that are empty today. No email is sent.</p>
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">

@@ -13,7 +13,7 @@ import { useHiringRequirements, usePositionPlanningStatus, useSeatCapacity, useS
 import { useRequirementJobs } from "@/hooks/hrms/useRequirementLifecycle";
 import { buildDesignationStory, type StepState, type StoryNext } from "@/lib/hrms/designationStory";
 import { GRADE_NAMES, gradeShort } from "@/lib/hrms/designations";
-import { REQ_STATUS_LABEL, REQ_STATUS_TONE, formatIstDate, planningShifts, rotaOrder } from "@/lib/hrms/workforce";
+import { REQ_STATUS_LABEL, REQ_STATUS_TONE, formatIstDate, planningShifts, rotaOrder, shiftShort } from "@/lib/hrms/workforce";
 import { cn } from "@/lib/utils";
 
 const STORY_PARAM = "story";
@@ -215,7 +215,7 @@ function StoryBody({ id }: { id: string }) {
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {d.sets.length
-                        ? <>Sets the required number on {d.sets.map((x) => `${x.shift.replace(/ Shift$/, "")} ${x.required}`).join(" · ")}</>
+                        ? <>Sets the required number on {d.sets.map((x) => `${shiftShort(x.shift)} ${x.required}`).join(" · ")}</>
                         : "No line of this designation follows these desks."}
                     </p>
                   </li>

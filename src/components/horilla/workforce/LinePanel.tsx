@@ -51,7 +51,7 @@ function Stat({ label, value, tone, sub }: { label: string; value: React.ReactNo
 /** Line status for the header: trainees and hires that cover the gap are not "short". */
 function lineStatus(line: StaffingDerived): { tone: "destructive" | "success" | "warning" | "primary" | "neutral"; text: string } {
   if (line.required_hc === 0 && line.current_hc === 0) return { tone: "neutral", text: "Not staffed in this shift" };
-  if (line.staffingGap > 0 && line.netHiringRequirement === 0) return { tone: "primary", text: `${gapLabel(line.staffingGap)} · covered by trainees and hires` };
+  if (line.staffingGap > 0 && line.netHiringRequirement === 0) return { tone: "primary", text: `${gapLabel(line.staffingGap)} · covered by people on the way` };
   const t = gapTone(line.staffingGap);
   return { tone: t === "short" ? "destructive" : t === "over" ? "warning" : "success", text: gapLabel(line.staffingGap) };
 }
@@ -84,7 +84,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
 
   const [form, setForm] = useState({ required: 0, approved: 0, follow: false, target: "", priority: "medium", reason: "",
     shift: "any", seat: "none", roles: [] as string[] });
-  const [pendingUnfollow, setPendingUnfollow] = useState<null | { key: "required" | "approved"; value: number }>(null);
+  const [pendingUnfollow, setPendingUnfollow] = useState<null | { key: "required"; value: number }>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removeReason, setRemoveReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -137,12 +137,11 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const dirty =
     !!line &&
     (scopeChanged || form.required !== line.required_hc ||
-      form.approved !== line.approved_hc ||
       form.follow !== line.follow_desks ||
       (form.target || null) !== (line.target_date || null) ||
       form.priority !== initialPriority(line));
 
-  const editNumber = (key: "required" | "approved", value: number) => {
+  const editNumber = (key: "required", value: number) => {
     if (form.follow) setPendingUnfollow({ key, value });
     else setForm((f) => ({ ...f, [key]: value }));
   };
@@ -169,7 +168,9 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
         shift_label: shiftSame ? plan.shift_label : (shifts as any[]).find((x) => x.id === form.shift)?.name ?? null,
         location: plan.location,
         employment_type: plan.employment_type,
-        approved_hc: following ? chosenDesks : form.approved,
+        // "Approved" is not shown any more: it follows Required whenever Required changes, and otherwise stays as stored
+        // (it is part of the line's signature, so changing it alone would lift a hold-back).
+        approved_hc: following ? chosenDesks : form.required !== line.required_hc ? form.required : line.approved_hc,
         required_hc: following ? chosenDesks : form.required,
         target_date: form.target || null,
         priority: (form.priority === "auto" ? null : form.priority) as any, // null = automatic
@@ -231,11 +232,11 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                   </div>
                 )}
                 <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-px overflow-hidden rounded-lg border border-border bg-border">
-                  <Stat label="On roll" value={`${line.current_hc} / ${line.required_hc}`} sub={line.approved_hc !== line.required_hc ? `approved ${line.approved_hc}` : undefined} />
+                  <Stat label="On roll" value={`${line.current_hc} / ${line.required_hc}`} sub="of required" />
                   <Stat label="In training" value={line.in_training_hc} sub={line.training_ready_date ? `ready ${formatIstDate(line.training_ready_date)}` : undefined} />
-                  <Stat label="Joining" value={line.selected_hc + line.pending_joining_hc} sub={line.selected_hc ? `${line.selected_hc} selected` : undefined} />
-                  <Stat label="Still needed" value={line.netHiringRequirement} tone={line.netHiringRequirement > 0 ? "text-destructive" : undefined} />
-                  <Stat label="Being hired" value={line.open_requirement_hc} sub={line.over_requested_hc > 0 ? `${line.over_requested_hc} too many` : undefined}
+                  <Stat label="Joining" value={line.selected_hc + line.pending_joining_hc} sub={line.selected_hc ? `${line.selected_hc} without a date` : undefined} />
+                  <Stat label="Still to find" value={line.netHiringRequirement} tone={line.netHiringRequirement > 0 ? "text-destructive" : undefined} />
+                  <Stat label="In hiring" value={line.open_requirement_hc} sub={line.over_requested_hc > 0 ? `${line.over_requested_hc} over-requested` : undefined}
                     tone={line.over_requested_hc > 0 ? "text-warning" : undefined} />
                   <Stat label="Candidates" value={line.pipeline_hc} />
                 </div>
@@ -260,10 +261,10 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                       <UserPlus className="h-4 w-4" /> Request {line.uncoveredHiringRequirement} for this line
                     </Button>
                   ) : (
-                    <p className="text-sm text-warning">{line.uncoveredHiringRequirement} still needed with no hiring request.</p>
+                    <p className="text-sm text-warning">{line.uncoveredHiringRequirement} still to find, not requested yet.</p>
                   )
                 ) : line.netHiringRequirement > 0 ? (
-                  <p className="text-xs text-muted-foreground">Every person still needed is covered by an open hiring request.</p>
+                  <p className="text-xs text-muted-foreground">Everyone still to find is in an open hiring request.</p>
                 ) : null}
                 {hasAuto && line.priority_why && (
                   <p className="text-xs text-muted-foreground">Priority: {linePriorityText(line)}</p>
@@ -372,23 +373,16 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                         <p className="text-xs text-muted-foreground">
                           {form.seat === "none" ? "Pick a desk group below to follow its desk count."
                             : seatInactive ? "The desk group is inactive, so this line follows 0 desks until it is reactivated or you pick another group."
-                            : `Required and approved stay equal to the desk group (${chosenDesks}).`}
+                            : `Required stays equal to the desk group (${chosenDesks}).`}
                         </p>
                       </div>
                       <Switch checked={form.follow && form.seat !== "none"} disabled={form.seat === "none"} onCheckedChange={(v) => setForm((f) => ({ ...f, follow: v }))}
                         aria-label="Follow desks" />
                     </div>
-                    <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
-                      <div className="space-y-1">
-                        <Label htmlFor="lp-required">Required</Label>
-                        <Input id="lp-required" type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? chosenDesks : form.required}
-                          onChange={(e) => editNumber("required", Math.max(0, Number(e.target.value) || 0))} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="lp-approved">Approved</Label>
-                        <Input id="lp-approved" type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? chosenDesks : form.approved}
-                          onChange={(e) => editNumber("approved", Math.max(0, Number(e.target.value) || 0))} />
-                      </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="lp-required">Required</Label>
+                      <Input id="lp-required" type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? chosenDesks : form.required}
+                        onChange={(e) => editNumber("required", Math.max(0, Number(e.target.value) || 0))} />
                     </div>
                   </section>
 
@@ -465,7 +459,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                     <Textarea id="lp-reason" rows={2} className="text-foreground" placeholder="Saved in the plan history" value={form.reason}
                       onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} />
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <p className="text-xs text-muted-foreground">{dirty && !form.reason.trim() ? "Add a reason to save." : dirty ? "Unsaved changes" : "No changes"}</p>
+                      <p className="text-xs text-muted-foreground">{dirty && !form.reason.trim() ? "Add a reason to save." : dirty ? "Unsaved changes — the line's hiring request resizes by itself after saving." : "No changes"}</p>
                       <Button onClick={submit} disabled={!dirty || !form.reason.trim() || save.isPending}>
                         {save.isPending ? "Saving..." : "Save changes"}
                       </Button>
@@ -502,7 +496,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
               <AlertDialogAction
                 onClick={() => {
                   if (pendingUnfollow)
-                    setForm((f) => ({ ...f, follow: false, required: chosenDesks, approved: chosenDesks, [pendingUnfollow.key]: pendingUnfollow.value }));
+                    setForm((f) => ({ ...f, follow: false, required: pendingUnfollow.value }));
                   setPendingUnfollow(null);
                 }}
               >
@@ -518,7 +512,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
               <AlertDialogTitle>Remove this staffing line?</AlertDialogTitle>
               <AlertDialogDescription>
                 {roleLabel} · {line?.shiftLabel} leaves the plan. Employee records are not affected. Give a reason for the history.
-                {openLineReqs.length > 0 && " This line still has open requirements — move each to another line or cancel it first."}
+                {openLineReqs.length > 0 && " This line still has open hiring requests — move each to another line or cancel it first."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <Textarea rows={2} className="text-foreground" placeholder="Reason" value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} />
@@ -547,7 +541,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
               </ul>
             )}
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>Back</AlertDialogCancel>
               <AlertDialogAction
                 disabled={!removeReason.trim() || remove.isPending || openLineReqs.length > 0}
                 onClick={() => {

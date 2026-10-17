@@ -75,7 +75,7 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
           <SelectContent>
             <SelectItem value={NONE}>Not linked</SelectItem>
             {value && !opts.some((o) => o.id === value) && (
-              <SelectItem value={value}>{reqOptions.find((o) => o.id === value)?.label ?? "Linked requirement (no longer open for recruitment)"}</SelectItem>
+              <SelectItem value={value}>{reqOptions.find((o) => o.id === value)?.label ?? "Linked request (no longer open for recruitment)"}</SelectItem>
             )}
             {opts.map((o) => (
               <SelectItem key={o.id} value={o.id}>
@@ -94,8 +94,8 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
   return (
     <div className="space-y-3">
       {multi
-        ? shiftIds.map((s) => renderSelect(s, <>Requirement for {shiftName(s)}</>, s))
-        : renderSelect(shiftIds[0] ?? "__single", "Hiring requirement (optional)")}
+        ? shiftIds.map((s) => renderSelect(s, <>Hiring request for {shiftName(s)}</>, s))
+        : renderSelect(shiftIds[0] ?? "__single", "Hiring request (optional)")}
       {Object.keys(slots).filter((k) => k.startsWith("__extra_") && slots[k]).map((k) => {
         const o = reqOptions.find((x) => x.id === slots[k]);
         return (
@@ -108,7 +108,7 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
       {hiddenCount > 0 && (
         <Button type="button" variant="ghost" size="sm" className="h-auto whitespace-normal text-left gap-1.5 text-xs text-muted-foreground" aria-expanded={showLinked} aria-controls="hidden-job-requirements" onClick={() => setShowLinked((v) => !v)}>
           {showLinked ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          {showLinked ? "Hide" : "Show"} {hiddenCount} requirement{hiddenCount === 1 ? "" : "s"} already linked to a job
+          {showLinked ? "Hide" : "Show"} {hiddenCount} request{hiddenCount === 1 ? "" : "s"} already linked to a job
         </Button>
       )}
       {showLinked && hiddenCount > 0 && (
@@ -123,7 +123,7 @@ export function RequirementLinkEditor({ jobId, shiftIds, shiftOptions, reqOption
                 )}
                 {(multi ? shiftIds.filter((s) => covers(o.raw, s)) : [shiftIds[0] ?? "__single"]).filter((s) => !slots[s]).map((s) => (
                   <Button key={s} type="button" variant="outline" size="sm" className="h-auto whitespace-normal text-left" onClick={() => setSlot(s, o.id)}>
-                    <Plus className="h-3.5 w-3.5 shrink-0" />{multi ? `Use for ${shiftName(s)}` : "Use requirement"}
+                    <Plus className="h-3.5 w-3.5 shrink-0" />{multi ? `Use for ${shiftName(s)}` : "Use this request"}
                   </Button>
                 ))}
               </div>

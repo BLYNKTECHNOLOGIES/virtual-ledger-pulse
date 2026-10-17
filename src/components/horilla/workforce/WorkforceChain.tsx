@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CHAIN_STEPS, WF_WORDS, type ChainFigure, type ChainStepKey, type GapParts } from "@/lib/hrms/workforceChain";
+import { CHAIN_STEPS, REQUEST_STAGES, WF_WORDS, requestStage, type ChainFigure, type ChainStepKey, type GapParts } from "@/lib/hrms/workforceChain";
 import { cn } from "@/lib/utils";
 
 /**
@@ -162,6 +162,29 @@ export function GapWaterfall({ parts, onExplain, nextReady, className }: { parts
         {g.heldBack > 0 && <p>{g.heldBack} held back after HR declined part of an automatic request.</p>}
       </div>
     </section>
+  );
+}
+
+/** The four stages a hiring request moves through, with this one's place (statuses change only through approval actions). */
+export function RequestStages({ status, className }: { status: string; className?: string }) {
+  const s = requestStage(status);
+  if (s.side) {
+    return (
+      <p className={cn("text-xs text-muted-foreground", className)}>
+        {s.side === "draft" ? "Draft — not sent for approval yet, so it covers nothing."
+          : `${s.side === "rejected" ? "Rejected" : "Cancelled"} — off the hiring path. Reopen it as a draft to use it again.`}
+      </p>
+    );
+  }
+  return (
+    <ol aria-label="Request stages" className={cn("grid grid-cols-[repeat(4,minmax(0,1fr))] gap-1.5", className)}>
+      {REQUEST_STAGES.map((label, i) => (
+        <li key={label} aria-current={i === s.index ? "step" : undefined} className="min-w-0">
+          <span aria-hidden className={cn("block h-1.5 rounded-full", i <= s.index ? "bg-primary" : "bg-muted")} />
+          <span className={cn("mt-1 block text-[11px] leading-tight", i === s.index ? "font-semibold text-foreground" : "text-muted-foreground")}>{label}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ats/AtsUi";
 import { cn } from "@/lib/utils";
-import { PRIORITY_DOT, PRIORITY_LABEL, formatIstDate, type StaffingDerived } from "@/lib/hrms/workforce";
+import { PRIORITY_DOT, PRIORITY_LABEL, formatIstDate, priorityWhyText, type StaffingDerived } from "@/lib/hrms/workforce";
 import type { OpenJobRef } from "@/lib/ats/jobRequirements";
 import { DesignationLink } from "./DesignationStory";
 
@@ -114,7 +114,7 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
         <div className="min-w-0">
           <h2 className="font-display text-[15px] font-semibold text-foreground">Where we're short</h2>
           <p className="text-xs text-muted-foreground">
-            {list.length === 0 ? "Every line is staffed or covered by trainees and hires." : `${list.length} line${list.length === 1 ? "" : "s"} · ${need} still needed after trainees and hires`}
+            {list.length === 0 ? "Every line is staffed, or its gap is covered by people on the way." : `${list.length} line${list.length === 1 ? "" : "s"} · ${need} still to find after people on the way`}
           </p>
         </div>
         <Button asChild size="sm" variant="ghost" className="h-8 text-primary">
@@ -145,7 +145,7 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Line</th>
                   <th className="px-2 py-2 font-medium">On roll</th>
-                  <th className="px-2 py-2 text-right font-medium">Still needed</th>
+                  <th className="px-2 py-2 text-right font-medium">Still to find</th>
                   <th className="px-3 py-2 font-medium">Hiring</th>
                   <th className="px-4 py-2"><span className="sr-only">Action</span></th>
                 </tr>
@@ -160,7 +160,7 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
                           <span className={cn("h-2 w-2 rounded-full", PRIORITY_DOT[r.priority] ?? PRIORITY_DOT.medium)} aria-hidden />
                           <p className="truncate font-medium text-foreground" title={r.position_title ?? undefined}><DesignationLink id={r.position_id} label={r.position_title ?? undefined}>{r.position_title}</DesignationLink></p>
                           <span aria-hidden />
-                          <p className="truncate text-xs text-muted-foreground" title={r.priority_why ?? undefined}>
+                          <p className="truncate text-xs text-muted-foreground" title={r.priority_why ? priorityWhyText(r.priority_why) : undefined}>
                             {r.shiftLabel} · {r.department_name} · {priorityText(r)}
                           </p>
                         </div>
@@ -197,7 +197,7 @@ export function ShortLinesTable({ rows, reqsByLine, reqsError, jobsByReq, jobsEr
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-lg font-semibold leading-none tabular-nums text-destructive">{r.netHiringRequirement}</p>
-                      <p className="text-[11px] text-muted-foreground">still needed</p>
+                      <p className="text-[11px] text-muted-foreground">still to find</p>
                     </div>
                   </div>
                   <Staffed r={r} />
@@ -225,7 +225,7 @@ function Staffed({ r }: { r: StaffingDerived }) {
   const pct = r.required_hc > 0 ? Math.min(100, (r.current_hc / r.required_hc) * 100) : 0;
   const extra = [
     r.in_training_hc ? `${r.in_training_hc} in training` : null,
-    r.selected_hc + r.pending_joining_hc ? `${r.selected_hc + r.pending_joining_hc} hired, joining` : null,
+    r.selected_hc + r.pending_joining_hc ? `${r.selected_hc + r.pending_joining_hc} joining` : null,
   ].filter(Boolean).join(" · ");
   return (
     <div className="min-w-0">
@@ -249,7 +249,7 @@ function HiringPills({ d, onOpen, unknown }: { d: { pills: Hiring[]; notRequeste
           <StatusPill tone={p.tone}>{p.text}</StatusPill>
         </button>
       ))}
-      {d.notRequested > 0 && <StatusPill tone="destructive">{d.notRequested} not requested</StatusPill>}
+      {d.notRequested > 0 && <StatusPill tone="destructive">{d.notRequested} not requested yet</StatusPill>}
       {d.pills.length === 0 && d.notRequested === 0 && <span className="text-xs text-muted-foreground">—</span>}
     </div>
   );

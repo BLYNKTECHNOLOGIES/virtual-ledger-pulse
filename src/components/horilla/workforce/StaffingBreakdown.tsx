@@ -38,7 +38,7 @@ export function StaffingBreakdown({ title, description, rows, onSelect, classNam
                     <span className="font-semibold text-foreground">{r.current}</span>
                     <span className="text-muted-foreground"> / {r.required}</span>
                     {r.short > 0 && <span className="ml-2 text-xs font-medium text-destructive">short {r.short}</span>}
-                    {r.over > 0 && <span className="ml-2 text-xs font-medium text-warning">over {r.over}</span>}
+                    {r.over > 0 && <span className="ml-2 text-xs font-medium text-warning">{r.over} extra</span>}
                     {r.short === 0 && r.over === 0 && <span className="ml-2 text-xs font-medium text-success">met</span>}
                   </span>
                 </div>

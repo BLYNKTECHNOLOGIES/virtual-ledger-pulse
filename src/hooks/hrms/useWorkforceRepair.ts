@@ -16,9 +16,9 @@ export function useResumeAutoHiring() {
     },
     onSuccess: (no) => {
       invalidatePlanning(qc);
-      toast.success(no ? `Automatic hiring restarted — ${no} awaits approval` : "Automatic hiring restarted — nothing to raise right now");
+      toast.success(no ? `Hiring raised again — ${no} awaits approval` : "Hiring raised again — nothing to raise right now");
     },
-    onError: (e: any) => toast.error(e?.message || "Could not restart automatic hiring"),
+    onError: (e: any) => toast.error(e?.message || "Could not raise hiring again"),
   });
 }
 
@@ -32,8 +32,8 @@ export function useMoveRequirement() {
       });
       if (error) throw error;
     },
-    onSuccess: () => { invalidatePlanning(qc); toast.success("Requirement moved to the line"); },
-    onError: (e: any) => toast.error(e?.message || "Could not move the requirement"),
+    onSuccess: () => { invalidatePlanning(qc); toast.success("Request moved to the line"); },
+    onError: (e: any) => toast.error(e?.message || "Could not move the request"),
   });
 }
 

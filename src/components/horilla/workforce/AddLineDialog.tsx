@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { PRIORITIES, PRIORITY_LABEL, planningShifts } from "@/lib/hrms/workforce";
+import { PRIORITIES, PRIORITY_LABEL, lineSaveErrorText, planningShifts } from "@/lib/hrms/workforce";
 import { invalidatePlanning, useSaveHeadcountPlan, useSeatCapacity, useSeatOccupancy, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -120,7 +120,8 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
   const deskCount = seat ? (seat.is_active === false ? 0 : (seat.max_operational_capacity ?? seat.physical_seats ?? 0)) : 0;
   const following = form.follow_desks && !!seat;
   const required = following ? deskCount : form.required_hc;
-  const approved = following ? deskCount : form.approved_hc;
+  // "Approved" is no longer asked for: a new line starts with approved = required (it drives nothing).
+  const approved = required;
 
   const canSave = !!form.department_id && !!form.position_id && form.reason.trim().length > 0 && !save.isPending && !saving
     && (!seed?.multiShift || multi.length > 0);
@@ -154,7 +155,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       toast.success(`${lines.length} staffing line${lines.length === 1 ? "" : "s"} saved`);
       onOpenChange(false);
     } catch (e: any) {
-      setError(e?.message || "Could not save the lines");
+      setError(lineSaveErrorText(e, "Could not save the lines"));
     } finally { setSaving(false); }
   };
 
@@ -182,7 +183,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       },
       {
         onSuccess: () => onOpenChange(false),
-        onError: (e: any) => setError(e?.message || "Could not save the line"),
+        onError: (e: any) => setError(lineSaveErrorText(e, "Could not save the line")),
       },
     );
   };
@@ -192,7 +193,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       open={open}
       onOpenChange={onOpenChange}
       title="Add staffing line"
-      description="One line per designation and shift. People on roll, trainees and the pipeline are counted for you."
+      description="One line per designation and shift. People on roll, trainees and joiners are counted for you, and the line's gap becomes a hiring request by itself."
       contentClassName="md:max-w-2xl"
       focusContainer
       footer={
@@ -247,7 +248,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
 
         {seed?.multiShift ? (
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>Shifts to staff (one line per shift, each following the desks)</Label>
+            <Label>Shifts to staff (one line per shift{following ? `, each needing all ${deskCount} desks filled` : ""})</Label>
             <div className="flex flex-wrap gap-3 rounded-md border border-border p-2.5">
               {shifts.map((s: any) => (
                 <label key={s.id} className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
@@ -296,7 +297,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
           <div>
             <p className="text-sm font-medium text-foreground">Follow desks</p>
             <p className="text-xs text-muted-foreground">
-              {seat ? `Required and approved stay equal to the desk group (${deskCount}).` : "Pick a desk group to follow its desk count."}
+              {seat ? `Required stays equal to the desk group (${deskCount}) in every shift you plan.` : "Pick a desk group to follow its desk count."}
             </p>
           </div>
           <Switch checked={following} disabled={!seat} onCheckedChange={(v) => set({ follow_desks: v })} />
@@ -306,11 +307,6 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
           <Label>Required</Label>
           <Input type="number" min={0} className="text-foreground" disabled={following} value={required}
             onChange={(e) => set({ required_hc: Math.max(0, Number(e.target.value) || 0) })} />
-        </div>
-        <div className="space-y-1">
-          <Label>Approved</Label>
-          <Input type="number" min={0} className="text-foreground" disabled={following} value={approved}
-            onChange={(e) => set({ approved_hc: Math.max(0, Number(e.target.value) || 0) })} />
         </div>
         <div className="space-y-1">
           <Label>Target date</Label>
@@ -326,6 +322,10 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
             </SelectContent>
           </Select>
         </div>
+        <p className="rounded-md bg-muted/50 px-2.5 py-2 text-xs text-muted-foreground sm:col-span-2">
+          After saving, the system compares each line with the people on roll, in training and joining, and raises one automatic hiring request
+          (awaiting approval) for whatever is still to find. Nothing is sent to recruitment until it is approved.
+        </p>
         <div className="space-y-1 sm:col-span-2">
           <Label>Reason (recorded in the history)</Label>
           <Textarea rows={2} className="text-foreground" value={form.reason} onChange={(e) => set({ reason: e.target.value })}

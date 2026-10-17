@@ -32,6 +32,8 @@ import { useAtsStages } from "@/lib/ats/api";
 import { useLinkableJobs } from "@/lib/ats/jobRequirements";
 import { BUDGET_SOURCE_LABEL, formatInr, useWorkforceBudget } from "@/hooks/hrms/useWorkforceBudget";
 import { cn } from "@/lib/utils";
+import { RequestStages } from "@/components/horilla/workforce/WorkforceChain";
+import { requestWhy } from "@/lib/hrms/workforceChain";
 
 interface HiringRequirementDetailDialogProps {
   open: boolean;
@@ -141,8 +143,8 @@ export function HiringRequirementDetailDialog({
       if (error) throw error;
       return target;
     },
-    onSuccess: (t) => { invalidatePlanning(qc); live.refetch(); audit.refetch(); toast.success(`Requirement reduced to ${t}`); },
-    onError: (e: any) => toast.error(e?.message || "Could not reduce the requirement"),
+    onSuccess: (t) => { invalidatePlanning(qc); live.refetch(); audit.refetch(); toast.success(`Request reduced to ${t}`); },
+    onError: (e: any) => toast.error(e?.message || "Could not reduce the request"),
   });
   if (!requirement) return null;
   const r: any = live.data ?? requirement;
@@ -267,8 +269,12 @@ export function HiringRequirementDetailDialog({
       footer={footer}
     >
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        {/* Main column: progress, candidates, jobs, history */}
+        {/* Main column: why and where, progress, candidates, jobs, history */}
         <div className="min-w-0 space-y-5">
+          <section className="space-y-2.5 rounded-xl border border-border p-3" aria-label="Why this request exists">
+            <RequestStages status={r.status} />
+            <p className="text-sm text-foreground">{requestWhy(r, line)}</p>
+          </section>
           <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] overflow-hidden rounded-xl border border-border bg-border gap-px sm:grid-cols-4">
             <div className="min-w-0 bg-card px-3 py-2.5">
               <p className="text-[11px] text-muted-foreground">Filled</p>
@@ -278,7 +284,7 @@ export function HiringRequirementDetailDialog({
             <div className="min-w-0 bg-card px-3 py-2.5">
               <p className="text-[11px] text-muted-foreground">Still to find</p>
               <p className={cn("text-lg font-semibold tabular-nums leading-tight", stillNeeded > 0 && OPEN.includes(r.status) ? "text-destructive" : "text-foreground")}>{stillNeeded}</p>
-              <p className="text-[11px] text-muted-foreground">after selected and joining</p>
+              <p className="text-[11px] text-muted-foreground">after people hired or joining</p>
             </div>
             <div className="min-w-0 bg-card px-3 py-2.5">
               <p className="text-[11px] text-muted-foreground">Target joining</p>
@@ -360,7 +366,7 @@ export function HiringRequirementDetailDialog({
                     <li key={a.id} className="relative text-sm">
                       <span aria-hidden className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-border ring-2 ring-card" />
                       <p className="text-foreground">
-                        {a.field_changed}
+                        {String(a.field_changed ?? "").replace(/^Requirement\b/, "Request")}
                         {(a.old_value || a.new_value) && a.field_changed !== "Requirement created" && (
                           <span className="text-muted-foreground"> · {(a.old_value ?? "—").replace(/_/g, " ")} → {(a.new_value ?? "—").replace(/_/g, " ")}</span>
                         )}
@@ -480,7 +486,7 @@ export function HiringRequirementDetailDialog({
                 ) : (
                   <p className="mt-0.5 text-muted-foreground">No salary figure yet{OPEN.includes(r.status) && canManage ? " — add a salary range to price this request" : ""}.</p>
                 )}
-                <p className="text-xs text-muted-foreground">{b?.basis || hasRange ? `Basis: ${b?.basis ?? "requirement salary range"}. ` : ""}{BUDGET_SOURCE_LABEL}. HRMS managers only.</p>
+                <p className="text-xs text-muted-foreground">{b?.basis || hasRange ? `Basis: ${b?.basis ?? "the request's salary range"}. ` : ""}{BUDGET_SOURCE_LABEL}. HRMS managers only.</p>
                 {b?.no_range && OPEN.includes(r.status) && (
                   <p className="mt-1 text-xs text-warning">No salary range on this request — priced on an average. <button type="button" className="underline" onClick={() => setEditOpen(true)}>Add a salary range</button></p>
                 )}

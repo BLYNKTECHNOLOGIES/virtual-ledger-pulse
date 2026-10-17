@@ -95,7 +95,7 @@ export function HowItWorksSheet({ open, onOpenChange, current }: { open: boolean
             <p className="text-sm text-muted-foreground"><b className="font-medium text-foreground">Designation</b> — a job title such as Operations Associate (stored as a position).</p>
             <p className="text-sm text-muted-foreground"><b className="font-medium text-foreground">Staffing line</b> — one designation (or a few sharing one target) in one shift.</p>
             <p className="text-sm text-muted-foreground"><b className="font-medium text-foreground">Desk group</b> — desks used by one or more designations; training seats are separate.</p>
-            <p className="text-sm text-muted-foreground"><b className="font-medium text-foreground">Hiring request</b> — a request to hire for a line (some older screens say "requirement").</p>
+            <p className="text-sm text-muted-foreground"><b className="font-medium text-foreground">Hiring request</b> — a request to hire for a line, raised automatically from its gap or by hand.</p>
             <p className="text-sm text-muted-foreground">Click any designation's name to follow it through every step.</p>
           </section>
         </div>

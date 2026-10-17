@@ -53,7 +53,8 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
     },
   });
   const undecidedIn = (deptId: string) =>
-    (deptPositions as any[]).filter((p) => p.department_id === deptId && p.is_active !== false && planningStatus?.get(p.id)?.status === "undecided").length;
+    // Same count as the Designations tab's "Not decided" list it links to (tentative designations included).
+    (deptPositions as any[]).filter((p) => p.department_id === deptId && planningStatus?.get(p.id)?.status === "undecided").length;
   const designationsIn = (deptId: string) => (deptPositions as any[]).filter((p) => p.department_id === deptId && p.is_active !== false).length;
   const { data: activeEmployees = [] } = useQuery({
     queryKey: ["dept_head_choices"],
@@ -138,7 +139,9 @@ export default function DepartmentsPage({ embedded = false }: { embedded?: boole
       invalidateDesignationCopies(queryClient);
       closeDialog();
     },
-    onError: (e: any) => toast.error(e?.message?.includes("head") ? e.message : "Failed to save department"),
+    onError: (e: any) => toast.error(e?.code === "23505" || String(e?.message || "").includes("duplicate key")
+      ? "A department with this name or code already exists."
+      : e?.message || "Failed to save the department"),
   });
 
   const deleteMutation = useMutation({

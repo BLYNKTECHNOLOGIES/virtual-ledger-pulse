@@ -197,7 +197,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     () =>
       (reqs.data ?? []).filter((r: any) => requirementFitsJob(r, deptId, posId) || r.id === primaryWatch || extraReqIds.includes(r.id)).map((r: any) => {
         const pos = positions.data?.find((p) => p.id === r.position_id)?.label;
-        return { id: r.id, raw: r, label: [r.requirement_no, pos, r.shift_label, `still needed ${r.still_needed ?? 0}`].filter(Boolean).join(" · "), status: humanize(String(r.status ?? "")) };
+        return { id: r.id, raw: r, label: [r.requirement_no, pos, r.shift_label, `still to find ${r.still_needed ?? 0}`].filter(Boolean).join(" · "), status: humanize(String(r.status ?? "")) };
       }),
     [reqs.data, positions.data, deptId, posId, primaryWatch, extraReqIds],
   );
@@ -439,7 +439,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
           </section>
 
           <section className="min-w-0 space-y-3 border-t border-border pt-5 lg:col-start-1">
-            <h3 className="text-xs font-semibold text-muted-foreground">Hiring requirement{(watch("shift_ids") ?? []).length > 1 ? "s" : ""} (optional)</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">Hiring request{(watch("shift_ids") ?? []).length > 1 ? "s" : ""} (optional)</h3>
             <Controller control={control} name="requisition_id" render={({ field }) => (
               <RequirementLinkEditor
                 jobId={job?.id}
@@ -454,8 +454,8 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
             )} />
             <p className="text-xs text-muted-foreground">
               {(watch("shift_ids") ?? []).length > 1
-                ? "Pick the requirement each shift feeds — one job post covers every shift. Choosing one fills in the fields that are still empty; openings follow the total still needed. Hires are asked their shift and fill that shift's requirement."
-                : "Choosing one fills in the fields that are still empty and sets Openings to the number still needed. Openings then follow the requirement automatically."}
+                ? "Pick the hiring request each shift feeds — one job post covers every shift. Choosing one fills in the fields that are still empty; openings follow the total still to find. Hires are asked their shift and fill that shift's request."
+                : "Choosing one fills in the fields that are still empty and sets Openings to the number still to find. Openings then follow the request automatically."}
             </p>
             <JobLineShiftNotice requirementId={watch("requisition_id") || null} jobShiftIds={watch("shift_ids") ?? []} />
           </section>

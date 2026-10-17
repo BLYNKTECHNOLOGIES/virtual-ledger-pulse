@@ -19,7 +19,7 @@ import {
   useStaffingMatrix,
   useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
-import { EMPTY_FILTERS, matchesFilters, planningShiftId, rotaOrder, sortByOperatingOrder, type WorkforceFilterState } from "@/lib/hrms/workforce";
+import { EMPTY_FILTERS, matchesFilters, planningShiftId, planningShifts, rotaOrder, shiftShort, sortByOperatingOrder, type WorkforceFilterState } from "@/lib/hrms/workforce";
 import { useNavigate } from "react-router-dom";
 import { DeskGroupRemoveDialog } from "@/components/horilla/workforce/DeskGroupRemoveDialog";
 import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
@@ -523,6 +523,31 @@ export default function CapacitySeatsPage() {
     },
   });
   const groupName = (s: any) => (s.is_training_only ? "Training room" : s.positionTitle || "Whole department");
+  // Which staffing lines each desk group sets: lines that follow it take its desk count in every shift they work.
+  const deskSets = useMemo(() => {
+    const order = rotaOrder(planningShifts(allShifts)).map((s: any) => s.name as string);
+    const m = new Map<string, { label: string; required: number; follow: boolean }[]>();
+    matrix.rows.forEach((r) => {
+      if (!r.seat_capacity_id) return;
+      m.set(r.seat_capacity_id, [...(m.get(r.seat_capacity_id) ?? []), { label: r.shiftLabel, required: r.required_hc, follow: r.follow_desks }]);
+    });
+    m.forEach((list) => list.sort((a, b) => (order.indexOf(a.label) + 1 || 99) - (order.indexOf(b.label) + 1 || 99)));
+    return m;
+  }, [matrix.rows, allShifts]);
+  const setsLine = (s: any) => {
+    if (s.is_training_only || matrix.isLoading) return null;
+    const list = deskSets.get(s.id) ?? [];
+    if (!list.length) return <p className="text-[11px] text-warning">No staffing line uses these desks yet</p>;
+    const follow = list.filter((x) => x.follow);
+    const fixed = list.length - follow.length;
+    return (
+      <p className="text-[11px] text-primary">
+        {follow.length ? `Sets ${follow.map((x) => `${shiftShort(x.label)} ${x.required}`).join(" · ")}` : ""}
+        {follow.length && fixed ? " · " : ""}
+        {fixed ? <span className="text-muted-foreground">{fixed} linked line{fixed === 1 ? "" : "s"} with a fixed number</span> : null}
+      </p>
+    );
+  };
   const deskRoles = (s: any): string[] => (Array.isArray(s.eligible_position_ids) && s.eligible_position_ids.length ? s.eligible_position_ids : s.position_id ? [s.position_id] : []);
   const deskTitle = (s: any, id: string): string | undefined =>
     (lookups?.positions || []).find((p: any) => p.id === id)?.title ?? (s.position_id === id ? s.positions?.title : undefined);
@@ -678,6 +703,7 @@ export default function CapacitySeatsPage() {
                               <td className="px-4 py-2.5">
                                 <p className="font-medium text-foreground">{groupLabel(row)}</p>
                                 <p className="text-xs text-muted-foreground">{row.is_training_only ? "Trainees of every department" : row.departmentName || "No department"}</p>
+                                {setsLine(row)}
                               </td>
                               <td className="px-2 py-2.5 text-right tabular-nums">
                                 {desks}{usable(row) != null && <span className="block text-[11px] text-muted-foreground">{usable(row)} usable</span>}
@@ -731,6 +757,7 @@ export default function CapacitySeatsPage() {
                           <div className="min-w-0">
                             <p className="font-medium text-foreground">{groupLabel(row)}</p>
                             <p className="text-xs text-muted-foreground">{row.is_training_only ? "Trainees" : row.departmentName || "No department"} · {desks} desk{desks === 1 ? "" : "s"}</p>
+                            {setsLine(row)}
                           </div>
                           {showOccupancy && (
                             <p className={cn("text-right text-xs font-medium", over > 0 ? "text-destructive" : over === 0 && desks > 0 ? "text-success" : "text-muted-foreground")}>

@@ -250,6 +250,65 @@ export function chainFigures(input: ChainFigureInput): ChainFigure[] {
   ];
 }
 
+/** The stages every hiring request moves through (statuses change only via hr_requirement_transition). */
+export const REQUEST_STAGES = ["Awaiting approval", "Approved", "Recruiting", "Filled"] as const;
+
+/** Where a request is: stage index 0–3, or a side state (draft before stage 0; rejected / cancelled off the path). */
+export function requestStage(status: string): { index: number; side: "draft" | "rejected" | "cancelled" | null } {
+  switch (status) {
+    case "draft": return { index: -1, side: "draft" };
+    case "pending_approval": return { index: 0, side: null };
+    case "approved": return { index: 1, side: null };
+    case "recruitment_active": case "partially_fulfilled": return { index: 2, side: null };
+    case "fulfilled": return { index: 3, side: null };
+    case "rejected": return { index: -1, side: "rejected" };
+    case "cancelled": return { index: -1, side: "cancelled" };
+    default: return { index: -1, side: null };
+  }
+}
+
+interface WhyRequest {
+  source?: string | null;
+  status?: string | null;
+  requested_by_name?: string | null;
+  adds_headcount?: number | null;
+  replacement?: { first_name?: string | null; last_name?: string | null } | null;
+}
+type WhyLine = Pick<StaffingDerived, "shiftLabel" | "required_hc" | "current_hc" | "staffingGap" | "netHiringRequirement">;
+
+const personName = (p?: { first_name?: string | null; last_name?: string | null } | null) =>
+  [p?.first_name, p?.last_name].filter(Boolean).join(" ").trim();
+
+/** Why a hiring request exists, in one sentence (the automatic engine's reason is shown with the line's live numbers). */
+export function requestWhy(r: WhyRequest, line?: WhyLine | null): string {
+  switch (r.source) {
+    case "capacity_occupancy": {
+      if (!line) return "Raised automatically from a staffing line's gap.";
+      const way = Math.max(0, line.staffingGap) - line.netHiringRequirement;
+      const resize = r.status === "pending_approval" ? " It resizes by itself while it waits for approval." : "";
+      return `Raised automatically for the ${line.shiftLabel} line: it requires ${line.required_hc}, ${line.current_hc} on roll${way ? `, ${way} on the way` : ""} — ${line.netHiringRequirement} still to find.${resize}`;
+    }
+    case "department_request":
+      return (Number(r.adds_headcount) || 0) > 0
+        ? `Asked for by ${r.requested_by_name || "the department head"} to add ${r.adds_headcount} beyond the line's required number. Approving raises the line.`
+        : `Asked for by ${r.requested_by_name || "the department head"} to fill the line's gap.`;
+    case "employee_separation":
+      return `Replaces ${personName(r.replacement) || "someone who is leaving"}: it covers their desk once they leave.`;
+    default:
+      return `Raised by hand${r.requested_by_name ? ` by ${r.requested_by_name}` : ""}.`;
+  }
+}
+
+/** The same reason in a few words, for lists. */
+export function requestWhyShort(r: WhyRequest, line?: WhyLine | null): string {
+  switch (r.source) {
+    case "capacity_occupancy": return line ? `line: ${line.current_hc} of ${line.required_hc} on roll` : "automatic";
+    case "department_request": return (Number(r.adds_headcount) || 0) > 0 ? `adds +${r.adds_headcount}` : `asked by ${r.requested_by_name || "the department head"}`;
+    case "employee_separation": return `replaces ${personName(r.replacement) || "a leaver"}`;
+    default: return "raised by hand";
+  }
+}
+
 /** Which chain step each "Needs attention" topic belongs to (group keys from useWorkforceAttention). */
 export const ATTENTION_STEP: Record<string, ChainStepKey> = {
   "unplanned-roles": "designations",

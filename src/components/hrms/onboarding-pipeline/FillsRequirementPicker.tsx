@@ -54,20 +54,20 @@ export function FillsRequirementPicker({ departmentId, positionId, shiftId, valu
   const current = value && !list.some((r: any) => r.id === value) ? value : null;
   return (
     <div className="sm:col-span-2">
-      <Label>Fills hiring requirement</Label>
+      <Label>Fills hiring request</Label>
       <Select value={value || "none"} disabled={disabled || !departmentId || !positionId}
         onValueChange={(v) => { touched.current = true; if (v === "none") (onDecline ? onDecline() : onChange("")); else onChange(v); }}>
         <SelectTrigger className="text-foreground"><SelectValue placeholder={positionId ? "None" : "Pick the designation first"} /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">None — not filling a requirement</SelectItem>
-          {current && <SelectItem value={current}>Current requirement</SelectItem>}
+          <SelectItem value="none">None — not filling a request</SelectItem>
+          {current && <SelectItem value={current}>Current request</SelectItem>}
           {list.map((r: any) => (
-            <SelectItem key={r.id} value={r.id}>{r.requirement_no} · {r.shift_label || r.line_label || "Any shift"} · still needed {r.still}</SelectItem>
+            <SelectItem key={r.id} value={r.id}>{r.requirement_no} · {r.shift_label || r.line_label || "Any shift"} · still to find {r.still}</SelectItem>
           ))}
         </SelectContent>
       </Select>
       <p className="mt-1 text-xs text-muted-foreground">
-        When this person joins, the requirement counts them as filled and its ATS job's openings go down. Changeable until they join.
+        When this person joins, the request counts them as filled and its ATS job's openings go down. Changeable until they join.
       </p>
     </div>
   );

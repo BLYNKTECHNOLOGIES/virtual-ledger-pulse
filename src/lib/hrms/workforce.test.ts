@@ -1,6 +1,6 @@
 // @ts-nocheck — run with `bun run test` (vitest)
 import { describe, expect, test } from "vitest";
-import { deriveStaffingRow, quickRange, requirementMatchesFilters, EMPTY_FILTERS, findRebalances, pauseText, seatCountsInShift, sortByOperatingOrder, sumLines } from "./workforce";
+import { deriveStaffingRow, quickRange, requirementMatchesFilters, EMPTY_FILTERS, findRebalances, lineSaveErrorText, pauseText, seatCountsInShift, shiftShort, sortByOperatingOrder, sumLines } from "./workforce";
 
 const base = {
   plan_id: "p", department_id: "d", department_name: "Operations", position_id: "oa",
@@ -61,9 +61,22 @@ describe("workforce rules", () => {
   test("paused line names who declined, how many and why; unpaused line has no text", () => {
     expect(pauseText({ auto_paused_at: null, auto_paused_by_name: null, auto_paused_reason: null })).toBeNull();
     const t = pauseText({ auto_paused_at: "2026-10-13T10:00:00Z", auto_paused_by_name: "Abhishek", auto_paused_reason: "Night not opening", auto_paused_need: 3 });
-    expect(t).toContain("paused for 3");
+    expect(t).toContain("held back for 3");
     expect(t).toContain("by Abhishek");
     expect(t).toContain(": Night not opening");
+  });
+
+  test("short shift names never read like a department", () => {
+    expect(shiftShort("Morning Shift")).toBe("Morning");
+    expect(shiftShort("Management")).toBe("Management shift");
+    expect(shiftShort("Any shift")).toBe("Any shift");
+    expect(shiftShort(null)).toBe("Any shift");
+  });
+
+  test("an exact duplicate line gets plain words", () => {
+    expect(lineSaveErrorText({ code: "23505", message: 'duplicate key value violates unique constraint "hr_headcount_plans_scope_uk"' })).toContain("already has an active line");
+    expect(lineSaveErrorText({ message: "Pick the desk group this line follows" })).toBe("Pick the desk group this line follows");
+    expect(lineSaveErrorText(null, "x")).toBe("x");
   });
 
   test("replacements for people still on notice do not cover today's empty desks", () => {

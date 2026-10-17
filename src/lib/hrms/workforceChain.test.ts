@@ -1,7 +1,7 @@
 // @ts-nocheck — run with `bun run test` (vitest)
 import { describe, expect, test } from "vitest";
 import { deriveStaffingRow, sumLines } from "./workforce";
-import { ATTENTION_STEP, CHAIN_STEPS, chainFigures, gapParts } from "./workforceChain";
+import { ATTENTION_STEP, CHAIN_STEPS, chainFigures, gapParts, requestStage, requestWhy, requestWhyShort } from "./workforceChain";
 
 const base = {
   plan_id: "p", department_id: "d", department_name: "Operations", position_id: "oa",
@@ -61,6 +61,31 @@ describe("gap parts", () => {
     const g = gapParts([line({ plan_id: "a", current_hc: 4, auto_paused_at: "2026-10-01T00:00:00Z", auto_paused_need: 2 })]);
     expect(g.heldBack).toBe(2);
     expect(g.notRequested).toBe(4);
+  });
+});
+
+describe("hiring requests", () => {
+  test("stages follow the status", () => {
+    expect(requestStage("pending_approval").index).toBe(0);
+    expect(requestStage("approved").index).toBe(1);
+    expect(requestStage("recruitment_active").index).toBe(2);
+    expect(requestStage("partially_fulfilled").index).toBe(2);
+    expect(requestStage("fulfilled").index).toBe(3);
+    expect(requestStage("draft")).toEqual({ index: -1, side: "draft" });
+    expect(requestStage("cancelled").side).toBe("cancelled");
+  });
+  test("why an automatic request exists, with the line's numbers", () => {
+    const l = line({ plan_id: "n", shift_group_name: "Night Shift", current_hc: 2, in_training_hc: 1 });
+    expect(requestWhy({ source: "capacity_occupancy", status: "pending_approval" }, l))
+      .toBe("Raised automatically for the Night Shift line: it requires 8, 2 on roll, 1 on the way — 5 still to find. It resizes by itself while it waits for approval.");
+    expect(requestWhy({ source: "capacity_occupancy", status: "approved" }, l)).not.toContain("resizes");
+    expect(requestWhyShort({ source: "capacity_occupancy" }, l)).toBe("line: 2 of 8 on roll");
+  });
+  test("other sources", () => {
+    expect(requestWhy({ source: "department_request", requested_by_name: "A. Head", adds_headcount: 2 })).toContain("add 2 beyond");
+    expect(requestWhy({ source: "employee_separation", replacement: { first_name: "Ravi", last_name: "K" } })).toContain("Replaces Ravi K");
+    expect(requestWhy({ source: "manual", requested_by_name: "HR" })).toBe("Raised by hand by HR.");
+    expect(requestWhyShort({ source: "department_request", adds_headcount: 3 })).toBe("adds +3");
   });
 });
 

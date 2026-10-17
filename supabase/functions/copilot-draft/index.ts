@@ -23,7 +23,12 @@ Deno.serve(async (req) => {
   if (!gate.ok) return gate.response
   let body: any
   try { body = await req.json() } catch { return json({ error: 'invalid', field: 'body' }, 400) }
-  if (!(await rateLimit(gate.admin, `copilot-draft:${gate.userId}`, 90, 10))) return json({ error: 'too_many_requests' }, 429)
+  // Facts-only calls (a chat opened with nothing to answer; no AI) have an allowance of their own, so flipping through
+  // chats never uses up the one for suggestions.
+  const factsOnly = body?.mode === 'context'
+  if (!(await rateLimit(gate.admin, `${factsOnly ? 'copilot-context' : 'copilot-draft'}:${gate.userId}`, factsOnly ? 240 : 90, 10))) {
+    return json({ error: 'too_many_requests' }, 429)
+  }
   const key = Deno.env.get('LOVABLE_API_KEY')
   if (!key) return json({ error: 'ai_not_configured' }, 503)
   const user = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {

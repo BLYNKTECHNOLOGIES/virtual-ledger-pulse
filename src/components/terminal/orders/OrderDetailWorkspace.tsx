@@ -64,7 +64,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   const { data: counterpartyById } = useP2PCounterparty(order.counterparty_id);
   const { data: counterpartyByNick } = useP2PCounterpartyByNickname(!order.counterparty_id ? order.counterparty_nickname : null);
   const counterparty = counterpartyById || counterpartyByNick;
-  const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number, orderAccountId);
+  const { data: liveDetail, isLoading: liveDetailLoading } = useBinanceOrderDetail(order.binance_order_number, orderAccountId);
   const { data: storedRiskSnapshot } = useBinanceOrderRiskSnapshot(order.binance_order_number);
   const { data: commissionSnapshots } = useOrderCommissionSnapshots(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number, orderAccountId);
@@ -278,6 +278,10 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
         orderNo: order.binance_order_number,
         name: counterpartyVerifiedName || order.counterparty_nickname,
       }}
+      binanceKycVerify={liveDetail?.data?.additionalKycVerify}
+      binancePayBy={liveDetail?.data?.notifyPayEndTime}
+      binanceReleaseBy={liveDetail?.data?.confirmPayEndTime}
+      binanceDetailLoading={liveDetailLoading}
     />
   );
 

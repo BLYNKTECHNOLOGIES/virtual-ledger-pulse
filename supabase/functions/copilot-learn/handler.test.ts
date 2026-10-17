@@ -527,3 +527,47 @@ Deno.test('a request to pay sent while the chat showed KYC is filed under "Clien
   eq(p.p_example_embedding, null); eq(p.p_context.situation, 'sell.kyc.review', 'the learning log keeps what the chat showed')
   eq(r.body.situation, 'Client can pay')
 })
+
+Deno.test("saving an earlier message: Binance's \"verified\" today does not file it under \"Client can pay\"", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  // No KYC notice synced in the chat; Binance's order data says extra KYC was required and is verified by now.
+  s.orderRow = { ...s.orderRow, kyc_raw: '2', kyc_detail: '2' }
+  const q = msg('client', 'Can I pay now?')
+  const r1 = msg('us', 'Sir, verification complete hote hi payment details share kar denge.')
+  s.rows = [q, r1]
+  await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, verification complete hote hi payment details share kar denge.', beforeAt: Number(r1.binance_create_time) + 1 })
+  eq(s.learnCalls[0].p_stage, 'sell.kyc.pending', 'KYC was still pending when it was sent')
+  // the latest message, today: verified on Binance
+  s.learnCalls = []
+  s.rows = [q, r1, msg('client', 'thank you'), msg('us', 'Thank you, sir.')]
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Thank you, sir.' })
+  eq(s.learnCalls[0].p_stage, 'sell.pay.ready')
+})
+
+Deno.test("an approver's re-check after Binance-only \"verified\": our hand-typed KYC request is filed under KYC, not \"Client can pay\"", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, kyc_raw: '2', kyc_detail: '2' }
+  const ask = msg('us', 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no')
+  const rows = [sysRow('order_created_with_additional_kyc_maker_sell', { binance_create_time: Number(ask.binance_create_time) - 500 }), ask,
+    msg('client', 'img', 'image'), msg('us', 'Sir one time verification is needed, our team will connect you soon.'), msg('client', 'ok')]
+  const markAt = Number(rows[rows.length - 1].binance_create_time) + 500
+  const q = msg('client', 'Can I pay now?')
+  const reply = msg('us', 'Sir, the Aadhar image is not clear. Please share your Aadhar card again')
+  s.rows = [...rows, q, reply]
+  s.mark = { code: 'sell.kyc.pending', at: markAt, by: SHUBHAM, detected: 'sell.pay.ready' }
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Sir, the Aadhar image is not clear. Please share your Aadhar card again' })
+  eq(s.learnCalls[0].p_stage, 'sell.kyc.pending')
+})
+
+Deno.test("Binance-only \"verified\": our KYC request after an approver's \"Client can pay\" is filed under KYC", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, kyc_raw: '2', kyc_detail: '2' }
+  const ask = msg('us', 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no')
+  const rows = [sysRow('order_created_with_additional_kyc_maker_sell', { binance_create_time: Number(ask.binance_create_time) - 500 }), ask,
+    msg('client', 'img', 'image'), msg('us', 'Sir one time verification is needed, our team will connect you soon.'), msg('client', 'ok')]
+  const t = Number(rows[rows.length - 1].binance_create_time)
+  s.marks = [{ code: 'sell.pay.ready', at: t + 500, by: SHUBHAM, detected: 'sell.pay.ready' }]
+  s.rows = [...rows, msg('client', 'Can I pay now?'), msg('us', 'Sir, please share your Aadhar card again, the photo is cut')]
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Sir, please share your Aadhar card again, the photo is cut' })
+  eq(s.learnCalls[0].p_stage, 'sell.kyc.pending')
+})

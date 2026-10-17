@@ -14,8 +14,8 @@ import {
 } from '../_shared/copilot-playbook.ts'
 import { buildChatContext, type OrderHint } from '../_shared/copilot-context.ts'
 import {
-  asksToPayNow, beforeVerification, covers, detectSituation, fitsOrder, fitsStage, invitesPayment, markable, resolveSituation, scopeStages,
-  situationDef, STATUS_SITUATIONS, statusFromEvents,
+  asksToPayNow, beforeVerification, covers, detectSituation, fitsOrder, fitsStage, invitesPayment, markable, requiredOnly, resolveSituation,
+  scopeStages, situationDef, STATUS_SITUATIONS, statusFromEvents,
 } from '../_shared/copilot-situation.ts'
 import type { Side } from '../_shared/copilot-playbook.ts'
 import type { MatchRow, Store } from '../_shared/copilot-store.ts'
@@ -192,7 +192,8 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
       const upTo = lastOurs >= 0 ? t.slice(0, lastOurs) : t
       status = statusFromEvents(upTo)
       const mk = ctx.situation.marked && ctx.situation.marked.at < before ? { code: ctx.situation.code, at: ctx.situation.marked.at, by: ctx.situation.marked.by } : null
-      const r = resolveSituation(ctx.side, detectSituation(ctx.side, status, upTo, before), mk)
+      // Binance's "verified" says nothing about when that message was sent; that KYC was required does.
+      const r = resolveSituation(ctx.side, detectSituation(ctx.side, status, upTo, before, requiredOnly(ctx.signals)), mk)
       situation = { code: r.code, label: r.label }
     }
     while (t.length && (t[t.length - 1].who === 'us' || t[t.length - 1].who === 'auto')) t = t.slice(0, -1)

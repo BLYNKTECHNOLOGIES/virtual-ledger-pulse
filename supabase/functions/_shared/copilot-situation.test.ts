@@ -1,9 +1,10 @@
 // Run: deno test supabase/functions/_shared/copilot-situation.test.ts
 // The chats below follow real sell and buy orders (texts shortened, numbers removed).
 import { buildTranscript, type ChatRow } from './copilot-playbook.ts'
+import { withNotices } from './copilot-store.ts'
 import {
-  alternativeSteps, asksToPayNow, beforeVerification, covers, detectSituation, evidenceText, fitsOrder, invitesPayment, markable, resolveSituation,
-  SITUATIONS, situationDef, stageDepth, statusFromEvents,
+  alternativeSteps, asksToPayNow, beforeVerification, covers, detectSituation, evidenceText, fitsOrder, invitesPayment, isSmallTalk, markable,
+  type OrderSignals, requiredOnly, resolveSituation, SITUATIONS, situationDef, stageDepth, statusFromEvents, verifiedBy,
 } from './copilot-situation.ts'
 
 function eq(actual: unknown, expected: unknown, msg = '') {
@@ -83,8 +84,11 @@ Deno.test('sell: payment details shared (even before the Binance click) also mea
 
 Deno.test('sell: a repeat client without extra KYC can pay from the start, unless we start a verification call', () => {
   const plain = [sys(0, 'seller_merchant_trading'), client(0.5, 'hi'), client(0.6, 'can I pay?')]
-  const s = sit('SELL', 'TRADING', plain)
-  eq(s.code, 'sell.pay.ready'); eq(evidenceText(s.evidence), 'No extra KYC on this order')
+  const s = detectSituation('SELL', 'TRADING', buildTranscript(plain), at(999), { kycVerify: 0 })
+  eq(s.code, 'sell.pay.ready'); eq(evidenceText(s.evidence), 'No extra KYC on Binance for this order')
+  // Binance's field not known yet (a new order not stored yet): treated as needing KYC, never "Client can pay"
+  const unknown = sit('SELL', 'TRADING', plain)
+  eq(unknown.code, 'sell.kyc.pending'); eq(evidenceText(unknown.evidence), "Binance's KYC setting not known yet · nothing received yet"); eq(unknown.since, 0)
   eq(sit('SELL', 'TRADING', [...plain, us(1, 'Our RM will connect you soon sir')]).code, 'sell.kyc.call', 'video KYC for a known client')
   eq(sit('SELL', 'TRADING', [...plain, us(1, 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no')]).code, 'sell.kyc.pending')
 })
@@ -214,7 +218,7 @@ Deno.test('sell: a real KYC request after the payment details or the Binance ver
   eq(sit('SELL', 'TRADING', [us(0, 'abcpay@ybl'), us(1, 'Sir, your KYC is not done yet. Please share your Aadhaar card.')]).code, 'sell.kyc.pending')
   eq(sit('SELL', 'TRADING', [us(0, 'abcpay@ybl'), us(1, 'aapki KYC complete nahi hui hai, please Aadhaar card share kijiye')]).code, 'sell.kyc.pending')
   eq(sit('SELL', 'TRADING', [us(0, 'abcpay@ybl'), us(1, 'Kindly pay from the bank account registered with your mobile number.')]).code, 'sell.pay.ready')
-  eq(sit('SELL', 'TRADING', [client(0, 'hi'), us(1, 'Kindly pay from the bank account registered with your mobile number.')]).code, 'sell.pay.ready')
+  eq(detectSituation('SELL', 'TRADING', buildTranscript([client(0, 'hi'), us(1, 'Kindly pay from the bank account registered with your mobile number.')]), at(999), { kycVerify: 0 }).code, 'sell.pay.ready')
   // a KYC request that mentions paying as the next step is still a KYC request
   for (const ask of ['Sir, before you make the payment, please share your Aadhaar card and mobile number.',
     'Kindly share your Aadhaar card and mobile number for verification, after that you can make the payment.',
@@ -257,8 +261,8 @@ Deno.test('alternativeSteps: verified, paid and finished orders have none; a sel
   const verified = sit('SELL', 'TRADING', [...rmRows, sys(14, 'maker_verified_additional_kyc_maker_sell')])
   eq(verified.code, 'sell.pay.ready'); eq(verified.noKyc, undefined)
   eq(alternativeSteps('SELL', verified, 'new'), [])
-  // No Binance KYC notice and no KYC request from us: "Client can pay", but a client we have not approved may need KYC.
-  const plain = sit('SELL', 'TRADING', [client(0, 'Hi, can I pay?')])
+  // Binance says no extra KYC and no KYC request from us: "Client can pay", but a client we have not approved may need KYC.
+  const plain = detectSituation('SELL', 'TRADING', buildTranscript([client(0, 'Hi, can I pay?')]), at(999), { kycVerify: 0 })
   eq(plain.code, 'sell.pay.ready'); eq(plain.noKyc, true)
   eq(alternativeSteps('SELL', plain, 'new'), ['sell.kyc.pending'])
   eq(alternativeSteps('SELL', plain, 'linked'), ['sell.kyc.pending'])
@@ -330,4 +334,277 @@ Deno.test('sell: the Hinglish verification-call message is read as the call', ()
     'like the English "our KYC team will contact you": not read as the call')
   eq(sit('SELL', 'TRADING', [...withDocs, us(3, 'Sir, ek baar verification complete ho jaye, phir payment details share kar denge.')]).code, 'sell.kyc.review',
     '"ek baar" meaning "once"')
+})
+
+// ─── Binance's order data (additionalKycVerify) fills a gap in the chat ─────────────────────────────
+
+const sitWith = (side: 'SELL' | 'BUY', status: string, rows: ChatRow[], signals: OrderSignals, nowMin = 999) =>
+  detectSituation(side, status, buildTranscript(rows), at(nowMin), signals)
+
+Deno.test('sell: Binance says extra KYC is required but the chat has no notice yet: KYC pending, never "client can pay"', () => {
+  const plain = [client(0.5, 'hi'), client(0.6, 'can I pay?')]
+  eq(sitWith('SELL', 'TRADING', plain, { kycVerify: 0 }).code, 'sell.pay.ready', 'only Binance saying "no extra KYC" lets the client pay from the start')
+  const s = sitWith('SELL', 'TRADING', plain, { kycVerify: 1, createdAt: at(0) })
+  eq(s.code, 'sell.kyc.pending'); eq(s.noKyc, undefined)
+  eq(evidenceText(s.evidence), 'Extra KYC required on Binance · nothing received yet')
+  ok(beforeVerification('SELL', s.code))
+  eq(alternativeSteps('SELL', s, 'new'), ['sell.kyc.review', 'sell.kyc.call'])
+  // the client's documents after the order was created count as received
+  eq(sitWith('SELL', 'TRADING', [...plain, client(1, 'img', 'image')], { kycVerify: 1, createdAt: at(0) }).code, 'sell.kyc.review')
+  // the order's creation time unknown: still KYC pending
+  eq(sitWith('SELL', 'TRADING', plain, { kycVerify: 1 }).code, 'sell.kyc.pending')
+  // our verification-call message still reads as the call
+  eq(sitWith('SELL', 'TRADING', [...plain, us(2, 'Sir one time verification is needed, our RM team will connect you soon.')], { kycVerify: 1, createdAt: at(0) }).code, 'sell.kyc.call')
+})
+
+Deno.test("sell: Binance says verified before the chat's notice arrives: the client can pay; it counts from our latest message", () => {
+  const s = sitWith('SELL', 'TRADING', rmRows, { kycVerify: 2, createdAt: at(0) }, 20)
+  eq(s.code, 'sell.pay.ready')
+  eq(evidenceText(s.evidence), 'Verified on Binance', 'the time of the click is not known')
+  eq(s.since, at(3), 'from our latest message (the verification-call message), never later')
+  eq(resolveSituation('SELL', s, { code: 'sell.kyc.review', at: at(2.8), by: 'u1' }).code, 'sell.pay.ready', 'a correction made before it loses')
+  eq(resolveSituation('SELL', s, { code: 'sell.kyc.call', at: at(5), by: 'u1' }).code, 'sell.kyc.call', 'a correction made after it holds (erring towards KYC)')
+  // once the chat's notice is in, it gives the time and the usual rules apply
+  const withNotice = sitWith('SELL', 'TRADING', [...rmRows, sys(16, 'maker_verified_additional_kyc_maker_sell')], { kycVerify: 2, createdAt: at(0) }, 20)
+  eq(withNotice.code, 'sell.pay.ready'); eq(evidenceText(withNotice.evidence), 'Verified on Binance 11:26'); eq(withNotice.since, at(16))
+  eq(resolveSituation('SELL', withNotice, { code: 'sell.kyc.call', at: at(18), by: 'u1' }).code, 'sell.kyc.call', 'a re-check marked after the notice holds')
+  // "required" (1) with the chat's Verified notice: the chat is newer and wins
+  eq(sitWith('SELL', 'TRADING', [...rmRows, sys(16, 'maker_verified_additional_kyc_maker_sell')], { kycVerify: 1, createdAt: at(0) }).code, 'sell.pay.ready')
+  // a status from Binance still comes first
+  eq(sitWith('SELL', 'BUYER_PAYED', rmRows, { kycVerify: 2 }).code, 'sell.pay.checking')
+})
+
+Deno.test('sell: Binance says no extra KYC (0): no-KYC wording; our own KYC request in the chat still counts', () => {
+  const plain = [client(0.5, 'hi'), client(0.6, 'can I pay?')]
+  const s = sitWith('SELL', 'TRADING', plain, { kycVerify: 0 })
+  eq(s.code, 'sell.pay.ready'); eq(s.noKyc, true); eq(evidenceText(s.evidence), 'No extra KYC on Binance for this order')
+  eq(alternativeSteps('SELL', s, 'new'), ['sell.kyc.pending'], 'a client we have not approved may still need KYC')
+  eq(sitWith('SELL', 'TRADING', [...plain, us(1, 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no')], { kycVerify: 0 }).code, 'sell.kyc.pending')
+})
+
+Deno.test('requiredOnly: a reply sent earlier is filed without the later verification; buy orders ignore the field', () => {
+  eq(requiredOnly({ kycVerify: 2, createdAt: 5 }), { kycVerify: 1, createdAt: 5, verifiedLater: true })
+  eq(requiredOnly({ kycVerify: 0 }), { kycVerify: 0, createdAt: null })
+  eq(requiredOnly(null), { kycVerify: null, createdAt: null })
+  const before = [client(0.5, 'hi'), client(0.6, 'can I pay?')]
+  eq(sitWith('SELL', 'TRADING', before, requiredOnly({ kycVerify: 2, createdAt: at(0) }), 1).code, 'sell.kyc.pending')
+  eq(sitWith('BUY', 'TRADING', [us(0.5, 'Kindly share your PAN card and mobile no sir')], { kycVerify: 1 }).code, 'buy.details')
+})
+
+Deno.test('isSmallTalk: greetings, thanks and "ok" only', () => {
+  for (const t of ['ok', 'Ok sir', 'thanks', 'Thank you ji', 'hello', 'good morning sir', 'hmm']) ok(isSmallTalk(t), t)
+  for (const t of ['can I pay now?', 'ok but when will you release', 'kitna time lagega', '']) ok(!isSmallTalk(t), t)
+})
+
+Deno.test("sell: verified per Binance's order data, no notice in the chat: a KYC request after our payment details is still a re-check", () => {
+  const rows = [sys(0, 'order_created_with_additional_kyc_maker_sell'), us(0.5, 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no'),
+    client(1, 'img', 'image'), us(5, 'Sir please pay on this UPI: pos.5307682@indus'), us(8, 'Sir, the Aadhar image is not clear. Please share your Aadhar card again'),
+    client(9, 'Can I pay now?')]
+  const without = sit('SELL', 'TRADING', rows)
+  eq(without.code, 'sell.kyc.pending')
+  const withField = sitWith('SELL', 'TRADING', rows, { kycVerify: 2, createdAt: at(0) }, 20)
+  eq(withField.code, 'sell.kyc.pending', 'the re-check after the details still counts')
+  eq(withField.since, at(8))
+  // with the details as our latest step, the client can pay; the evidence names both
+  const ready = sitWith('SELL', 'TRADING', rows.slice(0, 4), { kycVerify: 2, createdAt: at(0) }, 20)
+  eq(ready.code, 'sell.pay.ready'); eq(evidenceText(ready.evidence), 'Verified on Binance · Payment details shared 11:15')
+})
+
+Deno.test('invitesPayment: "time left to pay" and its Hinglish form invite payment; "after verification" still excuses them', () => {
+  for (const t of ['Sir, you have 6 minutes left to pay.', 'Sir, 6 min left to pay, please hurry.', 'Sir, aapke paas pay karne ke liye 6 minute bache hain.', "Sir, it's time to pay now."]) {
+    ok(invitesPayment(t), t)
+  }
+  for (const t of ['Sir, please complete the KYC first; it will be time to pay after verification.', 'Sir, the order has 6 minutes left; please share your Aadhaar quickly.']) {
+    ok(!invitesPayment(t), t)
+  }
+})
+
+Deno.test("sell: verified per Binance's order data counts from our latest KYC step: our small talk never undoes an approver's correction", () => {
+  const rows = [...rmRows]
+  const d = sitWith('SELL', 'TRADING', [...rows, us(6, 'Ok sir, please wait.')], { kycVerify: 2, createdAt: at(0) }, 20)
+  eq(d.code, 'sell.pay.ready'); eq(d.since, at(3), 'from the verification-call message, not the small talk at 11:16')
+  eq(resolveSituation('SELL', d, { code: 'sell.kyc.call', at: at(5), by: 'u1' }).code, 'sell.kyc.call')
+})
+
+Deno.test('invitesPayment: more ways of giving the time to pay, in English and Hinglish; payment checks and KYC wording are not', () => {
+  for (const t of ['Sir, you have 6 minutes to pay.', 'Sir, only 6 minutes remaining for payment.', 'Sir, 6 min left for payment.',
+    'Sir, you need to pay within 6 minutes or the order will be cancelled.', 'Sir, payment ke liye 6 minute bache hain.',
+    'Sir, 6 minute bache hain payment karne ke liye.', 'Sir, aapke paas payment ke liye sirf 6 min hai.', 'Sir, you need to pay now.']) {
+    ok(invitesPayment(t), t)
+  }
+  for (const t of ['Sir, it takes 10 minutes for payment verification.', 'Sir, please allow some time for the payment to reflect.',
+    'Sir, you have to pay 1% TDS on crypto sales as per the law.', 'Sir, please share your Aadhaar card for verification.',
+    'Sir, verification ke baad payment ke liye 15 minute milenge.']) {
+    ok(!invitesPayment(t), t)
+  }
+})
+
+// ─── Round 3: an approver's re-check after Binance-only "verified"; Binance's open KYC; the time to pay ──────
+
+Deno.test("verifiedBy: an approver's \"Client can pay\", or move from it back to KYC, says the client was verified by then", () => {
+  const m = (code: string | null, min: number, detected: string | null) => ({ code, at: at(min), by: 'u1', detected })
+  eq(verifiedBy([]), null)
+  // a re-check: moved from "Client can pay" back to a KYC step
+  eq(verifiedBy([m('sell.kyc.pending', 5, 'sell.pay.ready')]), at(5))
+  // adjusting the KYC step during the re-check, or going back to what the chat shows, keeps it
+  eq(verifiedBy([m('sell.kyc.call', 9, 'sell.kyc.pending'), m(null, 8, 'sell.kyc.review'), m('sell.kyc.pending', 5, 'sell.pay.ready')]), at(5))
+  // the newest counts: a later re-check, or a later "Client can pay" set by hand
+  eq(verifiedBy([m('sell.kyc.review', 12, 'sell.pay.ready'), m('sell.pay.ready', 10, 'sell.kyc.call'), m('sell.kyc.pending', 5, 'sell.pay.ready')]), at(12))
+  eq(verifiedBy([m('sell.pay.ready', 10, 'sell.kyc.call'), m('sell.kyc.pending', 5, 'sell.pay.ready')]), at(10))
+  // a KYC step set after an approver's own "Client can pay" (the chat showed KYC then): the "Client can pay" still counts
+  eq(verifiedBy([m('sell.kyc.pending', 12, 'sell.kyc.review'), m('sell.pay.ready', 10, 'sell.kyc.review')]), at(10))
+  // a KYC step set while the chat already showed KYC is not a re-check; nor is a correction without the step it corrected
+  eq(verifiedBy([m('sell.kyc.call', 5, 'sell.kyc.review')]), null)
+  eq(verifiedBy([{ code: 'sell.kyc.pending', at: at(5), by: 'u1' }]), null)
+})
+
+Deno.test("sell: verified per Binance's order data, no notice in the chat: an approver's re-check holds through our KYC messages after it", () => {
+  // KYC asked, documents, verification-call message, "ok"; Binance says verified but its notice is not in the chat.
+  const base = [...withDocs, us(3, 'Sir one time verification is needed Please allow us a minute our RM team will connect you soon.'), client(3.5, 'ok')]
+  const sig: OrderSignals = { kycVerify: 2, createdAt: at(0) }
+  const d = sitWith('SELL', 'TRADING', base, sig, 20)
+  eq(d.code, 'sell.pay.ready'); eq(d.since, at(3))
+  // The approver moves the chat back to KYC pending at 11:15 (a re-check): it holds…
+  const mark = { code: 'sell.kyc.pending', at: at(5), by: 'u1', detected: 'sell.pay.ready' }
+  eq(resolveSituation('SELL', d, mark).code, 'sell.kyc.pending')
+  // …and our re-check request after it is read as one (it no longer moves the stand-in verification to itself)
+  const reask = [...base, us(6, 'Sir, the Aadhar image is not clear. Please share your Aadhar card again'), client(7, 'Can I pay now?')]
+  eq(sitWith('SELL', 'TRADING', reask, sig, 20).code, 'sell.pay.ready', "without the approver's re-check the click's time is unknown")
+  const rsig: OrderSignals = { ...sig, verifiedBy: at(5) }
+  const r = sitWith('SELL', 'TRADING', reask, rsig, 20)
+  eq(r.code, 'sell.kyc.pending'); eq(evidenceText(r.evidence), 'KYC asked again 11:16 · nothing received yet'); eq(r.since, at(6))
+  eq(resolveSituation('SELL', r, mark).code, 'sell.kyc.pending')
+  ok(beforeVerification('SELL', r.code))
+  // the client's documents, then our verification-call message: the re-check goes on step by step
+  const docs = [...reask, client(8, 'img', 'image')]
+  eq(sitWith('SELL', 'TRADING', docs, rsig, 20).code, 'sell.kyc.review')
+  eq(sitWith('SELL', 'TRADING', [...docs, us(9, 'Our RM team will connect you soon sir')], rsig, 20).code, 'sell.kyc.call')
+  // our payment details end it
+  const paid = sitWith('SELL', 'TRADING', [...docs, us(10, 'Sir please pay on this UPI: pos.5307682@indus')], rsig, 20)
+  eq(paid.code, 'sell.pay.ready'); eq(evidenceText(paid.evidence), 'Verified on Binance · Payment details shared 11:20')
+  // with no KYC message after the re-check, the approver's step stands
+  const quiet = sitWith('SELL', 'TRADING', base, rsig, 20)
+  eq(quiet.code, 'sell.pay.ready'); eq(quiet.since, at(3)); eq(resolveSituation('SELL', quiet, mark).code, 'sell.kyc.pending')
+  // the re-check only matters while Binance's notice is missing: with it, its time decides as before
+  const noticed = sitWith('SELL', 'TRADING', [...base, sys(4, 'maker_verified_additional_kyc_maker_sell'), us(6, 'Sir, the Aadhar image is not clear. Please share your Aadhar card again')], sig, 20)
+  eq(noticed.code, 'sell.kyc.pending')
+})
+
+Deno.test('sell: while Binance says the extra KYC is not verified, a "Client can pay" set by hand does not hold', () => {
+  const sig: OrderSignals = { kycVerify: 1, createdAt: at(0) }
+  const d = sitWith('SELL', 'TRADING', withDocs, sig, 20)
+  eq(d.code, 'sell.kyc.review'); eq(d.kycRequired, true)
+  eq(resolveSituation('SELL', d, { code: 'sell.pay.ready', at: at(5), by: 'u1' }).code, 'sell.kyc.review')
+  eq(resolveSituation('SELL', d, { code: 'sell.kyc.call', at: at(5), by: 'u1' }).code, 'sell.kyc.call', 'another KYC step can still be set')
+  // Binance's Verified notice in the chat (the stored field is behind), or our payment details: not locked
+  const notice = sitWith('SELL', 'TRADING', [...withDocs, sys(4, 'maker_verified_additional_kyc_maker_sell')], sig, 20)
+  eq(notice.code, 'sell.pay.ready'); eq(notice.kycRequired, undefined)
+  const kycAfterDetails = sitWith('SELL', 'TRADING', [...withDocs, us(4, 'pos.5307682@indus'), us(6, 'Sir please share your Aadhar card again')], sig, 20)
+  eq(kycAfterDetails.code, 'sell.kyc.pending'); eq(kycAfterDetails.kycRequired, undefined)
+  eq(resolveSituation('SELL', kycAfterDetails, { code: 'sell.pay.ready', at: at(7), by: 'u1' }).code, 'sell.pay.ready', 'after our payment details the approver decides')
+  // the field unknown, or verified: as before
+  eq(sitWith('SELL', 'TRADING', withDocs, { kycVerify: null }, 20).kycRequired, undefined)
+  eq(sitWith('SELL', 'TRADING', withDocs, { kycVerify: 2, createdAt: at(0) }, 20).kycRequired, undefined)
+})
+
+Deno.test('invitesPayment: the time to pay after a verification condition is not a request; "so pay fast" and "payment ka time … bacha hai" are', () => {
+  for (const t of ['Sir, once your KYC is done, you will have 15 minutes to pay.', 'Sir, after verification you will get 15 minutes for payment.',
+    'Sir, KYC complete hone ke baad aapko payment ke liye 15 minute milenge.', 'Sir, please complete the KYC first, then pay.',
+    'Sir, first complete the KYC and then pay.']) {
+    ok(!invitesPayment(t), t); ok(!asksToPayNow(t), t)
+  }
+  for (const t of ['Sir, the order will expire in 6 minutes, so pay fast.', 'Sir, payment ka time 6 minute bacha hai.', 'Sir, pay quickly please.',
+    'Sir, you have 6 minutes left to pay, after verification we will release.',
+    // the time to pay before verification still holds a reply back (the drafts are told never to mention it then)
+    'Sir, Binance gives 15 minutes for payment, so please share the documents quickly.']) {
+    ok(invitesPayment(t), t)
+  }
+  for (const t of ['Sir, we will verify and payment will be processed.', 'Sir, KYC done and paid?']) ok(!invitesPayment(t), t)
+})
+
+Deno.test("a long chat: Binance's KYC notices older than the messages loaded are still read, each once", () => {
+  const created = sys(0, 'order_created_with_additional_kyc_maker_sell'), verified = sys(4, 'maker_verified_additional_kyc_maker_sell')
+  const early = [created, us(0.5, 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no'), client(1, 'img', 'image'), verified]
+  const chatter: ChatRow[] = []
+  for (let i = 0; i < 40; i++) chatter.push(client(10 + i, `question ${i}?`), us(10.5 + i, `answer ${i}`))
+  const recent = [...chatter, us(60, 'Sir, the Aadhar image is not clear. Please share your Aadhar card again')]
+  const sig: OrderSignals = { kycVerify: 2, createdAt: at(0) }
+  // only the latest messages: the re-check request becomes the stand-in verification time
+  eq(sitWith('SELL', 'TRADING', recent, sig, 70).code, 'sell.pay.ready')
+  // with the notices read on their own, Binance's time decides and the request is a re-check
+  const merged = withNotices(recent, [created, verified])
+  eq(merged.length, recent.length + 2)
+  const r = sitWith('SELL', 'TRADING', merged, sig, 70)
+  eq(r.code, 'sell.kyc.pending'); eq(evidenceText(r.evidence), 'KYC asked again 12:10 · nothing received yet')
+  // a notice already among the latest messages is not added twice
+  eq(withNotices([verified, ...recent], [created, verified]).length, recent.length + 2)
+})
+
+Deno.test("filing an earlier message when Binance says verified now: KYC was required, but an approver's \"Client can pay\" made then still counts", () => {
+  const rows = [...withDocs]
+  const d = sitWith('SELL', 'TRADING', rows, requiredOnly({ kycVerify: 2, createdAt: at(0) }), 5)
+  eq(d.code, 'sell.kyc.review'); eq(d.kycRequired, undefined)
+  eq(resolveSituation('SELL', d, { code: 'sell.pay.ready', at: at(3), by: 'u1' }).code, 'sell.pay.ready')
+  // Binance never verified the client: the correction does not hold
+  const never = sitWith('SELL', 'TRADING', rows, requiredOnly({ kycVerify: 1, createdAt: at(0) }), 5)
+  eq(never.kycRequired, true); eq(resolveSituation('SELL', never, { code: 'sell.pay.ready', at: at(3), by: 'u1' }).code, 'sell.kyc.review')
+})
+
+Deno.test("sell: verified per Binance's order data: a KYC request after an approver's own \"Client can pay\" is a re-check", () => {
+  // Re-check at 11:15, the approver sets "Client can pay" at 11:20, then we ask for the Aadhaar again at 11:22.
+  const base = [...withDocs, us(3, 'Sir one time verification is needed Please allow us a minute our RM team will connect you soon.'), client(3.5, 'ok'),
+    us(6, 'Sir, the Aadhar image is not clear. Please share your Aadhar card again'), client(8, 'img', 'image')]
+  const marks = [{ code: 'sell.pay.ready', at: at(10), by: 'u1', detected: 'sell.kyc.review' }, { code: 'sell.kyc.pending', at: at(5), by: 'u1', detected: 'sell.pay.ready' }]
+  const sig: OrderSignals = { kycVerify: 2, createdAt: at(0), verifiedBy: verifiedBy(marks) }
+  // up to the approver's "Client can pay": it stands
+  const d = sitWith('SELL', 'TRADING', base, sig, 11)
+  eq(resolveSituation('SELL', d, marks[0]).code, 'sell.pay.ready')
+  // our KYC request after it puts the chat back in KYC; the client's "Can I pay now?" changes nothing
+  const r = sitWith('SELL', 'TRADING', [...base, us(12, 'Sir, please share your Aadhar card again, the photo is cut'), client(13, 'Can I pay now?')], sig, 14)
+  eq(r.code, 'sell.kyc.pending'); eq(evidenceText(r.evidence), 'KYC asked again 11:22 · nothing received yet')
+  eq(resolveSituation('SELL', r, marks[0]).code, 'sell.kyc.pending')
+})
+
+Deno.test('invitesPayment: a verification condition excuses a request only when it governs it; "pay later" and "pay attention" are not requests', () => {
+  // conditions that govern another clause, or close a clause before the request: still requests
+  for (const t of ['Sir, after verification the order will be released, you have 10 minutes left to pay.',
+    'Sir, once your KYC is verified we will release the USDT immediately, and only 8 minutes are left to pay.',
+    'Verification ke baad order release hoga, payment karne ke liye 5 minute bache hain.',
+    'Sir, as soon as your verification is complete we will confirm, the time to pay is running out.',
+    'Sir, after KYC we release fast, you have 15 min to pay.',
+    'KYC complete hone ke baad hum release karenge, payment ka time 6 minute bacha hai.',
+    "Please don't cancel until your KYC is complete, you have 10 minutes left to pay.",
+    'Sir, the payment gets checked after verification, only 10 minutes left to pay.',
+    'We will release the USDT once your verification is complete, please pay now.',
+    'Sir, verification ke baad turant ho jayega, 5 min bache hain pay karne ke liye.']) {
+    ok(invitesPayment(t), t)
+  }
+  // a bare "once verified / approved" names no subject (the payment, the beneficiary, the UPI name?): held back on the safe side
+  for (const t of ["Please pay, you'll receive it once verified.", 'Please pay and mark as paid once verified.', 'Sir payment kar dijiye, credit hoga once verified.',
+    'We release once verified, please pay now.', 'Hum release kar denge once verified, aap payment kar dijiye.',
+    'Order will be released once verified, kindly make the payment.', 'Ok sir, add the beneficiary, once approved you can pay.',
+    'Please check the name shown is BLYNK, once verified please pay.', 'Sir UPI ID verify kar lijiye, once verified payment kar dijiye.',
+    'Please do not cancel until verified, you have 10 minutes left to pay.', 'Sir please wait till approved, only 8 min left to pay.',
+    'Once verified, you can pay.', 'Sir, please pay once verified.']) {
+    ok(invitesPayment(t), t)
+  }
+  // "pay only / when / once / after …" is still a request; a call, link or documents is not the verification itself
+  for (const t of ['Sir, please verify the name and pay only from your own account.', 'Sir, the details are in the order, so pay only from your own bank account.',
+    'Sir, the order is open, so pay whenever you are ready.', 'Sir, the UPI is in the order, so pay once you have checked the name.',
+    'Sir, check the name and pay after confirming it.', 'Sir, add the beneficiary and pay after 5 minutes.',
+    'Sir, wait for the KYC verification call and then pay.', 'Sir, wait for the verification and then pay.',
+    'Sir, complete the KYC verification call and then pay.', 'Sir, complete your KYC documents and then pay.',
+    'Sir, do the verification of our account name, then pay.', 'Sir, you need not do the KYC again, then pay now.']) {
+    ok(invitesPayment(t), t)
+  }
+  // conditions that govern the request, a step first, and things that are not requests
+  for (const t of ['Sir, once your KYC is done, you will have 15 minutes to pay.', 'Sir, after verification you will get 15 minutes for payment.',
+    'Sir, KYC complete hone ke baad aapko payment ke liye 15 minute milenge.', 'Sir, aapka KYC complete hone ke baad payment kar dijiye.',
+    'Sir, complete your KYC, then pay.', 'Sir, please complete your KYC and then you can pay.', 'Sir, get verified and then pay.',
+    'Sir, complete your verification and then pay from your own account.', 'Sir, your KYC is under review, so pay later once we confirm.',
+    'Sir, verification is pending, so pay attention to the call from our team.', 'Sir, once you are verified, you can pay.']) {
+    ok(!invitesPayment(t), t); ok(!asksToPayNow(t), t)
+  }
+  // a statement that KYC is done, then "pay": still a request
+  ok(invitesPayment('Sir, your KYC is done, then pay.'))
 })

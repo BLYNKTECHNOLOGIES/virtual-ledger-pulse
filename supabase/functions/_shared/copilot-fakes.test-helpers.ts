@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 // In-memory Store and AI fakes for the Copilot handler tests (not deployed with any function).
 import type { ChatRow } from './copilot-playbook.ts'
-import type { ContactPick, CopilotConfig, Example, MatchArgs, MatchRow, RequestRow, Store, Team } from './copilot-store.ts'
+import type { AppealCase, ContactPick, CopilotConfig, Example, MatchArgs, MatchRow, RequestRow, Store, Team } from './copilot-store.ts'
 import type { Mark } from './copilot-situation.ts'
 import type { Ai, ChatResult, EmbedResult } from './copilot-ai.ts'
 
@@ -26,7 +26,8 @@ export const id = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0
 export class FakeStore implements Store {
   cfg: CopilotConfig | null = config()
   approvers = new Set([SHUBHAM])
-  orderRow: any = { order_number: '22944071217231917056', trade_type: 'SELL', order_status: 'TRADING', total_price: '4500', asset: 'USDT', pay_method_name: 'UPI', exchange_account_id: BLYNK, has_active_complaint: false }
+  // A stored sell order from an ad without Binance's extra KYC (its field 0), unless a test says otherwise.
+  orderRow: any = { order_number: '22944071217231917056', trade_type: 'SELL', order_status: 'TRADING', total_price: '4500', asset: 'USDT', pay_method_name: 'UPI', exchange_account_id: BLYNK, has_active_complaint: false, kyc_raw: '0' }
   rows: ChatRow[] = []
   panel: any = { status: 'linked', client: { kyc_status: 'VERIFIED', buyer_status: 'APPROVED' }, documents: { aadhaar: true } }
   spend = 0
@@ -39,7 +40,10 @@ export class FakeStore implements Store {
   calls: any[] = []
   entryRows: any[] = []
   questionRows: Array<{ topic_id: string; question_text: string }> = []
+  /** The latest correction (a shortcut); `marks` (newest first) wins when set. */
   mark: Mark | null = null
+  marks: Mark[] | null = null
+  appeal: AppealCase | null = null
   learnCalls: any[] = []
   learnResult: any = { event_id: 'ev-1', action: 'created', entry_id: 'en-1', title: 'T' }
   undoCalls: any[] = []
@@ -57,11 +61,12 @@ export class FakeStore implements Store {
   config() { return Promise.resolve(this.cfg) }
   isApprover(u: string) { return Promise.resolve(this.approvers.has(u)) }
   order() { return Promise.resolve(this.orderRow) }
+  appealCase() { return Promise.resolve(this.appeal) }
   messages() { return Promise.resolve(this.rows) }
   smallRanges() { return Promise.resolve({ sales: { min: 200, max: 4000, enabled: true }, buys: { min: 200, max: 5000, enabled: true } }) }
   accountName(i: string | null) { return Promise.resolve(i === BLYNK ? 'Blynk Binance' : null) }
   clientPanel() { return Promise.resolve(this.panel) }
-  situationMark() { return Promise.resolve(this.mark) }
+  situationMarks() { return Promise.resolve(this.marks ?? (this.mark ? [this.mark] : [])) }
   monthSpend() { return Promise.resolve(this.spend + this.calls.reduce((n, c) => n + Number(c.cost_inr ?? 0), 0)) }
   match(a: MatchArgs) { this.matchCalls.push(a); return Promise.resolve(this.matchRows.filter((m) => m.similarity >= a.minSimilarity)) }
   rejections() { return Promise.resolve(this.rejectionRows) }

@@ -374,8 +374,9 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       </div>
 
       <div className={cn("flex min-h-0 flex-1 flex-col", expanded && !reading && "lg:flex-row")}>
-      <div className={cn("flex min-h-0 flex-col", reading ? "flex-1" : expanded ? "max-h-[45%] shrink-0 border-b border-border lg:max-h-none lg:w-[42%] lg:border-b-0 lg:border-r" : "flex-1")}>
-      <div className={cn("min-h-[240px] flex-1 space-y-3 overflow-y-auto p-3", reading && "mx-auto w-full max-w-4xl space-y-4 p-4 sm:p-6")}>
+      {/* The email list always keeps real room; the writing box below shrinks and scrolls instead of covering it. */}
+      <div className={cn("flex flex-col", reading ? "min-h-0 flex-1" : expanded ? "max-h-[45%] min-h-0 shrink-0 border-b border-border lg:max-h-none lg:w-[42%] lg:border-b-0 lg:border-r" : "min-h-[220px] flex-1 basis-0")}>
+      <div className={cn("min-h-0 flex-1 space-y-3 overflow-y-auto p-3", reading && "mx-auto w-full max-w-4xl space-y-4 p-4 sm:p-6")}>
 
         {thread.isLoading || st.isLoading ? <RowsSkeleton rows={5} /> : thread.isError ? <QueryError error={thread.error} onRetry={() => thread.refetch()} /> : (
           <>
@@ -410,7 +411,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       </div>
 
       {enabled && !reading && (
-        <div className={cn("overflow-y-auto p-3", expanded ? "flex min-h-0 flex-1 flex-col" : "min-h-[260px] max-h-[78%] shrink-0 border-t border-border")}>
+        <div className={cn("overflow-y-auto", expanded ? "flex min-h-0 flex-1 flex-col p-3" : composing ? "min-h-[180px] max-h-[60%] shrink border-t border-border p-3" : "shrink-0 border-t border-border p-2")}>
 
           {!composing ? (
             <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => openComposer()}>Write an email…</Button>

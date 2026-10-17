@@ -258,7 +258,7 @@ export default function StaffingPlanPage() {
             </label>
           )}
           <div className="hidden md:block">
-            <SegmentedControl<View> aria-label="View" size="sm" value={view} onValueChange={setView}
+            <SegmentedControl aria-label="View" size="sm" value={view} onValueChange={(v) => setView(v as View)}
               options={[
                 { value: "grid", label: "Grid", icon: <LayoutGrid className="h-3.5 w-3.5" /> },
                 { value: "list", label: "List", icon: <List className="h-3.5 w-3.5" /> },

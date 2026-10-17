@@ -158,7 +158,7 @@ export default function WorkforceForecastPage() {
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-3 md:p-4">
         <div className="flex flex-wrap items-center gap-3">
-          <SegmentedControl<Period> aria-label="Horizon" size="sm" value={period} onValueChange={setPeriod}
+          <SegmentedControl aria-label="Horizon" size="sm" value={period} onValueChange={(v) => setPeriod(v as Period)}
             options={PERIODS.map((p) => ({ value: p.value, label: p.label }))} />
           {period === "custom" && (
             <Input type="date" min={today} aria-label="Forecast up to" className="h-9 w-44 text-foreground" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />

@@ -7,6 +7,10 @@
 - [x] Add full server-paged history filters; verify tests, SQL invariants, and public browser checks.
 - [ ] Verify signed-in Users widths at 1024/1280/1440 and screenshots of Users, Online now, History, Edit role (blocked: external unmanaged Supabase session unavailable).
 
+## ATS inbox reading size
+- [x] Add a full-screen "Read larger" view for lengthy emails (bigger body/subject/quoted text, wider bubble) with Esc, click-outside and a Write-an-email hand-off; thread keeps its space while typing; review pane favours the Messages tab; verified with sample data in the browser.
+- [ ] Signed-in live check on a real candidate thread (blocked: external Supabase authentication unavailable to automated checks).
+
 ## ATS job details formatting
 - [x] Preserve formatted clipboard headings, paragraphs, lists and section breaks across all four job fields; 12 formatting tests and actual isolated input HTML/plain paste checks pass (signed-in save remains blocked below).
 - [x] Rename Benefits to candidate-visible Notes across editor, job detail and activity labels; widen/reorganize editor with larger full-width writing fields, verify actual isolated form at 1280/1125/390 widths and editable Notes/list controls (no live save).

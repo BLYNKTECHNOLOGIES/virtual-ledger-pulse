@@ -41,8 +41,8 @@ export const CHAIN_STEPS: readonly ChainStep[] = [
   },
   {
     key: "hiring", n: 4, label: "Hiring requests", where: "Workforce planning", to: "/hrms/workforce-planning/hiring-requirements",
-    what: "Each line's gap becomes one automatic hiring request that waits for HR's approval.",
-    feeds: "Approved requests get an ATS job.",
+    what: "A line's gap becomes an automatic hiring request for HR to approve. Once approved it stays; later growth gets a new request.",
+    feeds: "Approved requests are ready for an ATS job (HR creates or links it).",
   },
   {
     key: "recruit", n: 5, label: "Recruit & onboard", where: "Recruitment (ATS) and Onboarding", to: "/hrms/ats/jobs",
@@ -60,7 +60,7 @@ export const chainStep = (key: ChainStepKey): ChainStep => CHAIN_STEPS.find((s) 
 
 /** The words used for every Workforce number, defined once (shown in "How it works" and next to figures). */
 export const WF_WORDS = {
-  required: { term: "Required", text: "How many people a line needs. A line that follows its desks requires one person per desk." },
+  required: { term: "Required", text: "How many people a line needs. A line that follows its desks requires one person per usable desk." },
   onRoll: { term: "On roll", text: "People counted on a line today: their designation, department and today's shift match the line. People in training are not on roll yet." },
   short: { term: "Short", text: "Required minus on roll, line by line. An extra person on one line never fills a gap on another." },
   extra: { term: "Extra", text: "People on roll above what their line requires." },
@@ -70,18 +70,19 @@ export const WF_WORDS = {
   stillToFind: { term: "Still to find", text: "Short minus the people on the way: who hiring still has to find." },
   inHiring: { term: "In hiring", text: "Still to find that open hiring requests already cover." },
   notRequested: { term: "Not requested yet", text: "Still to find that no open hiring request covers — usually because HR held part of an automatic request back." },
+  inRequests: { term: "In requests", text: "Everything a line's open hiring requests still have to find, counted in full. It is more than still to find when a line is over-requested." },
   heldBack: { term: "Held back", text: "The part of an automatic request HR declined or lowered. It stays held back until the line changes or someone clicks Raise again." },
 } as const;
 
 /** Rules the system applies by itself, in plain words (the "hidden" rules). */
 export const WF_RULES: readonly { title: string; text: string }[] = [
-  { title: "Hiring requests are raised for you", text: "Whenever a line, a desk group or the people on it change, the system raises, resizes or cancels that line's automatic request — straight after the save and again every night at 01:15 IST. Each line has at most one automatic request, and it waits for approval." },
+  { title: "Hiring requests are raised for you", text: "Whenever a line, a desk group or the people on it change, the system raises, resizes or cancels the line's automatic request awaiting approval — straight after the save and again every night at 01:15 IST. A line has at most one automatic request awaiting approval; approved ones stay as they are, and later growth gets a new request." },
   { title: "Desks count once per shift", text: "Desks are shared by the shifts. A desk group of 2 desks worked in Morning, Evening and Night needs 6 people: 2 on each line." },
   { title: "Declining holds hiring back", text: "Rejecting, cancelling or lowering an automatic request awaiting approval holds that number back on the line. Growth beyond it is still requested. Raise again (on the line) lifts it." },
   { title: "Drafts don't count", text: "A draft request covers nothing until it is sent for approval." },
   { title: "A designation must be decided before hiring", text: "\"Not decided\" and \"No staff needed now\" both block hiring requests and ATS jobs for the designation until it gets a staffing line." },
   { title: "Leaving planning stops counting", text: "Taking a designation out of workforce planning closes its own lines and stops counting its people. Bringing it back does not restore the lines." },
-  { title: "Priority is worked out per line", text: "From the gap and the target joining date (Critical within 7 days or when nobody is on the line yet). HR can pin it." },
+  { title: "Priority is worked out per line", text: "From the gap and the target joining date: Critical when the target is within 7 days (or has passed), or when nobody is on the line and there is no target date; High when half or more is still to find, or the target is within 15 days. HR can pin it." },
   { title: "Jobs follow their requests", text: "An ATS job's openings are what its requests still need, and the job closes when every request on it is filled." },
   { title: "Joining puts people on roll", text: "Finishing onboarding puts the person on roll straight away. A trainee moves to the working shift only when HR moves them." },
 ];
@@ -164,6 +165,8 @@ export interface ChainFigureInput {
   lines: StaffingDerived[];
   /** Open requests in scope (awaiting approval, approved, recruiting, partly filled); null while loading. */
   openRequests: { status: string }[] | null;
+  /** Draft requests in scope (they cover nothing until sent for approval); null when unknown. */
+  drafts?: number | null;
   /** Approved or recruiting requests with no open ATS job; null when unknown. */
   noJob: number | null;
   /** Open or paused ATS jobs linked to the open requests; null when unknown. */
@@ -218,16 +221,18 @@ export function chainFigures(input: ChainFigureInput): ChainFigure[] {
       value: `${g.onRoll} / ${g.required}`,
       unit: "on roll / required",
       detail: `${plural(g.lines, "line")}${g.required ? ` · ${Math.round((g.filling / g.required) * 100)}% staffed` : ""}${g.extra ? ` · ${g.extra} extra` : ""}`,
-      flag: g.short > 0 ? { text: `${g.short} short`, tone: "danger" } : { text: "Fully staffed", tone: "ok" },
-      handoff: `${g.stillToFind} still to find go to hiring`,
+      flag: !g.lines ? { text: "No staffing lines", tone: "warning" } : g.short > 0 ? { text: `${g.short} short`, tone: "danger" } : { text: "Fully staffed", tone: "ok" },
+      handoff: g.lines ? `${g.stillToFind} still to find go to hiring` : "",
     },
     {
       key: "hiring",
       value: open ? String(g.inHiring) : null,
       unit: "people in hiring",
-      detail: open ? `${plural(open.length, "open request")}${g.notRequested ? ` · ${g.notRequested} not requested yet` : ""}` : "",
-      flag: !open ? null : pending ? { text: `${pending} to approve`, tone: "warning" } : g.notRequested ? { text: `${g.notRequested} not requested`, tone: "warning" } : { text: "All requested", tone: "ok" },
-      handoff: input.noJob ? `${input.noJob} approved, waiting for an ATS job` : "Approved ones get an ATS job",
+      detail: open
+        ? [plural(open.length, "open request"), input.drafts ? `${plural(input.drafts, "draft")} not sent` : null, g.notRequested ? `${g.notRequested} not requested yet` : null].filter(Boolean).join(" · ")
+        : "",
+      flag: !open || (!g.lines && !open.length) ? null : pending ? { text: `${pending} to approve`, tone: "warning" } : g.notRequested ? { text: `${g.notRequested} not requested`, tone: "warning" } : { text: "All requested", tone: "ok" },
+      handoff: input.noJob ? `${input.noJob} approved, waiting for an ATS job` : "Approved ones are ready for an ATS job",
     },
     {
       key: "recruit",
@@ -244,7 +249,7 @@ export function chainFigures(input: ChainFigureInput): ChainFigure[] {
       detail: input.forecast
         ? [input.forecast.lineGap > 0 ? `${input.forecast.lineGap} short then` : "no line short then", input.leaving ? `${input.leaving} leaving` : null].filter(Boolean).join(" · ")
         : "",
-      flag: !input.forecast ? null : input.forecast.lineGap > 0 ? { text: `${input.forecast.lineGap} short in 90 days`, tone: "warning" } : { text: "On track", tone: "ok" },
+      flag: !input.forecast || !g.lines ? null : input.forecast.lineGap > 0 ? { text: `${input.forecast.lineGap} short in 90 days`, tone: "warning" } : { text: "On track", tone: "ok" },
       handoff: "",
     },
   ];
@@ -290,7 +295,7 @@ export function requestWhy(r: WhyRequest, line?: WhyLine | null): string {
     }
     case "department_request":
       return (Number(r.adds_headcount) || 0) > 0
-        ? `Asked for by ${r.requested_by_name || "the department head"} to add ${r.adds_headcount} beyond the line's required number. Approving raises the line.`
+        ? `Asked for by ${r.requested_by_name || "the department head"} to add ${r.adds_headcount} beyond the line's required number. Approving raises the line (not allowed on lines that follow desks).`
         : `Asked for by ${r.requested_by_name || "the department head"} to fill the line's gap.`;
     case "employee_separation":
       return `Replaces ${personName(r.replacement) || "someone who is leaving"}: it covers their desk once they leave.`;

@@ -25,6 +25,7 @@ import {
   useEmployeesLookup, usePositionsLookup, useRequirementsLookup, useShiftsLookup,
 } from "@/lib/ats/api";
 import { EMPLOYMENT_TYPES, humanize } from "@/lib/ats/format";
+import { REQ_STATUS_LABEL } from "@/lib/hrms/workforce";
 import { JobLineShiftNotice } from "./JobLineShiftNotice";
 import { RequirementLinkEditor } from "./RequirementLinkEditor";
 import { saveJobWithLinks, useJobRequirementLinks } from "@/lib/ats/jobRequirements";
@@ -298,7 +299,7 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
     () =>
       (reqs.data ?? []).filter((r: any) => requirementFitsJob(r, deptId, posId) || r.id === primaryWatch || extraReqIds.includes(r.id)).map((r: any) => {
         const pos = positions.data?.find((p) => p.id === r.position_id)?.label;
-        return { id: r.id, raw: r, label: [r.requirement_no, pos, r.shift_label, `still to find ${r.still_needed ?? 0}`].filter(Boolean).join(" · "), status: humanize(String(r.status ?? "")) };
+        return { id: r.id, raw: r, label: [r.requirement_no, pos, r.shift_label, `still to find ${r.still_needed ?? 0}`].filter(Boolean).join(" · "), status: REQ_STATUS_LABEL[String(r.status ?? "")] ?? humanize(String(r.status ?? "")) };
       }),
     [reqs.data, positions.data, deptId, posId, primaryWatch, extraReqIds],
   );

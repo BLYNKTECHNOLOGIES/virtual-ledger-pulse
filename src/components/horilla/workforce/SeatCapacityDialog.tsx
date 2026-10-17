@@ -96,7 +96,7 @@ export function SeatCapacityDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={form.id ? "Edit desk group" : "Add desk group"}
-      description="Desks used by one or more designations. Shifts share them: a staffing line that follows this group requires one person per desk in each shift it works, and its hiring request resizes by itself when you save."
+      description="Desks used by one or more designations. Shifts share them: a staffing line that follows this group requires one person per usable desk in each shift it works. Saving updates those lines and their automatic requests awaiting approval."
       contentClassName="md:max-w-2xl"
       focusContainer
       footer={

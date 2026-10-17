@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight, Armchair, Ban, CheckCircle2, ChevronRight, CircleDot, ExternalLink, Info, MinusCircle, Route,
 } from "lucide-react";
@@ -32,14 +34,18 @@ export function useOpenDesignationStory() {
  * A designation's name that opens its journey. Not a <button>: phone styles keep button text on one line,
  * and designation names must wrap. Stops the click so table rows and cards around it don't open too.
  */
-export function DesignationLink({ id, children, className, label }: { id?: string | null; children: ReactNode; className?: string; label?: string }) {
+export function DesignationLink({ id, children, className, label, tooltip }: {
+  id?: string | null; children: ReactNode; className?: string; label?: string;
+  /** Shown on hover before the hint (e.g. the full name where the text is cut short). */
+  tooltip?: string;
+}) {
   const open = useOpenDesignationStory();
   if (!id) return <>{children}</>;
   const go = (e: React.SyntheticEvent) => { e.stopPropagation(); e.preventDefault(); open(id); };
   return (
     <span role="button" tabIndex={0} onClick={go}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") go(e); }}
-      title="See how this designation is planned and hired"
+      title={tooltip ? `${tooltip} — see how it is planned and hired` : "See how this designation is planned and hired"}
       aria-label={label ? `${label}: see how it is planned and hired` : undefined}
       className={cn("cursor-pointer rounded-sm underline decoration-muted-foreground/40 decoration-dotted underline-offset-[3px] hover:text-primary hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
       {children}
@@ -109,6 +115,17 @@ function StoryBody({ id }: { id: string }) {
   const seats = useSeatCapacity();
   const reqs = useHiringRequirements();
   const jobs = useRequirementJobs();
+  // ATS jobs opened for this designation, linked to a request or not (the same check Designations makes before it leaves planning).
+  const ownJobs = useQuery({
+    queryKey: ["ats", "designation-jobs", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("ats_jobs").select("id, job_code, title, status, openings")
+        .eq("position_id", id).in("status", ["draft", "open", "paused"]).order("created_at");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30_000,
+  });
   const { data: lookups } = useWorkforceLookups();
   const shiftOrder = useMemo(() => rotaOrder(planningShifts((lookups?.shifts || []) as any[])).map((s: any) => s.name as string), [lookups?.shifts]);
 
@@ -123,15 +140,28 @@ function StoryBody({ id }: { id: string }) {
     seats: (seats.data || []) as any[],
     requests: (reqs.data || []) as any[],
     jobsByRequest: jobs.data ?? null,
+    ownJobs: ownJobs.data ?? null,
     shiftOrder,
-  }), [designation, planning.data, id, matrix.rows, seats.data, reqs.data, jobs.data, shiftOrder]);
+  }), [designation, planning.data, id, matrix.rows, seats.data, reqs.data, jobs.data, ownJobs.data, shiftOrder]);
 
-  const loading = catalog.isLoading || matrix.isLoading || planning.isLoading;
+  // Wait for everything the checklist adds up, so a step never shows "none" just because its rows haven't arrived.
+  const loading = catalog.isLoading || matrix.isLoading || planning.isLoading || reqs.isLoading || seats.isLoading;
+  const failed = [catalog, matrix, planning, reqs, seats].filter((q) => q.isError && !q.data);
   if (loading) {
     return (
       <div className="space-y-3 p-5">
         <SheetTitle className="sr-only">Designation journey</SheetTitle>
+        <SheetDescription className="sr-only">Loading how this designation is planned and hired…</SheetDescription>
         <Skeleton className="h-6 w-2/3" /><Skeleton className="h-4 w-1/2" /><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+  if (failed.length) {
+    return (
+      <div className="space-y-3 p-5">
+        <SheetTitle>Couldn't load this designation's journey</SheetTitle>
+        <SheetDescription>Some planning figures didn't load, so its steps can't be added up. Try again in a moment.</SheetDescription>
+        <Button size="sm" variant="outline" onClick={() => failed.forEach((q) => q.refetch())}>Try again</Button>
       </div>
     );
   }
@@ -250,7 +280,7 @@ function StoryBody({ id }: { id: string }) {
                   );
                 })}
               </ul>
-              <div className="hidden overflow-hidden rounded-lg border border-border sm:block">
+              <div className="hidden overflow-x-auto rounded-lg border border-border sm:block">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
                     <tr>
@@ -303,7 +333,7 @@ function StoryBody({ id }: { id: string }) {
           </section>
         )}
 
-        {st !== "outside" && (story.openRequests.length > 0 || story.closedRequests > 0) && (
+        {(story.openRequests.length > 0 || story.closedRequests > 0) && (
           <section aria-label="Hiring requests" className="space-y-2">
             <SectionTitle title="Hiring requests" to="/hrms/workforce-planning/hiring-requirements" linkLabel="Hiring requests" />
             {story.openRequests.length === 0 ? (
@@ -321,7 +351,9 @@ function StoryBody({ id }: { id: string }) {
                           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="font-mono text-xs text-muted-foreground">{q.requirement_no}</span>
                             <StatusPill tone={REQ_STATUS_TONE[q.status] ?? "neutral"}>{REQ_STATUS_LABEL[q.status] ?? q.status}</StatusPill>
-                            <span className="text-foreground">{q.number_required} for {line?.shiftLabel.replace(/ Shift$/, "") ?? "any shift"}</span>
+                            <span className="text-foreground">
+                              {q.number_required} {line ? `for ${shiftShort(line.shiftLabel)}` : `${Number(q.number_required) === 1 ? "person" : "people"}${q.staffing_plan_id ? "" : " · not on a staffing line"}`}
+                            </span>
                           </span>
                           <span className="mt-0.5 block text-xs text-muted-foreground">
                             {q.positions_filled ? `${q.positions_filled} filled · ` : ""}{q.source === "capacity_occupancy" ? "raised automatically" : q.source === "employee_separation" ? "replacement" : q.source === "department_request" ? "department request" : "raised by hand"}
@@ -342,22 +374,25 @@ function StoryBody({ id }: { id: string }) {
           </section>
         )}
 
-        {st !== "outside" && story.jobs.length > 0 && (
+        {(story.jobs.length > 0 || story.otherJobs.length > 0) && (
           <section aria-label="ATS jobs" className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ATS jobs</h3>
             <ul className="divide-y divide-border rounded-lg border border-border">
-              {story.jobs.map((j) => (
+              {[...story.jobs, ...story.otherJobs.map((j) => ({ ...j, requestIds: [] as string[] }))].map((j) => (
                 <li key={j.id}>
                   <Link to={`/hrms/ats/jobs/${j.id}`} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-sm hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none">
                     <span className="font-mono text-xs text-muted-foreground">{j.job_code}</span>
                     <StatusPill tone={j.status === "open" ? "success" : "warning"}>{j.status === "open" ? "Open" : "Paused"}</StatusPill>
                     <span className="text-foreground">{j.openings ?? 0} opening{j.openings === 1 ? "" : "s"}</span>
-                    <span className="text-xs text-muted-foreground">for {j.requestIds.length} request{j.requestIds.length === 1 ? "" : "s"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {j.requestIds.length ? `for ${j.requestIds.length} request${j.requestIds.length === 1 ? "" : "s"}` : "no open request of this designation is linked"}
+                    </span>
                     <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                   </Link>
                 </li>
               ))}
             </ul>
+            {ownJobs.isError && !ownJobs.data && <p className="text-xs text-destructive">Couldn't check for other ATS jobs opened for this designation.</p>}
           </section>
         )}
 

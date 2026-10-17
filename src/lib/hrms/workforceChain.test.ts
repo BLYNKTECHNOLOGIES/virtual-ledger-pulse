@@ -143,6 +143,15 @@ describe("chain figures", () => {
     expect(g[4].value).toBeNull();
     expect(g[5].value).toBeNull();
   });
+  test("drafts are named; no lines is not 'fully staffed'", () => {
+    const g = chainFigures({ designations: [], seats: [], lines: [], openRequests: [{ status: "approved" }], drafts: 2, noJob: 0, liveJobs: [],
+      forecast: { closing: 0, required: 0, lineGap: 0, endLabel: "15 Jan 2027" } });
+    expect(g[2].flag).toEqual({ text: "No staffing lines", tone: "warning" });
+    expect(g[2].handoff).toBe("");
+    expect(g[3].detail).toBe("1 open request · 2 drafts not sent");
+    expect(g[3].handoff).toBe("Approved ones are ready for an ATS job");
+    expect(g[5].flag).toBeNull();
+  });
   test("every attention topic belongs to a step", () => {
     const keys = new Set(CHAIN_STEPS.map((s) => s.key));
     expect(Object.values(ATTENTION_STEP).every((k) => keys.has(k))).toBe(true);

@@ -90,11 +90,16 @@ export function pauseText(r: Pick<StaffingMatrixRow, "auto_paused_at" | "auto_pa
   return `Hiring held back${need ? ` for ${need}` : ""} — declined or lowered by ${r.auto_paused_by_name || "a manager"} on ${formatIstDate(r.auto_paused_at)}${r.auto_paused_reason ? `: ${r.auto_paused_reason}` : ""}. Anything needed beyond this is still requested.`;
 }
 
-/** A shift name for short lists: "Morning Shift" → "Morning"; a shift named like a team ("Management") → "Management shift". */
+/**
+ * A shift name for short lists: "Morning Shift" → "Morning"; a shift named like a team ("Management") → "Management shift";
+ * a line that spans shifts ("Morning Shift + Evening Shift") → "Morning + Evening".
+ */
 export function shiftShort(name?: string | null): string {
   const n = (name ?? "").trim();
   if (!n) return "Any shift";
   if (/^any shift$/i.test(n)) return "Any shift";
+  const parts = n.split(/\s+\+\s+/).filter(Boolean);
+  if (parts.length > 1) return parts.map((p) => p.replace(/ shift$/i, "")).join(" + ");
   return / shift$/i.test(n) ? n.replace(/ shift$/i, "") : `${n} shift`;
 }
 
@@ -361,7 +366,7 @@ export const WF_DEFINITIONS = {
   onRoll: "People on roll counted on a staffing line (planned designations only; people in training are counted separately).",
   short: "Each line's shortfall (required − on roll), added up. An extra person on one line never fills a gap on another.",
   netNeed: "Still to find: short, minus the people on the way for that line (in training, or hired and joining).",
-  beingHired: "In hiring: people open hiring requests (awaiting approval, approved or recruiting) still have to find.",
+  beingHired: "In hiring: the part of still to find that open hiring requests (awaiting approval, approved or recruiting) already cover, line by line.",
   notRequested: "Not requested yet: still to find that no open hiring request covers (drafts don't count until they are sent).",
   projected: "Short on lines at the end of the period, after approved hiring, trainees and known exits (no attrition estimate).",
   leaving: "People on notice in planned designations.",

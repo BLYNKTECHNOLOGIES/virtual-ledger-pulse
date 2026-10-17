@@ -254,7 +254,7 @@ export function useSaveHeadcountPlan() {
     },
     onSuccess: () => {
       invalidatePlanning(qc);
-      toast.success("Staffing line saved", { description: "Its hiring request is raised or resized by itself." });
+      toast.success("Staffing line saved", { description: "Its automatic request awaiting approval is raised or resized by itself; approved requests stay." });
     },
     onError: (e: any) => toast.error(lineSaveErrorText(e)),
   });

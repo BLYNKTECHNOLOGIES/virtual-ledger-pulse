@@ -24,6 +24,7 @@ import { InfoTip } from "@/components/ats/AtsUi";
 import { WorkforceChainBand } from "@/components/horilla/workforce/WorkforceChain";
 import { HowItWorksButton } from "@/components/horilla/workforce/HowItWorks";
 import { DesignationStoryHost } from "@/components/horilla/workforce/DesignationStory";
+import { gapParts } from "@/lib/hrms/workforceChain";
 import {
   useHeadcountPlans, useHiringRequirements, useSeatCapacity, useStaffingMatrix, useUnplannedScopes, useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
@@ -51,7 +52,8 @@ export default function StaffingPlanPage() {
   const [params, setParams] = useSearchParams();
 
   const [view, setView] = useState<View>(readView);
-  const [dept, setDept] = useState("all");
+  // ?department=<id> (from Organization › Departments) opens the plan filtered to that department.
+  const [dept, setDept] = useState(() => params.get("department") || "all");
   const [shift, setShift] = useState("all");
   const [status, setStatus] = useState<StatusFilter>(() => STATUS_PARAM[params.get("status") ?? ""] ?? "all");
   const [search, setSearch] = useState("");
@@ -59,13 +61,14 @@ export default function StaffingPlanPage() {
   const budget = useWorkforceBudget(canManage && showCost);
   const costs = useMemo(() => (showCost && budget.data ? new Map(budget.data.lines.map((l) => [l.plan_id, l])) : undefined), [showCost, budget.data]);
   const [addSeed, setAddSeed] = useState<AddLineSeed | null>(null);
-  const [panel, setPanel] = useState<{ planId: string; roleLabel: string } | null>(null);
+  const [panel, setPanel] = useState<{ planId: string; roleLabel: string; tab?: "people" } | null>(null);
   const [reqSeed, setReqSeed] = useState<any | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const matrix = useStaffingMatrix();
   const { rows } = matrix;
-  const { data: lookups } = useWorkforceLookups();
+  const lookupsQ = useWorkforceLookups();
+  const lookups = lookupsQ.data;
   const { data: plans = [] } = useHeadcountPlans();
   const { data: seats = [] } = useSeatCapacity();
   const { data: unplanned = [] } = useUnplannedScopes();
@@ -110,6 +113,7 @@ export default function StaffingPlanPage() {
     [filtered, plans, seats, shifts, unplanned, lookups?.positions],
   );
   const totals = useMemo(() => sumLines(filtered), [filtered]);
+  const gap = useMemo(() => gapParts(filtered), [filtered]);
 
   // Deep links: ?plan_desk=<seat> and ?plan_role=<position>[&plan_shift=<shift>] open "Add line"; ?line=<plan> opens the panel.
   useEffect(() => {
@@ -125,7 +129,8 @@ export default function StaffingPlanPage() {
       }
       params.delete("plan_desk"); changed = true;
     }
-    if (roleId && lookups) {
+    // Decide on fresh designations only: a just-changed designation may still be stale in the cache.
+    if (roleId && lookups && !lookupsQ.isFetching) {
       const role: any = (lookups.positions || []).find((p: any) => p.id === roleId);
       const shiftId = params.get("plan_shift");
       if (role && canManage && role.in_workforce_planning !== false) {
@@ -141,11 +146,11 @@ export default function StaffingPlanPage() {
     }
     if (lineId && rows.length) {
       const r = rows.find((x) => x.plan_id === lineId);
-      if (r) setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Designation" });
-      params.delete("line"); changed = true;
+      if (r) setPanel({ planId: r.plan_id, roleLabel: r.position_title || "Designation", tab: params.get("tab") === "people" ? "people" : undefined });
+      params.delete("line"); params.delete("tab"); changed = true;
     }
     if (changed) setParams(params, { replace: true });
-  }, [params, seats, rows, lookups, shifts, canManage, setParams]);
+  }, [params, seats, rows, lookups, lookupsQ.isFetching, shifts, canManage, setParams]);
 
   const panelLine = panel ? rows.find((r) => r.plan_id === panel.planId) ?? null : null;
 
@@ -171,9 +176,9 @@ export default function StaffingPlanPage() {
       seat_capacity_id: row.seat?.id ?? null,
     });
 
-  const openLine = (planId: string) => {
+  const openLine = (planId: string, tab?: "people") => {
     const r = rows.find((x) => x.plan_id === planId);
-    if (r) setPanel({ planId, roleLabel: r.position_title || "Designation" });
+    if (r) setPanel({ planId, roleLabel: r.position_title || "Designation", tab });
   };
 
   const shiftOptions = [
@@ -206,7 +211,7 @@ export default function StaffingPlanPage() {
           <Stat label="Short" value={totals.shortNow} tone={totals.shortNow > 0 ? "text-destructive" : "text-success"} info={WF_DEFINITIONS.short} />
           {totals.netNeed !== totals.shortNow && <Stat label="Still to find" value={totals.netNeed} info={WF_DEFINITIONS.netNeed} />}
           {totals.overNow > 0 && <Stat label="Extra" value={totals.overNow} tone="text-warning" />}
-          <Stat label="In hiring" value={totals.requested} info={WF_DEFINITIONS.beingHired} />
+          <Stat label="In hiring" value={gap.inHiring} info={WF_DEFINITIONS.beingHired} />
           {totals.uncovered > 0 && <Stat label="Not requested yet" value={totals.uncovered} tone="text-warning" info={WF_DEFINITIONS.notRequested} />}
           {totals.overRequested > 0 && <Stat label="Over-requested" value={totals.overRequested} tone="text-warning" />}
           {filtering && <span className="self-center text-xs text-muted-foreground">for the filtered lines</span>}
@@ -309,7 +314,7 @@ export default function StaffingPlanPage() {
                   <th className="px-2 py-2 text-right font-medium">In training</th>
                   <th className="px-2 py-2 text-right font-medium">Joining</th>
                   <th className="px-2 py-2 text-right font-medium">Candidates</th>
-                  <th className="px-2 py-2 text-right font-medium">In hiring</th>
+                  <th className="px-2 py-2 text-right font-medium" title="What the line's open hiring requests still have to find, in full">In requests</th>
                   <th className="px-2 py-2 text-right font-medium">Still to find</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="hidden px-3 py-2 font-medium lg:table-cell">Target joining</th>
@@ -356,7 +361,7 @@ export default function StaffingPlanPage() {
       )}
 
       <AddLineDialog open={!!addSeed} onOpenChange={(o) => !o && setAddSeed(null)} seed={addSeed ?? undefined} />
-      <LinePanel line={panelLine} roleLabel={panel?.roleLabel ?? ""} canManage={canManage}
+      <LinePanel line={panelLine} roleLabel={panel?.roleLabel ?? ""} canManage={canManage} initialTab={panel?.tab}
         onOpenChange={(o) => !o && setPanel(null)} onHire={hire} />
       <HiringRequirementDialog open={!!reqSeed} onOpenChange={(o) => !o && setReqSeed(null)} initial={reqSeed ?? undefined} />
       <PlanHistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} />

@@ -126,3 +126,61 @@ describe("designation journey", () => {
     expect(x.next.text).toContain("1 extra");
   });
 });
+
+describe("designation journey: requests outside lines, jobs and desks", () => {
+  const ceo = { id: "ceo", title: "Chief Executive", department_id: "d", is_active: true, in_workforce_planning: false };
+  const outside = { status: "outside", line_count: 0 };
+
+  test("outside planning with no hiring: only the decision", () => {
+    const x = buildDesignationStory({ designation: ceo, status: outside, lines, seats, requests, jobsByRequest: jobs });
+    expect(x.steps.map((t) => t.key)).toEqual(["decision"]);
+    expect(x.next.kind).toBe("outside");
+    expect(x.next.text).toContain("sits on no line");
+  });
+
+  test("outside planning can still be hired for: approve first, then the ATS job", () => {
+    const reqs = [{ id: "c1", requirement_no: "HR-21", status: "pending_approval", position_id: "ceo", staffing_plan_id: null, number_required: 1 }];
+    const a = buildDesignationStory({ designation: ceo, status: outside, lines, seats, requests: reqs, jobsByRequest: new Map() });
+    expect(a.steps.map((t) => t.key)).toEqual(["decision", "hiring", "recruit"]);
+    expect(a.next.kind).toBe("approve");
+    expect(a.next.requestId).toBe("c1");
+
+    const approved = [{ ...reqs[0], status: "approved" }];
+    const b = buildDesignationStory({ designation: ceo, status: outside, lines, seats, requests: approved, jobsByRequest: new Map(),
+      ownJobs: [{ id: "j7", job_code: "JOB-0007", status: "open" }] });
+    expect(b.next.kind).toBe("job");
+    expect(b.next.text).toContain("JOB-0007 is open for this designation but not linked");
+    expect(b.otherJobs.map((j) => j.id)).toEqual(["j7"]);
+
+    const c = buildDesignationStory({ designation: ceo, status: outside, lines, seats, requests: approved,
+      jobsByRequest: new Map([["c1", [{ id: "j7", job_code: "JOB-0007", status: "open" }]]]), ownJobs: [{ id: "j7", job_code: "JOB-0007", status: "open" }] });
+    expect(c.next.kind).toBe("recruit");
+    expect(c.next.jobId).toBe("j7");
+    expect(c.otherJobs).toHaveLength(0);
+    expect(c.steps.find((t) => t.key === "recruit").state).toBe("done");
+  });
+
+  test("a job opened for the designation without a request is listed, not counted as recruiting", () => {
+    const x = buildDesignationStory({ designation: oa, status: { status: "planned", line_count: 3 }, lines, seats, requests, jobsByRequest: jobs,
+      ownJobs: [{ id: "j2", job_code: "JOB-0002", status: "open" }, { id: "j9", job_code: "JOB-0009", status: "paused" }, { id: "j8", job_code: "JOB-0008", status: "draft" }] });
+    expect(x.jobs.map((j) => j.id)).toEqual(["j2"]);
+    expect(x.otherJobs.map((j) => j.id)).toEqual(["j9"]);
+    expect(x.draftJobs.map((j) => j.id)).toEqual(["j8"]);
+    expect(x.steps.find((t) => t.key === "recruit").text).toBe("JOB-0002, JOB-0009 (paused) — no request linked");
+  });
+
+  test("desks show usable desks when fewer", () => {
+    const fewer = seats.map((s) => (s.id === "g1" ? { ...s, max_operational_capacity: 6 } : s));
+    const x = buildDesignationStory({ designation: oa, status: { status: "planned", line_count: 3 }, lines, seats: fewer, requests, jobsByRequest: jobs });
+    expect(x.steps.find((t) => t.key === "desks").text).toBe("8 desks (6 usable)");
+  });
+
+  test("planned with nothing requested: the hiring step names what is not requested", () => {
+    const one = [line({ plan_id: "m", shift_group_name: "Morning", current_hc: 5 })];
+    const x = buildDesignationStory({ designation: oa, status: { status: "planned", line_count: 1 }, lines: one, seats, requests: [], jobsByRequest: new Map() });
+    expect(x.steps.find((t) => t.key === "hiring").text).toBe("3 not requested yet");
+    const covered = [line({ plan_id: "m", shift_group_name: "Morning", current_hc: 5, open_requirement_hc: 3 })];
+    const y = buildDesignationStory({ designation: oa, status: { status: "planned", line_count: 1 }, lines: covered, seats, requests: [], jobsByRequest: new Map() });
+    expect(y.steps.find((t) => t.key === "hiring").text).toBe("3 in hiring");
+  });
+});

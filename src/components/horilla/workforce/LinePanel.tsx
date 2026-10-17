@@ -18,11 +18,12 @@ import {
 import { StatusPill } from "@/components/ats/AtsUi";
 import { cn } from "@/lib/utils";
 import {
-  PRIORITIES, PRIORITY_LABEL, REQ_STATUS_LABEL, REQ_STATUS_TONE, linePriorityText,
+  PRIORITIES, PRIORITY_LABEL, REQ_STATUS_LABEL, REQ_STATUS_TONE, linePriorityText, lineSaveErrorText,
   formatIstDate, gapLabel, gapTone, pauseText, planningShifts, rotaOrder, trainingEnded, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { OPEN_REQ_STATUSES, linesForRole, useMoveRequirement, useResumeAutoHiring } from "@/hooks/hrms/useWorkforceRepair";
-import { useRequirementTransition } from "@/hooks/hrms/useWorkforcePlanning";
+import { useRequirementTransition, type TraineeRow } from "@/hooks/hrms/useWorkforcePlanning";
+import { MoveAfterTrainingDialog } from "@/components/horilla/workforce/WorkforceAttention";
 import {
   useDeleteHeadcountPlan, useHeadcountPlans, useHiringRequirements, useLinePeople,
   useSaveHeadcountPlan, useSeatCapacity, useSetPostTrainingShift, useWorkforceLookups,
@@ -34,6 +35,8 @@ interface Props {
   canManage: boolean;
   onOpenChange: (open: boolean) => void;
   onHire: (line: StaffingDerived) => void;
+  /** Open on this tab (e.g. "people" to set an after-training shift). */
+  initialTab?: "people";
 }
 
 const OPEN = new Set(["draft", "pending_approval", "approved", "recruitment_active", "partially_fulfilled"]);
@@ -56,7 +59,7 @@ function lineStatus(line: StaffingDerived): { tone: "destructive" | "success" | 
   return { tone: t === "short" ? "destructive" : t === "over" ? "warning" : "success", text: gapLabel(line.staffingGap) };
 }
 
-export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: Props) {
+export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire, initialTab }: Props) {
   const open = !!line;
   const { data: plans = [] } = useHeadcountPlans();
   const { data: seats = [] } = useSeatCapacity();
@@ -69,6 +72,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const remove = useDeleteHeadcountPlan();
   const setPostShift = useSetPostTrainingShift();
   const [tab, setTab] = useState("summary");
+  const [moving, setMoving] = useState<TraineeRow | null>(null);
 
   const plan: any = useMemo(() => (plans as any[]).find((p) => p.id === line?.plan_id), [plans, line?.plan_id]);
   // The desk count the database uses: operational capacity, 0 when the desk group is inactive.
@@ -98,7 +102,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
     if (!line || !plan) return;
     setError(null);
     setMoveTo({});
-    setTab("summary");
+    setTab(initialTab ?? "summary");
     setForm({
       required: line.required_hc,
       approved: line.approved_hc,
@@ -178,7 +182,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
         seat_capacity_id: seatId,
         follow_desks: following,
       },
-      { onError: (e: any) => setError(e?.message || "Could not save"), onSuccess: () => setForm((f) => ({ ...f, reason: "" })) },
+      { onError: (e: any) => setError(lineSaveErrorText(e, "Could not save")), onSuccess: () => setForm((f) => ({ ...f, reason: "" })) },
     );
   };
 
@@ -236,7 +240,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                   <Stat label="In training" value={line.in_training_hc} sub={line.training_ready_date ? `ready ${formatIstDate(line.training_ready_date)}` : undefined} />
                   <Stat label="Joining" value={line.selected_hc + line.pending_joining_hc} sub={line.selected_hc ? `${line.selected_hc} without a date` : undefined} />
                   <Stat label="Still to find" value={line.netHiringRequirement} tone={line.netHiringRequirement > 0 ? "text-destructive" : undefined} />
-                  <Stat label="In hiring" value={line.open_requirement_hc} sub={line.over_requested_hc > 0 ? `${line.over_requested_hc} over-requested` : undefined}
+                  <Stat label="In requests" value={line.open_requirement_hc} sub={line.over_requested_hc > 0 ? `${line.over_requested_hc} over-requested` : undefined}
                     tone={line.over_requested_hc > 0 ? "text-warning" : undefined} />
                   <Stat label="Candidates" value={line.pipeline_hc} />
                 </div>
@@ -314,6 +318,12 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                             {t.badge_id && <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground" title="Badge ID">ID {t.badge_id}</span>}
                           </p>
                           <p className="text-xs text-muted-foreground">{trainingEnded(t.ready_date) ? <span className="text-warning">Training ended {formatIstDate(t.ready_date)} — move them to their working shift</span> : <>Ready {formatIstDate(t.ready_date)}</>}</p>
+                          {canManage && trainingEnded(t.ready_date) && (
+                            <Button size="sm" variant="outline" className="mt-2" onClick={() => setMoving({
+                              employee_id: t.employee_id, full_name: t.full_name, badge_id: t.badge_id, post_training_shift_id: t.post_training_shift_id,
+                              post_training_shift_name: t.post_training_shift_name, training_end_date: t.ready_date, plan_id: line.plan_id,
+                            } as TraineeRow)}>Move to working shift</Button>
+                          )}
                           <div className="mt-2 flex items-center gap-2">
                             <Label className="shrink-0 text-xs">After training</Label>
                             <Select
@@ -459,7 +469,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                     <Textarea id="lp-reason" rows={2} className="text-foreground" placeholder="Saved in the plan history" value={form.reason}
                       onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} />
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <p className="text-xs text-muted-foreground">{dirty && !form.reason.trim() ? "Add a reason to save." : dirty ? "Unsaved changes — the line's hiring request resizes by itself after saving." : "No changes"}</p>
+                      <p className="text-xs text-muted-foreground">{dirty && !form.reason.trim() ? "Add a reason to save." : dirty ? "Unsaved changes — after saving, the line's automatic request awaiting approval is raised or resized by itself (approved requests stay)." : "No changes"}</p>
                       <Button onClick={submit} disabled={!dirty || !form.reason.trim() || save.isPending}>
                         {save.isPending ? "Saving..." : "Save changes"}
                       </Button>
@@ -482,6 +492,8 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
             </Tabs>
           </>
         )}
+
+        <MoveAfterTrainingDialog trainee={moving} onClose={() => setMoving(null)} />
 
         <AlertDialog open={!!pendingUnfollow} onOpenChange={(o) => !o && setPendingUnfollow(null)}>
           <AlertDialogContent>

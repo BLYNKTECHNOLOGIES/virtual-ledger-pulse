@@ -4,6 +4,8 @@
  *
  * Pure: it only reads rows the screens already load (staffing matrix, desk groups, requests, job links)
  * and adds them up with the same per-line figures (deriveStaffingRow), so every number matches the pages.
+ * Designations outside workforce planning can still be hired for (their requests sit on no line), so their
+ * requests and jobs are followed too.
  */
 import { gapParts, type GapParts, type PlanningStatusLike } from "./workforceChain";
 import type { StaffingDerived } from "./workforce";
@@ -61,6 +63,8 @@ export interface StoryInput {
   requests: StoryRequest[];
   /** Jobs per request id; null while loading. */
   jobsByRequest: Map<string, StoryJob[]> | null;
+  /** ATS jobs opened for this designation (draft, open or paused), linked to a request or not; null while loading. */
+  ownJobs?: StoryJob[] | null;
   /** Planning shift names in rota order (Morning → Evening → Night …), to list lines in that order. */
   shiftOrder?: string[];
 }
@@ -98,7 +102,10 @@ export interface DesignationStory {
   desks: StoryDesk[];
   openRequests: StoryRequest[];
   closedRequests: number;
+  /** Open or paused ATS jobs linked to its open requests. */
   jobs: (StoryJob & { requestIds: string[] })[];
+  /** Open or paused ATS jobs for this designation that none of its open requests is linked to. */
+  otherJobs: StoryJob[];
   draftJobs: StoryJob[];
   totals: GapParts;
   steps: StoryStep[];
@@ -108,6 +115,11 @@ export interface DesignationStory {
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const roleIds = (r: Pick<StaffingDerived, "position_id" | "role_ids">) => (r.role_ids?.length ? r.role_ids : r.position_id ? [r.position_id] : []);
 const seatRoles = (s: StorySeat) => (s.eligible_position_ids?.length ? s.eligible_position_ids : s.position_id ? [s.position_id] : []);
+/** Usable desks when the group says fewer than its desks (lines that follow it use this number). */
+export const usableDesks = (s: StorySeat): number | null => {
+  const desks = Number(s.physical_seats) || 0;
+  return s.max_operational_capacity != null && Number(s.max_operational_capacity) !== desks ? Number(s.max_operational_capacity) : null;
+};
 
 export function buildDesignationStory(input: StoryInput): DesignationStory {
   const id = input.designation?.id ?? "";
@@ -148,6 +160,13 @@ export function buildDesignationStory(input: StoryInput): DesignationStory {
     }
   }
   const jobs = Array.from(jobMap.values());
+  // Jobs opened for this designation that none of its open requests is linked to.
+  const otherJobs: StoryJob[] = [];
+  for (const j of input.ownJobs ?? []) {
+    if (jobMap.has(j.id)) continue;
+    if (LIVE_JOB.has(j.status)) otherJobs.push(j);
+    else if (j.status === "draft") drafts.set(j.id, j);
+  }
   const draftJobs = Array.from(drafts.values());
   const totals = gapParts(lines);
 
@@ -156,42 +175,94 @@ export function buildDesignationStory(input: StoryInput): DesignationStory {
   const liveJobsOf = (q: StoryRequest) => (input.jobsByRequest?.get(q.id) ?? []).filter((j) => LIVE_JOB.has(j.status));
   const pending = openRequests.filter((q) => q.status === "pending_approval");
   const draftsReq = openRequests.filter((q) => q.status === "draft");
+  const approvedCount = openRequests.length - pending.length - draftsReq.length;
   const noJob = input.jobsByRequest ? openRequests.filter((q) => HIRING.has(q.status) && liveJobsOf(q).length === 0) : [];
   const recruiting = openRequests.filter((q) => HIRING.has(q.status) && liveJobsOf(q).length > 0);
   const heldLine = lines.find((l) => l.auto_paused_at && l.uncoveredHiringRequirement > 0);
   const uncoveredLine = lines.slice().sort((a, b) => b.uncoveredHiringRequirement - a.uncoveredHiringRequirement)[0];
+  const jobCode = (j: StoryJob) => `${j.job_code ?? "Job"}${j.status === "paused" ? " (paused)" : ""}`;
+  const jobCodes = jobs.map((x) => x.job_code ?? "the ATS job").join(", ");
 
   // ── The checklist ──
-  const steps: StoryStep[] = [];
-  const decided = st === "planned";
-  steps.push({
+  const decision: StoryStep = {
     key: "decision", label: "Decision",
     state: st == null ? "info" : st === "planned" ? "done" : st === "outside" ? "skip" : "blocked",
     text: st == null ? "Loading…"
       : st === "planned" ? `Planned · ${plural(input.status!.line_count, "line")}`
       : st === "no_staff_needed" ? "No staff needed now — hiring is blocked"
       : st === "undecided" ? "Not decided — hiring is blocked"
-      : "Outside workforce planning",
+      : "Outside workforce planning — not counted on staffing lines",
+  };
+  const requestParts = [
+    pending.length ? `${pending.length} awaiting approval` : null,
+    draftsReq.length ? `${plural(draftsReq.length, "draft")} not sent` : null,
+    approvedCount ? `${approvedCount} approved` : null,
+  ];
+  const recruitStep: StoryStep = {
+    key: "recruit", label: "ATS job",
+    state: !input.jobsByRequest ? "info" : noJob.length ? "todo" : jobs.length ? "done" : otherJobs.length ? "info" : "skip",
+    text: !input.jobsByRequest ? "Loading…"
+      : noJob.length ? `${plural(noJob.length, "approved request")} with no ATS job`
+      : jobs.length || otherJobs.length ? [...jobs.map(jobCode), ...otherJobs.map((j) => `${jobCode(j)} — no request linked`)].join(", ")
+      : !lines.length ? "—" : "No job needed yet",
+  };
+
+  // ── Next steps that apply in and outside workforce planning ──
+  const checkingJobs = !input.jobsByRequest && openRequests.some((q) => HIRING.has(q.status));
+  const approveNext = (): StoryNext => ({
+    kind: "approve", requestId: pending[0].id,
+    text: `Approve or reject ${pending[0].requirement_no ?? "the request"} (${plural(Number(pending[0].number_required) || 0, "person", "people")}). Recruitment starts once it is approved.`,
   });
+  const checkingNext: StoryNext = { kind: "unknown", text: "Checking which ATS jobs recruit for its requests…" };
+  const jobNext = (): StoryNext => ({
+    kind: "job", requestId: noJob[0].id,
+    text: `${noJob[0].requirement_no ?? "A request"} is approved but no ATS job recruits for it${draftJobs.length ? " (a draft job doesn't count until it is opened)" : ""}. `
+      + (otherJobs.length
+        ? `${otherJobs[0].job_code ?? "A job"} is open for this designation but not linked to it: link it, or create a job.`
+        : "Link an open job or create one."),
+  });
+  const draftNext = (): StoryNext => ({
+    kind: "draft", requestId: draftsReq[0].id,
+    text: `${draftsReq[0].requirement_no ?? "A draft"} is still a draft — send it for approval; drafts don't count.`,
+  });
+
   if (st === "outside") {
-    return {
-      lines, desks, openRequests, closedRequests, jobs, draftJobs, totals,
-      steps: [...steps],
-      next: { kind: "outside", text: tentative
-        ? "Tentative and outside workforce planning: nobody is counted or hired for it here."
-        : "Outside workforce planning: its people aren't counted on staffing lines and it isn't hired for here. Switch \"In workforce planning\" on (Organization › Designations) to plan it." },
-    };
+    const steps: StoryStep[] = [decision];
+    if (openRequests.length) steps.push({
+      key: "hiring", label: "Hiring requests",
+      state: pending.length || draftsReq.length ? "todo" : "done",
+      text: requestParts.filter(Boolean).join(" · "),
+    });
+    if (openRequests.length || otherJobs.length) steps.push(recruitStep);
+    const left = recruiting.reduce((a, q) => a + Math.max(0, (Number(q.number_required) || 0) - (Number(q.positions_filled) || 0)), 0);
+    const next: StoryNext = pending.length ? approveNext()
+      : checkingJobs ? checkingNext
+      : noJob.length ? jobNext()
+      : draftsReq.length ? draftNext()
+      : recruiting.length && jobs.length ? {
+          kind: "recruit", jobId: jobs[0].id,
+          text: `Recruiting through ${jobCodes}${left ? `: ${plural(left, "person", "people")} still to find on its requests` : ""}. It is outside workforce planning, so no staffing line counts these people.`,
+        }
+      : { kind: "outside", text: tentative
+          ? "Tentative and outside workforce planning: nobody is counted for it on staffing lines, and any hiring request for it sits on no line."
+          : "Outside workforce planning: its people aren't counted on staffing lines, and any hiring request for it sits on no line. Switch \"In workforce planning\" on (Organization › Designations) to plan it." };
+    return { lines, desks, openRequests, closedRequests, jobs, otherJobs, draftJobs, totals, steps, next };
   }
+
+  const steps: StoryStep[] = [decision];
   steps.push({
     key: "desks", label: "Desks",
     state: desks.length ? "done" : "info",
     text: desks.length
-      ? desks.map((d) => `${plural(Number(d.physical_seats) || 0, "desk")}${d.shared ? " (shared)" : ""}`).join(" + ")
+      ? desks.map((d) => {
+          const usable = usableDesks(d);
+          return `${plural(Number(d.physical_seats) || 0, "desk")}${usable != null ? ` (${usable} usable)` : ""}${d.shared ? " (shared)" : ""}`;
+        }).join(" + ")
       : lines.length ? "No desk group — its lines use a fixed number" : "No desk group",
   });
   steps.push({
     key: "lines", label: "Staffing lines",
-    state: lines.length ? "done" : decided ? "info" : "blocked",
+    state: lines.length ? "done" : st === "planned" ? "info" : "blocked",
     text: lines.length ? `${plural(lines.length, "line")} · ${totals.required} required` : "No staffing line yet",
   });
   steps.push({
@@ -202,26 +273,14 @@ export function buildDesignationStory(input: StoryInput): DesignationStory {
   });
   steps.push({
     key: "hiring", label: "Hiring requests",
-    state: !lines.length || (totals.stillToFind === 0 && openRequests.length === 0) ? "skip"
+    state: openRequests.length === 0 && (!lines.length || totals.stillToFind === 0) ? "skip"
       : pending.length || draftsReq.length || totals.notRequested > 0 ? "todo" : "done",
     text: !lines.length && openRequests.length === 0 ? "—"
       : openRequests.length === 0
-      ? (totals.stillToFind > 0 ? `${totals.notRequested || totals.stillToFind} not requested yet` : "None needed")
-      : [
-          pending.length ? `${pending.length} awaiting approval` : null,
-          draftsReq.length ? `${plural(draftsReq.length, "draft")} not sent` : null,
-          openRequests.length - pending.length - draftsReq.length ? `${openRequests.length - pending.length - draftsReq.length} approved` : null,
-          totals.notRequested ? `${totals.notRequested} not requested yet` : null,
-        ].filter(Boolean).join(" · "),
+      ? (totals.notRequested > 0 ? `${totals.notRequested} not requested yet` : totals.stillToFind > 0 ? `${totals.inHiring} in hiring` : "None needed")
+      : [...requestParts, totals.notRequested ? `${totals.notRequested} not requested yet` : null].filter(Boolean).join(" · "),
   });
-  steps.push({
-    key: "recruit", label: "ATS job",
-    state: !input.jobsByRequest ? "info" : noJob.length ? "todo" : jobs.length ? "done" : "skip",
-    text: !input.jobsByRequest ? "Loading…"
-      : noJob.length ? `${plural(noJob.length, "approved request")} with no ATS job`
-      : jobs.length ? jobs.map((j) => `${j.job_code ?? "Job"}${j.status === "paused" ? " (paused)" : ""}`).join(", ")
-      : !lines.length ? "—" : "No job needed yet",
-  });
+  steps.push(recruitStep);
 
   // ── The one next step ──
   let next: StoryNext;
@@ -234,19 +293,10 @@ export function buildDesignationStory(input: StoryInput): DesignationStory {
     kind: "plan",
     text: "Marked \"no staff needed now\", so hiring stays blocked. When it needs people, plan its staffing lines.",
   };
-  else if (pending.length) next = {
-    kind: "approve", requestId: pending[0].id,
-    text: `Approve or reject ${pending[0].requirement_no ?? "the request"} (${plural(Number(pending[0].number_required) || 0, "person", "people")}). Recruitment starts once it is approved.`,
-  };
-  else if (!input.jobsByRequest && openRequests.some((q) => HIRING.has(q.status))) next = { kind: "unknown", text: "Checking which ATS jobs recruit for its requests…" };
-  else if (noJob.length) next = {
-    kind: "job", requestId: noJob[0].id,
-    text: `${noJob[0].requirement_no ?? "A request"} is approved but no ATS job recruits for it${draftJobs.length ? " (a draft job doesn't count until it is opened)" : ""}. Link an open job or create one.`,
-  };
-  else if (draftsReq.length && totals.notRequested > 0) next = {
-    kind: "draft", requestId: draftsReq[0].id,
-    text: `${draftsReq[0].requirement_no ?? "A draft"} is still a draft — send it for approval; drafts don't count.`,
-  };
+  else if (pending.length) next = approveNext();
+  else if (checkingJobs) next = checkingNext;
+  else if (noJob.length) next = jobNext();
+  else if (draftsReq.length && totals.notRequested > 0) next = draftNext();
   else if (heldLine) next = {
     kind: "raise", planId: heldLine.plan_id,
     text: `Hiring for ${plural(Number(heldLine.auto_paused_need) || heldLine.uncoveredHiringRequirement, "person", "people")} on ${heldLine.shiftLabel} is held back because a request was declined. Raise it again on the line if it is needed.`,
@@ -255,10 +305,10 @@ export function buildDesignationStory(input: StoryInput): DesignationStory {
     kind: "request", planId: uncoveredLine.plan_id,
     text: `${plural(uncoveredLine.uncoveredHiringRequirement, "person", "people")} on ${uncoveredLine.shiftLabel} with no hiring request yet. The system raises one on the next save or tonight at 01:15 IST, or request it now on the line.`,
   };
-  else if (recruiting.length && totals.stillToFind > 0) {
-    const j = jobs[0];
-    next = { kind: "recruit", jobId: j?.id, text: `Recruiting: ${plural(totals.stillToFind, "person", "people")} still to find through ${jobs.map((x) => x.job_code ?? "the ATS job").join(", ")}.` };
-  }
+  else if (recruiting.length && totals.stillToFind > 0) next = {
+    kind: "recruit", jobId: jobs[0]?.id,
+    text: `Recruiting: ${plural(totals.stillToFind, "person", "people")} still to find through ${jobCodes}.`,
+  };
   else if (totals.onTheWay > 0 && totals.stillToFind === 0 && totals.short > 0) next = {
     kind: "join", text: `${plural(totals.onTheWay, "person", "people")} in training or joining will close the gap. Nothing to hire.`,
   };
@@ -268,5 +318,5 @@ export function buildDesignationStory(input: StoryInput): DesignationStory {
     text: totals.extra ? `Fully staffed, with ${totals.extra} extra on roll.` : "Fully staffed. Nothing to do.",
   };
 
-  return { lines, desks, openRequests, closedRequests, jobs, draftJobs, totals, steps, next };
+  return { lines, desks, openRequests, closedRequests, jobs, otherJobs, draftJobs, totals, steps, next };
 }

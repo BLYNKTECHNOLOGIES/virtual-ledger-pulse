@@ -15,26 +15,26 @@ export function WorkforceChainBand({ current, className }: { current: ChainStepK
   const next = CHAIN_STEPS[i + 1];
   return (
     <nav aria-label="Workforce planning steps" className={cn("rounded-xl border border-border bg-card", className)}>
-      {/* Tablets and up: the whole chain. */}
-      <ol className="no-scrollbar hidden items-center overflow-x-auto px-1.5 py-1.5 md:flex">
+      {/* Laptops and up: the whole chain, six equal steps (labels wrap instead of scrolling). */}
+      <ol className="hidden grid-cols-[repeat(6,minmax(0,1fr))] gap-1 px-1.5 py-1.5 lg:grid">
         {CHAIN_STEPS.map((s, k) => {
           const on = s.key === current;
           return (
-            <li key={s.key} className="flex shrink-0 items-center">
-              {k > 0 && <ChevronRight className="mx-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" aria-hidden />}
+            <li key={s.key} className="flex min-w-0 items-center gap-0.5">
               <Link to={s.to} aria-current={on ? "step" : undefined}
-                className={cn("flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors xl:px-2.5 xl:text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                className={cn("flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs leading-tight transition-colors xl:px-2.5 xl:text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   on ? "bg-primary/10 font-semibold text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
                 <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
                   on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{s.n}</span>
-                <span className="whitespace-nowrap">{s.label}</span>
+                <span className="min-w-0">{s.label}</span>
               </Link>
+              {k < CHAIN_STEPS.length - 1 && <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/50 xl:block" aria-hidden />}
             </li>
           );
         })}
       </ol>
-      {/* Phones: this step, with the steps either side. */}
-      <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-center gap-1 px-1.5 py-1.5 md:hidden">
+      {/* Phones and tablets: this step, with the steps either side. */}
+      <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-center gap-1 px-1.5 py-1.5 lg:hidden">
         {prev ? (
           <Link to={prev.to} aria-label={`Previous step: ${prev.label}`} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -157,7 +157,7 @@ export function GapWaterfall({ parts, onExplain, nextReady, className }: { parts
           {g.onTheWay ? <> − {g.onTheWay} on the way = <span className="font-medium text-foreground">{g.stillToFind} still to find</span></> : null}.
           {" "}Every line is counted on its own: an extra person on one line never fills another line's gap.
         </p>
-        {g.onTheWayExtra > 0 && <p>{g.onTheWayExtra} more in training or joining for lines that are already full.</p>}
+        {g.onTheWayExtra > 0 && <p>{g.onTheWayExtra} more in training or joining than their lines still need (not counted).</p>}
         {g.overRequested > 0 && <p>{g.overRequested} requested above what their lines still need (over-requested).</p>}
         {g.heldBack > 0 && <p>{g.heldBack} held back after HR declined part of an automatic request.</p>}
       </div>

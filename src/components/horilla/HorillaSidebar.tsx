@@ -265,6 +265,38 @@ const navGroups: NavGroup[] = [
 ];
 
 /**
+ * Query keys that pick a menu entry on a page with several entries (Quiz and LMS ?view=, Organization ?tab=).
+ * Other parameters (filters, deep links, the designation journey's ?story=) never change which entry is active.
+ */
+const ENTRY_KEYS = new Map<string, Set<string>>();
+for (const g of navGroups) {
+  for (const it of g.items) {
+    for (const p of [it.path, ...(it.children ?? []).map((c) => c.path)]) {
+      const [base, query] = p.split("?");
+      if (!query) continue;
+      const keys = ENTRY_KEYS.get(base) ?? new Set<string>();
+      query.split("&").forEach((kv) => keys.add(kv.split("=")[0]));
+      ENTRY_KEYS.set(base, keys);
+    }
+  }
+}
+/** Every parameter of a menu entry's query is in the current search (extra parameters are ignored). */
+function queryMatches(query: string, search: string): boolean {
+  const cur = new URLSearchParams(search);
+  return query.split("&").every((kv) => {
+    const [k, v = ""] = kv.split("=");
+    return cur.get(decodeURIComponent(k)) === decodeURIComponent(v);
+  });
+}
+/** No parameter that picks another entry on this page is set. */
+function noEntryKey(pathname: string, search: string): boolean {
+  const keys = ENTRY_KEYS.get(pathname);
+  if (!keys) return true;
+  const cur = new URLSearchParams(search);
+  return !Array.from(keys).some((k) => cur.has(k));
+}
+
+/**
  * Page name for the browser tab, taken from this menu: the longest matching path wins, and a
  * generic child label ("Overview", "Dashboard") is replaced by its section name.
  */
@@ -275,7 +307,7 @@ export function hrmsNavLabel(pathname: string, search = ""): string | null {
     const [base, query] = path.split("?");
     if (base === "/hrms") return;
     if (pathname !== base && !pathname.startsWith(base + "/")) return;
-    if (query && search !== `?${query}`) return;
+    if (query && !queryMatches(query, search)) return;
     const len = base.length + (query ? query.length + 1 : 0);
     if (!best || len > best.len) best = { len, label };
   };
@@ -406,8 +438,9 @@ export function HorillaSidebar({
       const tab = new URLSearchParams(location.search).get("tab");
       return want ? tab === want : !tab || tab === "structure";
     }
-    if (!query) return !location.search;
-    return location.search === `?${query}`;
+    // Filters and deep links (?department=, ?status=, the journey's ?story=) keep the entry active.
+    if (!query) return noEntryKey(pathname, location.search);
+    return queryMatches(query, location.search);
   };
 
   const toggleExpand = (label: string) => {

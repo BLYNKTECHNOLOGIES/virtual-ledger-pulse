@@ -15,7 +15,7 @@ export type AttentionSeverity = "high" | "medium" | "low";
 export type AttentionTopic = "hiring" | "people" | "desks" | "plan";
 
 export type AttentionAction =
-  | { kind: "line"; label: string; planId: string }
+  | { kind: "line"; label: string; planId: string; tab?: "people" }
   | { kind: "requirement"; label: string; reqId: string }
   | { kind: "approve"; label: string; req: any }
   | { kind: "reject"; label: string; req: any }
@@ -260,7 +260,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       hint: "Set the shift they move to, so the right line counts them.",
       items: trainShift.map((t) => ({
         key: t.employee_id, title: t.full_name || "Trainee", detail: `${t.position_title ?? "Designation"} · ${t.line_label ? `covering ${t.line_label}` : `no line${allShifts}`}`,
-        actions: t.plan_id ? [{ kind: "line", label: "Set shift", planId: t.plan_id }] : [],
+        actions: t.plan_id ? [{ kind: "line", label: "Set shift", planId: t.plan_id, tab: "people" }] : [],
       })),
     });
     // People on no line do have a shift: with a shift filter, only those working that shift.

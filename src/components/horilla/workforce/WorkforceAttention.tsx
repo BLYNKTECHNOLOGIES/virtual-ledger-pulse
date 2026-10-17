@@ -33,7 +33,7 @@ interface Props {
   variant?: "full" | "compact";
   /** Two columns of topics on wide screens. */
   columns?: 1 | 2;
-  onOpenLine?: (planId: string) => void;
+  onOpenLine?: (planId: string, tab?: "people") => void;
   onOpenRequirement?: (reqId: string) => void;
   /** Approve / reject a pending request here; without them the request's details open instead. */
   onApprove?: (req: any) => void;
@@ -63,7 +63,7 @@ export function WorkforceAttention({
 
   const run = (x: AttentionAction) => {
     switch (x.kind) {
-      case "line": return onOpenLine ? onOpenLine(x.planId) : navigate(`/hrms/workforce-planning/staffing-plan?line=${x.planId}`);
+      case "line": return onOpenLine ? onOpenLine(x.planId, x.tab) : navigate(`/hrms/workforce-planning/staffing-plan?line=${x.planId}${x.tab ? `&tab=${x.tab}` : ""}`);
       case "requirement": return onOpenRequirement ? onOpenRequirement(x.reqId) : navigate(`/hrms/workforce-planning/hiring-requirements?req=${x.reqId}`);
       case "approve": return onApprove ? onApprove(x.req) : navigate(`/hrms/workforce-planning/hiring-requirements?req=${x.req.id}`);
       case "reject": return onReject ? onReject(x.req) : navigate(`/hrms/workforce-planning/hiring-requirements?req=${x.req.id}`);
@@ -201,8 +201,8 @@ function GroupRow({ g, open, wide, onToggle, run, busy }: { g: AttentionGroup; o
   );
 }
 
-/** Same shift change as the Employees shift screen, from tomorrow (IST). */
-function MoveAfterTrainingDialog({ trainee, onClose }: { trainee: TraineeRow | null; onClose: () => void }) {
+/** The same shift change as Attendance › Shifts makes, from tomorrow (IST). Also used by the line panel's People tab. */
+export function MoveAfterTrainingDialog({ trainee, onClose }: { trainee: TraineeRow | null; onClose: () => void }) {
   const { data: lookups } = useWorkforceLookups();
   const move = useMoveAfterTraining();
   const [shiftId, setShiftId] = useState("");
@@ -216,7 +216,7 @@ function MoveAfterTrainingDialog({ trainee, onClose }: { trainee: TraineeRow | n
         <AlertDialogHeader>
           <AlertDialogTitle>Move {trainee?.full_name || "this trainee"} off the training shift?</AlertDialogTitle>
           <AlertDialogDescription>
-            From {formatIstDate(tomorrow)} they work {name} and count on that shift's staffing line. This is the same shift change as on the Employees shift screen.
+            From {formatIstDate(tomorrow)} they work {name} and count on that shift's staffing line. It is the same shift change you can make on Attendance › Shifts.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {!trainee?.post_training_shift_id && (

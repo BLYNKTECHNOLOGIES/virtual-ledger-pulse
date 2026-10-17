@@ -13,9 +13,26 @@ export interface ReasonTarget {
 }
 
 /** What declining/cancelling does to the line's automatic hiring (mirrors hr_requirement_transition + reconcile). */
-export function declineConsequence(r: { source?: string | null; status?: string | null; number_required?: number | null; positions_filled?: number | null },
-  lineShortAfter: number | null): string | null {
-  if (r.source === "employee_separation") return "Once the person leaves, the line's automatic request covers their empty desk.";
+export function declineConsequence(
+  r: { source?: string | null; status?: string | null; number_required?: number | null; positions_filled?: number | null; adds_headcount?: number | null },
+  lineShortAfter: number | null,
+  /** The request's line, when known (for "adds headcount" requests: its required number). */
+  line?: { required_hc: number; follow_desks?: boolean | null } | null,
+): string | null {
+  const adds = Number(r.adds_headcount) || 0;
+  if (adds > 0) {
+    // Approving raised the line by the added number; cancelling an approved one takes back the part not filled yet.
+    if (!["approved", "recruitment_active", "partially_fulfilled"].includes(r.status ?? ""))
+      return "Nothing changes on the line: its required number goes up only when a request that adds people is approved.";
+    const back = Math.min(adds, Math.max(0, (r.number_required ?? 0) - (r.positions_filled ?? 0)));
+    if (back === 0) return "Everyone it added has been filled, so the line's required number stays as it is.";
+    if (line?.follow_desks) return "The line follows its desks, so its required number stays as it is.";
+    return line
+      ? `Cancelling takes back its ${back} unfilled: the line's required number goes from ${line.required_hc} to ${Math.max(0, line.required_hc - back)}.`
+      : `Cancelling takes back its ${back} unfilled from the line's required number.`;
+  }
+  if (r.source === "employee_separation")
+    return "The line's automatic request covers this desk instead: it is raised once the person has left (straight away if they already have).";
   if (r.source !== "capacity_occupancy") {
     return lineShortAfter && lineShortAfter > 0
       ? `The line is still short by ${lineShortAfter} — the system raises its own automatic request for it (awaiting approval).`

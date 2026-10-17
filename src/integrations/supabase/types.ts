@@ -1978,6 +1978,80 @@ export type Database = {
           },
         ]
       }
+      ats_job_templates: {
+        Row: {
+          benefits: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          description: string | null
+          employment_type: string
+          experience_max_years: number | null
+          experience_min_years: number | null
+          hr_notes: string | null
+          position_id: string
+          requirements: string | null
+          salary_max: number | null
+          salary_min: number | null
+          salary_period: string
+          show_salary: boolean
+          summary: string | null
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          benefits?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          description?: string | null
+          employment_type?: string
+          experience_max_years?: number | null
+          experience_min_years?: number | null
+          hr_notes?: string | null
+          position_id: string
+          requirements?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          salary_period?: string
+          show_salary?: boolean
+          summary?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          benefits?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          description?: string | null
+          employment_type?: string
+          experience_max_years?: number | null
+          experience_min_years?: number | null
+          hr_notes?: string | null
+          position_id?: string
+          requirements?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          salary_period?: string
+          show_salary?: boolean
+          summary?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_job_templates_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: true
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ats_jobs: {
         Row: {
           aliases: string[]

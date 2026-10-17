@@ -66,7 +66,7 @@ export function JobDescriptionLibraryDialog({
         open={open}
         onOpenChange={onOpenChange}
         title="Job Description Library"
-        description={`${jds?.length ?? 0} role descriptions — view each one and link it to a position`}
+        description={`${jds?.length ?? 0} job descriptions — view each one and link it to a designation`}
         contentClassName="max-w-4xl"
       >
         <div className="space-y-4">

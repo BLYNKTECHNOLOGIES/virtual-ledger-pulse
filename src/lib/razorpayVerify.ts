@@ -126,7 +126,7 @@ const LABELS: Record<string, string> = {
   date_of_joining: "Date of joining",
   probation_end_date: "Probation end date",
   employee_type: "Employment type",
-  designation: "Designation / title",
+  designation: "Designation",
   department: "Department",
   pan_number: "PAN",
   bank_account_number: "Bank account number",

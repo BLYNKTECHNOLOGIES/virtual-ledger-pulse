@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface RaciRole {
   id: string;
+  /** When linked to a designation, the database keeps name and department equal to it. */
+  position_id?: string | null;
   name: string;
   description: string | null;
   department: string | null;

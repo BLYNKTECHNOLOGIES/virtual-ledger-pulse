@@ -191,13 +191,13 @@ export function HiringRequirementDialog({
               {!needsLine && !limited && <SelectItem value="none">Not part of a staffing line</SelectItem>}
               {lineChoices.map((l) => (
                 <SelectItem key={l.plan_id} value={l.plan_id}>
-                  {l.department_name ?? "Department"} · {l.position_title ?? "Role"} · {l.shiftLabel} — {l.required_hc} required, {l.current_hc} on roll
+                  {l.department_name ?? "Department"} · {l.position_title ?? "Designation"} · {l.shiftLabel} — {l.required_hc} required, {l.current_hc} on roll
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           {needsLine && !form.staffing_plan_id && (
-            <p className="text-xs text-destructive">This role has staffing lines — pick the one this requirement is for. The shift comes from the line.</p>
+            <p className="text-xs text-destructive">This designation has staffing lines — pick the one this requirement is for. The shift comes from the line.</p>
           )}
           {becomesManual && (
             <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
@@ -229,13 +229,13 @@ export function HiringRequirementDialog({
             </div>
 
             <div className="space-y-1">
-              <Label>Position</Label>
+              <Label>Designation</Label>
               <Select
                 disabled={limited} value={form.position_id}
                 onValueChange={(v) => set({ position_id: v })}
               >
                 <SelectTrigger className="text-foreground">
-                  <SelectValue placeholder="Select position" />
+                  <SelectValue placeholder="Select designation" />
                 </SelectTrigger>
                 <SelectContent>
                   {positions.map((p) => {

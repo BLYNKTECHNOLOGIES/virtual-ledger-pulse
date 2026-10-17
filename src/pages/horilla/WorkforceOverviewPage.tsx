@@ -179,18 +179,18 @@ export default function WorkforceOverviewPage() {
         <ErrorState title="Couldn't load staffing figures" error={matrix.error} onRetry={() => matrix.refetch()} />
       ) : rows.length === 0 ? (
         <EmptyState icon={ClipboardList} title="No staffing lines yet"
-          description="Add a line for each role and shift in the staffing plan. People on roll and the pipeline are then counted for you."
+          description="Add a line for each designation and shift in the staffing plan. People on roll and the pipeline are then counted for you."
           action={<Button asChild><Link to="/hrms/workforce-planning/staffing-plan">Open the staffing plan</Link></Button>} />
       ) : filtered.length === 0 ? (
         <>
           <EmptyState icon={ClipboardList} title="No staffing lines match these filters"
             description={filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId))
-              ? "This role has no staffing line yet, so nobody can hire for it. Plan its lines, or clear the filters."
+              ? "This designation has no staffing line yet, so nobody can hire for it. Plan its lines, or clear the filters."
               : "Change or clear the filters to see the figures again."}
             action={
               <div className="flex flex-wrap justify-center gap-2">
                 {canManage && filters.positionId !== "all" && !rows.some((r) => r.position_id === filters.positionId || (r.role_ids ?? []).includes(filters.positionId)) && (
-                  <Button asChild><Link to={`/hrms/workforce-planning/staffing-plan?plan_role=${filters.positionId}`}>Plan lines for this role</Link></Button>
+                  <Button asChild><Link to={`/hrms/workforce-planning/staffing-plan?plan_role=${filters.positionId}`}>Plan lines for this designation</Link></Button>
                 )}
                 <Button variant="outline" onClick={() => setFilters({ ...EMPTY_FILTERS })}>Clear filters</Button>
               </div>
@@ -275,7 +275,7 @@ export default function WorkforceOverviewPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve {approving?.requirement_no}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {approving?.number_required} {approving?.number_required === 1 ? "person" : "people"} for {approving?.positions?.title ?? "this role"}
+              {approving?.number_required} {approving?.number_required === 1 ? "person" : "people"} for {approving?.positions?.title ?? "this designation"}
               {approving?.target_joining_date ? `, joining by ${formatIstDate(approving.target_joining_date)}` : ""}. Recruitment can start once it is approved.
             </AlertDialogDescription>
           </AlertDialogHeader>

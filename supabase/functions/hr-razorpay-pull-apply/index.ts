@@ -109,20 +109,18 @@ function razorpayValueFor(field: string, snap: any, dismissed: boolean): string 
   }
 }
 
-async function resolveDepartmentId(svc: any, name: string): Promise<{ id: string | null; created: boolean }> {
-  const { data: found } = await svc.from("departments").select("id").ilike("name", name).limit(1).maybeSingle();
-  if (found?.id) return { id: found.id, created: false };
-  const { data: made, error } = await svc.from("departments").insert({ name }).select("id").maybeSingle();
-  if (error) throw new Error(`Could not create department "${name}": ${error.message}`);
-  return { id: made?.id ?? null, created: true };
+// Departments and designations are set up on HRMS › Organization only. Taking a RazorpayX value that
+// matches none of them is refused with a clear reason instead of creating an unplanned one.
+async function resolveDepartmentId(svc: any, name: string): Promise<string> {
+  const { data: found } = await svc.from("departments").select("id").ilike("name", name.trim()).limit(1).maybeSingle();
+  if (found?.id) return found.id;
+  throw new Error(`No HRMS department is called "${name}". Add it on Organization › Departments, or correct it in RazorpayX.`);
 }
 
-async function resolvePositionId(svc: any, title: string): Promise<{ id: string | null; created: boolean }> {
-  const { data: found } = await svc.from("positions").select("id").ilike("title", title).limit(1).maybeSingle();
-  if (found?.id) return { id: found.id, created: false };
-  const { data: made, error } = await svc.from("positions").insert({ title }).select("id").maybeSingle();
-  if (error) throw new Error(`Could not create position "${title}": ${error.message}`);
-  return { id: made?.id ?? null, created: true };
+async function resolvePositionId(svc: any, title: string): Promise<string> {
+  const { data: found } = await svc.from("positions").select("id").ilike("title", title.trim()).limit(1).maybeSingle();
+  if (found?.id) return found.id;
+  throw new Error(`No HRMS designation is called "${title}". Add it on Organization › Designations, or correct it in RazorpayX.`);
 }
 
 async function upsertWorkInfo(svc: any, employeeId: string, patch: Record<string, any>) {
@@ -258,17 +256,15 @@ Deno.serve(async (req) => {
             await upsertWorkInfo(svc, hrEmployeeId, { joining_date: value });
             break;
           case "department": {
-            const { id, created } = await resolveDepartmentId(svc, value);
-            if (!id) throw new Error("Department could not be resolved");
+            // Refused by the database when it doesn't match the person's designation — change the designation instead.
+            const id = await resolveDepartmentId(svc, value);
             await upsertWorkInfo(svc, hrEmployeeId, { department_id: id });
-            if (created) base.reason = `Created HRMS department "${value}"`;
             break;
           }
           case "designation": {
-            const { id, created } = await resolvePositionId(svc, value);
-            if (!id) throw new Error("Position could not be resolved");
-            await upsertWorkInfo(svc, hrEmployeeId, { job_position_id: id, job_role: value });
-            if (created) base.reason = `Created HRMS position "${value}"`;
+            // The title and the department follow the designation (kept by the database).
+            const id = await resolvePositionId(svc, value);
+            await upsertWorkInfo(svc, hrEmployeeId, { job_position_id: id });
             break;
           }
           case "bank_account":

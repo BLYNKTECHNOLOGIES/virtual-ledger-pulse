@@ -82,7 +82,7 @@ export const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : "--:--");
 export const humanize = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 const FIELD_LABELS: Record<string, string> = {
-  title: "Title", department_id: "Department", position_id: "Position", requisition_id: "Hiring requirement",
+  title: "Title", department_id: "Department", position_id: "Designation", requisition_id: "Hiring requirement",
   shift_ids: "Shifts", employment_type: "Employment type", location: "Location", openings: "Openings",
   salary_min: "Salary", salary_max: "Salary", salary_period: "Salary period", show_salary: "Salary visibility",
   experience_min_years: "Experience", experience_max_years: "Experience", summary: "Summary",

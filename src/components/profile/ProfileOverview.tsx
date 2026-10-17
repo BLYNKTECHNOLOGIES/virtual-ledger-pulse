@@ -229,7 +229,7 @@ export function ProfileOverview({
           <SectionBlock title="Work" icon={Briefcase}>
             <FieldGrid dense>
               <Field label="Badge ID" value={hrEmployee.badge_id ?? '—'} mono />
-              <Field label="Job position" value={jobTitle} />
+              <Field label="Designation" value={jobTitle} />
               <Field label="Department" value={workInfo?.departments?.name || '—'} />
               <Field label="Shift" value={workInfo?.shift_name || '—'} />
               <Field label="Work type" value={workTypeLabel(workInfo?.work_type, '—')} />

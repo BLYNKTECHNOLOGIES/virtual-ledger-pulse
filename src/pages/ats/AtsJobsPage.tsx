@@ -176,7 +176,7 @@ export default function AtsJobsPage() {
                       onClick={() => navigate(`/hrms/ats/jobs/${j.id}`)}
                       onKeyDown={(e) => e.key === "Enter" && navigate(`/hrms/ats/jobs/${j.id}`)}>
                       <TableCell>
-                        <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-foreground">{j.title}</span>{posNote(j) && <span className="text-xs text-muted-foreground">Position: {posNote(j)}</span>}{j.is_published && <CareersPill />}</div>
+                        <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-foreground">{j.title}</span>{posNote(j) && <span className="text-xs text-muted-foreground">Designation: {posNote(j)}</span>}{j.is_published && <CareersPill />}</div>
                         <div className="t-mono whitespace-nowrap text-xs text-muted-foreground">{j.job_code}</div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">{deptName(j.department_id)}</TableCell>

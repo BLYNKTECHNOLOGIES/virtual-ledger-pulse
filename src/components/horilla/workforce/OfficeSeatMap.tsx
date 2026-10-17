@@ -78,11 +78,11 @@ export function OfficeSeatMap({
               Live office seating map
             </h2>
             <Badge variant="outline" className="gap-1 text-[10px]">
-              <LockKeyhole className="h-3 w-3" /> Role locked
+              <LockKeyhole className="h-3 w-3" /> Designation locked
             </Badge>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Vacancies change by shift; every desk remains inside its allocated role cluster.
+            Vacancies change by shift; every desk remains inside its allocated designation cluster.
           </p>
         </div>
 
@@ -172,7 +172,7 @@ export function OfficeSeatMap({
                             <div className="min-w-0 text-center md:text-left">
                               <p className="truncate text-xs font-semibold text-foreground">{role.positionTitle}</p>
                               <p className="mt-0.5 flex items-center justify-center gap-1 text-[10px] text-muted-foreground md:justify-start">
-                                <LockKeyhole className="h-2.5 w-2.5" /> {role.trainingOnly ? "Training use only" : "Role reserved"}
+                                <LockKeyhole className="h-2.5 w-2.5" /> {role.trainingOnly ? "Training use only" : "Designation reserved"}
                               </p>
                             </div>
 
@@ -272,7 +272,7 @@ export function OfficeSeatMap({
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-border bg-background" /> Available</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-warning bg-warning/25" /> On notice{onNoticeCount > 0 ? ` (${onNoticeCount})` : ""}</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-destructive bg-destructive/15" /> Over capacity</span>
-            <span className="flex items-center gap-1.5"><LockKeyhole className="h-3 w-3" /> Locked to role</span>
+            <span className="flex items-center gap-1.5"><LockKeyhole className="h-3 w-3" /> Locked to a designation</span>
           </div>
         </div>
       </div>

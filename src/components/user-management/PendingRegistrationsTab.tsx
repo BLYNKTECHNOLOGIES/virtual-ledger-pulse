@@ -45,8 +45,6 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
   const [approvalDialog, setApprovalDialog] = useState<PendingRegistration | null>(null);
   const [rejectionDialog, setRejectionDialog] = useState<PendingRegistration | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
-  const [selectedPositionId, setSelectedPositionId] = useState<string>("");
   const [rejectionReason, setRejectionReason] = useState("");
   const { toast } = useToast();
   const { hasRole } = useAuth();
@@ -72,55 +70,20 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
     },
   });
 
-  // Fetch departments
-  const { data: departments = [] } = useQuery({
-    queryKey: ["departments-for-approval"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("departments")
-        .select("id, name, icon")
-        .eq("is_active", true)
-        .order("hierarchy_level", { ascending: true });
-      if (error) throw error;
-      return data as { id: string; name: string; icon: string | null }[];
-    },
-  });
-
-  // Fetch positions for the selected department
-  const { data: positions = [] } = useQuery({
-    queryKey: ["positions-for-approval", selectedDepartmentId],
-    queryFn: async () => {
-      if (!selectedDepartmentId) return [];
-      const { data, error } = await supabase
-        .from("positions")
-        .select("id, title")
-        .eq("department_id", selectedDepartmentId)
-        .eq("is_active", true)
-        .order("hierarchy_level", { ascending: true });
-      if (error) throw error;
-      return data as { id: string; title: string }[];
-    },
-    enabled: !!selectedDepartmentId,
-  });
-
   // Approve mutation
   const approveMutation = useMutation({
     mutationFn: async ({
       registrationId,
       roleId,
-      departmentId,
-      positionId,
     }: {
       registrationId: string;
       roleId: string;
-      departmentId: string;
-      positionId: string;
     }) => {
-      // Approval runs server-side: it verifies Super Admin, applies the role /
-      // department / position, and lifts the login ban that keeps pending
-      // accounts from obtaining a session.
+      // Approval runs server-side: it verifies Super Admin, applies the role and lifts the login ban
+      // that keeps pending accounts from obtaining a session. Department and designation are not
+      // chosen here: they come from HRMS once the login is linked to an employee.
       const { data, error } = await supabase.functions.invoke("approve-erp-registration", {
-        body: { registrationId, roleId, departmentId, positionId },
+        body: { registrationId, roleId },
       });
 
       if (error) throw error;
@@ -136,8 +99,6 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setApprovalDialog(null);
       setSelectedRoleId("");
-      setSelectedDepartmentId("");
-      setSelectedPositionId("");
     },
     onError: (error: any) => {
       toast({
@@ -220,10 +181,10 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
 
   const handleApprove = () => {
     if (!approvalDialog) return;
-    if (!selectedRoleId || !selectedDepartmentId || !selectedPositionId) {
+    if (!selectedRoleId) {
       toast({
         title: "Missing Information",
-        description: "Please select a role, department, and position before approving",
+        description: "Please choose a role before approving",
         variant: "destructive",
       });
       return;
@@ -232,8 +193,6 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
     approveMutation.mutate({
       registrationId: approvalDialog.id,
       roleId: selectedRoleId,
-      departmentId: selectedDepartmentId,
-      positionId: selectedPositionId,
     });
   };
 
@@ -251,8 +210,6 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
   const closeApproval = () => {
     setApprovalDialog(null);
     setSelectedRoleId("");
-    setSelectedDepartmentId("");
-    setSelectedPositionId("");
   };
 
   /** Close the rejection dialog and forget the typed reason. */
@@ -313,7 +270,7 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
       )}
       <Panel
         title="Sign-up approvals"
-        description="People who registered on the sign-up page. Approving turns on their login with the role, department and position you choose."
+        description="People who registered on the sign-up page. Approving turns on their login with the role you choose; their department and designation come from HRMS."
         bodyClassName="p-0 sm:p-0"
         actions={
           <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 gap-1.5" aria-label="Refresh sign-ups">
@@ -439,8 +396,6 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
           if (!o) {
             setApprovalDialog(null);
             setSelectedRoleId("");
-            setSelectedDepartmentId("");
-            setSelectedPositionId("");
           }
         }}
       >
@@ -448,7 +403,7 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
           <DialogHeader>
             <DialogTitle>Approve sign-up</DialogTitle>
             <DialogDescription>
-              Choose the role, department and position this person starts with. Their login works as soon as you approve.
+              Choose the role this person starts with. Their login works as soon as you approve.
             </DialogDescription>
           </DialogHeader>
 
@@ -484,48 +439,9 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
                 </Select>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="approve-department">Department <span className="text-destructive">*</span></Label>
-                  <Select
-                    value={selectedDepartmentId}
-                    onValueChange={(value) => {
-                      setSelectedDepartmentId(value);
-                      setSelectedPositionId("");
-                    }}
-                  >
-                    <SelectTrigger id="approve-department">
-                      <SelectValue placeholder="Choose department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.icon} {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="approve-position">Position <span className="text-destructive">*</span></Label>
-                  <Select
-                    value={selectedPositionId}
-                    onValueChange={setSelectedPositionId}
-                    disabled={!selectedDepartmentId}
-                  >
-                    <SelectTrigger id="approve-position">
-                      <SelectValue placeholder={selectedDepartmentId ? "Choose position" : "Pick a department first"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {positions.map((pos) => (
-                        <SelectItem key={pos.id} value={pos.id}>
-                          {pos.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <p className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                Department and designation aren't chosen here: they come from the person's HRMS record once this login is linked to it.
+              </p>
             </div>
           )}
 
@@ -540,12 +456,7 @@ export function PendingRegistrationsTab({ pendingCleanups = [], onCleanupChange 
             </Button>
             <Button
               onClick={handleApprove}
-              disabled={
-                approveMutation.isPending ||
-                !selectedRoleId ||
-                !selectedDepartmentId ||
-                !selectedPositionId
-              }
+              disabled={approveMutation.isPending || !selectedRoleId}
             >
               {approveMutation.isPending ? "Approving..." : "Approve & activate"}
             </Button>

@@ -49,7 +49,7 @@ export function buildStaffingGrid(
         key,
         departmentId: r.department_id,
         departmentName: r.department_name || "No department",
-        roleLabel: roleIds.map(title).filter(Boolean).join(" / ") || r.position_title || "Role",
+        roleLabel: roleIds.map(title).filter(Boolean).join(" / ") || r.position_title || "Designation",
         roleIds,
         seat: r.seat_capacity_id ? seatById.get(r.seat_capacity_id) ?? null : null,
         cells: new Map(),
@@ -133,7 +133,7 @@ export function StaffingGrid({ columns, rows, canManage, onOpenLine, onPlanCell,
           </colgroup>
           <thead className="border-b border-border bg-muted/40">
             <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="px-3 py-2 font-medium">Role</th>
+              <th className="px-3 py-2 font-medium">Designation</th>
               {columns.map((c) => <th key={c.id} className="truncate px-2 py-2 text-center font-medium" title={c.name}>{c.name.replace(/ Shift$/, "")}</th>)}
               <th className="px-2 py-2 text-center font-medium">Total</th>
             </tr>

@@ -449,7 +449,7 @@ export default function CapacitySeatsPage() {
         return {
           id: `plan-${plan.id}`,
           departmentName: (lookups?.departments || []).find((d: any) => d.id === plan.department_id)?.name || "Unassigned department",
-          positionTitle: roleIds.map(titleOf).filter(Boolean).join(" / ") || "Role",
+          positionTitle: roleIds.map(titleOf).filter(Boolean).join(" / ") || "Designation",
           physicalSeats: 0,
           occupiedSeats: sitters.length,
           overflow: 0,
@@ -563,7 +563,7 @@ export default function CapacitySeatsPage() {
         <ErrorState title="Couldn't load the desk groups" error={seatsErr} onRetry={() => refetchSeats()} />
       ) : seats.length === 0 ? (
         <EmptyState icon={LayoutGrid} title="No desk groups yet"
-          description="Add the desks each department and role uses. Staffing lines can then follow the desk count."
+          description="Add the desks each department and designation uses. Staffing lines can then follow the desk count."
           action={canManage ? <Button onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /> Add desk group</Button> : undefined} />
       ) : (
         <>
@@ -573,7 +573,7 @@ export default function CapacitySeatsPage() {
             <Cell label="Busiest shift" value={!showOccupancy ? "…" : workPeak ? <>{workPeak.assigned}<span className="text-lg font-medium text-muted-foreground"> / {workPeak.seats}</span></> : "—"}
               helper={workPeak ? `${workPeak.name}: people / their desks` : "no current shift schedules"} />
             <Cell label="Free in that shift" value={!showOccupancy ? "…" : workPeak ? Math.max(0, workPeak.seats - workPeak.assigned) : "—"}
-              helper={workPeak && workPeak.seats < workPeak.assigned ? `${workPeak.assigned - workPeak.seats} over` : "desks of roles working it"} />
+              helper={workPeak && workPeak.seats < workPeak.assigned ? `${workPeak.assigned - workPeak.seats} over` : "desks of designations working it"} />
             <Cell label="Desk groups over" tone={overGroups.length ? "danger" : "default"} value={!showOccupancy ? "…" : overGroups.length}
               helper={overText} />
           </MetricStrip>
@@ -620,7 +620,7 @@ export default function CapacitySeatsPage() {
                           </div>
                           <p className="text-[11px] text-muted-foreground">
                             {x.id === "unassigned" ? "No current shift schedule" : `${formatShiftTime(x.start_time)} – ${formatShiftTime(x.end_time)} IST`}
-                            {" · "}{training ? "trainees / training seats" : "people / desks of their roles"}
+                            {" · "}{training ? "trainees / training seats" : "people / desks of their designations"}
                           </p>
                           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
                             <div className={cn("h-full rounded-full", occupancyTone(x.utilisation))} style={{ width: `${Math.min(100, x.utilisation)}%` }} />
@@ -756,7 +756,7 @@ export default function CapacitySeatsPage() {
       />
 
       <DeskGroupRemoveDialog seat={deleteTarget} seats={seats as any[]} plans={headcountPlans as any[]}
-        lineLabel={(p: any) => `${(lookups?.positions || []).find((x: any) => x.id === p.position_id)?.title || "Role"} · ${allShifts.find((x) => x.id === p.shift_id)?.name || p.shift_label || "Any shift"}`}
+        lineLabel={(p: any) => `${(lookups?.positions || []).find((x: any) => x.id === p.position_id)?.title || "Designation"} · ${allShifts.find((x) => x.id === p.shift_id)?.name || p.shift_label || "Any shift"}`}
         onClose={() => setDeleteTarget(null)} />
     </div>
   );

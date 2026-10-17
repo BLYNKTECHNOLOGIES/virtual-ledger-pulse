@@ -14,7 +14,7 @@ const TYPE_LABEL: Record<string, string> = {
   headcount_plan: "Staffing line",
   seat_capacity: "Desk group",
   hiring_requirement: "Requirement",
-  position: "Position",
+  position: "Designation",
   employee: "Employee",
   onboarding: "Onboarding",
   user: "ERP user",
@@ -73,7 +73,7 @@ export function PlanHistoryDrawer({ open, onOpenChange }: { open: boolean; onOpe
           .filter(Boolean)
           .join(" / ");
       const m = new Map<string, string>();
-      (plans.data || []).forEach((p: any) => m.set(p.id, `${roles(p) || "Role"} · ${shiftText(p)}`));
+      (plans.data || []).forEach((p: any) => m.set(p.id, `${roles(p) || "Designation"} · ${shiftText(p)}`));
       (seats.data || []).forEach((s: any) => m.set(s.id, s.is_training_only ? "Training desks" : `${roles(s) || "Department"} desks`));
       (reqs.data || []).forEach((r: any) => m.set(r.id, r.requirement_no));
       (positions.data || []).forEach((p: any) => { if (!m.has(p.id)) m.set(p.id, p.title); });

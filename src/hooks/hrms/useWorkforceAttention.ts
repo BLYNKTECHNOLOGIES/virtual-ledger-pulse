@@ -98,7 +98,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     const today = istToday();
     const lineById = new Map(rows.map((r) => [r.plan_id, r]));
     const title = (id?: string | null) => (lookups?.positions ?? []).find((p: any) => p.id === id)?.title;
-    const lineName = (r: StaffingDerived) => `${r.position_title ?? "Role"} · ${r.shiftLabel}`;
+    const lineName = (r: StaffingDerived) => `${r.position_title ?? "Designation"} · ${r.shiftLabel}`;
     const inScope = (d?: string | null, p?: string | null) => (!dep || d === dep) && (!pos || p === pos);
     // With a shift filter, things that sit on no line still show — marked "all shifts" (they can't be placed in one).
     const allShifts = opts.shiftFiltered ? " · all shifts" : "";
@@ -108,7 +108,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     const noLine = (r: { staffing_plan_id?: string | null; plan_id?: string | null }) => !(r.staffing_plan_id ?? r.plan_id);
     const reqLabel = (r: any) => {
       const line = r.staffing_plan_id ? lineById.get(r.staffing_plan_id) : undefined;
-      return `${r.requirement_no} · ${r.positions?.title ?? "Role"} · ${line?.shiftLabel ?? r.shift_label ?? "Any shift"}`;
+      return `${r.requirement_no} · ${r.positions?.title ?? "Designation"} · ${line?.shiftLabel ?? r.shift_label ?? "Any shift"}`;
     };
 
     // 1. Requests waiting for approval.
@@ -143,7 +143,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
           if (canManage && job) actions.push({ kind: "link", label: `Link ${job.job_code ?? "open job"}`, to: `/hrms/ats/jobs?edit=${job.id}&requirement=${r.id}` });
           if (canManage) actions.push({ kind: "link", label: job ? "New job" : "Create job", to: `/hrms/ats/jobs?new=1&requirement=${r.id}` });
           if (!canManage) actions.push({ kind: "requirement", label: "Open", reqId: r.id });
-          return { key: r.id, title: reqLabel(r), detail: `${left} to hire${job ? ` · ${job.job_code ?? "A job"} "${job.title}" is open for this role` : ""}${noLine(r) ? allShifts : ""}`, actions };
+          return { key: r.id, title: reqLabel(r), detail: `${left} to hire${job ? ` · ${job.job_code ?? "A job"} "${job.title}" is open for this designation` : ""}${noLine(r) ? allShifts : ""}`, actions };
         }),
       });
     }
@@ -170,7 +170,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       hint: "Move them to their working shift so they count on their line.",
       items: ended.map((t) => ({
         key: t.employee_id, title: t.full_name || "Trainee",
-        detail: `${t.position_title ?? "Role"} · ended ${formatIstDate(t.training_end_date)} · to ${t.post_training_shift_name || "shift not set"}${t.plan_id ? "" : allShifts}`,
+        detail: `${t.position_title ?? "Designation"} · ended ${formatIstDate(t.training_end_date)} · to ${t.post_training_shift_name || "shift not set"}${t.plan_id ? "" : allShifts}`,
         actions: canManage ? [{ kind: "move-training", label: "Move shift", trainee: t }] : [],
       })),
     });
@@ -194,7 +194,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       title: `${plural(lineIssues.length, "request")} not on a staffing line`,
       hint: "They count on no line until you link or move them.",
       items: lineIssues.map((r: any) => ({
-        key: r.id, title: `${r.requirement_no} · ${r.positions?.title ?? "Role"}`,
+        key: r.id, title: `${r.requirement_no} · ${r.positions?.title ?? "Designation"}`,
         detail: `${alerts.onInactiveLine.includes(r) ? "Its line was removed" : "Not linked to a staffing line"}${allShifts}`,
         actions: [{ kind: "requirement", label: alerts.onInactiveLine.includes(r) ? "Move" : "Link", reqId: r.id }],
       })),
@@ -220,7 +220,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     const over = rows.filter((r) => r.staffingGap < 0 && !rebalKeys.has(`${r.department_id ?? "-"}|${r.position_id ?? "-"}`));
     if (rebal.length || over.length) groups.push({
       key: "rebalance", severity: "medium", topic: "people",
-      title: rebal.length ? `Move people before hiring (${plural(rebal.length, "role")})` : `${plural(over.length, "line")} overstaffed`,
+      title: rebal.length ? `Move people before hiring (${plural(rebal.length, "designation")})` : `${plural(over.length, "line")} overstaffed`,
       hint: rebal.length ? "One shift has more people than required while another is short." : "More people on roll than the line requires.",
       items: [
         ...rebal.map((h) => ({ key: h.key, title: h.role, detail: h.message.replace(`${h.role}: `, ""), actions: [] as AttentionAction[] })),
@@ -259,7 +259,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       title: `${plural(trainShift.length, "trainee")} without an after-training shift`,
       hint: "Set the shift they move to, so the right line counts them.",
       items: trainShift.map((t) => ({
-        key: t.employee_id, title: t.full_name || "Trainee", detail: `${t.position_title ?? "Role"} · ${t.line_label ? `covering ${t.line_label}` : `no line${allShifts}`}`,
+        key: t.employee_id, title: t.full_name || "Trainee", detail: `${t.position_title ?? "Designation"} · ${t.line_label ? `covering ${t.line_label}` : `no line${allShifts}`}`,
         actions: t.plan_id ? [{ kind: "line", label: "Set shift", planId: t.plan_id }] : [],
       })),
     });
@@ -268,10 +268,10 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
     if (unplannedHere.length) groups.push({
       key: "unplanned-people", severity: "medium", topic: "plan",
       title: `${plural(unplannedHere.reduce((a: number, u: any) => a + (u.current_hc ?? 0), 0), "person", "people")} on no staffing line`,
-      hint: "Their role and shift have no line, so they count nowhere. Add a line or fix their shift.",
+      hint: "Their designation and shift have no line, so they count nowhere. Add a line or fix their shift.",
       items: unplannedHere.map((u: any, i: number) => ({
         key: `${u.department_id}-${u.position_id}-${u.shift_id}-${i}`,
-        title: `${u.position_title ?? "No role"} · ${u.shift_name ?? "No shift"}`, detail: `${u.department_name ?? "No department"} · ${u.current_hc} on roll`,
+        title: `${u.position_title ?? "No designation"} · ${u.shift_name ?? "No shift"}`, detail: `${u.department_name ?? "No department"} · ${u.current_hc} on roll`,
         actions: canManage && u.position_id ? [{ kind: "link", label: "Add line", to: `/hrms/workforce-planning/staffing-plan?plan_role=${u.position_id}${u.shift_id ? `&plan_shift=${u.shift_id}` : ""}` }] : [],
       })),
     });
@@ -284,9 +284,9 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
         const dn = (id?: string | null) => ((lookups?.departments ?? []) as any[]).find((d) => d.id === id)?.name ?? "No department";
         groups.push({
           key: "unplanned-roles", severity: "medium", topic: "plan",
-          title: `${plural(roles.length, "role")} in planning not decided yet`,
+          title: `${plural(roles.length, "designation")} in planning not decided yet`,
           hint: "Nobody can hire for them until they get a staffing line. Decide each one: plan its lines, \"no staff needed now\", or out of planning.",
-          cta: { label: "Decide", to: "/hrms/employee/positions?planning=undecided" },
+          cta: { label: "Decide", to: "/hrms/organization?tab=designations&planning=undecided" },
           items: roles.map((p) => ({
             key: p.id, title: p.title, detail: `${dn(p.department_id)}${p.is_active === false ? " · tentative" : ""}${allShifts}`,
             actions: canManage ? [{ kind: "link", label: "Plan lines", to: `/hrms/workforce-planning/staffing-plan?plan_role=${p.id}` } as AttentionAction] : [],
@@ -317,7 +317,7 @@ export function useWorkforceAttention(rows: StaffingDerived[], opts: { scope?: A
       items: leavers.slice().sort((a, b) => (a.last_working_day ?? "9").localeCompare(b.last_working_day ?? "9")).map((p) => {
         const line = p.plan_id ? lineById.get(p.plan_id) : undefined;
         return {
-          key: p.employee_id, title: line ? lineName(line) : `${title(p.position_id) ?? "Role"} · not on a staffing line`,
+          key: p.employee_id, title: line ? lineName(line) : `${title(p.position_id) ?? "Designation"} · not on a staffing line`,
           detail: `${p.last_working_day ? `last day ${formatIstDate(p.last_working_day)}` : "last day not set"}${line ? "" : allShifts}`,
           actions: line ? [{ kind: "line", label: "Open line", planId: line.plan_id } as AttentionAction] : [],
         };

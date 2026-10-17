@@ -75,8 +75,6 @@ const navGroups: NavGroup[] = [
           { label: "Documents", path: "/hrms/employee/documents" },
           { label: "Separation", path: "/hrms/employee/separation" },
           { label: "F&F Settlement", path: "/hrms/offboarding/fnf" },
-          { label: "Departments", path: "/hrms/employee/departments", section: "Setup" },
-          { label: "Positions", path: "/hrms/employee/positions", section: "Setup" },
         ],
       },
       {
@@ -203,7 +201,17 @@ const navGroups: NavGroup[] = [
         ],
       },
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
-      { label: "Organization", icon: Building2, path: "/hrms/organization" },
+      {
+        label: "Organization",
+        icon: Building2,
+        path: "/hrms/organization",
+        children: [
+          { label: "Structure", path: "/hrms/organization" },
+          { label: "Reporting lines", path: "/hrms/organization?tab=reporting" },
+          { label: "Departments", path: "/hrms/organization?tab=departments" },
+          { label: "Designations", path: "/hrms/organization?tab=designations" },
+        ],
+      },
       { label: "Disciplinary Actions", icon: AlertTriangle, path: "/hrms/disciplinary-actions" },
     ],
   },

@@ -122,7 +122,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const trainees = (people.data || []).filter((p) => p.kind === "trainee");
   const lateHere = (overdueJoiners.data || []).filter((j) => j.plan_id === planIdForOverdue);
   const shifts = rotaOrder(planningShifts((lookups?.shifts || []) as any[]));
-  const positionTitle = (id: string) => ((lookups?.positions || []) as any[]).find((p) => p.id === id)?.title ?? "Role";
+  const positionTitle = (id: string) => ((lookups?.positions || []) as any[]).find((p) => p.id === id)?.title ?? "Designation";
 
   const scopeChanged = !!plan && (form.shift !== lineShift(plan) || form.seat !== (plan.seat_capacity_id ?? "none")
     || [...form.roles].sort().join() !== [...lineRoles(plan)].sort().join());
@@ -152,7 +152,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
     setError(null);
     const seatId = form.seat === "none" ? null : form.seat;
     const following = form.follow && !!seatId;
-    if (!form.roles.length) { setError("Pick at least one role for this line."); return; }
+    if (!form.roles.length) { setError("Pick at least one designation for this line."); return; }
     const shiftSame = form.shift === lineShift(plan);
     const primary = form.roles.includes(plan.position_id) ? plan.position_id : form.roles[0];
     save.mutate(
@@ -435,7 +435,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Roles on this line</Label>
+                      <Label>Designations on this line</Label>
                       <div className="flex flex-wrap items-center gap-1.5">
                         {form.roles.map((id) => (
                           <span key={id} className="inline-flex h-7 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 pl-2.5 pr-1 text-xs text-foreground">
@@ -450,13 +450,13 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                         {addableRoles.length > 0 && (
                           <Select value="" onValueChange={(v) => v && setForm((f) => ({ ...f, roles: [...f.roles, v] }))}>
                             <SelectTrigger className="h-7 w-auto gap-1 rounded-full border-dashed px-2.5 text-xs text-muted-foreground" aria-label="Share this line with another role">
-                              <Plus className="h-3 w-3" /> <SelectValue placeholder="Share with a role" />
+                              <Plus className="h-3 w-3" /> <SelectValue placeholder="Share with a designation" />
                             </SelectTrigger>
                             <SelectContent>{addableRoles.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}</SelectContent>
                           </Select>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">Roles on one line share one target (for example Payment Operations Associate / Executive). A role can have one line per shift; the save is refused if this overlaps another line.</p>
+                      <p className="text-xs text-muted-foreground">Designations on one line share one target (for example Payment Operations Associate / Executive). A designation can have one line per shift; the save is refused if this overlaps another line.</p>
                     </div>
                   </section>
 
@@ -533,7 +533,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                       <Select value={moveTo[r.id] ?? ""} onValueChange={(v) => setMoveTo((m) => ({ ...m, [r.id]: v }))}>
                         <SelectTrigger className="h-8 w-40 text-foreground"><SelectValue placeholder="Move to line" /></SelectTrigger>
                         <SelectContent>
-                          {targets.length === 0 && <SelectItem value="__none" disabled>No other line for this role</SelectItem>}
+                          {targets.length === 0 && <SelectItem value="__none" disabled>No other line for this designation</SelectItem>}
                           {targets.map((p: any) => <SelectItem key={p.id} value={p.id}>{(shifts as any[]).find((x) => x.id === p.shift_id)?.name ?? p.shift_label ?? "Any shift"}</SelectItem>)}
                         </SelectContent>
                       </Select>

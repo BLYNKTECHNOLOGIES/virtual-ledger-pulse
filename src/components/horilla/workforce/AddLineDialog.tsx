@@ -192,7 +192,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       open={open}
       onOpenChange={onOpenChange}
       title="Add staffing line"
-      description="One line per role and shift. People on roll, trainees and the pipeline are counted for you."
+      description="One line per designation and shift. People on roll, trainees and the pipeline are counted for you."
       contentClassName="md:max-w-2xl"
       focusContainer
       footer={
@@ -219,9 +219,9 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
           </Select>
         </div>
         <div className="space-y-1">
-          <Label>Role</Label>
+          <Label>Designation</Label>
           <Select value={form.position_id} onValueChange={(v) => set({ position_id: v, shared: form.shared.filter((id) => id !== v) })}>
-            <SelectTrigger className="text-foreground"><SelectValue placeholder="Select role" /></SelectTrigger>
+            <SelectTrigger className="text-foreground"><SelectValue placeholder="Select designation" /></SelectTrigger>
             <SelectContent>
               {positions.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
             </SelectContent>
@@ -257,7 +257,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Ticked by default: the shifts this role works in now.</p>
+            <p className="text-xs text-muted-foreground">Ticked by default: the shifts this designation works in now.</p>
           </div>
         ) : (
         <div className="space-y-1">

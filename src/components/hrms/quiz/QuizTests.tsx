@@ -71,7 +71,7 @@ export function QuizTests({ roles, roleSections, positions, canManage, transitio
     <div className="space-y-8">
       <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><h2 className="text-lg font-semibold">Tests</h2><p className="text-sm text-muted-foreground">One hiring test per company position. Scores are a weighted average of section scores.</p></div>
+          <div><h2 className="text-lg font-semibold">Tests</h2><p className="text-sm text-muted-foreground">One hiring test per designation. Scores are a weighted average of section scores.</p></div>
           {canManage && <Button onClick={() => setEditing("new")}><Plus className="h-4 w-4" />New test</Button>}
         </div>
         <div className="space-y-2 sm:hidden">
@@ -97,7 +97,7 @@ export function QuizTests({ roles, roleSections, positions, canManage, transitio
         </div>
         <Table className="hidden sm:table">
           <TableHeader><TableRow>
-            <TableHead>Position</TableHead><TableHead>Department</TableHead><TableHead numeric>Sections</TableHead><TableHead numeric>Minutes</TableHead>
+            <TableHead>Designation</TableHead><TableHead>Department</TableHead><TableHead numeric>Sections</TableHead><TableHead numeric>Minutes</TableHead>
             <TableHead>Cut-offs</TableHead><TableHead>Status</TableHead><TableHead>Readiness</TableHead><TableHead className="w-28"><span className="sr-only">Actions</span></TableHead>
           </TableRow></TableHeader>
           <TableBody>
@@ -235,9 +235,9 @@ function TestEditor({ role, sections: initial, positions, roles, onClose, transi
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!role && !position) throw new Error("Choose the company position this test is for.");
+      if (!role && !position) throw new Error("Choose the designation this test is for.");
       const dept = position?.departments?.code;
-      if (!role && !dept) throw new Error("This position has no department. Set its department first.");
+      if (!role && !dept) throw new Error("This designation has no department. Set its department first.");
       const code = role?.code ?? `${dept}_${position.title}`.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
       return quizRpc("cbt_save_role_blueprint", {
         p_role_id: role?.id ?? null, p_position_id: role ? role.position_id : positionId, p_code: code,
@@ -261,9 +261,9 @@ function TestEditor({ role, sections: initial, positions, roles, onClose, transi
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="sm:col-span-2">
-                <Label>Position</Label>
+                <Label>Designation</Label>
                 {role ? <p className="mt-2 text-sm font-medium">{role.name}</p> : (
-                  <Select value={positionId} onValueChange={setPositionId}><SelectTrigger className="text-foreground"><SelectValue placeholder="Choose a position" /></SelectTrigger>
+                  <Select value={positionId} onValueChange={setPositionId}><SelectTrigger className="text-foreground"><SelectValue placeholder="Choose a designation" /></SelectTrigger>
                     <SelectContent>{available.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}{p.departments?.code ? ` — ${p.departments.code}` : ""}</SelectItem>)}</SelectContent></Select>
                 )}
               </div>

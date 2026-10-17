@@ -328,9 +328,9 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
                     }} />
                 )} />
               </Field>
-              <Field label="Position">
+              <Field label="Designation">
                 <Controller control={control} name="position_id" render={({ field }) => (
-                  <LookupSelect value={field.value} placeholder="No position" options={posOptions}
+                  <LookupSelect value={field.value} placeholder="No designation" options={posOptions}
                     onChange={(v) => {
                       field.onChange(v);
                       const pos = positions.data?.find((x) => x.id === v);

@@ -57,7 +57,7 @@ export function FillsRequirementPicker({ departmentId, positionId, shiftId, valu
       <Label>Fills hiring requirement</Label>
       <Select value={value || "none"} disabled={disabled || !departmentId || !positionId}
         onValueChange={(v) => { touched.current = true; if (v === "none") (onDecline ? onDecline() : onChange("")); else onChange(v); }}>
-        <SelectTrigger className="text-foreground"><SelectValue placeholder={positionId ? "None" : "Pick the position first"} /></SelectTrigger>
+        <SelectTrigger className="text-foreground"><SelectValue placeholder={positionId ? "None" : "Pick the designation first"} /></SelectTrigger>
         <SelectContent>
           <SelectItem value="none">None — not filling a requirement</SelectItem>
           {current && <SelectItem value={current}>Current requirement</SelectItem>}

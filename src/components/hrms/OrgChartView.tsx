@@ -16,20 +16,9 @@ import {
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search,
   Maximize2, Minimize2, UserPlus, AlertTriangle, UserCog,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 /* ── Types ── */
-
-interface PosTreeNode {
-  id: string;
-  title: string;
-  level: number | null;
-  deptName: string;
-  deptCode: string;
-  employeeCount: number;
-  children: PosTreeNode[];
-}
 
 interface EmpChartNode {
   id: string;
@@ -41,41 +30,6 @@ interface EmpChartNode {
   children: EmpChartNode[];
 }
 
-
-/* ── Position Tree Item ── */
-
-function PosTreeItem({ node, depth = 0 }: { node: PosTreeNode; depth?: number }) {
-  const [expanded, setExpanded] = useState(depth < 3);
-  const hasChildren = node.children.length > 0;
-
-  return (
-    <div>
-      <div
-        className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
-        style={{ paddingLeft: `${depth * 28 + 12}px` }}
-        onClick={() => hasChildren && setExpanded(!expanded)}
-      >
-        {hasChildren ? (
-          expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        ) : <span className="w-3.5 shrink-0" />}
-        <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Briefcase className="h-3.5 w-3.5 text-primary" />
-        </div>
-        <span className="text-sm font-medium text-foreground truncate">{node.title}</span>
-        <Badge variant="outline" className="text-[10px] shrink-0">{node.deptCode}</Badge>
-        {node.level != null && <span className="text-[10px] text-muted-foreground shrink-0">L{node.level}</span>}
-        <span className="text-[10px] text-muted-foreground font-mono shrink-0 ml-auto">
-          {hasChildren ? `${node.children.length} sub` : ""}
-        </span>
-      </div>
-      {expanded && hasChildren && (
-        <div className="border-l-2 border-primary/10" style={{ marginLeft: `${depth * 28 + 26}px` }}>
-          {node.children.map(c => <PosTreeItem key={c.id} node={c} depth={depth + 1} />)}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ── Org Chart Node — lazy expand, one level at a time ── */
 
@@ -237,7 +191,6 @@ function OrgChartNode({
 /* ── Main Component ── */
 
 export function OrgChartView() {
-  const [posTree, setPosTree] = useState<PosTreeNode[]>([]);
   // Start with NO nodes expanded — user clicks to reveal each level
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -305,34 +258,6 @@ export function OrgChartView() {
       setRawDepts(depts);
 
 
-      const deptMap = new Map(depts.map(d => [d.id, d]));
-
-      // Build position hierarchy tree
-      const posMap = new Map<string, PosTreeNode>();
-      positions.forEach(p => {
-        const dept = deptMap.get(p.department_id) || { name: "Unknown", code: "?" };
-        posMap.set(p.id, {
-          id: p.id, title: p.title, level: p.hierarchy_level,
-          deptName: dept.name, deptCode: dept.code,
-          employeeCount: workInfos.filter(w => w.job_position_id === p.id).length,
-          children: [],
-        });
-      });
-      const posRoots: PosTreeNode[] = [];
-      positions.forEach(p => {
-        const node = posMap.get(p.id)!;
-        if (p.reports_to_position_id && posMap.has(p.reports_to_position_id)) {
-          posMap.get(p.reports_to_position_id)!.children.push(node);
-        } else {
-          posRoots.push(node);
-        }
-      });
-      const sortPos = (nodes: PosTreeNode[]) => {
-        nodes.sort((a, b) => (b.level ?? 0) - (a.level ?? 0) || a.title.localeCompare(b.title));
-        nodes.forEach(n => sortPos(n.children));
-      };
-      sortPos(posRoots);
-      setPosTree(posRoots);
 
       setLoading(false);
     }
@@ -650,29 +575,11 @@ export function OrgChartView() {
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" /></div>;
 
+  // The designed structure (designations and who they report to) is its own view, OrgStructureView.
   return (
-    <Tabs defaultValue="employee" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="position" className="gap-1.5"><Briefcase className="h-3.5 w-3.5" />Position Hierarchy</TabsTrigger>
-        <TabsTrigger value="employee" className="gap-1.5"><Users className="h-3.5 w-3.5" />Employee Hierarchy</TabsTrigger>
-      </TabsList>
-
-      {/* Position Hierarchy */}
-      <TabsContent value="position">
-        {posTree.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">
-            <Building2 className="h-10 w-10 mx-auto opacity-20 mb-2" />
-            No positions found
-          </div>
-        ) : (
-          <div className="border border-border rounded-lg p-3 bg-muted/5">
-            {posTree.map(n => <PosTreeItem key={n.id} node={n} />)}
-          </div>
-        )}
-      </TabsContent>
-
-      {/* Employee Hierarchy - Visual Org Chart */}
-      <TabsContent value="employee">
+    <div className="space-y-4">
+      {/* Reporting lines — visual org chart of people */}
+      <div>
         <div
           ref={fullscreenRef}
           className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 bg-background" : ""}`}
@@ -820,7 +727,7 @@ export function OrgChartView() {
             </div>
           </div>
         </div>
-      </TabsContent>
+      </div>
 
       {/* Assign reporting manager */}
       <Dialog open={!!assignTarget} onOpenChange={open => { if (!open) setAssignTarget(null); }}>
@@ -857,6 +764,6 @@ export function OrgChartView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Tabs>
+    </div>
   );
 }

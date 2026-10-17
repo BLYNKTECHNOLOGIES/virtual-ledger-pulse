@@ -2,7 +2,7 @@
 import React, { useEffect, Suspense } from 'react';
 import { lazyWithRetry as lazy } from './lib/lazyWithRetry';
 
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, useLocation } from 'react-router-dom';
 // --- Eager: app shell, providers, guards, first-paint login, tiny 404 ---
 import { TerminalLayout } from './components/terminal/TerminalLayout';
 import { LoginPage } from './components/website/pages/LoginPage';
@@ -80,8 +80,6 @@ const HorillaDashboard = lazy(() => import('./pages/horilla/HorillaDashboard'));
 const HRPoliciesPage = lazy(() => import('./pages/horilla/HRPoliciesPage'));
 const EmployeeListPage = lazy(() => import('./pages/horilla/EmployeeListPage'));
 const EmployeeProfilePage = lazy(() => import('./pages/horilla/EmployeeProfilePage'));
-const DepartmentsPage = lazy(() => import('./pages/horilla/DepartmentsPage'));
-const PositionsPage = lazy(() => import('./pages/horilla/PositionsPage'));
 const AttendanceOverviewPage = lazy(() => import('./pages/horilla/AttendanceOverviewPage'));
 const ShiftsPage = lazy(() => import('./pages/horilla/ShiftsPage'));
 const HoursOverviewPage = lazy(() => import('./pages/horilla/HoursOverviewPage'));
@@ -159,6 +157,14 @@ const LmsPage = lazy(() => import('./pages/horilla/LmsPage'));
 const ExchangeAccountsSettings = lazy(() => import('./pages/ExchangeAccountsSettings'));
 const ReportSettings = lazy(() => import('./pages/ReportSettings'));
 const OAuthConsent = lazy(() => import('./pages/OAuthConsent'));
+
+/** Old Employees › Departments / Positions addresses open the matching Organization tab, keeping their filters. */
+function OrgTabRedirect({ tab }: { tab: string }) {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set("tab", tab);
+  return <Navigate to={`/hrms/organization?${params.toString()}`} replace />;
+}
 
 const hrmsGate = (permissions: string[], element: React.ReactNode) => (
   <PermissionGate permissions={permissions}>{element}</PermissionGate>
@@ -839,8 +845,10 @@ const router = createBrowserRouter([
       children: [
         { index: true, element: <PermissionGate permissions={["hrms_view", "hrms_manage"]} fallback={<PermissionGate permissions={["hrms_lms_view", "hrms_lms_manage"]}><Navigate to="/hrms/lms" replace /></PermissionGate>}><HorillaDashboard /></PermissionGate> },
         { path: "employee", element: hrmsGate(["hrms_view", "hrms_manage"], <EmployeeListPage />) },
-        { path: "employee/departments", element: hrmsGate(["hrms_view", "hrms_manage"], <DepartmentsPage />) },
-        { path: "employee/positions", element: hrmsGate(["hrms_view", "hrms_manage"], <PositionsPage />) },
+        // Departments and designations live on Organization; the old addresses keep working.
+        { path: "employee/departments", element: <OrgTabRedirect tab="departments" /> },
+        { path: "employee/positions", element: <OrgTabRedirect tab="designations" /> },
+        { path: "employee/designations", element: <OrgTabRedirect tab="designations" /> },
         { path: "employee/:id", element: hrmsGate(["hrms_view", "hrms_manage"], <EmployeeProfilePage />) },
         { path: "attendance", element: hrmsGate(["hrms_view", "hrms_manage"], <AttendanceOverviewPage />) },
         { path: "attendance/biometric-devices", element: hrmsGate(["hrms_view", "hrms_manage"], <BiometricDevicesPage />) },

@@ -7,7 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { fullName } from "@/lib/hrms/employeeFields";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Building2, Search, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Search, Users, Briefcase } from "lucide-react";
 import { getDepartmentVisual } from "@/lib/departmentIcon";
 
 import { toast } from "sonner";
@@ -19,18 +19,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 
-export default function DepartmentsPage() {
+/** Departments setup. Shown on Organization › Departments (embedded); the old route redirects there. */
+export default function DepartmentsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", code: "", description: "", icon: "", head_employee_id: "" });
+  const EMPTY_FORM = { name: "", code: "", description: "", icon: "", head_employee_id: "", order: "" };
+  const [form, setForm] = useState(EMPTY_FORM);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: departments, isLoading } = useQuery({
     queryKey: ["hr_departments"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("departments").select("*").order("name");
+      const { data, error } = await supabase.from("departments").select("*")
+        .order("hierarchy_level", { ascending: true, nullsFirst: false }).order("name");
       if (error) throw error;
       return data || [];
     },
@@ -42,15 +45,15 @@ export default function DepartmentsPage() {
   const { data: planningStatus } = usePositionPlanningStatus(canManageHeads);
   const { data: deptPositions = [] } = useQuery({
     queryKey: ["hr_positions", "dept-planning"],
-    enabled: canManageHeads,
     queryFn: async () => {
-      const { data, error } = await supabase.from("positions").select("id, department_id");
+      const { data, error } = await supabase.from("positions").select("id, department_id, is_active");
       if (error) throw error;
       return data || [];
     },
   });
   const undecidedIn = (deptId: string) =>
-    (deptPositions as any[]).filter((p) => p.department_id === deptId && planningStatus?.get(p.id)?.status === "undecided").length;
+    (deptPositions as any[]).filter((p) => p.department_id === deptId && p.is_active !== false && planningStatus?.get(p.id)?.status === "undecided").length;
+  const designationsIn = (deptId: string) => (deptPositions as any[]).filter((p) => p.department_id === deptId && p.is_active !== false).length;
   const { data: activeEmployees = [] } = useQuery({
     queryKey: ["dept_head_choices"],
     queryFn: async () => {
@@ -79,7 +82,21 @@ export default function DepartmentsPage() {
     return gone ? `${fullName(gone)} (left) — choose a new head` : null;
   };
 
-  const { data: empCounts } = useQuery({
+  // People on roll: active employees only (the org directory), so ex-employees never count.
+  const { data: directory } = useQuery({
+    queryKey: ["org_directory"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("hr_org_chart_directory");
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const empCounts = (directory || []).reduce<Record<string, number>>((acc, d: any) => {
+    if (d.department_id) acc[d.department_id] = (acc[d.department_id] || 0) + 1;
+    return acc;
+  }, {});
+  // Work records of anyone, including people who have left, still point at the department and block deleting it.
+  const { data: recordCounts } = useQuery({
     queryKey: ["dept_emp_counts"],
     queryFn: async () => {
       const { data } = await supabase.from("hr_employee_work_info").select("department_id");
@@ -96,12 +113,14 @@ export default function DepartmentsPage() {
       if (editId) {
         const { error } = await supabase.from("departments").update({
           name: form.name, code: form.code, description: form.description, icon: form.icon,
+          hierarchy_level: form.order.trim() ? parseInt(form.order, 10) : null,
           ...(canManageHeads ? { head_employee_id: form.head_employee_id || null } : {}),
         } as any).eq("id", editId);
         if (error) throw error;
       } else {
         const { data, error } = await supabase.from("departments").insert({
           name: form.name, code: form.code, description: form.description, icon: form.icon,
+          ...(form.order.trim() ? { hierarchy_level: parseInt(form.order, 10) } : {}),
           ...(canManageHeads && form.head_employee_id ? { head_employee_id: form.head_employee_id } : {}),
         } as any).select("id").single();
         if (error) throw error;
@@ -111,7 +130,7 @@ export default function DepartmentsPage() {
     onSuccess: (newId) => {
       if (!editId && newId && canManageHeads) {
         toast.success("Department created", {
-          action: { label: "Add a position to it", onClick: () => navigate(`/hrms/employee/positions?add=1&department=${newId}`) },
+          action: { label: "Add a designation to it", onClick: () => navigate(`/hrms/organization?tab=designations&add=1&department=${newId}`) },
           duration: 10000,
         });
       } else toast.success(editId ? "Department updated" : "Department created");
@@ -148,11 +167,11 @@ export default function DepartmentsPage() {
   const closeDialog = () => {
     setAddOpen(false);
     setEditId(null);
-    setForm({ name: "", code: "", description: "", icon: "", head_employee_id: "" });
+    setForm(EMPTY_FORM);
   };
 
   const openEdit = (d: any) => {
-    setForm({ name: d.name, code: d.code, description: d.description || "", icon: d.icon || "", head_employee_id: d.head_employee_id || "" });
+    setForm({ name: d.name, code: d.code, description: d.description || "", icon: d.icon || "", head_employee_id: d.head_employee_id || "", order: d.hierarchy_level != null ? String(d.hierarchy_level) : "" });
     setEditId(d.id);
     setAddOpen(true);
   };
@@ -162,21 +181,27 @@ export default function DepartmentsPage() {
     return d.name.toLowerCase().includes(term) || d.code.toLowerCase().includes(term);
   });
 
+  const addButton = (
+    <Button
+      onClick={() => { setForm(EMPTY_FORM); setEditId(null); setAddOpen(true); }}
+      className="h-9 w-full sm:w-auto"
+    >
+      <Plus className="h-4 w-4" />
+      Add Department
+    </Button>
+  );
+  const summary = `${filteredDepts.length} department${filteredDepts.length !== 1 ? "s" : ""} · people counts are people on roll`;
+
   return (
-    <div className="hrms-page space-y-4">
-      <PageHeader
-        title="Departments"
-        description={`${filteredDepts.length} department${filteredDepts.length !== 1 ? "s" : ""}`}
-        actions={
-          <Button
-            onClick={() => { setForm({ name: "", code: "", description: "", icon: "", head_employee_id: "" }); setEditId(null); setAddOpen(true); }}
-            className="h-9 w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Add Department
-          </Button>
-        }
-      />
+    <div className={embedded ? "space-y-4" : "hrms-page space-y-4"}>
+      {embedded ? (
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <p className="text-sm text-muted-foreground">{summary}</p>
+          {addButton}
+        </div>
+      ) : (
+        <PageHeader title="Departments" description={summary} actions={addButton} />
+      )}
 
       {/* Search bar */}
       <div className="flex items-center bg-card rounded-lg border border-border h-9 px-3 w-full max-w-sm">
@@ -202,7 +227,7 @@ export default function DepartmentsPage() {
           action={
             !searchTerm ? (
               <Button
-                onClick={() => { setForm({ name: "", code: "", description: "", icon: "", head_employee_id: "" }); setEditId(null); setAddOpen(true); }}
+                onClick={() => { setForm(EMPTY_FORM); setEditId(null); setAddOpen(true); }}
                 className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Department
@@ -248,14 +273,17 @@ export default function DepartmentsPage() {
               </div>
               {d.head_employee_id && <p className="text-xs text-muted-foreground mt-2">Head: {headName(d.head_employee_id) || "—"}</p>}
               {d.description && <p className="text-sm text-muted-foreground mt-3 break-words">{d.description}</p>}
-              <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-                {empCounts?.[d.id] || 0} employee{(empCounts?.[d.id] || 0) === 1 ? "" : "s"}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />
+                  {directory ? `${empCounts[d.id] || 0} on roll` : "…"}</span>
+                <Link to={`/hrms/organization?tab=designations&department=${d.id}`} className="inline-flex items-center gap-1.5 underline-offset-2 hover:text-foreground hover:underline">
+                  <Briefcase className="h-3.5 w-3.5" />{designationsIn(d.id)} designation{designationsIn(d.id) === 1 ? "" : "s"}
+                </Link>
               </div>
               {canManageHeads && undecidedIn(d.id) > 0 && (
-                <Link to={`/hrms/employee/positions?department=${d.id}&planning=undecided`}
+                <Link to={`/hrms/organization?tab=designations&department=${d.id}&planning=undecided`}
                   className="mt-2 inline-block text-xs font-medium text-amber-600 underline-offset-2 hover:underline">
-                  {undecidedIn(d.id)} role{undecidedIn(d.id) === 1 ? "" : "s"} not decided for workforce planning
+                  {undecidedIn(d.id)} designation{undecidedIn(d.id) === 1 ? "" : "s"} not decided for workforce planning
                 </Link>
               )}
             </div>
@@ -285,6 +313,11 @@ export default function DepartmentsPage() {
           <div>
             <Label>Code *</Label>
             <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="h-9 mt-1" placeholder="e.g. ENG" />
+          </div>
+          <div>
+            <Label>List order</Label>
+            <Input type="number" min={1} value={form.order} onChange={(e) => setForm({ ...form, order: e.target.value })} className="h-9 mt-1" placeholder="e.g. 2" />
+            <p className="mt-1 text-xs text-muted-foreground">Lower numbers are listed first (Management is 1).</p>
           </div>
           {canManageHeads && (
             <div>
@@ -321,9 +354,9 @@ export default function DepartmentsPage() {
               <Trash2 className="h-4 w-4 text-destructive" /> Delete Department
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {(empCounts?.[deleteTarget?.id ?? ""] || 0) > 0
-                ? `"${deleteTarget?.name}" can't be deleted while ${empCounts?.[deleteTarget?.id ?? ""]} employee(s) are assigned to it — move them to another department first, or switch it to Inactive instead.`
-                : `Delete "${deleteTarget?.name}"? Its positions and forecast assumptions are deleted with it. Deleting is refused while it still has active staffing lines, desk groups, open requests, jobs or people. This cannot be undone.`}
+              {(recordCounts?.[deleteTarget?.id ?? ""] || 0) > 0
+                ? `"${deleteTarget?.name}" can't be deleted while ${recordCounts?.[deleteTarget?.id ?? ""]} employee record(s), including people who have left, point to it — switch it to Inactive instead.`
+                : `Delete "${deleteTarget?.name}"? Its designations and forecast assumptions are deleted with it. Deleting is refused while it still has active staffing lines, desk groups, open requests, jobs or people. This cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

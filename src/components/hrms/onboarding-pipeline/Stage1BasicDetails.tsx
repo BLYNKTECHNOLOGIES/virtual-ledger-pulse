@@ -141,8 +141,8 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     dirtyRef.current = true;
     setForm(prev => {
       const next: any = { ...prev, [field]: value };
-      // Job Role is retired — Position is the single designation. Mirror the
-      // chosen position title into the legacy job_role field so downstream
+      // The designation is the only title (the database keeps job_role equal to it). Mirror the
+      // chosen designation title into the legacy job_role field so downstream
       // finalization / RazorpayX push keep resolving a title.
       if (field === "position_id") {
         next.job_role = positions?.find((p: any) => p.id === value)?.title || "";
@@ -282,9 +282,9 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             </Select>
           </div>
           <div>
-            <Label>Position</Label>
+            <Label>Designation</Label>
             <Select value={form.position_id} onValueChange={v => update("position_id", v)} disabled={readOnly}>
-              <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select designation" /></SelectTrigger>
               <SelectContent>
                 {positions?.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
               </SelectContent>

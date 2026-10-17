@@ -17,7 +17,7 @@ describe("diffLinks", () => {
   });
 });
 
-import { matchingJobsForRequirement } from "./jobRequirements";
+import { matchingJobsForRequirement } from "./jobRequirementDiff";
 
 describe("Link to an existing job (WF6)", () => {
   const jobs = [

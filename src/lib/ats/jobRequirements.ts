@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { diffLinks } from "./jobRequirementDiff";
+import { diffLinks, matchingJobsForRequirement, type OpenJobRef } from "./jobRequirementDiff";
 
-export { diffLinks };
+export { diffLinks, matchingJobsForRequirement };
+export type { OpenJobRef };
 
 /** Extra requirement links of one job (ats_job_requirements; the job's requisition_id is separate). */
 export function useJobRequirementLinks(jobId?: string | null) {
@@ -68,24 +69,6 @@ export async function saveJobWithLinks(jobId: string | null, job: Record<string,
   const { data, error } = await (supabase.rpc as any)("ats_save_job", { p_job_id: jobId, p_job: job, p_links: links });
   if (error) throw error;
   return data as any;
-}
-
-export interface OpenJobRef { id: string; job_code: string | null; title: string; department_id: string | null; position_id: string | null; shift_ids: string[] | null }
-
-/**
- * Open/paused jobs a requirement could join instead of a new posting: same department, the job's
- * role among the requirement line's roles, and a job shift on the requirement's line.
- */
-export function matchingJobsForRequirement(
-  jobs: OpenJobRef[],
-  req: { department_id?: string | null; position_id?: string | null },
-  planRoleIds: string[] | null, planShiftIds: string[] | null,
-): OpenJobRef[] {
-  const roles = [...(planRoleIds ?? []), ...(req.position_id ? [req.position_id] : [])];
-  return jobs.filter((j) =>
-    (!j.department_id || !req.department_id || j.department_id === req.department_id) &&
-    !!j.position_id && roles.includes(j.position_id) &&
-    (!planShiftIds?.length || !(j.shift_ids ?? []).length || (j.shift_ids ?? []).some((s) => planShiftIds.includes(s))));
 }
 
 /** Open jobs per requirement id that can take that requirement as another shift link. */

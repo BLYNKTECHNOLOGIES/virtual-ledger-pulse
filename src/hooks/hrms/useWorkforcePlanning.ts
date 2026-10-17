@@ -227,6 +227,7 @@ function invalidatePlanning(qc: ReturnType<typeof useQueryClient>) {
     "workforce_trainees",
     "workforce_seat_occupancy",
     "workforce_lookups",
+    "workforce_position_planning_status",
     "ats",
   ].forEach((key) => qc.invalidateQueries({ queryKey: [key] }));
 }

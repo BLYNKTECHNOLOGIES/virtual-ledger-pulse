@@ -277,7 +277,7 @@ export default function AtsInboxPage() {
               )}
             </>
           ) : isLg ? (
-            <div className="grid h-[calc(100vh-17rem)] min-h-[520px] grid-cols-[minmax(17rem,21rem)_1fr] overflow-hidden rounded-xl border border-border bg-card">
+            <div className="grid h-[calc(100vh-8rem)] min-h-[680px] grid-cols-[minmax(17rem,21rem)_1fr] overflow-hidden rounded-xl border border-border bg-card">
               <div className="flex min-h-0 flex-col border-r border-border">{convList}</div>
               <div className="min-h-0 min-w-0 overflow-hidden">
                 {sel ? (

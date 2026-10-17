@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import DOMPurify from "dompurify";
 import {
-  AlertTriangle, ArrowRightLeft, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, Clock, Loader2, Mail, MessageCircle,
+  AlertTriangle, ArrowRightLeft, BookOpen, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, Clock, Loader2, Mail, MessageCircle,
   Maximize2, Minimize2, MoreVertical, Paperclip, Phone, RefreshCw, Reply, RotateCcw, Send, Sparkles, Upload, UserX,
 } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -324,8 +325,9 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
 
   return (
     <>
-    {expanded && <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" aria-hidden onClick={() => setWide(false)} />}
-    <div className={cn("flex min-h-0 flex-col", expanded ? "fixed inset-2 z-50 rounded-xl border border-border bg-card shadow-2xl sm:inset-4" : "h-full", !expanded && className)}>
+    {(expanded || reading) && <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" aria-hidden onClick={() => (reading ? setReading(false) : setWide(false))} />}
+    <div className={cn("flex min-h-0 flex-col", expanded || reading ? "fixed inset-2 z-50 rounded-xl border border-border bg-card shadow-2xl sm:inset-4" : "h-full", !(expanded || reading) && className)}>
+
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">Messages</p>
@@ -345,7 +347,21 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
             </Button>
           </TooltipTrigger><TooltipContent>Check for new emails</TooltipContent></Tooltip></TooltipProvider>
         )}
+        {enabled && (
+          <TooltipProvider><Tooltip><TooltipTrigger asChild>
+            <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5 px-2.5 text-xs" aria-pressed={reading}
+              onClick={() => { setReading(!reading); if (!reading) setWide(false); }}>
+              {reading ? <><Minimize2 className="h-4 w-4" /> Read normally</> : <><BookOpen className="h-4 w-4" /> Read larger</>}
+            </Button>
+          </TooltipTrigger><TooltipContent>{reading ? "Back to the normal panel (Esc)" : "Read the emails in a large full-screen view"}</TooltipContent></Tooltip></TooltipProvider>
+        )}
+        {reading && enabled && candidate.email && (
+          <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5 px-2.5 text-xs" onClick={() => openComposer()}>
+            <Send className="h-3.5 w-3.5" aria-hidden /> Write an email
+          </Button>
+        )}
           <DropdownMenu>
+
             <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More email actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem disabled={!enabled || !candidate.email || finding} onSelect={findOlder}>
@@ -357,9 +373,10 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
         </div>
       </div>
 
-      <div className={cn("flex min-h-0 flex-1 flex-col", expanded && "lg:flex-row")}>
-      <div className={cn("flex min-h-0 flex-col", expanded ? "max-h-[35%] shrink-0 border-b border-border lg:max-h-none lg:w-[42%] lg:border-b-0 lg:border-r" : "flex-1")}>
-      <div className="min-h-[180px] flex-1 space-y-3 overflow-y-auto p-3">
+      <div className={cn("flex min-h-0 flex-1 flex-col", expanded && !reading && "lg:flex-row")}>
+      <div className={cn("flex min-h-0 flex-col", reading ? "flex-1" : expanded ? "max-h-[45%] shrink-0 border-b border-border lg:max-h-none lg:w-[42%] lg:border-b-0 lg:border-r" : "flex-1")}>
+      <div className={cn("min-h-[240px] flex-1 space-y-3 overflow-y-auto p-3", reading && "mx-auto w-full max-w-4xl space-y-4 p-4 sm:p-6")}>
+
         {thread.isLoading || st.isLoading ? <RowsSkeleton rows={5} /> : thread.isError ? <QueryError error={thread.error} onRetry={() => thread.refetch()} /> : (
           <>
             {!enabled && (
@@ -375,7 +392,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
                 <Fragment key={it.kind === "msg" ? it.m.id : `ev-${it.ev.id}`}>
                   {showDay && <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />{fmtDate(it.at)}<span className="h-px flex-1 bg-border" /></div>}
                   {it.kind === "msg"
-                    ? <MessageBubble m={it.m} fileIds={fileIds} onOpenFile={onOpenFile} onChanged={refreshAll} mailOn={enabled} onMarkedUnread={(id) => keepUnreadRef.current.add(id)} onPickTime={pickTime} />
+                    ? <MessageBubble m={it.m} fileIds={fileIds} onOpenFile={onOpenFile} onChanged={refreshAll} mailOn={enabled} onMarkedUnread={(id) => keepUnreadRef.current.add(id)} onPickTime={pickTime} large={reading} />
                     : <ActivityRow ev={it.ev} />}
                 </Fragment>
               );
@@ -392,8 +409,9 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       )}
       </div>
 
-      {enabled && (
+      {enabled && !reading && (
         <div className={cn("overflow-y-auto p-3", expanded ? "flex min-h-0 flex-1 flex-col" : "min-h-[260px] max-h-[78%] shrink-0 border-t border-border")}>
+
           {!composing ? (
             <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => openComposer()}>Write an email…</Button>
           ) : !candidate.email ? (

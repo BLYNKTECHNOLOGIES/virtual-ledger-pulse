@@ -119,7 +119,7 @@ export function ResignationTab() {
         .in("employee_id", employeeIds);
       if (workInfoError) throw workInfoError;
 
-      const workInfoByEmployee = new Map<string, { department_id: string | null; job_role: string | null }[]>();
+      const workInfoByEmployee = new Map<string, { department_id: string | null; job_role: string | null; position_title?: string | null }[]>();
       for (const row of workInfoRows || []) {
         const existing = workInfoByEmployee.get(row.employee_id) || [];
         existing.push({ department_id: row.department_id, job_role: row.job_role, position_title: (row as any).position?.title ?? null });

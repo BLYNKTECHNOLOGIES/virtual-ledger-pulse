@@ -12,6 +12,7 @@ import { useAts } from "@/components/ats/AtsContext";
 import { useAtsJobSummary, useAtsJobs, useDepartmentsLookup } from "@/lib/ats/api";
 import { fmtDateTime, fmtRelative } from "@/lib/ats/format";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -27,6 +28,22 @@ export default function AtsJobsPage() {
   const navigate = useNavigate();
   const { openJobEditor } = useAts();
   const [sp, setSp] = useSearchParams();
+  // Workforce Planning "Link to JOB-000X": open that job's editor with the requirement preselected.
+  useEffect(() => {
+    const editId = sp.get("edit");
+    if (!editId) return;
+    const reqId = sp.get("requirement");
+    let gone = false;
+    supabase.from("ats_jobs").select("*").eq("id", editId).maybeSingle().then(({ data }) => {
+      if (gone) return;
+      if (data) openJobEditor(data as any, { requirementId: reqId });
+      const next = new URLSearchParams(sp);
+      next.delete("edit"); next.delete("requirement");
+      setSp(next, { replace: true });
+    });
+    return () => { gone = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp]);
   useEffect(() => {
     if (sp.get("new") !== "1") return;
     openJobEditor(null, { requirementId: sp.get("requirement") });

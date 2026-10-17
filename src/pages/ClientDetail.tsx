@@ -14,6 +14,7 @@ import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics"
 import { ClientBeneficiaryDetails } from "@/components/clients/ClientBeneficiaryDetails";
 import { ClientExchangeBadge } from "@/components/clients/ClientExchangeBadge";
 import { BackButton } from "@/components/shared/BackButton";
+import "@/components/clients/client-mobile.css";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();

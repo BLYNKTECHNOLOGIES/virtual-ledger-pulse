@@ -6671,6 +6671,7 @@ export type Database = {
           feedback_reason: string | null
           guardrail_flags: string[] | null
           id: string
+          input_text: string | null
           input_tokens: number | null
           latency_ms: number | null
           model: string
@@ -6698,6 +6699,7 @@ export type Database = {
           feedback_reason?: string | null
           guardrail_flags?: string[] | null
           id?: string
+          input_text?: string | null
           input_tokens?: number | null
           latency_ms?: number | null
           model: string
@@ -6725,6 +6727,7 @@ export type Database = {
           feedback_reason?: string | null
           guardrail_flags?: string[] | null
           id?: string
+          input_text?: string | null
           input_tokens?: number | null
           latency_ms?: number | null
           model?: string
@@ -6789,6 +6792,11 @@ export type Database = {
           monthly_budget_inr: number
           operators_enabled: boolean
           related_threshold: number
+          rephrase_auto: boolean
+          rephrase_daily_limit: number
+          rephrase_model: string
+          rephrase_user_ids: string[]
+          rephrase_verify: boolean
           tentative_days: number
           updated_at: string
           updated_by: string | null
@@ -6809,6 +6817,11 @@ export type Database = {
           monthly_budget_inr?: number
           operators_enabled?: boolean
           related_threshold?: number
+          rephrase_auto?: boolean
+          rephrase_daily_limit?: number
+          rephrase_model?: string
+          rephrase_user_ids?: string[]
+          rephrase_verify?: boolean
           tentative_days?: number
           updated_at?: string
           updated_by?: string | null
@@ -6829,6 +6842,11 @@ export type Database = {
           monthly_budget_inr?: number
           operators_enabled?: boolean
           related_threshold?: number
+          rephrase_auto?: boolean
+          rephrase_daily_limit?: number
+          rephrase_model?: string
+          rephrase_user_ids?: string[]
+          rephrase_verify?: boolean
           tentative_days?: number
           updated_at?: string
           updated_by?: string | null
@@ -7232,6 +7250,7 @@ export type Database = {
           embedding_model: string | null
           entry_id: string
           id: string
+          note: string | null
           order_number: string | null
           situation: string | null
           source: string
@@ -7245,6 +7264,7 @@ export type Database = {
           embedding_model?: string | null
           entry_id: string
           id?: string
+          note?: string | null
           order_number?: string | null
           situation?: string | null
           source: string
@@ -7258,6 +7278,7 @@ export type Database = {
           embedding_model?: string | null
           entry_id?: string
           id?: string
+          note?: string | null
           order_number?: string | null
           situation?: string | null
           source?: string
@@ -36025,6 +36046,11 @@ export type Database = {
           p_topic_id?: string
         }
         Returns: string
+      }
+      copilot_can_rephrase: { Args: { p_user_id: string }; Returns: boolean }
+      copilot_dismiss_operator_replies: {
+        Args: { p_item_id?: string; p_older_than_days?: number }
+        Returns: number
       }
       copilot_inbox_decide: {
         Args: { p_decision: string; p_item_id: string }

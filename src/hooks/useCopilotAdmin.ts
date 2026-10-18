@@ -70,15 +70,27 @@ export interface InboxData {
   siblings: Map<string, EntryRow[]>;
   questions: Map<string, QuestionRow[]>;
   examples: Map<string, ExampleRow[]>;
+  /** Open operator replies in all (the newest OPERATOR_REPLIES_SHOWN are in items). */
+  operatorReplies: number;
 }
+
+/** Operator replies loaded into the inbox at a time (the newest first); older ones wait or are dismissed in bulk. */
+export const OPERATOR_REPLIES_SHOWN = 200;
 
 export function useCopilotInbox(enabled: boolean) {
   return useQuery({
     queryKey: ['copilot-inbox'],
     enabled,
     queryFn: async (): Promise<InboxData> => {
-      const items = await must(supabase.from('copilot_inbox_items').select('*').eq('status', 'open')
-        .order('created_at', { ascending: true }).order('id', { ascending: true }).limit(500));
+      // Operator replies have their own list (the newest first), so many of them never crowd out conflicts and tentative replies.
+      const [others, replies, replyCount] = await Promise.all([
+        must(supabase.from('copilot_inbox_items').select('*').eq('status', 'open').neq('kind', 'operator_reply')
+          .order('created_at', { ascending: true }).order('id', { ascending: true }).limit(500)),
+        must(supabase.from('copilot_inbox_items').select('*').eq('status', 'open').eq('kind', 'operator_reply')
+          .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(OPERATOR_REPLIES_SHOWN)),
+        supabase.from('copilot_inbox_items').select('id', { count: 'exact', head: true }).eq('status', 'open').eq('kind', 'operator_reply'),
+      ]);
+      const items = [...others, ...replies];
       const ids = [...new Set(items.flatMap((i) => [i.entry_id, i.other_entry_id]).filter((x): x is string => !!x))];
       const entries = ids.length ? await must<EntryRow[]>(untyped.from('copilot_playbook_entries').select('*').in('id', ids)) : [];
       const topicIds = [...new Set(entries.map((e) => e.topic_id))];
@@ -100,6 +112,7 @@ export function useCopilotInbox(enabled: boolean) {
       };
       return {
         items,
+        operatorReplies: Math.max(replies.length, replyCount.count ?? replies.length),
         entries: new Map([...entries, ...siblings].map((e) => [e.id, e])),
         topics: new Map(topics.map((t) => [t.id, t])),
         siblings: group(siblings, (e) => e.topic_id),
@@ -228,6 +241,14 @@ export const copilotAdmin = {
     must(untyped.rpc<{ changed: boolean; closed_items: number }>('copilot_set_entry_status', { p_entry_id: entryId, p_status: status })),
   resolveConflict: (itemId: string, keep: 'new' | 'old' | 'both') =>
     must(supabase.rpc('copilot_resolve_conflict', { p_item_id: itemId, p_keep: keep })),
+  /** Dismisses an operator's rewritten reply from the inbox (only while it is open; the table's access rule checks). */
+  /** An operator's reply not saved to the Playbook (false when it was already closed, by someone else or a save). */
+  /** An operator's reply dismissed (the server checks it is an open operator reply and that you are an approver). */
+  dismissOperatorReply: async (itemId: string) =>
+    (await must(untyped.rpc<number>('copilot_dismiss_operator_replies', { p_item_id: itemId, p_older_than_days: null }))) > 0,
+  /** Operator replies left open for more than `days` days, dismissed together (by the server's clock); returns how many. */
+  dismissOldOperatorReplies: async (days: number) =>
+    Number(await must(untyped.rpc<number>('copilot_dismiss_operator_replies', { p_item_id: null, p_older_than_days: days }))),
   updateEntry: async (id: string, patch: ReplyPatch) => {
     const { error } = await untyped.from('copilot_playbook_entries').update({ ...patch, scope: patch.scope as Json | undefined }).eq('id', id);
     if (error) throw new Error(error.message);

@@ -2,6 +2,7 @@
 // Copilot v2 (Playbook): pure helpers shared by copilot-draft and copilot-learn.
 // No network, no database, no Deno.env here — everything is unit-tested in copilot-playbook.test.ts.
 import { beforeVerification, invitesPayment } from './copilot-situation.ts'
+import { normalizeText } from './copilot-numbers.ts'
 
 // ─── Chat transcript ────────────────────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,8 @@ export interface ChatRow {
   is_recall?: boolean | null;
   message_text?: string | null;
   binance_create_time?: number | string | null;
+  /** The Binance account the chat is on (as the listener stored it). */
+  exchange_account_id?: string | null;
 }
 /** event: Binance's event type for system messages (e.g. maker_verified_additional_kyc_maker_sell), 'kyc_card' for its KYC card. */
 export interface Msg { id: string; at: number; who: Who; text: string; kind: string; event?: string }
@@ -137,23 +140,121 @@ export function clientTurn(t: Msg[]): { messages: Msg[]; question: string; lastI
   if (!msgs.length) return null
   const texts = msgs.filter((m) => m.kind === 'text').map((m) => m.text)
   const recent = (texts.length ? texts : msgs.map((m) => m.text)).slice(-3)
-  return { messages: msgs, question: recent.join(' / ').slice(0, 600), lastId: msgs[msgs.length - 1].id }
+  // Masked before it is cut, so a number at the cut is never left half there.
+  return { messages: msgs, question: maskPII(recent.join(' / ')).slice(0, 600), lastId: msgs[msgs.length - 1].id }
 }
 
 // ─── Personal data masking ──────────────────────────────────────────────────────────────────────────
 
-/** Masks personal numbers and handles before any text reaches an AI model or the Playbook. */
+/** UPI handles of Indian banks and apps (the part after the "@"): Google Pay's "ok…", Paytm's "pt…", names with a bank's
+ *  name in them, and the other banks and apps. The screen keeps the same list (copilotText.ts). */
+const UPI_HANDLES = String.raw`ok[a-z]{2,16}|pt[a-z]{2,12}|wa(?:axis|hdfcbank|icici|sbi)|[a-z]{0,12}(?:bank|axis|icici|hdfc|sbi|idfc)[a-z]{0,12}|ybl|ibl|axl|apl|yapl|upi|paytm|pockets|freecharge|jio|airtel|slc|mbk|ikwik|abfspay|pnb|boi|ubi|cnrb|cboi|citi|citigold|hsbc|dbs|rbl|aubank|kbl|kvb|kmbl|kmb|kotak|fbl|federal|sib|iob|uco|idbi|jkb|nsdl|fam|timecosmos|dlb|equitas|esaf|fino|finobank|mahb|postbank|psb|sc|scb|tjsb|uboi|utbi|vijb|barodampay|indus|indusind|yes|yesbank|yesbankltd|superyes`
+
+/**
+ * Personal numbers and handles, in the order they are masked (each pattern sees the text the earlier ones left). Rewording
+ * swaps the same values for reversible tokens (copilot-rephrase.ts), so both always agree on what is personal.
+ */
+/** Whether a match may be masked, given the whole text (what comes before or after it). Checks that would need a lookbehind
+ *  live here, so the screen's copy (copilotText.ts maskPersonal) can run the very same code. */
+export type Accept = (m: RegExpExecArray, s: string) => boolean
+export type PiiPattern = readonly [RegExp, string, Accept?]
+
+const isDigit = (c: string) => c >= '0' && c <= '9'
+const digitsBefore = (s: string, j: number) => { let k = j; while (k > 0 && isDigit(s[k - 1])) k--; return j - k }
+const digitsAfter = (s: string, j: number) => { let k = j; while (k < s.length && isDigit(s[k])) k++; return k - j }
+
+/**
+ * Nine or more digits in a row, not part of a longer run. "0.123456789" (a fraction) and "123456789.5" (the whole part of a
+ * decimal) are amounts, unless the number across the dot is itself that long ("412345678901.412345678902"). Commas never
+ * group four or more digits, so "412345678901,412345678902" is two values.
+ */
+const longRun: Accept = (m, s) => {
+  const i = m.index, end = i + m[0].length
+  if (isDigit(s.charAt(i - 1)) || isDigit(s.charAt(end))) return false
+  if (s.charAt(i - 1) === '.' && digitsBefore(s, i - 1) > 0 && digitsBefore(s, i - 1) < 9) return false
+  if (s.charAt(end) === '.' && digitsAfter(s, end + 1) > 0 && digitsAfter(s, end + 1) < 9) return false
+  return true
+}
+
+/**
+ * Digits in groups joined by single spaces, dots or hyphens: ten or more whatever the groups or separators (a phone written
+ * "98 76 54 32 10", "0755-234 5678"), nine when the groups share one separator and one has three digits or more
+ * ("123 456 789"). One decimal number ("1052.63157894") and a date with or without its hour ("18-10-2026 10") are not
+ * values, and neither is a run that starts inside another one.
+ */
+const groupedRun: Accept = (m, s) => {
+  const t = m[0], i = m.index, p = s.charAt(i - 1)
+  if (isDigit(p) || ((p === ' ' || p === '.' || p === ',' || p === '-') && isDigit(s.charAt(i - 2)))) return false
+  if (/^\d+\.\d+$/.test(t)) return false
+  const d = /^(\d{1,2})([.-])(\d{1,2})\2(\d{2}|\d{4})(?: (\d{1,2}))?$/.exec(t)
+  if (d && +d[1] >= 1 && +d[1] <= 31 && +d[3] >= 1 && +d[3] <= 12 && (d[5] === undefined || +d[5] <= 23)) return false
+  const groups = t.split(/[ .-]/)
+  const digits = groups.join('').length
+  if (digits >= 10) return true
+  return digits === 9 && new Set(t.replace(/\d/g, '')).size === 1 && groups.some((g) => g.length >= 3)
+}
+
+/**
+ * Replaces each match of the global `re` that `ok` accepts (every match when there is no `ok`). A refused match lets the
+ * search go on one character later, as a lookbehind would.
+ */
+export function replaceAccepted(t: string, re: RegExp, ok: Accept | undefined, by: (m: string) => string): string {
+  if (!ok) return t.replace(re, (m) => by(m))
+  let out = '', last = 0
+  re.lastIndex = 0
+  for (let m = re.exec(t); m; m = re.exec(t)) {
+    if (!m[0].length) { re.lastIndex++; continue }
+    if (!ok(m, t)) { re.lastIndex = m.index + 1; continue }
+    out += t.slice(last, m.index) + by(m[0])
+    last = m.index + m[0].length
+    re.lastIndex = last
+  }
+  re.lastIndex = 0
+  return out + t.slice(last)
+}
+
+export const PII_PATTERNS: ReadonlyArray<PiiPattern> = [
+  // Transaction hashes (0x + 64 hex, or 64 hex), then crypto wallet addresses (TRON, Ethereum/BSC, Bitcoin and Litecoin in
+  // either case, TON), before the digit patterns cut them into pieces.
+  [/\b0x[a-fA-F0-9]{64}\b|\b[a-fA-F0-9]{64}\b/g, '[ref]'],
+  [/\bT[1-9A-HJ-NP-Za-km-z]{33}\b|\b0x[a-fA-F0-9]{40}\b|\b(?:[bB][cC]1|[lL][tT][cC]1)[a-zA-Z0-9]{25,59}\b|\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\b[EU]Q[A-Za-z0-9_-]{46}(?![A-Za-z0-9_-])/g, '[wallet]'],
+  [/[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]'],
+  [/\b[A-Z0-9][A-Z0-9._-]{1,255}@[A-Z][A-Z0-9]{1,63}\b/gi, '[upi]'],
+  // A one-character UPI name only with a bank's own handle ("a@ybl"): elsewhere "x@yz" is too often something else.
+  [new RegExp(String.raw`\b[A-Z0-9]@(?:${UPI_HANDLES})\b`, 'gi'), '[upi]'],
+  [/\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, '[pan]'],
+  [/\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[ifsc]'],
+  // Twelve digits in fours; a longer run (a card number) is masked whole further down.
+  [/(?<!\d[\s-])\b\d{4}[\s-]\d{4}[\s-]\d{4}\b(?![\s-]\d)/g, '[aadhaar]'],
+  [/(?:\+?91[\s-]?)?(?<!\d)[6-9]\d{4}[\s-]?\d{5}(?!\d)/g, '[phone]'],
+  [/\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]'],
+  // A long reference of letters and digits mixed ("UTRABCDE1234F567890"), whatever shape its middle has.
+  [/\b(?=[A-Z0-9]*\d{4})(?=[A-Z0-9]*[A-Z]{2})[A-Z0-9]{12,}\b/gi, '[ref]'],
+  [/\d{9,}/g, '[number]', longRun],
+  // Other countries' phone numbers, then digits in groups (987-654-3210, 98765 43210, account and card numbers in groups, a
+  // phone written digit by digit). Commas never join digits here, so amounts such as 1,00,000 stay.
+  [/\+\d{1,3}(?:[\s-]?\d){7,13}(?!\d)/g, '[phone]'],
+  [/\d{1,18}(?:[ .-]\d{1,18})+/g, '[number]', groupedRun],
+  // A UPI ID written with spaces around the "@" ("blynk @ ybl", "a @ ybl"), with a bank's own handle only.
+  [new RegExp(String.raw`\b[A-Z0-9][A-Z0-9._-]{0,255}(?:\s+@\s*|\s*@\s+)(?:${UPI_HANDLES})\b`, 'gi'), '[upi]'],
+]
+
+/**
+ * Masks personal numbers and handles before any text reaches an AI model or the Playbook. Masking one value can open a word
+ * boundary next to another ("98765 43210ABCDE1234F"), so it repeats until nothing changes.
+ */
 export function maskPII(input: string | null | undefined): string {
-  let t = String(input ?? '')
-  t = t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
-  t = t.replace(/\b[A-Z0-9][A-Z0-9._-]{1,255}@[A-Z][A-Z0-9]{1,63}\b/gi, '[upi]')
-  t = t.replace(/\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, '[pan]')
-  t = t.replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[ifsc]')
-  t = t.replace(/\b\d{4}[\s-]\d{4}[\s-]\d{4}\b/g, '[aadhaar]')
-  t = t.replace(/(?:\+?91[\s-]?)?(?<!\d)[6-9]\d{4}[\s-]?\d{5}(?!\d)/g, '[phone]')
-  t = t.replace(/\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]')
-  t = t.replace(/(?<!\d)(?<!\d[.,])\d{9,}(?!\d)(?![.,]\d)/g, '[number]')
-  return t
+  // Read as the checks read it: Devanagari and full-width digits as digits, invisible characters gone.
+  const raw = String(input ?? '')
+  const norm = normalizeText(raw)
+  let t = norm
+  for (let pass = 0; pass < 4; pass++) {
+    const before = t
+    for (const [re, tag, ok] of PII_PATTERNS) t = replaceAccepted(t, re, ok, () => tag)
+    if (t === before) break
+  }
+  // Nothing personal: the text exactly as given (callers compare maskPII(x) with x to tell "something was masked").
+  return t === norm ? raw : t
 }
 
 // ─── Language and address ───────────────────────────────────────────────────────────────────────────
@@ -610,7 +711,11 @@ export function generalize(text: string, v: TemplateValues, contacts: Array<{ pu
   }
   if (v.orderNo) t = t.replace(new RegExp(esc(String(v.orderNo)), 'g'), '{orderNo}')
   if (v.upi) t = t.replace(new RegExp(esc(String(v.upi)), 'gi'), '{upi}')
-  if (v.name && String(v.name).trim().length >= 3) t = t.replace(new RegExp(`\\b${esc(String(v.name).trim())}\\b`, 'gi'), '{name}')
+  // The client's name as a word, never inside a UPI ID, an email or a handle ("ravi@ybl", "ravi.kumar@okaxis"): replaced
+  // there, the value would no longer look like one to the masking, and the saved reply would pay another client's name.
+  if (v.name && String(v.name).trim().length >= 3) {
+    t = t.replace(new RegExp(`(?<![\\w@.-])${esc(String(v.name).trim())}(?![\\w@-]|\\.\\w)`, 'gi'), '{name}')
+  }
   for (const c of contacts) {
     const digits = String(c.phone).replace(/\D/g, '')
     if (digits.length < 7) continue

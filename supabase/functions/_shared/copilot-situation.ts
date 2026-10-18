@@ -143,7 +143,8 @@ const ours = (m: Msg) => m.who === 'us' || m.who === 'auto'
 // KYC team's, even where operators' messages say "RM team".
 const KYC_ASK = /\baadha+r\b|\bmobile (no|number)\b|\bpurpose of (buying|purchas)|\bsource of (fund|income)|\bkyc\b[^.?!]{0,40}\b(share|send|complete|submit|provide)\b|\b(share|send|provide)\b[^.?!]{0,40}\b(documents?|kyc)\b/i
 const RM = /one[\s-]?time verification|\brm\b|relationship manager|verifying with (the )?team|verification (is )?(in progress|pending|under process)|team will (connect|call|reach)|\bvideo kyc\b|\bvkyc\b|will (call|connect with) you|\bek\s*baar\s*(ka\s+|ki\s+)?verification\b(?!\s+(complete|poori|puri|done|ho\s+ja|hone|hote|ke\s+baad))|\b(kyc|verification)\b[^.?!]{0,60}\b(connect|call)\s+(karegi|karega|karenge)\b/i
-const UPI_ID = /\b[a-z0-9._-]{2,}@[a-z]{2,}\b(?![.@])/i
+// A UPI ID may end a sentence ("our UPI ID is blynk@ybl."); "blynk@ybl.in" is an e-mail address, not a UPI ID.
+const UPI_ID = /\b[a-z0-9._-]{2,}@[a-z]{2,}\b(?!@|[.-][a-z0-9])/i
 const DETAIL_VALUES = [UPI_ID, /\b[A-Z]{4}0[A-Z0-9]{6}\b/i, /\b(account|a\/c)\s*(no|number)?\b[^.?!]{0,20}\d{6,}/i]
 const DETAIL_ASKS = [/\bpay (on|to) (it|this|the (above|same|given) (upi|details|account))\b/i, /^\s*(please |kindly )?pay( now)?( on it)?( sir| ma'?am)?\s*\.?\s*$/i]
 /**
@@ -417,7 +418,7 @@ export function stageDepth(scope: ReplyScope, stage: string | null): number {
 
 /** Our payment details themselves: a reply that carries them invites payment, whatever else it says. */
 const PAY_DETAILS: RegExp[] = [
-  /\{upi\}/i, /\[upi\]/i, UPI_ID, /\[ifsc\]/i, /\b[A-Z]{4}0[A-Z0-9]{6}\b/,
+  /\{upi\}/i, /\[upi\]/i, UPI_ID, /\[ifsc\]/i, /\b[A-Z]{4}0[A-Z0-9]{6}\b/i,
   /\b(account|a\/c|acc)\s*(no|number|num)?\b[^.?!]{0,20}(\d{6,}|\[number\])/i,
 ]
 export const hasPaymentDetails = (text: string | null | undefined) => PAY_DETAILS.some((re) => re.test(String(text ?? '')))
@@ -490,7 +491,7 @@ const CLAUSE_BREAK = /\b(we|we'll|our|us|hum|humari|hamari|hamara|release|releas
  * Between a verification condition and a later time to pay: another clause ("we will release", "order release hoga")
  * means the condition governs that one, not the time to pay ("you will have" does not).
  */
-const TIME_BREAK = /\b(we|we'll|our|us|hum|humari|hamari|hamara|release\w*|share\w*|send|sent|bhej\w*|karenge|denge|hoga|hogi|jayega|jaega|jayegi|team|usdt|crypto|coins?|order|confirm\w*|will\s+be|it'?ll)\b/i
+const TIME_BREAK = /\b(we|we'll|our|us|hum|humari|hamari|hamara|release\w*|share\w*|send|sent|bhej\w*|karenge|denge|hoga|hogi|jayega|jaega|jayegi|team|usdt|crypto|coins?|order|confirm\w*|will\s+be|it'?ll|but|however|right\s+now|currently|abhi|meanwhile|lekin|par)\b/i
 /** Words that may sit between a condition and the request it governs ("Once your KYC is done, sir, you can pay"). */
 const FILLER = /^(sir|ma'?am|maam|ji|please|kindly|pls|plz|then|you|can|may|could|also|only|just|hi|aap|phir|fir|tab|to|toh|bhi|and|now|abhi|easily|directly|go|ahead|feel|free)$/i
 const onlyFiller = (x: string) => x.split(/[\s,;:.!?]+/).filter((w) => /\w/.test(w)).every((w) => FILLER.test(w))
@@ -565,7 +566,13 @@ export function invitesPayment(text: string | null | undefined): boolean {
   const t = String(text ?? '')
   if (hasPaymentDetails(t)) return true
   for (const s of t.split(/(?<=[.?!;])\s+|\n+/)) {
-    const hits = spans(PAY_ASK, s)
+    // A time to pay is let go only when a verification condition before it governs it: it opens its own clause and no other
+    // clause comes in between. A request inside such a time ("once verified, 15 minutes to make the payment") goes with it;
+    // inside any other time to pay it is judged on its own.
+    const conditions = [...spans(VERIFIED_EN, s), ...spans(VERIFIED_HI, s)]
+    const governed = (h: Span) => conditions.some((c) => c.end <= h.start && opensClause(s, c) && !TIME_BREAK.test(s.slice(c.end, h.start)))
+    const times = spans(PAY_TIME, s)
+    const hits = spans(PAY_ASK, s).filter((h) => !times.some((x) => h.start >= x.start && h.end <= x.end && governed(x)))
     // A bare "pay now" clause (between commas, or after "and").
     let pos = 0
     for (const part of s.split(/(\s*[,:]\s*|\s+(?:and|aur)\s+)/i)) {
@@ -573,11 +580,7 @@ export function invitesPayment(text: string | null | undefined): boolean {
       pos += part.length
     }
     if (hits.some((h) => !excused(s, h))) return true
-    // A time to pay is excused by a verification condition before it that governs it: it opens its own clause and no other
-    // clause comes in between.
-    const conditions = [...spans(VERIFIED_EN, s), ...spans(VERIFIED_HI, s)]
-    const governed = (h: Span) => conditions.some((c) => c.end <= h.start && opensClause(s, c) && !TIME_BREAK.test(s.slice(c.end, h.start)))
-    if (spans(PAY_TIME, s).some((h) => !excused(s, h) && !governed(h))) return true
+    if (times.some((h) => !excused(s, h) && !governed(h))) return true
   }
   return false
 }

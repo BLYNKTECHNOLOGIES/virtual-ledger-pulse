@@ -634,7 +634,17 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     ...copilotBinance,
   }), [tradeType, orderStatus, templateValues?.amount, orderAsset, paymentMethod, copilotBinance]);
 
+  // One approval per reply per order: repeated Approve / Send / Ctrl+Enter taps on the same text are ignored.
+  const copilotTaughtRef = useRef<Set<string>>(new Set());
   const teachCopilot = useCallback(async (cause: LearnBody['cause'], finalText: string, picked: CopilotPick | null, beforeAt?: number) => {
+    const dedupeKey = beforeAt ? null : `${orderNumber}\n${finalText.trim().replace(/\s+/g, ' ').toLowerCase()}`;
+    if (dedupeKey) {
+      if (copilotTaughtRef.current.has(dedupeKey)) {
+        toast('Already approved', { description: 'This reply was already saved for this chat.' });
+        return;
+      }
+      copilotTaughtRef.current.add(dedupeKey);
+    }
     try {
       const res = await copilotLearn({
         cause,

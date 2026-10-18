@@ -6,7 +6,7 @@
 import type { CopilotError, OrderHint, RephraseResult } from '@/hooks/useCopilotPlaybook';
 import { sameText } from '@/lib/copilot/copilotText';
 import {
-  LOW_LEFT, MAX_ANOTHER, REPHRASE_PAUSE_MS, manualCheck, pauseFor, rephraseKey, shouldAutoRephrase, stillTheRewrite, wordCount, type RephraseLang,
+  LOW_LEFT, MAX_ANOTHER, REPHRASE_PAUSE_MS, manualCheck, pauseFor, rephraseKey, shouldAutoRephrase, stillTheRewrite, sameWordsExact, wordCount, type RephraseLang,
 } from '@/lib/copilot/rephrase';
 
 export interface RephraseView {
@@ -86,10 +86,16 @@ export class RephraseController {
   private timer: ReturnType<typeof setTimeout> | null = null;
   /** The latest order details from the screen (sent with each request). */
   hint: OrderHint = {};
+  /** What a rewrite is checked against, as the screen knows it (the order's status and KYC, the latest message, the
+   *  Copilot panel's request): when it changes, rewrites kept from before are asked again, because the checks depend on
+   *  the chat's step ("details shortly" is fine once the client can pay, held back during KYC). */
+  context = '';
+  private cacheContext = '';
 
   constructor(private api: RephraseApi, private onView: (v: RephraseView) => void, private pauseMs = REPHRASE_PAUSE_MS) {}
 
   private show(v: RephraseView) { this.view = v; this.onView(v); }
+  private freshen() { if (this.context !== this.cacheContext) { this.cache.clear(); this.cacheContext = this.context; } }
   private clearTimer() { if (this.timer) { clearTimeout(this.timer); this.timer = null; } }
   private isPlaced(text: string) { return this.placed !== null && sameText(text, this.placed); }
   private lowLeft() { return this.left !== null && this.left <= LOW_LEFT ? this.left : null; }
@@ -128,7 +134,8 @@ export class RephraseController {
   setText = (text: string) => {
     this.text = text;
     this.clearTimer();
-    if (this.view.status !== 'idle' && !sameText(this.view.forText, text)) {
+    this.freshen();
+    if (this.view.status !== 'idle' && !sameWordsExact(this.view.forText, text)) {
       this.seq += 1;
       this.show(IDLE);
     }
@@ -148,7 +155,7 @@ export class RephraseController {
     })) return;
     this.timer = setTimeout(() => {
       this.timer = null;
-      if (sameText(this.text, text)) void this.run(text.trim(), 'auto');
+      if (sameWordsExact(this.text, text)) void this.run(text.trim(), 'auto');
     }, kept ? Math.min(this.pauseMs, 600) : pauseFor(this.autoCount, this.pauseMs));
   };
 
@@ -158,7 +165,9 @@ export class RephraseController {
   }
 
   private async run(forText: string, mode: RephraseMode) {
+    this.freshen();
     const lang = this.lang;
+    const context = this.context;
     const key = rephraseKey(forText, lang);
     this.lastKey = key;
     const kept = this.cache.get(key);
@@ -175,6 +184,11 @@ export class RephraseController {
       });
       if (order !== this.settings.orderNumber) return;
       if (typeof r.left === 'number') this.left = r.left;
+      // The chat moved on while it was asked (a new message, another step): checked for the old one, so neither kept nor shown.
+      if (this.context !== context) {
+        if (my === this.seq && this.view.status === 'loading') this.show(IDLE);
+        return;
+      }
       let shown = r, message: string | null = null;
       if (r.status === 'ok' && r.text) {
         this.cache.set(key, r);
@@ -189,7 +203,7 @@ export class RephraseController {
       } else if ((r.status === 'same' || r.status === 'unclear') && kept?.status !== 'ok') {
         this.cache.set(key, r);
       }
-      if (!sameText(this.text, forText)) return;
+      if (!sameWordsExact(this.text, forText)) return;
       // A late answer for the words in the box (they were edited and put back) shows when nothing else is on show.
       if (my !== this.seq && !(this.view.status === 'idle' && !this.dismissed.has(key) && !this.isPlaced(this.text) && key === rephraseKey(this.text.trim(), this.lang))) return;
       this.show(this.viewFor(shown, forText, key, message));
@@ -215,7 +229,7 @@ export class RephraseController {
         }
         return;
       }
-      if (my !== this.seq || !sameText(this.text, forText)) return;
+      if (my !== this.seq || !sameWordsExact(this.text, forText)) return;
       this.show({ ...IDLE, status: 'error', forText, message: err?.message || 'Could not reword it' });
     }
   }
@@ -236,7 +250,7 @@ export class RephraseController {
 
   another = () => {
     const v = this.view;
-    if (v.status !== 'ready' || !v.canAnother || !sameText(this.text, v.forText)) return;
+    if (v.status !== 'ready' || !v.canAnother || !sameWordsExact(this.text, v.forText)) return;
     void this.run(v.forText, 'another');
   };
 
@@ -244,7 +258,7 @@ export class RephraseController {
   switchLang = (to: 'en' | 'hi') => {
     this.lang = to;
     const v = this.view;
-    if (v.forText && sameText(this.text, v.forText)) void this.run(v.forText, 'lang');
+    if (v.forText && sameWordsExact(this.text, v.forText)) void this.run(v.forText, 'lang');
   };
 
   dismiss = () => {
@@ -258,7 +272,7 @@ export class RephraseController {
   /** The rewrite on show, for the words in the box (null otherwise); it is then text the screen placed. */
   take = (): { text: string; callId: string | null; rough: string } | null => {
     const v = this.view;
-    if (v.status !== 'ready' || !v.text || !sameText(this.text, v.forText)) return null;
+    if (v.status !== 'ready' || !v.text || !sameWordsExact(this.text, v.forText)) return null;
     this.placed = v.text;
     return { text: v.text, callId: v.callId, rough: v.forText };
   };

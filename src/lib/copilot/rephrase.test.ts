@@ -15,8 +15,9 @@ describe('rephrase helpers', () => {
     expect(wordCount('आप पेमेंट कर दीजिए')).toBe(4);
   });
 
-  it('keys ignore spacing and case, and differ by language', () => {
-    expect(rephraseKey('  Pls  WAIT ', 'auto')).toBe(rephraseKey('pls wait', 'auto'));
+  it('keys ignore spacing but not case (a wallet address differs by case alone), and differ by language', () => {
+    expect(rephraseKey('  pls  wait ', 'auto')).toBe(rephraseKey('pls wait', 'auto'));
+    expect(rephraseKey('Pls WAIT', 'auto')).not.toBe(rephraseKey('pls wait', 'auto'));
     expect(rephraseKey('pls wait', 'en')).not.toBe(rephraseKey('pls wait', 'hi'));
   });
 

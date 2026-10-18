@@ -3,7 +3,7 @@
 // The model only rewords; every rewrite is checked here before anyone sees it, and nothing is ever sent by the Copilot.
 // The checks fail closed: a rewrite that may add a claim, a promise, a request, a contact or a value is held back, and the
 // operator sends their own words instead.
-import { applyAddress, guardDraft, HINGLISH_RULE, maskPII, normText, PII_PATTERNS, type Side } from './copilot-playbook.ts'
+import { applyAddress, guardDraft, HINGLISH_RULE, maskPII, normText, PII_PATTERNS, replaceAccepted, type Side } from './copilot-playbook.ts'
 import { beforeVerification, invitesPayment } from './copilot-situation.ts'
 import { normalizeText, numberChanges, quantities, timesAdded } from './copilot-numbers.ts'
 
@@ -28,8 +28,8 @@ export function protect(input: string): Protected {
   let t = normalizeText(String(input ?? '')).replace(/[⟦⟧]/g, '')
   for (let pass = 0; pass < 4; pass++) {
     const before = t
-    for (const [re] of PII_PATTERNS) {
-      t = t.replace(re, (m) => {
+    for (const [re, , ok] of PII_PATTERNS) {
+      t = replaceAccepted(t, re, ok, (m) => {
         let i = values.indexOf(m)
         if (i < 0) { values.push(m); i = values.length - 1 }
         return `⟦${i + 1}⟧`
@@ -38,6 +38,12 @@ export function protect(input: string): Protected {
     if (t === before) break
   }
   return { text: t, values }
+}
+
+/** What a typed value is, as the masking calls it ("[upi]", "[phone]"…), for logs that must never hold it. */
+export function kindOf(value: string): string {
+  const m = maskPII(value)
+  return /^\[[a-z]+\]$/.test(m) ? m : '[value]'
 }
 
 /** Puts the values back. */
@@ -216,6 +222,9 @@ export interface RephraseCheck {
   status: 'ok' | 'same' | 'blocked' | 'unclear'
   /** The rewrite with the values back in (ok and same only). */
   text: string | null
+  /** The same rewrite for the call log and the inbox: each value the operator typed as its kind ([upi], [phone]…), anything
+   *  else personal masked. Built from the tokens, never by masking `text` again (ok and same only). */
+  masked?: string | null
   /** For the call log (numbers in it masked). */
   flags: string[]
   /** Shown with the rewrite: what the operator's own words do, or something to check. */
@@ -247,6 +256,7 @@ export const REPHRASE_BLOCKS: Record<string, string> = {
   verified_added: 'It said the KYC is done, which you did not say',
   released_added: 'It said the crypto was released, which you did not say',
   paid_added: 'It said the client paid, which you did not say',
+  docs_fine_added: 'It said the documents are fine, which you did not say',
   condition_dropped: 'It left out a condition you wrote',
   negation_dropped: 'It turned something you said not to do into a request',
   too_long: 'It added too much',
@@ -258,7 +268,9 @@ const clausesOf = (s: string) => s.split(/\s*[,:](?!\d)\s*|\s+[-–—]\s+/).map
 
 /** A condition: in a rewrite, before the words in their clause ("once the payment is received"); typed, anywhere in it. */
 const COND_EN = /\b(if|whether|once|after|when|whenever|until|till|as soon as|before|unless|provided|in case|upon|on receipt)\b/i
-const COND_HI = /\b(agar|jab|jaise hi|ho to|ho toh|hote hi|hone par|hone pe|hone ke baad|ke baad|tabhi|jab tak|tab tak|hone tak)\b|\b(gaya|gayi|gaye|gya|gyi|gye|hua|hui|hue|aaya|aayi|aaye|aya|mila|mili|mile|diya|di|diye|kiya|kiye|liya|jaye|jaaye)\s+(to|toh)\b/i // PATCH R3
+/** Hinglish "if": "payment aa gaya to …", "kyc ho gayi hai to …", "received hai to …". */
+const VERB_TO = String.raw`\b(gaya|gayi|gaye|gya|gyi|gye|hua|hui|hue|aaya|aayi|aaye|aya|mila|mili|mile|diya|di|diye|kiya|kiye|liya|jaye|jaaye|hai|hain|ho|hoga|hogi|tha|thi|the|he)\s+(to|toh)\b`
+const COND_HI = new RegExp(String.raw`\b(agar|jab|jaise hi|ho to|ho toh|hote hi|hone par|hone pe|hone ke baad|ke baad|tabhi|jab tak|tab tak|hone tak)\b|${VERB_TO}`, 'i')
 const NEG = /\b(not|never|nahi|nahin|nhi|yet to)\b|n't\b/i
 /** A typed sentence that asks ("payment aa gaya?", "kyc ho gaya kya"): it states nothing. */
 const ASKS = /\?|\b(kya|kyaa|ki nahi|ya nahi|or not|whether|kab|kaise|kitna|kitne|kitni|kidhar|kahan|kyu|kyun|kyon)\b/i
@@ -279,6 +291,8 @@ const HEDGE = /\b(lagta|lagti|lagte)\s+(hai|h|he)\b|\bshayad\b|\b(maybe|probably
 // PATCH R2: in the rewrite, only the clause that asks is a question ("we have received it, could you share the UTR?").
 const INTERROGATIVE = /^\s*(?:(?:sir|ma'?am|ji)\s*,?\s*)?(could|would|can|will|shall|do|does|did|is|are|was|were|have|has|had|may|might|should|kya|what|when|where|which|who|why|how|kab|kaise|kitna|kitne|kitni|kidhar|kahan)\b/i
 const NEG_NEAR = /\b(not|never|nahi|nahin|nhi|yet to|no|nothing)\b|n't\b/i // PATCH R4: "no payment has been received"
+/** "No issue", "no worries", "koi issue nahi": a "no" that says all is well, not a "not". */
+const ALL_WELL = /\bno\s+(issues?|problems?|concerns?|worries)\b|\b(koi\s+)?(issue|problem|dikkat|pareshani|tension)s?\s+(nahi|nahin|nhi)\b/gi
 function states(text: string, res: RegExp[], o: { typed: boolean; about?: (clause: string) => boolean }): Said {
   const r: Said = { yes: false, no: false, hedged: false }
   for (const s of sentences(text)) {
@@ -299,7 +313,7 @@ function states(text: string, res: RegExp[], o: { typed: boolean; about?: (claus
           // "…the details as soon as you are verified": a condition before the words, or inside the match, governs them.
           if (!o.typed && (COND_EN.test(before) || COND_EN.test(m[0]))) continue
           if (STILL_TO_DO.test(after) || (o.typed && MODAL_BEFORE.test(before))) continue
-          if (NEG_NEAR.test(before.slice(-25)) || NEG_NEAR.test(m[0]) || /^\s*(nahi|nahin|nhi|not)\b/i.test(after)) r.no = true
+          if (NEG_NEAR.test(before.replace(ALL_WELL, ' ').slice(-25)) || NEG_NEAR.test(m[0].replace(ALL_WELL, ' ')) || /^\s*(nahi|nahin|nhi|not)\b/i.test(after)) r.no = true
           else if (hedged) r.hedged = true
           else r.yes = true
         }
@@ -322,8 +336,13 @@ const WHO = String.raw`(?:we|i|team|our\s+(?:\w+\s+)?team|they|(?:our\s+|the\s+)
 /** A typed clause about our money: names it ("utr" is not the payment), or is a bare "received" ("rcvd sir"). */
 const MONEY_RE = /\b(payments?|pymt|pmt|amount|amt|money|funds?|transfer|paisa|paise|rupaye|rupees|rs|inr|imps|neft|rtgs|upi)\b|₹|\{amount\}/i
 const NOT_MONEY_RE = /\b(docs?|documents?|details|aadha+r|adhar|pan|selfie|photos?|pics?|screenshot|ss|msg|message|video|request|link|statement|proof|card|form|reply|utr|number|kyc)\b/i
-const aboutMoneyIn = (c: string) => MONEY_RE.test(c) || (!NOT_MONEY_RE.test(c) && /\b(received|recieved|recvd|rcvd|recd|credited|reflected|aa\s?gay\w*|aagay\w*|aa\s?chuk\w*)\b/i.test(c))
-const aboutMoneyOut = (c: string) => MONEY_RE.test(c) || /\bpaid\b/i.test(c)
+const aboutMoneyIn = (c: string) => MONEY_RE.test(c)
+  || (!NOT_MONEY_RE.test(c) && /\b(received|recieved|recvd|rcvd|recd|credited|reflected|aa\s?gay\w*|aagay\w*|aa\s?chuk\w*)\b/i.test(c))
+  // "abhi tak mila nahi", "nahi aaya abhi tak": what has not come is the payment, unless the clause names something else.
+  || (!NOT_MONEY_RE.test(c) && /\b(mila|mili|mile|aaya|aayi|aaye|aya|pahuncha|pahunchi|pahunche)\b/i.test(c) && /\b(nahi|nahin|nhi)\b/i.test(c))
+  // "bank statement me reflect nahi ho raha": reflecting or credited in the bank is money.
+  || (/\b(reflect\w*|credit\w*)\b/i.test(c) && /\b(bank|account|a\/c|statement|passbook)\b/i.test(c))
+const aboutMoneyOut = (c: string) => MONEY_RE.test(c) || /\bpaid\b|\bpay\s*(kar|kr)\w*/i.test(c)
 const aboutKyc = (c: string) => !MONEY_RE.test(c) || /\b(kyc|verification|account|you|aap\w*)\b/i.test(c) // PATCH R4: "upi id verified" is not the KYC
 
 const RECEIVED_SAID = [
@@ -356,7 +375,7 @@ const SENT_SAID = [
   new RegExp(String.raw`\b${WHO}\s+${HAVE}${ADV}(sent|transferred|made|completed|done|processed|initiated|released|credited|deposited|wired|remitted|dispatched)\s+(you\s+)?(the\s+|your\s+|this\s+|an?\s+)?(?:${MONEY_OBJ}|it\b)`, 'gi'),
   new RegExp(String.raw`${MONEY_OBJ_X}[^.?!,;]{0,30}?\b(has|have|had|is|was|were|got)(n'?t)?\s+${ADV}(been\s+)?(sent|transferred|made|done|completed|processed|initiated|paid|released|credited|deposited|wired|remitted|dispatched)\b`, 'gi'),
   /\b(payments?|amount|money|transfer|funds?)\s+(sent|done|completed|transferred|made|successful|dispatched|credited|deposited|wired)\b/gi,
-  /\b(payments?|paisa|paise|amount|transfer)\b[^.?!,;]{0,15}?\b(bhej\s+(diya|di|diye|dia|chuke)|kar\s+(diya|di|diye|dia|chuke)|transfer\s+(kar|ho)\s+(diya|di|gaya|gayi)|ho\s+(gaya|gayi|gya|gyi|chuka|gaye)|done|complete\s+ho\s+(gaya|gayi)|process\s+ho\s+(gaya|gayi)|daal\s+(diya|di|diye|dia)|dal\s+(diya|di|diye)|kiya\s+(hai|gaya)|bheja\s+(hai|gaya)|bhej\s+chuk\w*|kar\s+chuk\w*)\b/gi,
+  /\b(payments?|paisa|paise|amount|transfer)\b[^.?!,;]{0,15}?\b(bhej\s+(diya|di|diye|dia|chuke)|kar\s+(diya|di|diye|dia|chuke)|transfer\s+(kar|ho)\s+(diya|di|gaya|gayi)|ho\s+(gaya|gayi|gya|gyi|chuka|gaye)|(?<!\b(?:be|will|shall|'ll|would|to)\s)done|complete\s+ho\s+(gaya|gayi)|process\s+ho\s+(gaya|gayi)|daal\s+(diya|di|diye|dia)|dal\s+(diya|di|diye)|kiya\s+(hai|gaya)|bheja\s+(hai|gaya)|bhej\s+chuk\w*|kar\s+chuk\w*)\b/gi,
   // PATCH R4: "the money is on its way", "the UTR has been generated".
   new RegExp(String.raw`${MONEY_OBJ}[^.?!,;]{0,30}?\b(is|are)\s+(now\s+)?on\s+(its|the)\s+way\b`, 'gi'),
   /\butr\b[^.?!,;]{0,20}?\b(has\s+been\s+|is\s+|was\s+)?(generated|created|issued)\b/gi,
@@ -379,9 +398,13 @@ const VERIFIED_SAID = [
   /\b(kyc|verification)\s+(passed|cleared|ok|okay|clear)\b/gi,
   /\b(kyc|verification)\b[^.?!,;]{0,20}?\b(went|gone)\s+through\b/gi,
   /\baap\w*\b[^.?!,;]{0,15}?\b(verified|approved)\b(?!\s+(hone|hote|karna|karke|ke\s+baad))/gi,
+  // "there is no issue with your KYC", "your documents are in order".
+  /\bno\s+(issues?|problems?|concerns?)\s+(with|in)\s+(your\s+|the\s+)?(kyc|verification)\b/gi,
+  /\b(kyc|verification)\b[^.?!,;]{0,20}?\b(is|are)\s+(all\s+)?(good|in\s+order|perfect|correct)\b/gi,
 ]
 const VERIFIED_TYPED = [
   /\b(verified|approved|cleared|accepted|passed)\b/gi,
+  /\b(kyc|verification)\b[^,.?!]{0,20}\b(koi\s+)?(issue|problem|dikkat|pareshani)\s+(nahi|nahin|nhi)\b|\bno\s+(issues?|problems?)\s+(with|in)\s+(the\s+|your\s+)?(kyc|verification)\b/gi,
   // "kyc ok hai" says the KYC is fine; "docs ok hai" says nothing about the KYC.
   // PATCH R4: no modal or purpose in between ("kyc needs to be done", "kyc ke liye clear photo"), not "theek se"/"... karo".
   /\b(kyc|verification|vkyc|video\s+kyc|verify)\b(?:(?!\b(?:needs?|has|have|must|should|will|to\s+be|karna|krna|karni|hona|chahiye|ke\s+liye|liye)\b)[^,.?!]){0,15}?\b(done|complete|completed|successful|over|finished|clear|ok|okay|theek|thik|pass(?:ed)?|ho\s+(gaya|gayi|gya|gyi|chuka)|approve\w*)\b(?!\s+(se|photo|pic|image|copy|karo|kro|kar|kr|karna|krna|karke|hone|hote|kijiye|karein|kariye|karwa\w*|krwa\w*))/gi,
@@ -415,10 +438,21 @@ const PAID_SAID = [
   /\byou\s+(have|'ve|had)\s+(already\s+|now\s+)*paid\b/gi,
   /\byour\s+(payment|transfer)\s+(has\s+been|is|was)\s+(made|done|completed|sent)\b/gi,
   /\b(aapne|apne|aap\s+ne)\s+(payment|pay|transfer|paise|paisa|amount)\s+(kar|kr|bhej)\s*(diya|di|diye|liya|chuke|chuka)\b/gi,
+  /\bthank(s|\s+you)\s+(so\s+much\s+|very\s+much\s+)?for\s+(paying|making\s+(the\s+)?payment|(the\s+|your\s+|making\s+the\s+|sending\s+the\s+)?(payment|transfer|amount|money|funds?))\b/gi,
 ]
 const PAID_TYPED = [
   /\b(you|u|aap|aapne|apne|client)\b[^.?!,]{0,25}\b(paid|made\s+the\s+payment|pay\s+(kar|kr)\s*(diya|di|chuke)|payment\s+(kar|kr)\s*(diya|di|chuke|liya)|payment\s+(kiya|ki|done|made|sent|ho\s+gaya)|bhej\s*(diya|di|chuke))\b/gi,
   /\b(client|party|buyer)\s+(ne\s+)?(paid|pay\s+kar\s+diya|payment\s+kar\s+diya)\b/gi,
+  /\bthank\w*\s+(you\s+)?(so\s+much\s+)?for\s+(the\s+|your\s+)?(payment|transfer|amount)\b|\b(payment|transfer)\s+ke\s+liye\s+(thank\w*|dhanyavad|shukriya)\b/gi,
+]
+/** The client's documents are fine: their own family, so "docs ok" typed never stands for "the KYC is done". */
+const DOCS_FINE_SAID = [
+  /\b(documents?|docs|papers|aadha+r|pan|selfie|photos?)\b[^.?!,;]{0,20}?\b(is|are|look|looks|seem|seems)\s+(all\s+)?(fine|good|ok|okay|in\s+order|correct|clear|perfect|valid)\b/gi,
+  /\bno\s+(issues?|problems?|concerns?)\s+(with|in)\s+(your\s+|the\s+)?(documents?|docs|papers)\b/gi,
+]
+const DOCS_FINE_TYPED = [
+  /\b(documents?|docs?|papers|aadha+r|adhar|pan|selfie|photos?)\b[^,.?!]{0,15}\b(theek|thik|ok|okay|fine|sahi|correct|clear|perfect|valid)\b(?!\s+(se|karo|kro|kar|kr|karke|kijiye|karein|karna|krna|bhejo|bhej\w*|hone|hote))/gi,
+  /\b(documents?|docs?|papers)\b[^,.?!]{0,20}\b(koi\s+)?(issue|problem|dikkat)\s+(nahi|nahin|nhi)\b|\bno\s+(issues?|problems?)\s+(with|in)\s+(the\s+|your\s+)?(documents?|docs?)\b/gi,
 ]
 const CLAIMS: Array<{ code: string; said: RegExp[]; typed: RegExp[]; about?: (c: string) => boolean; negatives?: boolean }> = [
   // "Not received" counts too: a client told it may pay twice or appeal.
@@ -427,6 +461,7 @@ const CLAIMS: Array<{ code: string; said: RegExp[]; typed: RegExp[]; about?: (c:
   { code: 'verified_added', said: VERIFIED_SAID, typed: VERIFIED_TYPED, about: aboutKyc },
   { code: 'released_added', said: RELEASED_SAID, typed: RELEASED_TYPED },
   { code: 'paid_added', said: PAID_SAID, typed: PAID_TYPED },
+  { code: 'docs_fine_added', said: DOCS_FINE_SAID, typed: DOCS_FINE_TYPED },
 ]
 
 // ── Releasing the crypto (our sell orders: on buy orders the client releases) ──
@@ -460,8 +495,8 @@ const PROMISE: RegExp[] = [
   new RegExp(String.raw`\b${CRYPTO}\b[^.?!]{0,30}\b(aapke|apke|aap\s+ke)\s+(paas|pass|wallet|account)\b`, 'i'),
 ]
 /** A promise tied to our check of the payment in the same sentence ("once the payment is confirmed") promises nothing yet. */
-const PAY_CHECKED = /\b(after|once|as soon as|when|only if|only after|only once|upon)\b[^.?!]{0,80}(\b(payments?|amount|money|funds?|paise|paisa)\b[^.?!]{0,40}\b(verif|confirm|receiv|credit|reflect|check|clear)|\b(verif|confirm|receiv|credit|reflect|check|clear)\w*\b[^.?!]{0,40}\b(payments?|amount|money|funds?|paise|paisa)\b)|\bonly\s+(after|once|upon)\s+(the\s+|your\s+)?(payments?|amount|money|funds?)\b/i
-const PAY_CHECKED_HI = /\b(confirm|verify|verif\w*|check|receive|credit|reflect)\w*\s*(hote hi|hone ke baad|hone par|hone pe|karke|kar ke|ke baad)\b|\b(milte hi|aate hi|aane ke baad|milne ke baad|milne par|aane par)\b/i
+const PAY_CHECKED = /\b(after|once|as soon as|when|if|only if|only after|only once|upon)\b[^.?!]{0,80}(\b(payments?|amount|money|funds?|paise|paisa)\b[^.?!]{0,40}\b(verif|confirm|receiv|credit|reflect|check|clear|arriv|reach|land)|\b(verif|confirm|receiv|credit|reflect|check|clear)\w*\b[^.?!]{0,40}\b(payments?|amount|money|funds?|paise|paisa)\b)|\bonly\s+(after|once|upon)\s+(the\s+|your\s+)?(payments?|amount|money|funds?)\b/i
+const PAY_CHECKED_HI = /\b(confirm|verify|verif\w*|check|receive|credit|reflect)\w*\s*(hote hi|hone ke baad|hone par|hone pe|karke|kar ke|ke baad)\b|\b(milte hi|aate hi|aane ke baad|milne ke baad|milne par|aane par)\b|\b(aa|aaya|aayi|mil|mila|mili|credit|receive|reflect|confirm|verify)\w*(\s+(gaya|gayi|gaye|gya|gyi|ho\s+gaya|ho\s+gayi|ho\s+jaye|ho\s+jaaye))?(\s+(hai|ho))?\s+(to|toh)\b/i
 /** A sentence that says the crypto is or will be released to the client, unless that same sentence ties it to our check. */
 export function promisesRelease(text: string): boolean {
   return sentences(String(text ?? '')).some((s) => PROMISE.some((re) => re.test(s)) && !PAY_CHECKED.test(s) && !PAY_CHECKED_HI.test(s))
@@ -547,8 +582,9 @@ const typedAsksToPay = (raw: string) => invitesPayment(raw) || invitesPayment(ma
 
 // ── Conditions: the operator's "after", "until", "without" must survive ──
 const MONEY_OR_KYC = /\b(pay|paid|payment|releas\w*|usdt|crypto|coins?|kyc|verif\w*|transfer|upi|imps|neft|refund|amount|aadha+r|pan)\b/i
-const COND_TYPED = /\b(after|afterwards|once|until|till|when|whenever|before|unless|only if|as soon as|if|without|otherwise|baad|jab|pehle|hote hi|hone par|hone pe|ke bina|bina|agar|jab tak|tabhi|tab tak|warna|varna|nahi to)\b/i
-const COND_REPLY = /\b(after|afterwards|once|until|till|when|whenever|before|unless|only if|as soon as|if|first|then|without|upon|on receipt|subject to|provided|only after|otherwise|or else|else|baad|jab|pehle|hote hi|hone par|hone pe|ke bina|bina|agar|jab tak|tabhi|tab tak|warna|varna|nahi to|phir|failing which)\b|,?\s+or\s+(the|your|this)\s+(order|payment|kyc|account|trade)\b/i // PATCH R9: "or the order will be cancelled" keeps "warna\"
+const COND_TYPED = new RegExp(String.raw`\b(after|afterwards|once|until|till|when|whenever|before|unless|only if|as soon as|if|without|otherwise|baad|jab|pehle|hote hi|hone par|hone pe|ke bina|bina|agar|jab tak|tabhi|tab tak|warna|varna|nahi to)\b|${VERB_TO}`, 'i')
+// "or the order will be cancelled" keeps a "warna".
+const COND_REPLY = new RegExp(String.raw`\b(after|afterwards|once|until|till|when|whenever|before|unless|only if|as soon as|if|first|then|without|upon|on receipt|subject to|provided|only after|otherwise|or else|else|baad|jab|pehle|hote hi|hone par|hone pe|ke bina|bina|agar|jab tak|tabhi|tab tak|warna|varna|nahi to|phir|failing which)\b|,?\s+or\s+(the|your|this)\s+(order|payment|kyc|account|trade)\b|${VERB_TO}`, 'i')
 
 // ── PATCH R7: an instruction the operator forbade ("pay mat karo", "cancel mat karna", "don't use IMPS") may not come back
 // as a plain instruction. Only a prohibition within two words of the subject counts; a rewrite clause about that subject
@@ -696,7 +732,10 @@ export function checkRephrase(a: {
   // PATCH R9: the condition must sit in a sentence about money or KYC, and "if you have any questions" is no condition.
   const GENERIC_IF = /\bif\s+(you\s+)?(have\s+|need\s+)?(any\s+)?(questions?|queries|query|doubts?|issues?|problems?|help|assistance|anything)\b|\bif\s+(needed|required|possible|any)\b|\bin\s+case\s+of\s+any\s+\w+/gi
   const condKept = sentences(text).some((s) => MONEY_OR_KYC.test(s) && COND_REPLY.test(s.replace(GENERIC_IF, ' ')))
-  if (MONEY_OR_KYC.test(raw) && COND_TYPED.test(raw) && !condKept) return none('blocked', 'condition_dropped', flags)
+  // A condition counts when its own clause is about money or KYC ("kyc ke baad payment karna"), not any condition in a text
+  // that mentions money somewhere ("issue ho to call karo" next to "upi pe bhejo").
+  const moneyCondition = sentences(raw).flatMap(clausesOf).some((c) => COND_TYPED.test(c) && MONEY_OR_KYC.test(c))
+  if (moneyCondition && !condKept) return none('blocked', 'condition_dropped', flags)
   const added = timesAdded(inText, text)
   if (added.length) return none('blocked', 'time_added', [...flags, ...added.map((c) => `time:${c}`)])
   if (text.length > Math.min(700, Math.max(2 * inText.length + 40, inText.length + 90))) return none('blocked', 'too_long', flags)
@@ -719,7 +758,7 @@ export function checkRephrase(a: {
   }
   const typedSides = sides(sentences(inText).flatMap(clausesOf))
   if (typedSides.size >= 2 && [...typedSides.values()].some((x) => x.has(true))) {
-    const replySegs = text.split(/\s*[;.!?]+\s*|\s*,\s*(?=(?:not|but|instead|rather|nahi|lekin|par|so|please|kindly|then|and|use|pay|send|transfer)\b)|\s+(?=(?:but|instead\s+of|rather\s+than|not\s+on|not\s+to|lekin|and|aur|while|whereas)\s)/i)
+    const replySegs = text.split(/\s*[;.!?]+\s*|\s*,\s*(?=(?:not|but|instead|rather|nahi|lekin|par|so|please|kindly|then|and|use|pay|send|transfer|as|because|since|kyunki|kyonki)\b)|\s+(?=(?:but|instead\s+of|rather\s+than|not\s+on|not\s+to|lekin|and|aur|while|whereas|because|since|kyunki|kyonki)\s)/i)
     for (const [tk, set] of sides(replySegs)) {
       const want = typedSides.get(tk)
       if (want && want.size === 1 && (set.size > 1 || !want.has([...set][0]))) return none('blocked', 'value_swapped', flags)
@@ -731,7 +770,8 @@ export function checkRephrase(a: {
     warnings.push({ code: 'order_changed', label: REPHRASE_WARNINGS.order_changed })
   }
   const same = normText(out.replace(/[.,!?]/g, '')) === normText(raw.replace(/[.,!?]/g, ''))
-  return { status: same ? 'same' : 'ok', text: out, flags, warnings, reason: null }
+  const masked = maskPII(text.replace(TOKEN, (_m, n) => kindOf(a.input.values[Number(n) - 1] ?? '')))
+  return { status: same ? 'same' : 'ok', text: out, masked, flags, warnings, reason: null }
 }
 
 /** "ma'am" when the operator wrote it (they know the client), "sir" when they wrote that, else the chat's choice. */

@@ -116,7 +116,7 @@ function normalizeForMask(s: string): string {
 }
 
 /** UPI handles of Indian banks and apps (as on the server). */
-const UPI_HANDLES = 'ybl|ibl|axl|apl|yapl|upi|paytm|pt(?:yes|axis|hdfc|sbi)|ok(?:axis|hdfcbank|icici|sbi)|wa(?:axis|hdfcbank|icici|sbi)|[a-z]{2,}bank|icici|sbi|hdfc|axis|kotak|kmbl|yes|idfc\\w*|fbl|freecharge|jio|airtel|slc|mbk|ikwik|abfspay|axisb|pnb|boi|ubi|citi|hsbc|dbs|rbl|indus|federal|aubank|kbl|kvb|jupiteraxis|naviaxis|superyes';
+const UPI_HANDLES = 'ok[a-z]{2,16}|pt[a-z]{2,12}|wa(?:axis|hdfcbank|icici|sbi)|[a-z]{0,12}(?:bank|axis|icici|hdfc|sbi|idfc)[a-z]{0,12}|ybl|ibl|axl|apl|yapl|upi|paytm|pockets|freecharge|jio|airtel|slc|mbk|ikwik|abfspay|pnb|boi|ubi|cnrb|cboi|citi|citigold|hsbc|dbs|rbl|aubank|kbl|kvb|kmbl|kmb|kotak|fbl|federal|sib|iob|uco|idbi|jkb|nsdl|fam|timecosmos|dlb|equitas|esaf|fino|finobank|mahb|postbank|psb|sc|scb|tjsb|uboi|utbi|vijb|barodampay|indus|indusind|yes|yesbank|yesbankltd|superyes';
 const UPI_ONE_CHAR = new RegExp(`\\b[A-Z0-9]@(?:${UPI_HANDLES})\\b`, 'gi');
 const UPI_SPACED = new RegExp(`\\b[A-Z0-9][A-Z0-9._-]{0,255}(?:\\s+@\\s*|\\s*@\\s+)(?:${UPI_HANDLES})\\b`, 'gi');
 
@@ -167,6 +167,32 @@ function maskPhones(t: string): string {
 }
 
 const prevIs = (s: string, off: number, re: RegExp) => re.test(before(s, off, 2));
+
+// The digit rules are the server's code (copilot-playbook.ts longRun, groupedRun), word for word.
+const isDigit = (c: string) => c >= '0' && c <= '9';
+const digitsBefore = (s: string, j: number) => { let k = j; while (k > 0 && isDigit(s[k - 1])) k--; return j - k; };
+const digitsAfter = (s: string, j: number) => { let k = j; while (k < s.length && isDigit(s[k])) k++; return k - j; };
+/** Nine or more digits in a row (not a fraction, or the whole part of a decimal, unless the number across the dot is long). */
+const longRun = (m: RegExpExecArray, s: string) => {
+  const i = m.index, end = i + m[0].length;
+  if (isDigit(s.charAt(i - 1)) || isDigit(s.charAt(end))) return false;
+  if (s.charAt(i - 1) === '.' && digitsBefore(s, i - 1) > 0 && digitsBefore(s, i - 1) < 9) return false;
+  if (s.charAt(end) === '.' && digitsAfter(s, end + 1) > 0 && digitsAfter(s, end + 1) < 9) return false;
+  return true;
+};
+/** Digits in groups: ten or more whatever the groups, nine in groups sharing one separator with a group of three or more. */
+const groupedRun = (m: RegExpExecArray, s: string) => {
+  const t = m[0], i = m.index, p = s.charAt(i - 1);
+  if (isDigit(p) || ((p === ' ' || p === '.' || p === ',' || p === '-') && isDigit(s.charAt(i - 2)))) return false;
+  if (/^\d+\.\d+$/.test(t)) return false;
+  const d = /^(\d{1,2})([.-])(\d{1,2})\2(\d{2}|\d{4})(?: (\d{1,2}))?$/.exec(t);
+  if (d && +d[1] >= 1 && +d[1] <= 31 && +d[3] >= 1 && +d[3] <= 12 && (d[5] === undefined || +d[5] <= 23)) return false;
+  const groups = t.split(/[ .-]/);
+  const digits = groups.join('').length;
+  if (digits >= 10) return true;
+  return digits === 9 && new Set(t.replace(/\d/g, '')).size === 1 && groups.some((g) => g.length >= 3);
+};
+
 function maskOnce(input: string): string {
   let t = input;
   t = sub(t, /\b0x[a-fA-F0-9]{64}\b|\b[a-fA-F0-9]{64}\b/g, '[ref]');
@@ -181,14 +207,10 @@ function maskOnce(input: string): string {
   t = maskPhones(t);
   t = sub(t, /\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]');
   t = sub(t, /\b(?=[A-Z0-9]*\d{4})(?=[A-Z0-9]*[A-Z]{2})[A-Z0-9]{12,}\b/gi, '[ref]');
-  t = sub(t, /\d{9,}(?!\d)(?![.,]\d)/g, '[number]', (m, s) => !prevIs(s, m.index, /\d$/) && !prevIs(s, m.index, /\d[.,]$/));
-  // Other countries' phone numbers, then 9 or more digits in groups that share one separator, one group of three or more.
+  t = sub(t, /\d{9,}/g, '[number]', longRun);
+  // Other countries' phone numbers, then digits in groups.
   t = sub(t, /\+\d{1,3}(?:[\s-]?\d){7,13}(?!\d)/g, '[phone]');
-  t = sub(t, /\d{1,18}([ .-])\d{1,18}(?:\1\d{1,18})*(?!\d)/g, '[number]', (m, s) => {
-    if (prevIs(s, m.index, /[\d.,]$/)) return false;
-    const groups = m[0].split(m[1]);
-    return groups.some((g) => g.length >= 3) && groups.join('').length >= 9;
-  });
+  t = sub(t, /\d{1,18}(?:[ .-]\d{1,18})+/g, '[number]', groupedRun);
   // A UPI ID written with spaces around the "@", with a bank's own handle only.
   t = sub(t, UPI_SPACED, '[upi]');
   return t;

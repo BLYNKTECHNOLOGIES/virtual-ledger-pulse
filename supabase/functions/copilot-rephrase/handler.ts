@@ -135,7 +135,7 @@ export async function handleRephrase(deps: Deps, userId: string, input: Rephrase
     input_text: maskPII(text).slice(0, 1000),
     // What the person was offered (masked); for a held-back rewrite, what the model wrote, for review (its tokens are not
     // values). Nothing for "same" or "unclear": nothing was offered, so nothing can be reported as used.
-    output_text: (check?.status === 'ok' && check.text && !checkError ? maskPII(check.text) : check?.status === 'blocked' || checkError ? maskPII(rawReply) : '').slice(0, 2000) || null,
+    output_text: (check?.status === 'ok' && check.masked && !checkError ? check.masked : check?.status === 'blocked' || checkError ? maskPII(rawReply) : '').slice(0, 2000) || null,
     guardrail_flags: check?.flags.length ? check.flags : null,
     error: !r.ok ? (r.error ?? 'failed') : checkError ? `check_failed:${checkError}` : null,
   })

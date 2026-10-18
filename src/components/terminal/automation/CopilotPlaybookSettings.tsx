@@ -304,8 +304,8 @@ export function CopilotPlaybookSettings() {
       // A read on its way would land after this and undo it.
       await qc.cancelQueries({ queryKey: ['copilot-config'] });
       const before = qc.getQueryData<Config | null>(['copilot-config']) ?? null;
-      const shown = before ? { ...before, ...patch } : null;
-      if (shown) qc.setQueryData<Config | null>(['copilot-config'], shown);
+      // The cache keeps its own copy: what it stored is what a later look must find for the roll-back to apply.
+      const shown = before ? qc.setQueryData<Config | null>(['copilot-config'], { ...before, ...patch }) ?? null : null;
       return { before, shown };
     },
     mutationFn: (patch: Partial<Config>) => writeConfig(patch as TablesUpdate<'copilot_config'>),
@@ -498,7 +498,7 @@ export function CopilotPlaybookSettings() {
           <label className="flex items-center gap-2 text-xs text-foreground">
             <Switch checked={cfg.rephrase_verify !== false} onCheckedChange={(v) => saveNow({ rephrase_verify: v })} />
             Double-check each rewrite with a second AI call
-            <span className="text-[11px] text-muted-foreground">{cfg.rephrase_verify !== false ? '(recommended)' : '(off: the built-in checks only)'}</span>
+            <span className="text-[11px] text-muted-foreground">{cfg.rephrase_verify !== false ? '(recommended)' : '(off: rule checks only — some changed meanings, like steps in the wrong order, get through)'}</span>
           </label>
           <div className="flex items-end gap-2">
             <div className="space-y-1">

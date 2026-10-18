@@ -15,12 +15,15 @@ export function useRephrase(o: {
   hint: OrderHint;
   /** What is in the message box now. */
   text: string;
+  /** What the rewrites are checked against, as the screen knows it (see RephraseController.context). */
+  context?: string;
 }) {
   const [view, setView] = useState<RephraseView>(IDLE);
   const ctl = useRef<RephraseController | null>(null);
   if (!ctl.current) ctl.current = new RephraseController(copilotRephrase, setView);
   const c = ctl.current;
   c.hint = o.hint;
+  c.context = o.context ?? '';
   useEffect(() => () => c.dispose(), [c]);
   // Settings first (a new chat starts from nothing), then the box's text.
   useEffect(() => {

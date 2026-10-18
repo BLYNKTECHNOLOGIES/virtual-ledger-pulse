@@ -1,5 +1,5 @@
 // Run: deno test supabase/functions/_shared/copilot-rephrase.test.ts
-import { addressFor, applyVerify, buildRephraseMessages, buildVerifyMessages, CHECK_REASONS, checkRephrase, istDayStart, promisesRelease, protect, protectLike, readVerify, restore } from './copilot-rephrase.ts'
+import { addressFor, applyVerify, buildRephraseMessages, buildVerifyMessages, CHECK_REASONS, checkRephrase, istDayStart, kindOf, promisesRelease, protect, protectLike, readVerify, restore } from './copilot-rephrase.ts'
 import { eq, ok } from './copilot-fakes.test-helpers.ts'
 
 const check = (raw: string, reply: string, o: { ok?: boolean; side?: 'BUY' | 'SELL' | null; situation?: string | null; address?: 'sir' | 'maam' } = {}) =>
@@ -258,4 +258,41 @@ Deno.test('the second check: both texts as data, what it finds, and what it does
   eq([held.status, held.text, held.warnings, held.flags, held.reason], ['blocked', null, [], ['check_request', 'check_claim'], CHECK_REASONS.request])
   const blocked = { ...offered, status: 'blocked' as const, text: null }
   eq(applyVerify(blocked, { issues: [{ kind: 'claim', part: 'x' }] }), blocked)
+})
+
+Deno.test('round 3: a Hinglish "… hai to" is a condition; thanks for the payment and "no issue with your KYC" are claims', () => {
+  const PC = { side: 'SELL' as const, situation: 'sell.pay.checking' }, KR = { side: 'SELL' as const, situation: 'sell.kyc.review' }
+  eq(check('payment aa gaya hai to release kar denge', 'Sir, we have received the payment and will release the USDT.', PC).status, 'blocked')
+  eq(check('kyc ho gayi hai to payment kar do', 'Sir, your KYC is complete. Please make the payment.', KR).status, 'blocked')
+  eq(check('aapne payment kar diya hai to mark as paid karo', 'Sir, you have made the payment, so please mark the order as paid.', PC).status, 'blocked')
+  const kept = check('payment aa gaya hai to release kar denge', 'Sir, if the payment has arrived, we will release the USDT.', PC)
+  eq([kept.status, kept.warnings.map((w) => w.code)], ['ok', []], 'the condition kept: offered, and no promise')
+  eq(check('checking', 'Sir, thank you for your payment. We are checking.', PC).status, 'blocked')
+  eq(check('pls wait', 'Sir, there is no issue with your KYC; please wait.', KR).status, 'blocked')
+  eq(check('kyc me koi issue nahi, wait karo', 'Sir, there is no issue with your KYC; please wait.', KR).status, 'ok')
+})
+
+Deno.test('round 3: everyday faithful rewrites are offered', () => {
+  const PC = { side: 'SELL' as const, situation: 'sell.pay.checking' }, PR = { side: 'SELL' as const, situation: 'sell.pay.ready' }
+  const BS = { side: 'BUY' as const, situation: 'buy.pay.sent' }, BP = { side: 'BUY' as const, situation: 'buy.pay.processing' }
+  for (const [raw, reply, o] of [
+    ['abhi tak mila nahi sir', 'Sir, we have not received it yet.', PC],
+    ['nahi aaya abhi tak', 'Sir, we have not received it yet.', PC],
+    ['bank statement me abhi reflect nahi ho raha', 'Sir, the payment is not reflecting in our bank statement yet.', PC],
+    ['pay kar diya hai sir', 'Sir, we have paid.', BS],
+    ['payment 10 min me ho jayega', 'Sir, the payment will be done in 10 minutes.', BP],
+  ] as const) eq(check(raw, reply, o).status, 'ok', `${raw} → ${reply}`)
+  const v = protect('new upi blynk2@okaxis pe bhejo, purani blynk@ybl band hai')
+  for (const reply of ['Sir, please send the payment to ⟦1⟧, as ⟦2⟧ is no longer active.', 'Sir, please send it to ⟦1⟧ because ⟦2⟧ is closed.']) {
+    const r = checkRephrase({ input: v, raw: 'new upi blynk2@okaxis pe bhejo, purani blynk@ybl band hai', output: { ok: true, reply }, side: 'SELL', situation: 'sell.pay.ready', address: 'sir' })
+    eq(r.status, 'ok', reply)
+  }
+  ok(PR)
+})
+
+Deno.test('round 3: the log keeps the rewrite from its tokens, so values the operator typed never appear in it', () => {
+  const raw = 'utr 412345678901 aur 412345678902 check karo'
+  const r = checkRephrase({ input: protect(raw), raw, output: { ok: true, reply: 'Sir, we are checking UTR ⟦1⟧,⟦2⟧.' }, side: 'SELL', situation: 'sell.pay.checking', address: 'sir' })
+  eq([r.status, r.masked], ['ok', 'Sir, we are checking UTR [number],[number].'])
+  eq([kindOf('blynk@ybl'), kindOf('98765 43210'), kindOf('hello')], ['[upi]', '[phone]', '[value]'])
 })

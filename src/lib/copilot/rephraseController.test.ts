@@ -360,4 +360,51 @@ describe('RephraseController', () => {
     expect(errorLine(null)).toBe('Could not reword it.');
     expect(errorLine('Try again.')).toBe('Could not reword it.');
   });
+
+  it('kept rewrites are asked again once the chat moves on (new message, status, KYC or step); a late answer for the old one is dropped', async () => {
+    const { c, api, last } = setup();
+    api.mockResolvedValue(ok('Sir, we will share the payment details shortly.'));
+    c.context = 'TRADING|2|m1|r1';
+    c.setText('details share karte hai thodi der me');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api).toHaveBeenCalledTimes(1);
+    expect(last().status).toBe('ready');
+    // Same words, same chat: from what was kept, no new call.
+    c.setText('');
+    c.setText('details share karte hai thodi der me');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api).toHaveBeenCalledTimes(1);
+    // An approver moves the chat back to KYC (a new panel request): the same words are checked again.
+    c.setText('');
+    c.context = 'TRADING|1|m1|r2';
+    api.mockResolvedValue(ok('x', { status: 'blocked', text: null, reason: 'It asked the client to pay, which you did not say' }));
+    c.setText('details share karte hai thodi der me');
+    expect(c.ask()).toBe('asked');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api).toHaveBeenCalledTimes(2);
+    expect(last().status).toBe('blocked');
+    // An answer that comes back after the chat moved on is neither kept nor shown.
+    let resolve: (r: RephraseResult) => void = () => {};
+    api.mockImplementation(() => new Promise((r) => { resolve = r; }));
+    c.setText('payment check kar rahe hai');
+    expect(c.ask()).toBe('asked');
+    expect(last().status).toBe('loading');
+    c.context = 'TRADING|1|m2|r2';
+    resolve(ok('Sir, we are checking the payment.'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(last().status).toBe('idle');
+    expect(c.take()).toBeNull();
+  });
+
+  it('words that differ only in case are other words (a wallet address or reference differs by case alone)', async () => {
+    const { c, api, last } = setup();
+    api.mockResolvedValue(ok('Sir, please send the USDT to TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE.'));
+    c.setText('usdt TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE pe bhejo');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(last().status).toBe('ready');
+    c.setText('usdt TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSe pe bhejo');
+    expect(last().status).toBe('idle');
+    expect(c.take()).toBeNull();
+  });
 });
+

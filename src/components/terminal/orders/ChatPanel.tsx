@@ -632,8 +632,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const copilotStateRef = useRef<{ requestId: string | null; picks: CopilotPick[] }>({ requestId: null, picks: [] });
   const [copilotSaveOwn, setCopilotSaveOwn] = useState(false);
   const [copilotEntryId, setCopilotEntryId] = useState<string | null>(null);
+  const [copilotRequestId, setCopilotRequestId] = useState<string | null>(null);
   const handleCopilotState = useCallback((s: { requestId: string | null; picks: CopilotPick[] }) => {
     copilotStateRef.current = s;
+    setCopilotRequestId(s.requestId);
     // A reply for another step that is no longer offered (the chat moved on) sets no step when sent: drop the note.
     const cur = copilotPickRef.current;
     setCopilotPickStep(cur?.situation && s.picks.some((p) => pickKey(p) === pickKey(cur)) ? cur.situation.label : null);
@@ -710,8 +712,13 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
   // ── Copilot · Rephrase: approvers and the operators an approver picked (the server checks again). ──
   const canRephrase = !!copilotAccess?.can_rephrase && !isEnquiryThread;
+  // A rewrite is checked for the chat as it stands: a new message, the order's status or KYC, or the panel's request (an
+  // approver changing the step) makes the rewrites kept so far be asked again.
+  const lastMessageId = currentOrderMessages.length ? currentOrderMessages[currentOrderMessages.length - 1].id : '';
+  const rephraseContext = [orderStatus ?? '', kycLive ?? '', lastMessageId, copilotRequestId ?? ''].join('|');
   const rephrase = useRephrase({
     enabled: canRephrase, auto: copilotAccess?.rephrase_auto !== false, orderNumber, exchangeAccountId, hint: copilotHint, text,
+    context: rephraseContext,
   });
   const markPlaced = rephrase.markPlaced;
   const takeRewrite = rephrase.take;

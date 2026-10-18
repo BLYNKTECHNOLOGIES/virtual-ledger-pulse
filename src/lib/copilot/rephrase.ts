@@ -17,7 +17,10 @@ export const MAX_TYPED = 600;
 export type RephraseLang = 'auto' | 'en' | 'hi';
 
 /** The same words asked again (spacing and case aside) are never paid for twice. */
-export const rephraseKey = (text: string, lang: RephraseLang) => `${lang}:${text.replace(/\s+/g, ' ').trim().toLowerCase()}`;
+/** The words and the language a rewrite is for. Case counts: a wallet address or a reference differs by case alone. */
+export const rephraseKey = (text: string, lang: RephraseLang) => `${lang}:${text.replace(/\s+/g, ' ').trim()}`;
+/** The same words in the box (spaces aside; case counts, as in rephraseKey). */
+export const sameWordsExact = (a: string, b: string) => a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim();
 
 const WORD = /\p{L}[\p{L}\p{M}]+/gu;
 /** Words of two letters or more, in any script (Devanagari vowel signs are part of the word). */

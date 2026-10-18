@@ -18,6 +18,12 @@ const SAMPLES = [
   'list 10 20 30 40 50', '1 2 3 4 5 6 7 8 9', '12-34 56789 01234', '987.654.3210', '18-10-2026 10:30', 'card 4111 1111 1111 1111 now',
   'phone ९८७६५४३२१० pls', 'phone ９８７６５４３２１０', 'zero\u200bwidth 98765\u200b43210', 'aadhaar 1234 5678 9012 3456', '+919876543210',
   'pay ₹１，０００ now', 'Can I pay now? 🙏',
+  // Round 3: values joined by commas, digit-by-digit phones, mixed groups, decimals, dates, more UPI handles.
+  'utr 412345678901,412345678902 check karo', 'utr 412345678901.412345678902', 'call 9 8 7 6 5 4 3 2 1 0', '98 76 54 32 10', '98.76.54.32.10',
+  '0755-234 5678', 'a/c 5010 0123-4567 89', 'acc 50100123456789,5000', 'card 4111-1111 1111 1111', '1.234 567 891', 'x.12 345 6789',
+  'rate 1.5 234 567 89', '1.2.345 678 901', 'Ref.123 456 789', 'pehle 1052.63157894 usdt phir 2105.26315789', '100.000000 USDT',
+  '0.000123456789 BTC', 'pay 123456789.50 today', 'on 18-10-2026 10:30', '18.10.2026', 'a@pockets pe bhejo', 'ravi @ okbizaxis',
+  'b@okhdfcbank', 'meet @ home', 'x @ industry', 'available @ night',
 ];
 
 describe('maskPersonal gives the same result as the server maskPII', () => {

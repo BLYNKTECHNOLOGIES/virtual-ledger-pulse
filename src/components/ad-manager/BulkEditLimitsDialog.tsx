@@ -67,6 +67,12 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
 
     for (let i = 0; i < ads.length; i++) {
       const ad = ads[i];
+      const sameMin = !hasMin || Number(ad.minSingleTransAmount) === Number(min);
+      const sameMax = !hasMax || Number(ad.maxSingleTransAmount) === Number(max);
+      if (sameMin && sameMax) {
+        setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'success', message: 'Already set — skipped' } : r));
+        continue;
+      }
       try {
         // Build tradeMethods with only the fields Binance expects for update
         const tradeMethods = (ad.tradeMethods || []).map(m => ({

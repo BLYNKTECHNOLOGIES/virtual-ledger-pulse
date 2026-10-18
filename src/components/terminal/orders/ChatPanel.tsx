@@ -750,8 +750,16 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }
   };
 
+  const lastApproveRef = useRef<{ key: string; at: number } | null>(null);
   approveRef.current = (pick: CopilotPick) => {
     if (isSending) return;
+    const key = `${orderNumber}\n${pick.text.trim()}`;
+    const now = Date.now();
+    if (lastApproveRef.current?.key === key) {
+      toast('Already sent', { description: 'This reply was already approved and sent.' });
+      return;
+    }
+    lastApproveRef.current = { key, at: now };
     setCopilotPick(pick);
     void handleSend(pick.text);
   };

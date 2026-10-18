@@ -27,6 +27,12 @@ Deno.test('maskPII hides personal numbers and handles but keeps amounts and shor
   eq(maskPII('account 50100123456789'), 'account [number]')
   eq(maskPII('UTR 412345678901, ok. Ref 123456789.'), 'UTR [number], ok. Ref [number].')
   eq(maskPII('total 1,00,00,000.50'), 'total 1,00,00,000.50')
+  // Numbers written in groups (CP-7: typed by the desk, so every common format)
+  eq(maskPII('call 987-654-3210 or 98-7654-3210 or 9876 543 210'), 'call [number] or [number] or [number]')
+  eq(maskPII('office 0755-2345678, dubai +971 50 123 4567, uk +44 7911 123456'), 'office [number], dubai [phone], uk [phone]')
+  eq(maskPII('a/c 50100 12345 6789 and 1234.5678.9012'), 'a/c [number] and [number]')
+  eq(maskPII('card 4111 1111 1111 1111'), 'card [number]')
+  eq(maskPII('pay 4,500 at 10.30, order of 18-10-2026, 5 10 15 min'), 'pay 4,500 at 10.30, order of 18-10-2026, 5 10 15 min')
 })
 
 Deno.test('detectLang: Hindi in Roman script, English and neutral', () => {
@@ -231,4 +237,71 @@ Deno.test('routeSchema allows only the candidates or "none"; the router prompt c
   const u = JSON.parse(m.user)
   eq(u.candidates, [{ id: 'Q1', question: 'KYC time', client_wordings: ['how long for kyc'], reply_now: null }])
   eq(u.client_message, 'kitna time?')
+})
+
+Deno.test('maskPII: values glued together, a UPI ID with spaces, a one-letter UPI name, wallet addresses', () => {
+  eq(maskPII('98765 43210ABCDE1234F'), '[phone][pan]')
+  eq(maskPII('pay on blynk @ ybl or x@ybl'), 'pay on [upi] or [upi]')
+  eq(maskPII('wallet TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE / 0x52908400098527886E0F7030069857D2E4169EE7'), 'wallet [wallet] / [wallet]')
+  eq(maskPII('meet at 5 pm, pay ₹4,500 via upi'), 'meet at 5 pm, pay ₹4,500 via upi', 'ordinary text stays')
+})
+
+Deno.test('maskPII, round 2: hashes and other wallets, one-letter and spaced UPI IDs, mixed references, digits in groups', () => {
+  eq(maskPII('tx 0x5d2c1f6a8b3e4d7c9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f done'), 'tx [ref] done')
+  eq(maskPII('hash 5d2c1f6a8b3e4d7c9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f'), 'hash [ref]')
+  eq(maskPII('btc BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ'), 'btc [wallet]', 'bech32 in capitals')
+  eq(maskPII('ltc ltc1qg82tq7kd3n0ldxmqzszsyd3jt5ad5xkfg5w6vd'), 'ltc [wallet]')
+  eq(maskPII('ton EQD2NmD_lH5f5u1Kj3KfGyTvhZSX0Eg6qp2a5IQUKXxOG21n ok'), 'ton [wallet] ok')
+  eq(maskPII('pay a@ybl'), 'pay [upi]', 'a one-letter UPI name with a bank handle')
+  eq(maskPII('x@yz is fine'), 'x@yz is fine', 'but not with any other "handle"')
+  eq(maskPII('ravi @ ybl or a @ okaxis'), '[upi] or [upi]')
+  eq(maskPII('meet @ home'), 'meet @ home', 'spaced "@" only before a bank handle')
+  eq(maskPII('ref UTRABCDE1234F567890'), 'ref [ref]', 'a PAN-shaped middle does not hide a reference')
+  eq(maskPII('list 1 2 3 4 5 6 7 8 9, then 10 20 30 40 50'), 'list 1 2 3 4 5 6 7 8 9, then [number]', 'nine single digits stay; ten digits in any groups are masked')
+  eq(maskPII('12-34 56789 01234'), '[number]', 'ten or more digits in groups, whatever the separators')
+  eq(maskPII('call 987.654.3210'), 'call [number]')
+  eq(maskPII('on 18-10-2026 10:30'), 'on 18-10-2026 10:30', 'a date and a time are not one number')
+  eq(maskPII('card 4111 1111 1111 1111 now'), 'card [number] now')
+  eq(maskPII('phone ९८७६५४३२१० pls'), 'phone [phone] pls', 'Devanagari digits')
+  eq(maskPII('call 98765\u200b43210'), 'call [phone]', 'a zero-width space inside')
+  const plain = 'Pay ₹１，０００ now 🙏'
+  eq(maskPII(plain), plain, 'nothing personal: the text exactly as given (not normalised)')
+})
+
+Deno.test('the client\'s question is masked before it is cut: no half number at the end', () => {
+  const t: Msg[] = [{ id: 'q', at: 1, who: 'client', kind: 'text', text: `${'x'.repeat(590)} call 98765 43210` }]
+  const q = clientTurn(t)!.question
+  ok(!/\d{3}/.test(q), q.slice(-30)); ok(q.length <= 600)
+})
+
+Deno.test('maskPII, round 3: values joined by commas or written digit by digit are masked; decimals and dates stay', () => {
+  eq(maskPII('utr 412345678901,412345678902 check karo'), 'utr [number],[number] check karo', 'commas never group four digits or more')
+  eq(maskPII('utr 412345678901.412345678902'), 'utr [number].[number]', 'two long values joined by a dot')
+  eq(maskPII('call 9 8 7 6 5 4 3 2 1 0'), 'call [number]')
+  eq(maskPII('call 98 76 54 32 10 or 98.76.54.32.10'), 'call [number] or [number]')
+  eq(maskPII('landline 0755-234 5678'), 'landline [number]')
+  eq(maskPII('a/c 5010 0123-4567 89'), 'a/c [number]')
+  eq(maskPII('acc 50100123456789,5000'), 'acc [number],5000')
+  eq(maskPII('card 4111-1111 1111 1111'), 'card [number]', 'no first group left behind')
+  eq(maskPII('Ref.123 456 789'), 'Ref.[number]')
+  eq(maskPII('pehle 1052.63157894 usdt, phir 2105.26315789 usdt; 100.000000 USDT; 0.000123456789 BTC'),
+    'pehle 1052.63157894 usdt, phir 2105.26315789 usdt; 100.000000 USDT; 0.000123456789 BTC', 'decimal amounts stay')
+  eq(maskPII('pay 123456789.50 today'), 'pay 123456789.50 today', 'a nine-digit whole number with decimals is an amount')
+  eq(maskPII('on 18-10-2026 10:30 and 18.10.2026'), 'on 18-10-2026 10:30 and 18.10.2026', 'dates with or without the hour stay')
+  eq(maskPII('rate 1.234 567 891'), 'rate [number]', 'counted within the run, as on the screen')
+})
+
+Deno.test('maskPII on long digit runs is fast (no runaway backtracking)', () => {
+  for (const s of ['1 '.repeat(2000), '1.'.repeat(2000), '12-'.repeat(1300), '0.' + '1'.repeat(3000), '9'.repeat(4000)]) {
+    const t0 = performance.now()
+    maskPII(s)
+    ok(performance.now() - t0 < 250, `${JSON.stringify(s.slice(0, 12))}… took ${Math.round(performance.now() - t0)} ms`)
+  }
+})
+
+Deno.test('generalize never puts {name} inside a UPI ID, an email or a handle (the masking must still see them)', () => {
+  const v = { name: 'Ravi' }
+  eq(maskPII(generalize('Sir Ravi, we have sent the payment to ravi@ybl.', v, [])), 'Sir {name}, we have sent the payment to [upi].')
+  eq(maskPII(generalize('ravi.kumar@okaxis and ravi@gmail.com', v, [])), '[upi] and [email]')
+  eq(generalize('Thank you, Ravi.', v, []), 'Thank you, {name}.')
 })

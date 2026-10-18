@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-// Copilot v2: database access for copilot-draft and copilot-learn. The handlers only see the Store
+// Copilot v2: database access for copilot-draft, copilot-learn and copilot-rephrase. The handlers only see the Store
 // interface, so tests can replace it with an in-memory fake.
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import type { ChatRow, Prices, SmallRange } from './copilot-playbook.ts'
@@ -21,6 +21,13 @@ export interface CopilotConfig {
   tentative_days: number
   model_prices: Prices
   house_style: string
+  /** Rephrase (CP-7): operators who may reword their messages, automatic after a pause, a daily allowance, the model. */
+  rephrase_user_ids?: string[]
+  rephrase_auto?: boolean
+  rephrase_daily_limit?: number
+  rephrase_model?: string
+  /** A second call checks every rewrite before it is offered (default on). */
+  rephrase_verify?: boolean
 }
 
 export interface MatchArgs {
@@ -104,6 +111,20 @@ export interface RequestRow {
 
 export interface DbError { message: string; code?: string }
 
+/** A rewrite's log row, as "used" needs it (typed words and rewrite are stored masked). */
+export interface RephraseCall {
+  id: string
+  user_id: string | null
+  purpose: string
+  status: string
+  order_number: string | null
+  input_text: string | null
+  output_text: string | null
+  feedback: string | null
+  created_at: string | null
+}
+export interface InboxItem { id: string; kind: string; status: string; order_number: string | null; context: Record<string, any> }
+
 export interface Store {
   config(): Promise<CopilotConfig | null>
   isApprover(userId: string): Promise<boolean>
@@ -144,6 +165,28 @@ export interface Store {
   examplesFor(entryIds: string[]): Promise<Example[]>
   /** Active company teams whose numbers replies may give. */
   teams(): Promise<Team[]>
+  /** An approver, or an operator an approver picked who can read order chats (copilot_can_rephrase). */
+  canRephrase(userId: string): Promise<boolean>
+  /** The Binance accounts this person may work on (binance_accounts_for_user: the same answer the screens get). */
+  accountsFor(userId: string): Promise<string[]>
+  /** Rewrites this person was given or held back since then (calls that failed do not count). */
+  rephraseCount(userId: string, sinceIso: string): Promise<number>
+  rephraseCall(id: string): Promise<RephraseCall | null>
+  /** Marks this person's rewrite as sent, once; false when it was not theirs or already marked. */
+  markRephraseUsed(id: string, userId: string, edited: boolean): Promise<boolean>
+  /** A new inbox item; `duplicate` when the same one is already open. */
+  addInboxItem(row: Record<string, unknown>): Promise<{ id?: string; duplicate?: boolean; error?: string }>
+  inboxItem(id: string): Promise<InboxItem | null>
+  /** Takes an open operator reply for saving (false when it was already saved, being saved or dismissed). */
+  claimInboxItem(id: string, userId: string): Promise<boolean>
+  /** Marks a taken operator reply as saved, with the reply and the learning event it became (for Undo). */
+  finishInboxItem(id: string, context: Record<string, unknown>): Promise<void>
+  /** Gives a taken operator reply back to the inbox (saving failed). */
+  reopenInboxItem(id: string): Promise<void>
+  /** Undo of a save from the inbox: the operator reply is open again. */
+  reopenSavedInboxItem(eventId: string): Promise<boolean>
+  /** The typed words behind a saved reply, kept on its example chat (masked by the caller). */
+  setExampleNote(exampleId: string, note: string): Promise<void>
 }
 
 const vec = (v: number[] | string) => (typeof v === 'string' ? v : `[${v.join(',')}]`)
@@ -168,6 +211,7 @@ export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
         match_threshold: Number(data.match_threshold),
         related_threshold: Number(data.related_threshold),
         learn_threshold: Number(data.learn_threshold),
+        ...(data.rephrase_daily_limit !== undefined ? { rephrase_daily_limit: Number(data.rephrase_daily_limit) } : {}),
       } as CopilotConfig
     },
     async isApprover(userId) {
@@ -193,7 +237,7 @@ export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
       return { status: String(data.status ?? ''), responseDueAt: data.response_due_at ? Date.parse(data.response_due_at) : null }
     },
     async messages(orderNumber) {
-      const cols = 'id, binance_message_id, dedupe_key, message_type, sender_is_self, is_system_message, is_recall, message_text, binance_create_time'
+      const cols = 'id, binance_message_id, dedupe_key, message_type, sender_is_self, is_system_message, is_recall, message_text, binance_create_time, exchange_account_id'
       // Binance's KYC notices (extra KYC required, client verified) decide the KYC steps: in a long chat they can be older
       // than the last 80 messages, so they are read on their own too (two short rows, merged by id).
       const [recent, notices] = await Promise.all([
@@ -349,6 +393,69 @@ export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
     async teams() {
       const { data } = await db.from('copilot_teams').select('code, label, description').eq('active', true).order('sort').order('code')
       return (data ?? []).map((r: any) => ({ code: String(r.code), label: String(r.label), description: String(r.description ?? '') }))
+    },
+    async canRephrase(userId) {
+      const { data } = await db.rpc('copilot_can_rephrase', { p_user_id: userId })
+      return data === true
+    },
+    async accountsFor(userId) {
+      const { data, error } = await db.rpc('binance_accounts_for_user', { p_user_id: userId })
+      if (error) { console.error(JSON.stringify({ fn: 'copilot', outcome: 'accounts_failed', code: error.code })); return [] }
+      return Array.isArray(data) ? data.map(String) : []
+    },
+    async rephraseCount(userId, sinceIso) {
+      const { count } = await db.from('copilot_ai_calls').select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).eq('purpose', 'rephrase').in('status', ['ok', 'blocked']).gte('created_at', sinceIso)
+      return Number(count ?? 0)
+    },
+    async rephraseCall(id) {
+      const { data } = await db.from('copilot_ai_calls').select('id, user_id, purpose, status, order_number, input_text, output_text, feedback, created_at')
+        .eq('id', id).maybeSingle()
+      return data ?? null
+    },
+    async markRephraseUsed(id, userId, edited) {
+      const { data } = await db.from('copilot_ai_calls')
+        .update({ feedback: 'used', feedback_edited: edited, feedback_by: userId, feedback_at: new Date().toISOString() })
+        .eq('id', id).eq('user_id', userId).eq('purpose', 'rephrase').is('feedback', null).select('id')
+      return (data ?? []).length > 0
+    },
+    async addInboxItem(row) {
+      const { data, error } = await db.from('copilot_inbox_items').insert(row).select('id').single()
+      if (error) return error.code === '23505' ? { duplicate: true } : { error: error.message }
+      return { id: data.id }
+    },
+    async inboxItem(id) {
+      const { data } = await db.from('copilot_inbox_items').select('id, kind, status, order_number, context').eq('id', id).maybeSingle()
+      return data ?? null
+    },
+    async claimInboxItem(id, userId) {
+      const { data } = await db.from('copilot_inbox_items')
+        .update({ status: 'resolved', resolved_by: userId, resolved_at: new Date().toISOString(), resolution: 'saving' })
+        .eq('id', id).eq('kind', 'operator_reply').eq('status', 'open').select('id')
+      return (data ?? []).length > 0
+    },
+    async finishInboxItem(id, context) {
+      // The saved reply's id lives in the context, not in entry_id: that column cascades, and an Undo deletes the reply.
+      const { error } = await db.from('copilot_inbox_items').update({ resolution: 'saved', context }).eq('id', id).eq('resolution', 'saving')
+      if (error) console.error(JSON.stringify({ fn: 'copilot', outcome: 'inbox_finish_failed', code: error.code }))
+    },
+    async reopenInboxItem(id) {
+      const { error } = await db.from('copilot_inbox_items').update({ status: 'open', resolved_by: null, resolved_at: null, resolution: null })
+        .eq('id', id).eq('kind', 'operator_reply').eq('status', 'resolved').eq('resolution', 'saving')
+      if (error) console.error(JSON.stringify({ fn: 'copilot', outcome: 'inbox_reopen_failed', code: error.code }))
+    },
+    async reopenSavedInboxItem(eventId) {
+      const { data } = await db.from('copilot_inbox_items').select('id, context')
+        .eq('kind', 'operator_reply').eq('status', 'resolved').eq('context->>saved_event_id', eventId).limit(1).maybeSingle()
+      if (!data) return false
+      const { saved_entry_id: _e, saved_event_id: _v, ...context } = (data.context ?? {}) as Record<string, unknown>
+      const { error } = await db.from('copilot_inbox_items')
+        .update({ status: 'open', resolved_by: null, resolved_at: null, resolution: null, context }).eq('id', data.id).eq('status', 'resolved')
+      return !error
+    },
+    async setExampleNote(exampleId, note) {
+      const { error } = await db.from('copilot_playbook_examples').update({ note }).eq('id', exampleId)
+      if (error) console.error(JSON.stringify({ fn: 'copilot', outcome: 'example_note_failed', code: error.code }))
     },
     async setQuestionEmbeddings(items, model) {
       let n = 0

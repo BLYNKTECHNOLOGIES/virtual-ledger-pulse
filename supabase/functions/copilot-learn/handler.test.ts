@@ -571,3 +571,105 @@ Deno.test("Binance-only \"verified\": our KYC request after an approver's \"Clie
   await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Sir, please share your Aadhar card again, the photo is cut' })
   eq(s.learnCalls[0].p_stage, 'sell.kyc.pending')
 })
+
+// ── CP-7: the words typed before a rewrite, and operators' replies from the inbox ──
+
+Deno.test('a rewrite an approver sent: the typed words stay with the example chat (masked) and with a conflict, never with the judge', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.learnResult = { event_id: 'ev-1', action: 'conflict', entry_id: 'en-2', example_id: 'ex-9', title: 'Bank details' }
+  s.rows = [msg('client', 'can you give bank details instead of upi?'), msg('us', 'Sir, IMPS is not available at the moment. Kindly pay via UPI.')]
+  const cand = entry({ title: 'Bank details', reply_en: 'Sir, please find our bank details on the order.' })
+  s.matchRows = [cand]
+  a.replies['google/gemini-3-flash-preview'] = (system: string, user: string) => {
+    ok(!system.includes('desk_note') && !user.includes('imps abhi'), 'the judge never sees the typed words')
+    return judgeReply({ relation: 'conflict', target_entry_id: cand.entry_id, situation_specific: true })
+  }
+  const r = await run(s, a, {
+    action: 'learn', cause: 'sent', orderNumber: ORDER, sourceCallId: id(), insertedText: 'Sir, IMPS is not available at the moment. Kindly pay via UPI.',
+    finalText: 'Sir, IMPS is not available at the moment. Kindly pay via UPI.', note: '  imps abhi nahi milega, upi pe karo blynk@ybl ',
+  })
+  eq(r.status, 200); eq(s.learnCalls[0].p_relation, 'conflict', 'a decision does not turn a conflict into a variant')
+  eq(s.learnCalls[0].p_context.note, 'imps abhi nahi milega, upi pe karo [upi]', 'the approver sees the reason with the conflict')
+  eq(s.exampleNotes, [{ id: 'ex-9', note: 'imps abhi nahi milega, upi pe karo [upi]' }])
+  eq(r.body.inboxItemClosed, false)
+})
+
+Deno.test("the typed words are kept like the reply: the order's values as placeholders", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.learnResult = { event_id: 'ev-1', action: 'created', entry_id: 'en-1', example_id: 'ex-1', title: 'T' }
+  s.rows = [msg('client', 'how much should I pay?'), msg('us', 'Sir, please pay 4,500.00 via UPI.')]
+  s.matchRows = [entry()]
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new' })
+  await run(s, a, {
+    action: 'learn', cause: 'sent', orderNumber: ORDER, sourceCallId: id(), finalText: 'Sir, please pay 4,500.00 via UPI.',
+    note: 'rahul sharma 4500 upi pe bhejo', templateValues: { amount: 4500, name: 'Rahul Sharma' },
+  })
+  eq(s.exampleNotes, [{ id: 'ex-1', note: '{name} {amount} upi pe bhejo' }])
+})
+
+Deno.test('without a note nothing changes: none kept, none shown', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.learnResult = { event_id: 'ev-1', action: 'created', entry_id: 'en-1', example_id: 'ex-1', title: 'T' }
+  s.rows = [msg('client', 'tds certificate kab milega'), msg('us', 'Sir, it is emailed every quarter.')]
+  s.matchRows = [entry()]
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new' })
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Sir, it is emailed every quarter.', note: '   ' })
+  eq(s.exampleNotes, []); ok(!('note' in s.learnCalls[0].p_context))
+})
+
+Deno.test("saving an operator's reply from the inbox: the chat before it, the operator's typed words as the note, the item closed", async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.learnResult = { event_id: 'ev-3', action: 'created', entry_id: 'en-7', example_id: 'ex-7', title: 'Bank details' }
+  const q = msg('client', 'can you give bank details instead of upi?'), sent = msg('us', 'Sir, IMPS is not available. Kindly pay via UPI.')
+  s.rows = [q, sent, msg('client', 'ok')]
+  const item = { id: id(), kind: 'operator_reply', status: 'open', order_number: ORDER, context: { rough: 'imps nahi, upi pe karo' }, created_by: OPERATOR }
+  s.inbox.push(item)
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new' })
+  const r = await run(s, a, {
+    action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, IMPS is not available. Kindly pay via UPI.',
+    beforeAt: Number(sent.binance_create_time), inboxItemId: item.id,
+  })
+  eq(r.status, 200)
+  eq(s.learnCalls[0].p_question_text, 'can you give bank details instead of upi?'); eq(s.learnCalls[0].p_cause, 'saved')
+  eq(s.exampleNotes, [{ id: 'ex-7', note: 'imps nahi, upi pe karo' }])
+  eq([item.status, (item as any).resolution, (item as any).resolved_by], ['resolved', 'saved', SHUBHAM]); eq(r.body.inboxItemClosed, true)
+  eq([(item as any).entry_id, (item.context as any).saved_entry_id, (item.context as any).saved_event_id], [undefined, 'en-7', 'ev-3'],
+    'the saved reply is kept in the context (entry_id cascades: an Undo would delete the item)')
+  const again = await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'x y', beforeAt: Number(sent.binance_create_time), inboxItemId: item.id })
+  eq([again.status, again.body.error], [409, 'already_resolved']); eq(s.learnCalls.length, 1, 'not saved twice')
+})
+
+Deno.test('an inbox item that is not an operator reply, or is for another order, is refused before anything is saved', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'hello?'), msg('us', 'Sir, yes.')]
+  const conflict = { id: id(), kind: 'conflict', status: 'open', order_number: ORDER, context: {} }
+  const other = { id: id(), kind: 'operator_reply', status: 'open', order_number: '99944071217231917056', context: {} }
+  s.inbox.push(conflict, other)
+  for (const inboxItemId of [conflict.id, other.id, id()]) {
+    eq((await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, yes.', inboxItemId })).status, 404)
+  }
+  eq((await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, yes.', inboxItemId: 'nope' })).body.field, 'inboxItemId')
+  eq(s.learnCalls.length, 0)
+  eq((await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, yes.', inboxItemId: other.id }, OPERATOR)).status, 403, 'operators cannot save')
+})
+
+Deno.test('saving an operator reply that fails gives it back to the inbox; Undo of a save reopens it', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const q = msg('client', 'can you give bank details instead of upi?'), sent = msg('us', 'Sir, IMPS is not available. Kindly pay via UPI.')
+  s.rows = [q, sent]
+  const item = { id: id(), kind: 'operator_reply', status: 'open', order_number: ORDER, context: { rough: 'imps nahi, upi pe karo' }, created_by: OPERATOR }
+  s.inbox.push(item)
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new' })
+  s.learnFails = { message: 'boom' }
+  const failed = await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, IMPS is not available. Kindly pay via UPI.', beforeAt: Number(sent.binance_create_time), inboxItemId: item.id })
+  eq(failed.status, 500); eq([item.status, (item as any).resolution], ['open', null], 'back in the inbox')
+  s.learnFails = null
+  s.learnResult = { event_id: 'ev-5', action: 'created', entry_id: 'en-5', example_id: 'ex-5', title: 'Bank details' }
+  const saved = await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: 'Sir, IMPS is not available. Kindly pay via UPI.', beforeAt: Number(sent.binance_create_time), inboxItemId: item.id })
+  eq(saved.status, 200); eq(item.status, 'resolved')
+  const undone = await run(s, a, { action: 'undo', eventId: '00000000-0000-4000-8000-000000000555' })
+  eq(undone.body.inboxItemReopened, false, 'another event: nothing reopened')
+  ;(item.context as any).saved_event_id = '00000000-0000-4000-8000-000000000556'
+  const undo2 = await run(s, a, { action: 'undo', eventId: '00000000-0000-4000-8000-000000000556' })
+  eq([undo2.body.inboxItemReopened, item.status, (item.context as any).saved_event_id], [true, 'open', undefined])
+})

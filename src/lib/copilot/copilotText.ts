@@ -75,25 +75,144 @@ export function contactsUsed(text: string): ContactPurpose[] {
 const TOKEN_RE = /\{(amount|orderNo|name|upi|contact:[a-z][a-z0-9_]{0,23})\}/g;
 
 /**
- * Hides personal numbers and handles in text an approver adds to the Playbook — the same rules the server applies
- * before any AI call (copilot-playbook.ts maskPII), written without lookbehind so older Safari can parse it.
+ * Hides personal numbers and handles in text an approver adds to the Playbook — the same rules, in the same order, the
+ * server applies before any AI call (copilot-playbook.ts maskPII; maskParity.test.ts compares them), written without
+ * lookbehind so older Safari can parse it. Masking one value can open a word boundary next to another, so it repeats
+ * until nothing changes.
  */
 export function maskPersonal(input: string | null | undefined): string {
-  let t = String(input ?? '');
-  t = t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]');
-  t = t.replace(/\b[A-Z0-9][A-Z0-9._-]{1,255}@[A-Z][A-Z0-9]{1,63}\b/gi, '[upi]');
-  t = t.replace(/\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, '[pan]');
-  t = t.replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[ifsc]');
-  t = t.replace(/\b\d{4}[\s-]\d{4}[\s-]\d{4}\b/g, '[aadhaar]');
-  t = t.replace(/(\+?91[\s-]?)?([6-9]\d{4}[\s-]?\d{5})(?!\d)/g, (m: string, cc: string | undefined, _n: string, off: number, s: string) =>
-    (!cc && off > 0 && /\d/.test(s[off - 1]) ? m : '[phone]'));
-  t = t.replace(/\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]');
-  t = t.replace(/\d{9,}/g, (m: string, off: number, s: string) => {
-    const before = s.slice(Math.max(0, off - 2), off);
-    const after = s.slice(off + m.length, off + m.length + 2);
-    if (/\d$/.test(before) || /\d[.,]$/.test(before) || /^\d/.test(after) || /^[.,]\d/.test(after)) return m;
-    return '[number]';
+  // Read as the server reads it: Devanagari and full-width digits as digits, invisible characters gone.
+  const raw = String(input ?? '');
+  const norm = normalizeForMask(raw);
+  let t = norm;
+  for (let pass = 0; pass < 4; pass++) {
+    const prev = t;
+    t = maskOnce(t);
+    if (t === prev) break;
+  }
+  // Nothing personal: the text exactly as given.
+  return t === norm ? raw : t;
+}
+
+/** Where each script's digit zero is (as on the server, copilot-numbers.ts asciiDigits). */
+const DIGIT_ZEROS = [0x30, 0x660, 0x6f0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xff10];
+/** Characters that do not show (zero-width spaces and joiners, direction marks, soft hyphens, fillers). */
+// Each code point is matched on its own (they are what is removed), so a combining one in the class is meant.
+// eslint-disable-next-line no-misleading-character-class
+const INVISIBLE = /[\p{Cf}\u034F\u115F\u1160\u17B4\u17B5\u180E\u3164\uFE00-\uFE0F\uFFA0\u20E3]/gu;
+/** The server's normalizeText (fractions, compatibility forms, keycap ten, invisible characters, digits in ASCII). */
+function normalizeForMask(s: string): string {
+  const t = s
+    .replace(/(\d)\s*½/g, '$1.5').replace(/½/g, '0.5').replace(/(\d)\s*¼/g, '$1.25').replace(/¼/g, '0.25')
+    .replace(/(\d)\s*¾/g, '$1.75').replace(/¾/g, '0.75')
+    .normalize('NFKC')
+    .replace(/\u{1F51F}/gu, ' 10 ')
+    .replace(INVISIBLE, '');
+  return t.normalize('NFKC').replace(/\p{Nd}/gu, (d) => {
+    const c = d.codePointAt(0)!;
+    const z = DIGIT_ZEROS.find((zero) => c >= zero && c <= zero + 9);
+    return z === undefined ? '9' : String(c - z);
   });
+}
+
+/** UPI handles of Indian banks and apps (as on the server). */
+const UPI_HANDLES = 'ok[a-z]{2,16}|pt[a-z]{2,12}|wa(?:axis|hdfcbank|icici|sbi)|[a-z]{0,12}(?:bank|axis|icici|hdfc|sbi|idfc)[a-z]{0,12}|ybl|ibl|axl|apl|yapl|upi|paytm|pockets|freecharge|jio|airtel|slc|mbk|ikwik|abfspay|pnb|boi|ubi|cnrb|cboi|citi|citigold|hsbc|dbs|rbl|aubank|kbl|kvb|kmbl|kmb|kotak|fbl|federal|sib|iob|uco|idbi|jkb|nsdl|fam|timecosmos|dlb|equitas|esaf|fino|finobank|mahb|postbank|psb|sc|scb|tjsb|uboi|utbi|vijb|barodampay|indus|indusind|yes|yesbank|yesbankltd|superyes';
+const UPI_ONE_CHAR = new RegExp(`\\b[A-Z0-9]@(?:${UPI_HANDLES})\\b`, 'gi');
+const UPI_SPACED = new RegExp(`\\b[A-Z0-9][A-Z0-9._-]{0,255}(?:\\s+@\\s*|\\s*@\\s+)(?:${UPI_HANDLES})\\b`, 'gi');
+
+/** The characters just before `off`. */
+const before = (s: string, off: number, n: number) => s.slice(Math.max(0, off - n), off);
+
+/**
+ * Replaces each match of the global `re` that `ok` accepts. A match that is refused lets the search go on one character
+ * later, which is what the server's lookbehind does (a refused match never hides a later one inside it).
+ */
+function sub(t: string, re: RegExp, tag: string, ok?: (m: RegExpExecArray, s: string) => boolean): string {
+  let out = '';
+  let last = 0;
+  re.lastIndex = 0;
+  for (let m = re.exec(t); m; m = re.exec(t)) {
+    if (!m[0].length) { re.lastIndex++; continue; }
+    if (ok && !ok(m, t)) { re.lastIndex = m.index + 1; continue; }
+    out += t.slice(last, m.index) + tag;
+    last = m.index + m[0].length;
+    re.lastIndex = last;
+  }
+  return out + t.slice(last);
+}
+
+/** Indian mobile numbers: "+91 98765 43210", "9876543210", never inside a longer run of digits. */
+function maskPhones(t: string): string {
+  const re = /(\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)/g;
+  const bare = /[6-9]\d{4}[\s-]?\d{5}(?!\d)/y;
+  let out = '';
+  let last = 0;
+  re.lastIndex = 0;
+  for (let m = re.exec(t); m; m = re.exec(t)) {
+    const numAt = m.index + (m[1]?.length ?? 0);
+    let end = -1;
+    if (!/\d/.test(before(t, numAt, 1))) end = m.index + m[0].length;
+    else if (m[1] && !/\d/.test(before(t, m.index, 1))) {
+      // The server's regex then tries the same place without the country code.
+      bare.lastIndex = m.index;
+      const b = bare.exec(t);
+      if (b) end = m.index + b[0].length;
+    }
+    if (end < 0) { re.lastIndex = m.index + 1; continue; }
+    out += t.slice(last, m.index) + '[phone]';
+    last = end;
+    re.lastIndex = end;
+  }
+  return out + t.slice(last);
+}
+
+const prevIs = (s: string, off: number, re: RegExp) => re.test(before(s, off, 2));
+
+// The digit rules are the server's code (copilot-playbook.ts longRun, groupedRun), word for word.
+const isDigit = (c: string) => c >= '0' && c <= '9';
+const digitsBefore = (s: string, j: number) => { let k = j; while (k > 0 && isDigit(s[k - 1])) k--; return j - k; };
+const digitsAfter = (s: string, j: number) => { let k = j; while (k < s.length && isDigit(s[k])) k++; return k - j; };
+/** Nine or more digits in a row (not a fraction, or the whole part of a decimal, unless the number across the dot is long). */
+const longRun = (m: RegExpExecArray, s: string) => {
+  const i = m.index, end = i + m[0].length;
+  if (isDigit(s.charAt(i - 1)) || isDigit(s.charAt(end))) return false;
+  if (s.charAt(i - 1) === '.' && digitsBefore(s, i - 1) > 0 && digitsBefore(s, i - 1) < 9) return false;
+  if (s.charAt(end) === '.' && digitsAfter(s, end + 1) > 0 && digitsAfter(s, end + 1) < 9) return false;
+  return true;
+};
+/** Digits in groups: ten or more whatever the groups, nine in groups sharing one separator with a group of three or more. */
+const groupedRun = (m: RegExpExecArray, s: string) => {
+  const t = m[0], i = m.index, p = s.charAt(i - 1);
+  if (isDigit(p) || ((p === ' ' || p === '.' || p === ',' || p === '-') && isDigit(s.charAt(i - 2)))) return false;
+  if (/^\d+\.\d+$/.test(t)) return false;
+  const d = /^(\d{1,2})([.-])(\d{1,2})\2(\d{2}|\d{4})(?: (\d{1,2}))?$/.exec(t);
+  if (d && +d[1] >= 1 && +d[1] <= 31 && +d[3] >= 1 && +d[3] <= 12 && (d[5] === undefined || +d[5] <= 23)) return false;
+  const groups = t.split(/[ .-]/);
+  const digits = groups.join('').length;
+  if (digits >= 10) return true;
+  return digits === 9 && new Set(t.replace(/\d/g, '')).size === 1 && groups.some((g) => g.length >= 3);
+};
+
+function maskOnce(input: string): string {
+  let t = input;
+  t = sub(t, /\b0x[a-fA-F0-9]{64}\b|\b[a-fA-F0-9]{64}\b/g, '[ref]');
+  t = sub(t, /\bT[1-9A-HJ-NP-Za-km-z]{33}\b|\b0x[a-fA-F0-9]{40}\b|\b(?:[bB][cC]1|[lL][tT][cC]1)[a-zA-Z0-9]{25,59}\b|\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\b[EU]Q[A-Za-z0-9_-]{46}(?![A-Za-z0-9_-])/g, '[wallet]');
+  t = sub(t, /[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]');
+  t = sub(t, /\b[A-Z0-9][A-Z0-9._-]{1,255}@[A-Z][A-Z0-9]{1,63}\b/gi, '[upi]');
+  t = sub(t, UPI_ONE_CHAR, '[upi]');
+  t = sub(t, /\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, '[pan]');
+  t = sub(t, /\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[ifsc]');
+  // Twelve digits in fours, not inside a longer run (a card number is masked whole further down).
+  t = sub(t, /\b\d{4}[\s-]\d{4}[\s-]\d{4}\b(?![\s-]\d)/g, '[aadhaar]', (m, s) => !prevIs(s, m.index, /\d[\s-]$/));
+  t = maskPhones(t);
+  t = sub(t, /\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]');
+  t = sub(t, /\b(?=[A-Z0-9]*\d{4})(?=[A-Z0-9]*[A-Z]{2})[A-Z0-9]{12,}\b/gi, '[ref]');
+  t = sub(t, /\d{9,}/g, '[number]', longRun);
+  // Other countries' phone numbers, then digits in groups.
+  t = sub(t, /\+\d{1,3}(?:[\s-]?\d){7,13}(?!\d)/g, '[phone]');
+  t = sub(t, /\d{1,18}(?:[ .-]\d{1,18})+/g, '[number]', groupedRun);
+  // A UPI ID written with spaces around the "@", with a bank's own handle only.
+  t = sub(t, UPI_SPACED, '[upi]');
   return t;
 }
 

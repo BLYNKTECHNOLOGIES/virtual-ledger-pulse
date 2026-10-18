@@ -608,3 +608,21 @@ Deno.test('invitesPayment: a verification condition excuses a request only when 
   // a statement that KYC is done, then "pay": still a request
   ok(invitesPayment('Sir, your KYC is done, then pay.'))
 })
+
+Deno.test('invitesPayment: a UPI ID ending a sentence and a lower-case IFSC are payment details; a request inside a time to pay follows that time', () => {
+  ok(invitesPayment('Sir, our UPI ID is blynk@ybl.'), 'UPI ID before a full stop')
+  ok(invitesPayment('Sir, IFSC hdfc0001234'), 'lower-case IFSC')
+  ok(!invitesPayment('Sir, mail us at ops@blynk.in'), 'an e-mail address is not a UPI ID')
+  ok(!invitesPayment('Sir, once your KYC is done, you will have 15 minutes to make the payment.'), 'the condition governs the time to pay and the request in it')
+  ok(invitesPayment('Sir, you have 15 minutes to make the payment.'), 'without the condition it still invites payment')
+})
+
+Deno.test('invitesPayment, round 2: a time to pay is let go only under a verification condition with nothing in between', () => {
+  ok(!invitesPayment('Once your KYC is verified, you will have 15 minutes left to make the payment.'), 'governed by the condition')
+  for (const t of [
+    'Once your KYC is verified, but right now there are 15 minutes left to make the payment.',
+    'Once your KYC is verified we will share details; meanwhile only 15 minutes are left to pay.',
+    'KYC complete hone ke baad, lekin abhi 15 minute bache hain payment ke liye.',
+  ]) ok(invitesPayment(t), t)
+  ok(!invitesPayment('Sir, the UPI ID blynk@ybl.in is not ours; we will share ours after verification.'), 'a domain-like ID is not a UPI ID')
+})

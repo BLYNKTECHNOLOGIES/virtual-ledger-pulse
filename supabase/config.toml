@@ -180,3 +180,5 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.copilot-learn]
     verify_jwt = false
+  [functions.copilot-rephrase]
+    verify_jwt = false

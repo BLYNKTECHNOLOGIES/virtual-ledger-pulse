@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cleanScope, clientLabel, copyChangeNote, expiryText, staleFlagForEdit, filterEntries, filterTopics, inr, isExpired, optionChecked, pct, rankModels, replyLabel, sameScope, scopeSummary, toggleScope,
+  cleanScope, clientLabel, copyChangeNote, expiryText, staleFlagForEdit, filterEntries, filterTopics, inr, isExpired, operatorReplyOf, optionChecked, pct, rankModels, replyLabel, sameScope, scopeSummary, toggleScope,
   type EntryLike,
 } from './playbookAdmin';
 
@@ -141,3 +141,19 @@ describe('copyChangeNote and staleFlagForEdit', () => {
     expect(staleFlagForEdit({ ...e, reply_en_stale: true }, e.reply_en, 'x')).toEqual({})
   })
 })
+
+describe('operatorReplyOf', () => {
+  it('reads an operator reply from an inbox item, tolerating odd data', () => {
+    expect(operatorReplyOf({
+      rough: ' imps nahi, upi pe karo ', sent: 'Sir, IMPS is not available. Kindly pay via UPI.', suggestion: 'Sir, IMPS is not available right now. Please pay via UPI.', edited: true, sent_at: 1792000000000,
+      situation_label: 'Client can pay', chat: [{ from: 'client', text: 'bank details?', at: '18 Oct, 14:30' }, { from: 'us' }, null, 'x'],
+    })).toEqual({
+      rough: 'imps nahi, upi pe karo', sent: 'Sir, IMPS is not available. Kindly pay via UPI.', suggestion: 'Sir, IMPS is not available right now. Please pay via UPI.', edited: true, sentAt: 1792000000000,
+      situationLabel: 'Client can pay', chat: [{ from: 'client', text: 'bank details?', at: '18 Oct, 14:30' }],
+    });
+    expect(operatorReplyOf({ sent: '  ' })).toBeNull();
+    expect(operatorReplyOf(null)).toBeNull();
+    expect(operatorReplyOf(['x'])).toBeNull();
+    expect(operatorReplyOf({ sent: 'Sir, ok.', sent_at: 'soon', rough: '' })).toMatchObject({ rough: null, sentAt: null, edited: false, chat: [] });
+  });
+});

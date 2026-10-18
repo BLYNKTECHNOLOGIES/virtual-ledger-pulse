@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, useId, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 
 import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud, History, BookmarkPlus } from 'lucide-react';
+import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud, History, BookmarkPlus, Sparkles } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
@@ -16,7 +16,11 @@ import { AttachAdPicker } from './chat/AttachAdPicker';
 import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotPanel, type CopilotPick } from './chat/CopilotPanel';
 import { CopilotEntryDialog } from './chat/CopilotEntryDialog';
-import { useCopilotAccess, copilotLearn, copilotUndo, type CopilotError, type LearnBody } from '@/hooks/useCopilotPlaybook';
+import { RephraseStrip } from './chat/RephraseStrip';
+import { useCopilotAccess, copilotLearn, copilotRephraseUsed, copilotUndo, type CopilotError, type LearnBody } from '@/hooks/useCopilotPlaybook';
+import { useRephrase } from '@/hooks/useRephrase';
+import { chainRewrite, rewriteSent, type BoxRewrite } from '@/lib/copilot/rephrase';
+import { composerKeyAction } from '@/lib/copilot/composerKeys';
 import { copilotAdmin } from '@/hooks/useCopilotAdmin';
 import { cycleIndex, latestUnanswered, learnToast, pickKey, sameText, unfilledTokens } from '@/lib/copilot/copilotText';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
@@ -585,6 +589,21 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }
   }, [hasMoreHistory, historyLoading, historyUnavailable, loadMoreHistory]);
 
+  // The composer grew (a rewrite strip, a longer message) and the thread got shorter: stay at the bottom when the operator
+  // was there, so the latest message does not slip out of view.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let lastH = el.clientHeight;
+    const ro = new ResizeObserver(() => {
+      const h = el.clientHeight;
+      if (h < lastH && (initialPinRef.current || shouldAutoScrollRef.current)) el.scrollTop = el.scrollHeight;
+      lastH = h;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Keep the operator's reading position stable when older chats are prepended.
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -613,8 +632,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const copilotStateRef = useRef<{ requestId: string | null; picks: CopilotPick[] }>({ requestId: null, picks: [] });
   const [copilotSaveOwn, setCopilotSaveOwn] = useState(false);
   const [copilotEntryId, setCopilotEntryId] = useState<string | null>(null);
+  const [copilotRequestId, setCopilotRequestId] = useState<string | null>(null);
   const handleCopilotState = useCallback((s: { requestId: string | null; picks: CopilotPick[] }) => {
     copilotStateRef.current = s;
+    setCopilotRequestId(s.requestId);
     // A reply for another step that is no longer offered (the chat moved on) sets no step when sent: drop the note.
     const cur = copilotPickRef.current;
     setCopilotPickStep(cur?.situation && s.picks.some((p) => pickKey(p) === pickKey(cur)) ? cur.situation.label : null);
@@ -636,7 +657,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
   // One approval per reply per order: repeated Approve / Send / Ctrl+Enter taps on the same text are ignored.
   const copilotTaughtRef = useRef<Set<string>>(new Set());
-  const teachCopilot = useCallback(async (cause: LearnBody['cause'], finalText: string, picked: CopilotPick | null, beforeAt?: number) => {
+  const teachCopilot = useCallback(async (
+    cause: LearnBody['cause'], finalText: string, picked: CopilotPick | null, beforeAt?: number,
+    rewrite?: { callId: string | null; text: string; rough: string } | null,
+  ) => {
     const dedupeKey = beforeAt ? null : `${orderNumber}\n${finalText.trim().replace(/\s+/g, ' ').toLowerCase()}`;
     if (dedupeKey) {
       if (copilotTaughtRef.current.has(dedupeKey)) {
@@ -652,8 +676,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         exchangeAccountId: exchangeAccountId ?? null,
         requestId: beforeAt ? null : (picked?.requestId ?? copilotStateRef.current.requestId),
         sourceEntryId: picked?.kind === 'entry' ? picked.entryId ?? null : null,
-        sourceCallId: picked?.kind === 'draft' ? picked.callId ?? null : null,
-        insertedText: picked?.text ?? null,
+        // A rewrite of the approver's own words counts like a draft they used; their typed words are its reason.
+        sourceCallId: picked?.kind === 'draft' ? picked.callId ?? null : (!picked ? rewrite?.callId ?? null : null),
+        insertedText: picked?.text ?? rewrite?.text ?? null,
+        note: !picked ? rewrite?.rough ?? null : null,
         finalText,
         templateValues,
         hint: copilotHint,
@@ -684,14 +710,65 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }
   }, [orderNumber, exchangeAccountId, templateValues, copilotHint, queryClient]);
 
-  const insertCopilotPick = useCallback((pick: CopilotPick) => {
-    setCopilotPick(pick);
-    setText(pick.text);
+  // ── Copilot · Rephrase: approvers and the operators an approver picked (the server checks again). ──
+  const canRephrase = !!copilotAccess?.can_rephrase && !isEnquiryThread;
+  // A rewrite is checked for the chat as it stands: a new message, the order's status or KYC, or the panel's request (an
+  // approver changing the step) makes the rewrites kept so far be asked again.
+  const lastMessageId = currentOrderMessages.length ? currentOrderMessages[currentOrderMessages.length - 1].id : '';
+  const rephraseContext = [orderStatus ?? '', kycLive ?? '', lastMessageId, copilotRequestId ?? ''].join('|');
+  const rephrase = useRephrase({
+    enabled: canRephrase, auto: copilotAccess?.rephrase_auto !== false, orderNumber, exchangeAccountId, hint: copilotHint, text,
+    context: rephraseContext,
+  });
+  const markPlaced = rephrase.markPlaced;
+  const takeRewrite = rephrase.take;
+  const untakeRewrite = rephrase.untake;
+  const focusInput = useCallback((caretToEnd = false) => {
     requestAnimationFrame(() => {
       const el = inputRef.current;
-      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      if (!el) return;
+      el.focus();
+      if (caretToEnd) el.setSelectionRange(el.value.length, el.value.length);
     });
-  }, [setCopilotPick]);
+  }, []);
+  // The rewrite in the box (with the words first typed), until the box is cleared or a suggestion replaces it.
+  const rewriteRef = useRef<BoxRewrite | null>(null);
+  const [rewriteInBox, setRewriteInBox] = useState<string | null>(null);
+  const setRewrite = useCallback((r: BoxRewrite | null) => {
+    rewriteRef.current = r;
+    setRewriteInBox(r?.text ?? null);
+  }, []);
+  useEffect(() => { setRewrite(null); }, [orderNumber, setRewrite]);
+  const rephraseTextId = useId();
+  const applyRewrite = useCallback(() => {
+    const r = takeRewrite();
+    if (!r) return false;
+    // A Copilot suggestion stays attached however it was edited or reworded: sending it saves it as that suggestion.
+    setRewrite(chainRewrite(r, rewriteRef.current, !!copilotPickRef.current));
+    setText(r.text);
+    focusInput(true);
+    return true;
+  }, [takeRewrite, setRewrite, focusInput]);
+  // Esc (or "Bring back my words") while the box still holds the rewrite: the typed words come back. They are the
+  // person's own again; a suggestion's text stays the screen's (not reworded on its own).
+  const undoRewrite = useCallback(() => {
+    const r = rewriteRef.current;
+    if (!r) return false;
+    setRewrite(null);
+    if (r.ofPick) markPlaced(r.rough);
+    else untakeRewrite(r.rough);
+    setText(r.rough);
+    focusInput(true);
+    return true;
+  }, [setRewrite, markPlaced, untakeRewrite, focusInput]);
+
+  const insertCopilotPick = useCallback((pick: CopilotPick) => {
+    setCopilotPick(pick);
+    setRewrite(null);
+    markPlaced(pick.text);
+    setText(pick.text);
+    focusInput(true);
+  }, [setCopilotPick, setRewrite, markPlaced, focusInput]);
   // Approve sends the reply to the client too; handleSend then saves it to the Playbook once.
   const approveRef = useRef<(pick: CopilotPick) => void>(() => {});
   const approveCopilotPick = useCallback((pick: CopilotPick) => { approveRef.current(pick); }, []);
@@ -712,13 +789,12 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const handleSend = async (messageText?: string) => {
     const msg = messageText || text.trim();
     if (!msg || isSending) return;
-    // Copilot: a placeholder such as {contact:kyc} (no number saved yet) must never reach the client.
-    if (copilotPickRef.current || msg.includes('{contact:')) {
-      const left = unfilledTokens(msg);
-      if (left.length) {
-        toast.error('Fill in the placeholder before sending', { description: `Replace ${left.join(', ')} with the real value.` });
-        return;
-      }
+    // A placeholder such as {contact:kyc} or {amount} (no value filled in) must never reach the client, however it got
+    // into the box (a suggestion, a quick reply, a rewrite, pasted).
+    const left = unfilledTokens(msg);
+    if (left.length) {
+      toast.error('Fill in the placeholder before sending', { description: `Replace ${left.join(', ')} with the real value.` });
+      return;
     }
     if (!messageText) setText('');
     setIsSending(true);
@@ -726,6 +802,11 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     // Copilot: a sent suggestion is saved to the Playbook; an own reply only when Save is switched on.
     const picked = copilotPickRef.current;
     const saveOwn = copilotSaveOwn;
+    // A rewrite counts only for a send from the box (Approve sends the suggestion, not the box), and only while what is
+    // sent is still mostly it (not another reply typed over it).
+    const fromBox = !messageText;
+    const rewrite = rewriteSent(msg, fromBox, rewriteRef.current);
+    if (fromBox) setRewrite(null);
     setCopilotPick(null);
     setCopilotSaveOwn(false);
     // A reply picked for another step, sent unchanged while it is still offered, tells the Copilot the client's real
@@ -745,8 +826,15 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     } finally {
       setIsSending(false);
     }
-    if (isCopilotApprover && (picked || saveOwn)) {
-      void teachCopilot(picked ? 'sent' : 'saved', msg, picked);
+    if (isCopilotApprover && (picked || saveOwn || rewrite)) {
+      // A sent rewrite is approved like a sent suggestion ("use = approve"), with the typed words as its reason.
+      void teachCopilot(picked || rewrite ? 'sent' : 'saved', msg, picked, undefined, rewrite);
+    } else if (!isCopilotApprover && rewrite?.callId) {
+      // An operator's sent rewrite waits in the Playbook inbox for an approver; nothing to show if that fails.
+      copilotRephraseUsed({
+        callId: rewrite.callId, roughCallId: rewrite.roughCallId && rewrite.roughCallId !== rewrite.callId ? rewrite.roughCallId : null,
+        orderNumber, exchangeAccountId: exchangeAccountId ?? null, finalText: msg, sentAt, templateValues,
+      }).catch((e) => console.warn('[copilot] the sent rewrite did not reach the Playbook inbox:', (e as Error)?.message ?? e));
     }
   };
 
@@ -767,9 +855,12 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // Insert (not send) the quick reply into the input with template tokens filled,
   // so the operator can review/adjust before sending. Tap-shaving per T1.
   const handleQuickReply = (replyText: string) => {
-    if (!(inputRef.current?.value ?? '').trim()) setCopilotPick(null);
+    const prev = inputRef.current?.value ?? '';
+    if (!prev.trim()) setCopilotPick(null);
     const filled = fillTemplate(replyText, templateValues || {});
-    setText((prev) => (prev.trim() ? `${prev.trim()} ${filled}` : filled));
+    const next = prev.trim() ? `${prev.trim()} ${filled}` : filled;
+    setText(next);
+    markPlaced(next);
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
@@ -969,6 +1060,17 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           />
         </div>
 
+        {canRephrase && (
+          <RephraseStrip
+            view={rephrase.view}
+            textId={rephraseTextId}
+            onUse={() => { applyRewrite(); }}
+            onAnother={() => { rephrase.another(); focusInput(); }}
+            onLang={(to) => { rephrase.switchLang(to); focusInput(); }}
+            onDismiss={() => { rephrase.dismiss(); focusInput(); }}
+            onRetry={() => { rephrase.ask(); focusInput(); }}
+          />
+        )}
         <div className="flex items-center gap-1 rounded-lg border border-border bg-input p-1 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20">
           <ChatImageUpload
             orderNo={orderNumber}
@@ -982,9 +1084,12 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           <AttachAdPicker
             exchangeAccountId={exchangeAccountId}
             onSendCard={(cardJson) => wsSendAdCard(orderNumber, cardJson)}
-            onInsert={(adText) =>
-              setText((prev) => (prev.trim() ? `${prev.trim()}\n${adText}` : adText))
-            }
+            onInsert={(adText) => {
+              const prev = inputRef.current?.value ?? '';
+              const next = prev.trim() ? `${prev.trim()}\n${adText}` : adText;
+              setText(next);
+              markPlaced(next);
+            }}
           />
 
           <textarea
@@ -994,39 +1099,89 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             value={text}
             onChange={(e) => {
               setText(e.target.value);
-              if (!e.target.value.trim()) setCopilotPick(null);
+              if (!e.target.value.trim()) { setCopilotPick(null); setRewrite(null); }
             }}
+            aria-describedby={canRephrase && rephrase.view.status === 'ready' ? rephraseTextId : undefined}
             onKeyDown={(e) => {
-              // Copilot (approvers): Ctrl/Cmd+Enter approves without sending; Tab cycles the suggestions.
-              if (isCopilotApprover && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                const value = text.trim();
-                if (!value) return;
-                const picked = copilotPickRef.current;
-                setCopilotPick(null);
-                void teachCopilot(picked ? 'approved' : 'saved', value, picked);
-                return;
-              }
-              if (isCopilotApprover && e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey) {
-                const { picks } = copilotStateRef.current;
-                const current = text.trim();
-                const last = copilotPickRef.current;
-                if (picks.length && (!current || (last && current === last.text.trim()))) {
+              // Which key does what is decided in composerKeys.ts (tested): Ctrl/Cmd+Enter approves without sending (not the
+              // rough words while their rewrite is on show), Tab uses the rewrite or cycles the suggestions, Esc hides the
+              // strip, brings back the typed words, or leaves the box, one at a time: each Esc stops here, so the Terminal's
+              // own Esc (back to the list) waits for a press made outside the box.
+              const { picks } = copilotStateRef.current;
+              const current = text.trim();
+              const last = copilotPickRef.current;
+              const rw = rewriteRef.current;
+              const action = composerKeyAction({
+                key: e.key, shift: e.shiftKey, ctrl: e.ctrlKey, meta: e.metaKey, alt: e.altKey,
+                composing: e.nativeEvent.isComposing || e.keyCode === 229,
+                isApprover: isCopilotApprover, canRephrase,
+                strip: rephrase.view.status === 'idle' ? 'idle' : rephrase.view.status === 'ready' ? 'ready' : 'other',
+                rewriteInBox: !!rw && sameText(text, rw.text),
+                canCyclePicks: picks.length > 0 && (!current || (!!last && current === last.text.trim())),
+              });
+              switch (action) {
+                case 'approve': {
+                  e.preventDefault();
+                  if (!current) return;
+                  const rewrite = rewriteSent(current, true, rw);
+                  setCopilotPick(null);
+                  setRewrite(null);
+                  void teachCopilot(last || rewrite ? 'approved' : 'saved', current, last, undefined, rewrite);
+                  return;
+                }
+                case 'approve-refused':
+                  e.preventDefault();
+                  toast('Use the rewrite or hide it first', { description: 'Tab puts the rewrite in the box, Esc hides it; then Ctrl+Enter approves what the box holds.' });
+                  return;
+                case 'use-rewrite':
+                  if (applyRewrite()) e.preventDefault();
+                  return;
+                case 'cycle-picks': {
                   e.preventDefault();
                   const idx = last ? picks.findIndex((p) => pickKey(p) === pickKey(last)) : -1;
                   const next = picks[cycleIndex(picks.length, idx, e.shiftKey ? -1 : 1)];
                   if (next) insertCopilotPick(next);
                   return;
                 }
+                case 'hide-strip': e.preventDefault(); e.stopPropagation(); rephrase.dismiss(); return;
+                case 'undo-rewrite': e.preventDefault(); e.stopPropagation(); undoRewrite(); return;
+                case 'leave-box': e.stopPropagation(); e.currentTarget.blur(); return;
+                case 'ime': e.stopPropagation(); return;
+                case 'send': e.preventDefault(); handleSend(); return;
+                default: return;
               }
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-              else if (e.key === 'Escape') e.currentTarget.blur();
             }}
             placeholder={isEnquiryThread ? 'Reply on the Binance app — this chat has no order' : 'Type a message...'}
             disabled={isEnquiryThread}
             aria-label="Message"
             className="flex-1 min-w-0 resize-none overflow-y-auto border-0 bg-transparent px-2 py-[7px] leading-[18px] min-h-8 max-h-[104px] text-[13px] text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
+          {canRephrase && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 shrink-0 rounded-md ${rephrase.view.status === 'loading' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                // Not disabled while rewording (a disabled button drops the focus): a second press just waits.
+                if (rephrase.view.status === 'loading') return;
+                const r = rephrase.ask();
+                if (r === 'short') toast('Type a few words first', { description: 'The Copilot rewords what you typed: same meaning, nothing added.' });
+                else if (r === 'long') toast('Too long to reword', { description: 'The Copilot rewords up to 600 characters. Shorten it, or send it as it is.' });
+                focusInput();
+              }}
+              disabled={!text.trim()}
+              aria-disabled={rephrase.view.status === 'loading'}
+              aria-busy={rephrase.view.status === 'loading'}
+              aria-label={rephrase.view.status === 'loading' ? 'Rewording what you typed' : 'Reword what I typed'}
+              title={isCopilotApprover
+                ? 'Reword what you typed: same meaning, nothing added. A rewrite you send is saved to the Playbook.'
+                : 'Reword what you typed: same meaning, nothing added. Approvers see the rewrites you send, to improve the Playbook.'}
+            >
+              {rephrase.view.status === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Sparkles className="h-3.5 w-3.5" aria-hidden />}
+            </Button>
+          )}
           {isCopilotApprover && (
             <Button
               type="button"
@@ -1053,6 +1208,15 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           </Button>
 
         </div>
+        {canRephrase && rewriteInBox && sameText(text, rewriteInBox) && (
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-1 px-1 text-[11px] text-muted-foreground">
+            <span>Reworded by the Copilot ·</span>
+            <button type="button" className="text-primary hover:underline" onMouseDown={(e) => e.preventDefault()} onClick={() => { undoRewrite(); }}>
+              Bring back my words
+            </button>
+            <span className="hidden [@media(pointer:fine)]:inline">(Esc)</span>
+          </p>
+        )}
         {isCopilotApprover && copilotPickStep && (
           <p className="mt-1.5 px-1 text-[11px] text-primary">
             Reply for “{copilotPickStep}”: sending it unchanged sets this chat to that step.

@@ -125,13 +125,14 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
 
   const openComposer = (p?: { code?: string; interviewId?: string | null; ai?: boolean }) => {
     setReading(false);
+    setWide(true); // Writing always opens in the large view by default; "Smaller" shrinks it only while this draft is open.
     setComposing(true);
     setPreset(p ? { ...p, nonce: Date.now() } : null);
     setFocusNonce((n) => n + 1);
   };
 
 
-  useEffect(() => { if (composeSignal) { setReading(false); setComposing(true); } }, [composeSignal]);
+  useEffect(() => { if (composeSignal) { setReading(false); setWide(true); setComposing(true); } }, [composeSignal]);
   const expanded = enabled && composing && wide && !!candidate.email;
   // Esc leaves large mode (reading or writing; the draft stays) unless a dialog or menu is open.
   useEffect(() => {

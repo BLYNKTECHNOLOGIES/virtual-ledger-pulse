@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,6 +14,8 @@ import { atsKeys, useAtsJobs, useAtsSources, useShiftsLookup } from "@/lib/ats/a
 import { candKeys } from "@/lib/ats/candidates";
 import { fmtDate } from "@/lib/ats/format";
 import { uploadAtsFile, AtsFileError, validateAtsFile } from "@/lib/ats/files";
+import { guessFromResume } from "@/lib/ats/importParse";
+import { readResumeText } from "@/lib/ats/resumeImport";
 import { ChipInput, MultiSelect } from "./AtsBits";
 import { FormSection, Req } from "./AtsUi";
 import { appStatusLabel } from "./CandidateBits";
@@ -25,6 +27,13 @@ const readLast = () => { try { return localStorage.getItem(LAST_SOURCE) ?? ""; }
 const writeLast = (v: string) => { try { localStorage.setItem(LAST_SOURCE, v); } catch { /* ignore */ } };
 
 interface Dup { candidate_id: string; ref_no: string; full_name: string; email: string | null; phone: string | null; matched_on: string; application_count: number; last_applied_at: string | null; last_status: string | null }
+
+/** Resumes whose text can be read (photos can't). */
+const READABLE = /\.(pdf|docx?|rtf)$/i;
+type Contact = "full_name" | "email" | "phone";
+const CONTACT_LABEL: Record<Contact, string> = { full_name: "name", email: "email", phone: "phone" };
+type ReadNote = { state: "reading" } | { state: "done"; filled: string[]; noEmail: boolean; noText: boolean };
+const listWords = (w: string[]) => (w.length > 1 ? `${w.slice(0, -1).join(", ")} and ${w[w.length - 1]}` : w[0] ?? "");
 
 const empty = () => ({
   full_name: "", email: "", phone: "", job: "general", source_id: "", source_detail: "", current_company: "", current_title: "",
@@ -44,6 +53,13 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
   const [existing, setExisting] = useState<Dup | null>(null);
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
+  const [readNote, setReadNote] = useState<ReadNote | null>(null);
+  const readSeq = useRef(0);
+  const dupSeq = useRef(0);
+  // What the attached resume filled in (taken back if the resume is removed or replaced and nobody edited it).
+  const autoFilled = useRef<Partial<Record<Contact, string>>>({});
+  const fRef = useRef(f);
+  fRef.current = f;
 
   const activeSources = useMemo(() => (sources.data ?? []).filter((s) => s.is_active), [sources.data]);
   const jobOptions = useMemo(() => (jobs.data ?? []).filter((j) => j.status === "open" || j.status === "paused" || (j.status === "draft" && j.id === jobId)), [jobs.data, jobId]);
@@ -54,6 +70,7 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
     const last = readLast();
     setF({ ...empty(), job: jobId || "general", source_id: activeSources.some((s) => s.id === last) ? last : "" });
     setFile(null); setDups([]); setExisting(null); setTouched(false);
+    setReadNote(null); readSeq.current++; dupSeq.current++; autoFilled.current = {};
   }, [open, jobId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (open && !f.source_id) { const last = readLast(); if (activeSources.some((s) => s.id === last)) setF((p) => ({ ...p, source_id: last })); }
@@ -61,14 +78,56 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
 
   const set = (k: keyof ReturnType<typeof empty>, v: any) => { setTouched(true); setF((p) => ({ ...p, [k]: v })); };
 
-  const checkDups = async () => {
-    const email = f.email.trim(), phone = f.phone.trim();
-    if (!email && !phone) { setDups([]); return; }
+  /** Looks for existing candidates with this email or phone; only the latest check's answer is used. */
+  const checkDups = async (emailIn?: string, phoneIn?: string) => {
+    const seq = ++dupSeq.current;
+    const email = (emailIn ?? f.email).trim(), phone = (phoneIn ?? f.phone).trim();
+    if (!email && !phone) { setDups([]); setExisting(null); return; }
     const { data, error } = await supabase.rpc("ats_find_duplicates", { p_email: email || null, p_phone: phone || null, p_exclude: null } as any);
-    if (error) return;
+    if (seq !== dupSeq.current || error) return;
     const rows = (data ?? []) as Dup[];
     setDups(rows);
-    if (existing && !rows.some((r) => r.candidate_id === existing.candidate_id)) setExisting(null);
+    setExisting((ex) => (ex && !rows.some((r) => r.candidate_id === ex.candidate_id) ? null : ex));
+  };
+
+  /**
+   * Keeps the chosen resume and fills the name, email and phone from it where they are empty. What a resume filled
+   * in belongs to it: removing or replacing the resume takes back the values nobody has edited since.
+   */
+  const pickFile = (picked: File | null) => {
+    setFile(picked);
+    const seq = ++readSeq.current;
+    const prev = autoFilled.current;
+    autoFilled.current = {};
+    const cur0 = fRef.current;
+    const back = (Object.keys(prev) as Contact[]).filter((k) => cur0[k] === prev[k]);
+    if (back.length) {
+      setF((p) => { const n = { ...p }; for (const k of back) if (p[k] === prev[k]) n[k] = ""; return n; });
+      if (back.includes("email") || back.includes("phone")) {
+        void checkDups(back.includes("email") ? "" : cur0.email, back.includes("phone") ? "" : cur0.phone);
+      }
+    }
+    if (!picked) { setReadNote(null); return; }
+    if (!READABLE.test(picked.name)) { setReadNote({ state: "done", filled: [], noEmail: false, noText: true }); return; }
+    setReadNote({ state: "reading" });
+    void readResumeText(picked).then((text) => {
+      if (seq !== readSeq.current) return;
+      if (!text.trim()) { setReadNote({ state: "done", filled: [], noEmail: false, noText: true }); return; }
+      const g = guessFromResume(text, picked.name);
+      const cur = fRef.current;
+      // A name guessed from the file name ("Document", "My Resume") is not filled in.
+      const found: Record<Contact, string | null> = { full_name: g.nameFrom === "text" ? g.name : null, email: g.email, phone: g.phone };
+      const patch: Partial<Record<Contact, string>> = {};
+      for (const k of ["full_name", "email", "phone"] as Contact[]) if (found[k] && !cur[k].trim()) patch[k] = found[k]!;
+      const keys = Object.keys(patch) as Contact[];
+      if (keys.length) {
+        setF((p) => { const n = { ...p }; for (const k of keys) if (!p[k].trim()) n[k] = patch[k]!; return n; });
+        autoFilled.current = patch;
+      }
+      const email = patch.email ?? cur.email;
+      setReadNote({ state: "done", filled: keys.map((k) => CONTACT_LABEL[k]), noEmail: !email.trim(), noText: false });
+      if (patch.email || patch.phone) void checkDups(email, patch.phone ?? cur.phone);
+    });
   };
 
   const name = f.full_name.trim();
@@ -139,6 +198,11 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
     }
   };
 
+  const readMsg = readNote?.state !== "done" ? ""
+    : readNote.noText ? "This resume has no text to read (it may be a scanned image). Type the details."
+    : [readNote.filled.length ? `Filled in from the resume: ${listWords(readNote.filled)}. Check before saving.` : "",
+      readNote.noEmail ? "No email address in this resume." : ""].filter(Boolean).join(" ");
+
   const txt = (k: keyof ReturnType<typeof empty>, label: string, opts: { type?: string; onBlur?: () => void; inputMode?: any; step?: string; required?: boolean } = {}) => (
     <div className="space-y-1.5">
       <Label htmlFor={`ac-${k}`}>{label}{opts.required && <Req />}</Label>
@@ -155,11 +219,23 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
         <Button type="submit" form="ats-add-candidate" disabled={busy || !!err}>{busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}{existing ? `Add application for ${existing.full_name}` : "Add candidate"}</Button>
       </>}>
       <form id="ats-add-candidate" className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <div className="space-y-1.5">
+          <Label>Resume (optional)</Label>
+          <FileDropZone file={file} onFile={pickFile} disabled={busy} />
+          {!file && <p className="text-xs text-muted-foreground">Add it first: the name, email and phone are filled in from it.</p>}
+          {readNote?.state === "reading" && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Reading the resume…</p>
+          )}
+          {readMsg && <p className="text-xs text-muted-foreground">{readMsg}</p>}
+          {/* One live region that stays mounted, so screen readers hear each change. */}
+          <p className="sr-only" role="status" aria-live="polite">{readNote?.state === "reading" ? "Reading the resume…" : readMsg}</p>
+        </div>
+
         <FormSection title="Contact" />
         {txt("full_name", "Full name", { required: true })}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {txt("email", "Email", { type: "email", onBlur: checkDups })}
-          {txt("phone", "Phone", { type: "tel", onBlur: checkDups })}
+          {txt("email", "Email", { type: "email", onBlur: () => void checkDups() })}
+          {txt("phone", "Phone", { type: "tel", onBlur: () => void checkDups() })}
         </div>
         <p className="-mt-2 text-xs text-muted-foreground">Enter at least an email or a phone number.</p>
 
@@ -218,8 +294,6 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
         </div>
         <div className="space-y-1.5"><Label>Skills</Label><ChipInput value={f.skills} onChange={(v) => set("skills", v)} placeholder="Type and press Enter" /></div>
         <div className="space-y-1.5"><Label>Shift preference</Label><MultiSelect options={shiftOptions} value={f.shift_preferences} onChange={(v) => set("shift_preferences", v)} placeholder="Any" /></div>
-        <FormSection title="Resume" />
-        <div className="space-y-1.5"><Label>Resume (optional)</Label><FileDropZone file={file} onFile={setFile} disabled={busy} /></div>
       </form>
     </ResponsiveDialog>
   );

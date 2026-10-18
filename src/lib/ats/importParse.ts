@@ -585,15 +585,60 @@ export function notImportedRows(
 
 // ---------------------------------------------------------------- resumes
 
-const RESUME_WORDS = /\b(resume|résumé|curriculum|vitae|cv|biodata|bio-data|profile|objective|summary|contact|email|e-mail|phone|mobile|address|career|personal|details|declaration|experience|education|skills)\b/i;
+const RESUME_WORDS = /\b(resume|résumé|curriculum|vitae|cv|biodata|bio-data|bio|data|profile|objective|summary|contact|email|e-mail|phone|mobile|address|career|personal|details|particulars|information|declaration|experience|education|skills|job|application|applicant|cover|letter|document|dear|sir|madam|respected|hiring|manager)\b/i;
 
-/** Name, email and phone read from a resume's text, with the file name as a fallback for the name. */
-export function guessFromResume(text: string, fileName: string): { name: string; email: string | null; phone: string | null } {
+/** A match starts only where a word starts (one character of context is taken), so a long run of letters is scanned once. */
+const EMAIL_IN_TEXT = /(^|[^A-Za-z0-9._%+-])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
+/** Big address providers: a line break anywhere inside one of these domains is joined back ("gma" ⏎ "il.com"). */
+const MAIL_PROVIDERS = ["gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.in", "yahoo.in", "ymail.com", "rocketmail.com", "rediffmail.com",
+  "outlook.com", "outlook.in", "hotmail.com", "live.com", "live.in", "msn.com", "icloud.com", "me.com", "aol.com", "protonmail.com", "proton.me",
+  "zoho.com", "zohomail.in"];
+/** Second-level names that are followed by a two-letter country ("yahoo.co.in", "iitd.ac.in", "nic.in"). */
+const SECOND_LEVEL = "(?:co|ac|org|net|gov|edu|nic|res|gen|firm|ind|mil)";
+const WRAP_DOT_AFTER = new RegExp(`(@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.${SECOND_LEVEL})[ \\t]*\\r?\\n[ \\t]*(?=\\.[a-z]{2}\\b)`, "gi");
+const WRAP_DOT_BEFORE = new RegExp(`(@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.${SECOND_LEVEL}\\.)[ \\t]*\\r?\\n[ \\t]*(?=[a-z]{2}\\b)`, "gi");
+
+/**
+ * The emails in a resume's text, in reading order and lower case. A line break inside the domain is joined
+ * ("name@" ⏎ "gmail.com", "name@gmail" ⏎ ".com", "name@yahoo.co" ⏎ ".in", or anywhere inside a big provider's
+ * domain); a word run on after it ("name@gmail.comMobile") is cut off, and so is a label glued in front
+ * ("Email-name@…"). Image names ("image001.png@…") and example.com addresses are left out. A break inside the part
+ * before the @ can't be told from two words, so that part is never joined.
+ */
+export function resumeEmails(text: string): string[] {
+  const t = text.replace(/\xa0/g, " ")
+    .replace(/@[ \t]*\r?\n[ \t]*(?=[A-Za-z0-9])/g, "@")
+    .replace(/(@[A-Za-z0-9-]+)[ \t]*\r?\n[ \t]*(?=\.[a-z]{2,6}\b)/g, "$1")
+    .replace(/(@[A-Za-z0-9-]+\.)[ \t]*\r?\n[ \t]*(?=[a-z]{2,6}\b)/g, "$1")
+    .replace(WRAP_DOT_AFTER, "$1")
+    .replace(WRAP_DOT_BEFORE, "$1")
+    .replace(/@([A-Za-z0-9.-]*)[ \t]*\r?\n[ \t]*([A-Za-z0-9.-]+)/g, (m, pre: string, next: string) => {
+      const p = pre.toLowerCase();
+      const joined = (pre + next).toLowerCase();
+      return MAIL_PROVIDERS.some((d) => d !== p && d.startsWith(p) && joined.startsWith(d)) ? `@${pre}${next}` : m;
+    });
+  const out: string[] = [];
+  for (const m of t.matchAll(EMAIL_IN_TEXT)) {
+    const e = m[2].replace(/^[._%+-]+/, "").replace(/\.+$/, "")
+      .replace(/(\.[a-z]{2,})[A-Z][A-Za-z]*$/, "$1")
+      .replace(/(@[^@]+\.[a-z]{2,})\.[A-Z][a-z]{2,}$/, "$1")
+      .replace(/^(?:e-?mail|mail)(?:-?id)?-+(?=[a-z0-9])/i, "")
+      .toLowerCase();
+    if (!EMAIL_RE.test(e) || /\.(?:png|jpe?g|gif|bmp|webp)$/.test(e.split("@")[0]) || /@(?:[a-z0-9-]+\.)*example\.(?:com|org|net)$/.test(e)) continue;
+    if (!out.includes(e)) out.push(e);
+  }
+  return out;
+}
+
+/**
+ * Name, email and phone read from a resume's text, with the file name as a fallback for the name. `nameFrom` says
+ * where the name came from: a file-name guess ("Document", "My Resume") is only a placeholder.
+ */
+export function guessFromResume(text: string, fileName: string): { name: string; email: string | null; phone: string | null; nameFrom: "text" | "file" | null } {
   const t = text.replace(/\xa0/g, " ");
-  const emailM = t.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
-  const email = emailM && EMAIL_RE.test(emailM[0]) ? emailM[0].toLowerCase().replace(/\.$/, "") : null;
+  const email = resumeEmails(t)[0] ?? null;
   const phoneM = t.match(/(?:\+?91[\s-]*)?(?:\(?0\)?[\s-]*)?[6-9]\d{2}[\s-]?\d{3}[\s-]?\d{4}\b/) ?? t.match(/(?:\+?91[\s-]*)?[6-9]\d{4}[\s-]?\d{5}\b/);
-  const phone = phoneM ? tidyPhone(phoneM[0]) : null;
+  const phone = phoneM ? tidyPhone(phoneM[0].replace(/\s+/g, " ")) : null;
   let name = "";
   const lines = t.split(/\r?\n/).map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 25);
   for (const l of lines) {
@@ -606,8 +651,9 @@ export function guessFromResume(text: string, fileName: string): { name: string;
     name = tidyName(cleaned);
     break;
   }
+  const fromText = !!name;
   if (!name) name = nameFromFileName(fileName);
-  return { name: cut(name, 120), email, phone };
+  return { name: cut(name, 120), email, phone, nameFrom: name ? (fromText ? "text" : "file") : null };
 }
 
 /** "Rahul_Sharma_Resume (2).pdf" → "Rahul Sharma". */

@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAtsSettings } from "@/lib/ats/api";
 import { AppStatusBadge, Stars, fmtMonthly, fmtYears } from "./CandidateBits";
 import { ResumeViewer, pickDefaultFile } from "./ResumeViewer";
+import { ResumeContactHint } from "./ResumeContactHint";
 import { EditProfileSheet } from "./EditProfileSheet";
 import { ChangeJobDialog } from "./ChangeJobDialog";
 import { MessagesPanel } from "./MessagesPanel";
@@ -416,6 +417,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           </div>
         ))}
       </dl>
+      <ResumeContactHint candidate={c} files={files.data ?? []} />
       {(apps.data?.length ?? 0) > 1 && (
         <div className="flex flex-wrap gap-1.5">
           {apps.data!.map((a) => (

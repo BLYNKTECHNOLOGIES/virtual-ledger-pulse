@@ -8,11 +8,12 @@ import { fmtDate } from "@/lib/ats/format";
 import type { AtsFile } from "@/lib/ats/candidates";
 
 let pdfjsPromise: Promise<any> | null = null;
+/** pdf.js "legacy" build: it carries the newer JavaScript features it needs, so PDFs made by Word show in every browser. */
 function getPdfjs() {
   if (!pdfjsPromise) {
     pdfjsPromise = (async () => {
-      const pdfjs: any = await import("pdfjs-dist");
-      const workerMod: any = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+      const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
+      const workerMod: any = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
       pdfjs.GlobalWorkerOptions.workerSrc = workerMod.default ?? workerMod;
       return pdfjs;
     })().catch((e) => { pdfjsPromise = null; throw e; });
@@ -59,7 +60,7 @@ function PdfView({ url, zoom, onError }: { url: string; zoom: number; onError: (
         const pdfjs = await getPdfjs();
         task = pdfjs.getDocument({ url });
         const d = await task.promise;
-        if (!alive) { d.destroy(); return; }
+        if (!alive) { try { await task.destroy(); } catch { /* ignore */ } return; }
         docRef.current = d;
         setDoc(d);
       } catch { if (alive) onError(); }
@@ -67,8 +68,8 @@ function PdfView({ url, zoom, onError }: { url: string; zoom: number; onError: (
     return () => {
       alive = false;
       setDoc(null);
+      // pdf.js 6: destroying the loading task closes the document and its worker.
       try { task?.destroy(); } catch { /* ignore */ }
-      try { docRef.current?.destroy(); } catch { /* ignore */ }
       docRef.current = null;
     };
   }, [url, onError]);

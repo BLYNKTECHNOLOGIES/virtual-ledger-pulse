@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,7 @@ import {
 type Step = "resumes" | "check" | "run" | "done";
 type Rejected = { name: string; reason: string };
 const LAST_SOURCE = "ats.import.lastResumeSource";
+const NEED_EMAIL = "ats.import.resumesNeedEmail";
 const TONE: Record<string, string> = {
   green: "text-success",
   blue: "text-primary",
@@ -124,7 +126,13 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
   const jobMode: JobMode = jobChoice === "general" ? "general" : "one";
   const jobId = jobMode === "one" && jobChoice ? jobChoice : null;
 
-  const rows = useMemo(() => resumeRows(drafts), [drafts]);
+  // HR can leave out resumes where no email was found (typing an email keeps one; resumes still being read stay).
+  const [needEmail, setNeedEmail] = useState(() => { try { return localStorage.getItem(NEED_EMAIL) === "1"; } catch { return false; } });
+  const chooseNeedEmail = (v: boolean) => { setNeedEmail(v); try { localStorage.setItem(NEED_EMAIL, v ? "1" : "0"); } catch { /* ignore */ } };
+  const used = useMemo(() => drafts.filter((d) => !needEmail || d.state === "reading" || !!d.email.trim()), [drafts, needEmail]);
+  const leftOut = drafts.length - used.length;
+  const allRows = useMemo(() => resumeRows(drafts), [drafts]);
+  const rows = useMemo(() => resumeRows(used), [used]);
   const problemCount = rows.filter((r) => r.problems.length > 0).length;
   const readCount = drafts.filter((d) => d.state !== "reading").length;
 
@@ -189,7 +197,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
     }
     const localAttach = new Map(attach);
     try {
-      const r = await importResumes(id, drafts, rows, {
+      const r = await importResumes(id, used, rows, {
         startAt, control: control.current,
         onRow: (i, result, a) => {
           setDone(i + 1);
@@ -217,7 +225,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
     for (let i = 0; i < rows.length; i++) {
       const no = rows[i].row_no;
       if (next.get(no) !== "failed") continue;
-      next.set(no, await attachResume(drafts[i].file, results.get(no)!));
+      next.set(no, await attachResume(used[i].file, results.get(no)!));
       setAttach(new Map(next));
     }
     setRetrying(false);
@@ -254,10 +262,11 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
   );
 
   const fields = (d: ResumeDraft, i: number) => {
-    const pr = rows[i]?.problems ?? [];
+    const pr = allRows[i]?.problems ?? [];
+    const out = needEmail && d.state !== "reading" && !d.email.trim();
     const dis = d.state === "reading";
     const badEmail = !!d.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim());
-    const noContact = pr.includes("no_contact");
+    const noContact = pr.includes("no_contact") && !out;
     const inp = (k: "name" | "email" | "phone", ph: string, bad: boolean) => (
       <div className="relative">
         <Input value={d[k]} disabled={dis} placeholder={ph} aria-label={ph}
@@ -268,7 +277,9 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
     );
     return {
       name: <>{inp("name", "Name", pr.includes("no_name"))}{pr.includes("no_name") && <p className="mt-1 text-xs text-destructive">Add the name</p>}</>,
-      email: <>{inp("email", "Email", noContact || badEmail)}{badEmail && <p className="mt-1 text-xs text-destructive">Check the email</p>}</>,
+      email: <>{inp("email", "Email", noContact || badEmail)}{badEmail && <p className="mt-1 text-xs text-destructive">Check the email</p>}
+        {d.state === "done" && !d.email.trim() && !noContact && <p className="mt-1 text-xs text-muted-foreground">{out ? "No email in this resume · left out" : "No email in this resume"}</p>}
+        {d.state === "unreadable" && out && <p className="mt-1 text-xs text-muted-foreground">Left out (no email)</p>}</>,
       phone: <>{inp("phone", "Phone", noContact)}{noContact && !badEmail && <p className="mt-1 text-xs text-destructive">Add an email or phone</p>}</>,
     };
   };
@@ -278,7 +289,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
       <div className="text-xs text-muted-foreground">
         {fmtBytes(d.file.size)} · <button type="button" className="text-primary hover:underline" onClick={() => viewFile(d.file)}>View</button>
       </div>
-      {d.state === "unreadable" && <p className="mt-1 text-xs text-muted-foreground">Couldn't read this resume (scanned or old Word file). Type the details.</p>}
+      {d.state === "unreadable" && <p className="mt-1 text-xs text-muted-foreground">Couldn't read this resume (it may be a scanned image). Type the details.</p>}
     </div>
   );
   const removeBtn = (d: ResumeDraft) => (
@@ -352,6 +363,16 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
             </div>
           ) : (
             <>
+              <label className="flex items-start gap-2 text-sm text-foreground">
+                <Checkbox checked={needEmail} onCheckedChange={(v) => chooseNeedEmail(v === true)} className="mt-0.5" />
+                <span>
+                  Leave out resumes where no email was found
+                  <span className="block text-xs text-muted-foreground">Scanned resumes have no text, so they are left out too. Type an email to keep one.</span>
+                </span>
+              </label>
+              {needEmail && leftOut > 0 && (
+                <p className="text-sm text-muted-foreground">{leftOut === 1 ? "1 resume has" : `${leftOut} resumes have`} no email and will be left out.</p>
+              )}
               {problemCount > 0 && (
                 <p className="text-sm text-warning">{problemCount === 1 ? "1 resume is" : `${problemCount} resumes are`} missing a name or contact details and will be skipped unless you add them.</p>
               )}
@@ -396,7 +417,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
           )}
           <div className="flex justify-end">
             <Button
-              disabled={reading || !drafts.length || !sourceId || !jobChoice || problemCount === rows.length}
+              disabled={reading || !rows.length || !sourceId || !jobChoice || problemCount === rows.length}
               onClick={() => { try { localStorage.setItem(LAST_SOURCE, sourceId); } catch { /* ignore */ } setFilter("all"); setStep("check"); }}
             >Next: check</Button>
           </div>
@@ -406,6 +427,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
       {step === "check" && (
         <div className="space-y-4 rounded-xl border border-border bg-card p-4">
           {checking && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking who is already in the ATS…</div>}
+          {leftOut > 0 && <p className="text-sm text-muted-foreground">{leftOut === 1 ? "1 resume" : `${leftOut} resumes`} with no email {leftOut === 1 ? "is" : "are"} left out, as you chose.</p>}
           {!!checkError && !checking && (
             <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center gap-3">
               {atsErrorMessage(checkError)}
@@ -440,7 +462,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
                       const c = check.get(r.row_no);
                       return (
                         <tr key={r.row_no} className="border-b border-border last:border-0 align-top">
-                          <td className="max-w-[200px] truncate px-2 py-2" title={drafts[i]?.file.name}>{drafts[i]?.file.name}</td>
+                          <td className="max-w-[200px] truncate px-2 py-2" title={used[i]?.file.name}>{used[i]?.file.name}</td>
                           <td className="px-2 py-2">{r.name || <span className="text-muted-foreground">—</span>}</td>
                           <td className="px-2 py-2 break-all">{r.email ?? "—"}</td>
                           <td className="px-2 py-2 whitespace-nowrap">{r.phone ?? "—"}</td>
@@ -500,7 +522,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
                 <>
                   <Alert><AlertDescription>
                     <div className="font-medium text-warning">{failedIdx.length} resumes couldn't be attached.</div>
-                    {failedIdx.map((i) => <div key={i} className="text-muted-foreground">{drafts[i].file.name}</div>)}
+                    {failedIdx.map((i) => <div key={i} className="text-muted-foreground">{used[i].file.name}</div>)}
                   </AlertDescription></Alert>
                   <div className="flex flex-wrap gap-2">
                     <Button disabled={retrying} onClick={() => void retryAttach()}>{retrying && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Try again</Button>

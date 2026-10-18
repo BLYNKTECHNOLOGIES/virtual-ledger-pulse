@@ -2,6 +2,7 @@
 // Copilot v2 (Playbook): pure helpers shared by copilot-draft and copilot-learn.
 // No network, no database, no Deno.env here — everything is unit-tested in copilot-playbook.test.ts.
 import { beforeVerification, invitesPayment } from './copilot-situation.ts'
+import { normalizeText } from './copilot-numbers.ts'
 
 // ─── Chat transcript ────────────────────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,8 @@ export interface ChatRow {
   is_recall?: boolean | null;
   message_text?: string | null;
   binance_create_time?: number | string | null;
+  /** The Binance account the chat is on (as the listener stored it). */
+  exchange_account_id?: string | null;
 }
 /** event: Binance's event type for system messages (e.g. maker_verified_additional_kyc_maker_sell), 'kyc_card' for its KYC card. */
 export interface Msg { id: string; at: number; who: Who; text: string; kind: string; event?: string }
@@ -137,23 +140,62 @@ export function clientTurn(t: Msg[]): { messages: Msg[]; question: string; lastI
   if (!msgs.length) return null
   const texts = msgs.filter((m) => m.kind === 'text').map((m) => m.text)
   const recent = (texts.length ? texts : msgs.map((m) => m.text)).slice(-3)
-  return { messages: msgs, question: recent.join(' / ').slice(0, 600), lastId: msgs[msgs.length - 1].id }
+  // Masked before it is cut, so a number at the cut is never left half there.
+  return { messages: msgs, question: maskPII(recent.join(' / ')).slice(0, 600), lastId: msgs[msgs.length - 1].id }
 }
 
 // ─── Personal data masking ──────────────────────────────────────────────────────────────────────────
 
-/** Masks personal numbers and handles before any text reaches an AI model or the Playbook. */
+/** UPI handles of Indian banks and apps (the part after the "@"). */
+const UPI_HANDLES = String.raw`ybl|ibl|axl|apl|yapl|upi|paytm|pt(?:yes|axis|hdfc|sbi)|ok(?:axis|hdfcbank|icici|sbi)|wa(?:axis|hdfcbank|icici|sbi)|[a-z]{2,}bank|icici|sbi|hdfc|axis|kotak|kmbl|yes|idfc\w*|fbl|freecharge|jio|airtel|slc|mbk|ikwik|abfspay|axisb|pnb|boi|ubi|citi|hsbc|dbs|rbl|indus|federal|aubank|kbl|kvb|jupiteraxis|naviaxis|superyes`
+
+/**
+ * Personal numbers and handles, in the order they are masked (each pattern sees the text the earlier ones left). Rewording
+ * swaps the same values for reversible tokens (copilot-rephrase.ts), so both always agree on what is personal.
+ */
+export const PII_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  // Transaction hashes (0x + 64 hex, or 64 hex), then crypto wallet addresses (TRON, Ethereum/BSC, Bitcoin and Litecoin in
+  // either case, TON), before the digit patterns cut them into pieces.
+  [/\b0x[a-fA-F0-9]{64}\b|\b[a-fA-F0-9]{64}\b/g, '[ref]'],
+  [/\bT[1-9A-HJ-NP-Za-km-z]{33}\b|\b0x[a-fA-F0-9]{40}\b|\b(?:[bB][cC]1|[lL][tT][cC]1)[a-zA-Z0-9]{25,59}\b|\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\b[EU]Q[A-Za-z0-9_-]{46}(?![A-Za-z0-9_-])/g, '[wallet]'],
+  [/[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]'],
+  [/\b[A-Z0-9][A-Z0-9._-]{1,255}@[A-Z][A-Z0-9]{1,63}\b/gi, '[upi]'],
+  // A one-character UPI name only with a bank's own handle ("a@ybl"): elsewhere "x@yz" is too often something else.
+  [new RegExp(String.raw`\b[A-Z0-9]@(?:${UPI_HANDLES})\b`, 'gi'), '[upi]'],
+  [/\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, '[pan]'],
+  [/\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[ifsc]'],
+  // Twelve digits in fours; a longer run (a card number) is masked whole further down.
+  [/(?<!\d[\s-])\b\d{4}[\s-]\d{4}[\s-]\d{4}\b(?![\s-]\d)/g, '[aadhaar]'],
+  [/(?:\+?91[\s-]?)?(?<!\d)[6-9]\d{4}[\s-]?\d{5}(?!\d)/g, '[phone]'],
+  [/\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]'],
+  // A long reference of letters and digits mixed ("UTRABCDE1234F567890"), whatever shape its middle has.
+  [/\b(?=[A-Z0-9]*\d{4})(?=[A-Z0-9]*[A-Z]{2})[A-Z0-9]{12,}\b/gi, '[ref]'],
+  [/(?<!\d)(?<!\d[.,])\d{9,}(?!\d)(?![.,]\d)/g, '[number]'],
+  // Other countries' phone numbers, then 9 or more digits in groups that share one separator (a space, a hyphen or a dot),
+  // with a group of three or more (987-654-3210, 98765 43210, account and card numbers in groups). Commas never join digits
+  // here, so amounts such as 1,00,000 stay; nor do lists of small numbers ("10 20 30 40 50") or mixed separators.
+  [/\+\d{1,3}(?:[\s-]?\d){7,13}(?!\d)/g, '[phone]'],
+  [/(?<![\d.,])\d{1,18}([ .-])\d{1,18}(?:\1\d{1,18})*(?!\d)(?<=\d{3}(?:\1\d{1,18})*)(?<=(?:\d\1?){9,})/g, '[number]'],
+  // A UPI ID written with spaces around the "@" ("blynk @ ybl", "a @ ybl"), with a bank's own handle only.
+  [new RegExp(String.raw`\b[A-Z0-9][A-Z0-9._-]{0,255}(?:\s+@\s*|\s*@\s+)(?:${UPI_HANDLES})\b`, 'gi'), '[upi]'],
+]
+
+/**
+ * Masks personal numbers and handles before any text reaches an AI model or the Playbook. Masking one value can open a word
+ * boundary next to another ("98765 43210ABCDE1234F"), so it repeats until nothing changes.
+ */
 export function maskPII(input: string | null | undefined): string {
-  let t = String(input ?? '')
-  t = t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
-  t = t.replace(/\b[A-Z0-9][A-Z0-9._-]{1,255}@[A-Z][A-Z0-9]{1,63}\b/gi, '[upi]')
-  t = t.replace(/\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, '[pan]')
-  t = t.replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/gi, '[ifsc]')
-  t = t.replace(/\b\d{4}[\s-]\d{4}[\s-]\d{4}\b/g, '[aadhaar]')
-  t = t.replace(/(?:\+?91[\s-]?)?(?<!\d)[6-9]\d{4}[\s-]?\d{5}(?!\d)/g, '[phone]')
-  t = t.replace(/\b[A-Z]{2,8}\d{8,}[A-Z0-9]*\b/gi, '[ref]')
-  t = t.replace(/(?<!\d)(?<!\d[.,])\d{9,}(?!\d)(?![.,]\d)/g, '[number]')
-  return t
+  // Read as the checks read it: Devanagari and full-width digits as digits, invisible characters gone.
+  const raw = String(input ?? '')
+  const norm = normalizeText(raw)
+  let t = norm
+  for (let pass = 0; pass < 4; pass++) {
+    const before = t
+    for (const [re, tag] of PII_PATTERNS) t = t.replace(re, tag)
+    if (t === before) break
+  }
+  // Nothing personal: the text exactly as given (callers compare maskPII(x) with x to tell "something was masked").
+  return t === norm ? raw : t
 }
 
 // ─── Language and address ───────────────────────────────────────────────────────────────────────────

@@ -258,3 +258,38 @@ export const ACTION_LABEL: Record<string, string> = {
   conflict: 'Conflict raised', replaced: 'Replaced a tentative reply', widened: 'Now also for this situation', variant: 'Reply for a new situation',
 };
 export const CAUSE_LABEL: Record<string, string> = { sent: 'sent in chat', approved: 'approved without sending', saved: 'saved' };
+
+/** An operator's sent rewrite waiting in the inbox (copilot-rephrase "used"): all of it masked on the server. */
+export interface OperatorReply {
+  /** What the operator typed before the rewrite: the reason behind the reply. */
+  rough: string | null;
+  /** What was sent, as the Playbook keeps replies (order values as placeholders, other personal data masked). */
+  sent: string;
+  /** The rewrite the Copilot offered (masked), shown beside what was sent when the operator edited it. */
+  suggestion: string | null;
+  edited: boolean;
+  sentAt: number | null;
+  situationLabel: string | null;
+  chat: Array<{ from: string; text: string; at?: string }>;
+}
+
+/** The operator's reply in an inbox item's context, or null when it has none. */
+export function operatorReplyOf(context: unknown): OperatorReply | null {
+  const c = context && typeof context === 'object' && !Array.isArray(context) ? (context as Record<string, unknown>) : null;
+  const sent = typeof c?.sent === 'string' ? c.sent.trim() : '';
+  if (!c || !sent) return null;
+  const chat = Array.isArray(c.chat)
+    ? c.chat.filter((l): l is { from: string; text: string; at?: string } => !!l && typeof l === 'object' && typeof (l as { text?: unknown }).text === 'string'
+      && typeof (l as { from?: unknown }).from === 'string')
+    : [];
+  const at = Number(c.sent_at);
+  return {
+    rough: typeof c.rough === 'string' && c.rough.trim() ? c.rough.trim() : null,
+    sent,
+    suggestion: typeof c.suggestion === 'string' && c.suggestion.trim() ? c.suggestion.trim() : null,
+    edited: c.edited === true,
+    sentAt: Number.isFinite(at) && at > 0 ? at : null,
+    situationLabel: typeof c.situation_label === 'string' ? c.situation_label : null,
+    chat,
+  };
+}

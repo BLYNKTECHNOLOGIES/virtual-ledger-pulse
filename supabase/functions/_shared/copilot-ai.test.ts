@@ -65,3 +65,54 @@ Deno.test('embed: vectors follow the input order even when the gateway returns t
   const r = await makeAi('K', f).embed(['x', 'y', 'z'], 'm')
   eq(r.vectors?.map((v) => v[0]), [0.1, 0.2, 0.3])
 })
+
+Deno.test('chatJson: rewording asks for no thinking; a refused level falls back to low and is skipped from then on', async () => {
+  const memo = new Map<string, Set<string>>()
+  const { f, calls } = fakeFetch([
+    { status: 400, body: { error: { message: 'Invalid reasoning_effort: none. Valid values are: high, low, medium' } } },
+    { status: 200, body: { choices: [{ message: { content: '{"reply":"A"}' } }] } },
+    { status: 200, body: { choices: [{ message: { content: '{"reply":"B"}' } }] } },
+    { status: 200, body: { choices: [{ message: { content: '{"reply":"C"}' } }] } },
+  ])
+  const ai = makeAi('K', f, memo)
+  const a = await ai.chatJson('google/gemini-3-flash-preview', 's', 'u', SCHEMA, { effort: 'none' })
+  ok(a.ok); eq(a.data.reply, 'A'); eq(calls.map((c) => c.body.reasoning_effort), ['none', 'low'])
+  const b = await ai.chatJson('google/gemini-3-flash-preview', 's', 'u', SCHEMA, { effort: 'none' })
+  ok(b.ok); eq(calls.slice(2).map((c) => c.body.reasoning_effort), ['low'], '"none" is not tried again for this model')
+  const c = await ai.chatJson('other/model', 's', 'u', SCHEMA, { effort: 'none' })
+  ok(c.ok); eq(calls[3].body.reasoning_effort, 'none', 'another model is still asked for none')
+})
+
+Deno.test('chatJson: when every level is refused nothing is remembered (the request itself was the problem)', async () => {
+  const memo = new Map<string, Set<string>>()
+  const bad = { status: 400, body: { error: { message: 'Request too large' } } }
+  const { f, calls } = fakeFetch([bad, bad, bad, { status: 200, body: { choices: [{ message: { content: '{"reply":"Ok"}' } }] } }])
+  const ai = makeAi('K', f, memo)
+  const r = await ai.chatJson('m', 's', 'u', SCHEMA, { effort: 'none' })
+  eq([r.ok, r.status], [false, 400]); eq(calls.map((c) => c.body.reasoning_effort ?? null), ['none', 'low', null]); eq(memo.size, 0)
+  const again = await ai.chatJson('m', 's', 'u', SCHEMA, { effort: 'none' })
+  ok(again.ok); eq(calls[3].body.reasoning_effort, 'none')
+})
+
+Deno.test('chatJson: the default stays one try at low, then one without (unchanged for drafts and saving)', async () => {
+  const memo = new Map<string, Set<string>>()
+  const { f, calls } = fakeFetch([
+    { status: 200, body: { choices: [{ message: { content: '{"reply":"x"}' } }] } },
+  ])
+  await makeAi('K', f, memo).chatJson('m2', 's', 'u', SCHEMA)
+  eq(calls.length, 1); eq(calls[0].body.reasoning_effort, 'low')
+})
+
+Deno.test('chatJson: a refused level followed by an outage is not remembered', async () => {
+  const memo = new Map<string, Set<string>>()
+  const { f, calls } = fakeFetch([
+    { status: 400, body: { error: { message: 'bad request' } } },
+    { status: 503, body: { error: { message: 'upstream down' } } },
+    { status: 200, body: { choices: [{ message: { content: '{"reply":"x"}' } }] } },
+  ])
+  const ai = makeAi('K', f, memo)
+  const r = await ai.chatJson('m3', 's', 'u', SCHEMA)
+  eq([r.ok, r.status], [false, 503]); eq(memo.size, 0)
+  await ai.chatJson('m3', 's', 'u', SCHEMA)
+  eq(calls[2].body.reasoning_effort, 'low', 'low is still tried first')
+})

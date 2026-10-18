@@ -21,7 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { BookOpen, Loader2, Phone, Plus, Pencil, Trash2, Users, Wallet, Languages, Cpu, ShieldCheck, ChevronDown, ArrowRight, Building2 } from 'lucide-react';
+import { BookOpen, Loader2, Phone, Plus, Pencil, Trash2, Users, Wallet, Languages, Cpu, ShieldCheck, ChevronDown, ArrowRight, Building2, Sparkles, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -38,6 +38,12 @@ interface Config {
   related_threshold: number;
   learn_threshold: number;
   house_style: string;
+  rephrase_user_ids: string[];
+  rephrase_auto: boolean;
+  rephrase_daily_limit: number;
+  rephrase_model: string;
+  /** A second AI call checks each rewrite before it is offered (absent until the migration: on). */
+  rephrase_verify?: boolean;
 }
 interface Contact {
   id: string;
@@ -58,6 +64,8 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MODEL_RE = /^[a-z0-9-]+\/[a-z0-9.-]+$/;
 const userLabel = (u: DirUser) => [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || u.id.slice(0, 8);
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : '');
+/** Every save of the Copilot settings: one at a time, in order (see writeConfig). */
+const CONFIG_SAVE = { mutationKey: ['copilot-config-save'], scope: { id: 'copilot-config-save' } };
 
 function useConfig() {
   return useQuery({
@@ -65,11 +73,13 @@ function useConfig() {
     queryFn: async (): Promise<Config | null> => {
       const { data, error } = await supabase.from('copilot_config').select('*').eq('id', true).maybeSingle();
       if (error) throw error;
+      // Rephrase settings (CP-7) may be newer than the generated types: defaults until the row has them.
       return data ? {
+        rephrase_user_ids: [], rephrase_auto: true, rephrase_daily_limit: 200, rephrase_model: data.utility_model,
         ...data,
         monthly_budget_inr: Number(data.monthly_budget_inr), match_threshold: Number(data.match_threshold),
         related_threshold: Number(data.related_threshold), learn_threshold: Number(data.learn_threshold),
-      } : null;
+      } as Config : null;
     },
   });
 }
@@ -240,29 +250,74 @@ export function CopilotPlaybookSettings() {
   const [style, setStyle] = useState('');
   const [models, setModels] = useState<string[]>(['', '']);
   const [utility, setUtility] = useState('');
+  const [rephraseModel, setRephraseModel] = useState('');
+  const [rephraseLimit, setRephraseLimit] = useState('');
+  const [rephraseOpen, setRephraseOpen] = useState(false);
   const [thresholds, setThresholds] = useState({ match: '', related: '', learn: '' });
   const [editing, setEditing] = useState<(Omit<Contact, 'id'> & { id?: string }) | null>(null);
   const [deleting, setDeleting] = useState<Contact | null>(null);
   const [approverOpen, setApproverOpen] = useState(false);
   const [teamEditing, setTeamEditing] = useState<TeamRow | 'new' | null>(null);
 
+  // Each field follows its own saved value, so saving one setting never wipes what is being typed in another.
+  const savedBudget = cfg ? String(Math.round(cfg.monthly_budget_inr)) : null;
+  const savedStyle = cfg?.house_style ?? null;
+  const savedModels = cfg ? `${cfg.draft_models[0] ?? ''}\n${cfg.draft_models[1] ?? ''}` : null;
+  const savedUtility = cfg?.utility_model ?? null;
+  const savedRephraseModel = cfg ? (cfg.rephrase_model ?? cfg.utility_model) : null;
+  const savedLimit = cfg ? String(cfg.rephrase_daily_limit ?? 200) : null;
+  const savedThresholds = cfg ? `${cfg.match_threshold}|${cfg.related_threshold}|${cfg.learn_threshold}` : null;
+  useEffect(() => { if (savedBudget !== null) setBudget(savedBudget); }, [savedBudget]);
+  useEffect(() => { if (savedStyle !== null) setStyle(savedStyle); }, [savedStyle]);
+  useEffect(() => { if (savedModels !== null) setModels(savedModels.split('\n')); }, [savedModels]);
+  useEffect(() => { if (savedUtility !== null) setUtility(savedUtility); }, [savedUtility]);
+  useEffect(() => { if (savedRephraseModel !== null) setRephraseModel(savedRephraseModel); }, [savedRephraseModel]);
+  useEffect(() => { if (savedLimit !== null) setRephraseLimit(savedLimit); }, [savedLimit]);
   useEffect(() => {
-    if (!cfg) return;
-    setBudget(String(Math.round(cfg.monthly_budget_inr)));
-    setStyle(cfg.house_style);
-    setModels([cfg.draft_models[0] ?? '', cfg.draft_models[1] ?? '']);
-    setUtility(cfg.utility_model);
-    setThresholds({ match: String(cfg.match_threshold), related: String(cfg.related_threshold), learn: String(cfg.learn_threshold) });
-  }, [cfg]);
+    if (savedThresholds === null) return;
+    const [match, related, learn] = savedThresholds.split('|');
+    setThresholds({ match, related, learn });
+  }, [savedThresholds]);
 
+  // Settings saves go one at a time, in the order they were made (a list is saved whole, so a later click must land
+  // last), and the settings are read back once the last one is done (an earlier read would undo a later click on show).
+  const writeConfig = async (patch: TablesUpdate<'copilot_config'>) => {
+    const { error } = await supabase.from('copilot_config').update(patch).eq('id', true);
+    if (error) throw error;
+  };
+  const readBackConfig = () => {
+    if (qc.isMutating({ mutationKey: CONFIG_SAVE.mutationKey }) > 1) return;
+    qc.invalidateQueries({ queryKey: ['copilot-config'] });
+    qc.invalidateQueries({ queryKey: ['copilot-access'] });
+  };
   const updateConfig = useMutation({
-    mutationFn: async (patch: TablesUpdate<'copilot_config'>) => {
-      const { error } = await supabase.from('copilot_config').update(patch).eq('id', true);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['copilot-config'] }); qc.invalidateQueries({ queryKey: ['copilot-access'] }); toast.success('Copilot settings saved'); },
-    onError: (e: Error) => toast.error(e?.message || 'Could not save'),
+    ...CONFIG_SAVE,
+    mutationFn: writeConfig,
+    onSuccess: () => { toast.success('Copilot settings saved'); },
+    onError: (e: Error) => { toast.error(e?.message || 'Could not save'); },
+    onSettled: readBackConfig,
   });
+  /** A list or switch saved at once: shown changed straight away, so the next click builds on it (put back if the save fails). */
+  const saveNowConfig = useMutation({
+    ...CONFIG_SAVE,
+    onMutate: async (patch: Partial<Config>) => {
+      // A read on its way would land after this and undo it.
+      await qc.cancelQueries({ queryKey: ['copilot-config'] });
+      const before = qc.getQueryData<Config | null>(['copilot-config']) ?? null;
+      const shown = before ? { ...before, ...patch } : null;
+      if (shown) qc.setQueryData<Config | null>(['copilot-config'], shown);
+      return { before, shown };
+    },
+    mutationFn: (patch: Partial<Config>) => writeConfig(patch as TablesUpdate<'copilot_config'>),
+    onSuccess: () => { toast.success('Copilot settings saved'); },
+    onError: (e: Error, _patch, ctx) => {
+      // Put back at once, unless a later click is already on show (the read-back settles that).
+      if (ctx?.shown && qc.getQueryData(['copilot-config']) === ctx.shown) qc.setQueryData<Config | null>(['copilot-config'], ctx.before);
+      toast.error(e?.message || 'Could not save');
+    },
+    onSettled: readBackConfig,
+  });
+  const saveNow = (patch: Partial<Config>) => saveNowConfig.mutate(patch);
   const saveContact = useMutation({
     mutationFn: async (c: Omit<Contact, 'id'> & { id?: string }) => {
       const { id, ...row } = c;
@@ -324,20 +379,31 @@ export function CopilotPlaybookSettings() {
   const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 100;
   const approved = access?.approved_entries ?? 0;
   const budgetValid = /^\d{1,7}$/.test(budget) && Number(budget) >= 0;
-  const modelsValid = models.filter(Boolean).length >= 1 && models.filter(Boolean).every((m) => MODEL_RE.test(m)) && MODEL_RE.test(utility);
+  const modelsValid = models.filter(Boolean).length >= 1 && models.filter(Boolean).every((m) => MODEL_RE.test(m)) && MODEL_RE.test(utility)
+    && MODEL_RE.test(rephraseModel);
+  const rephraseIds = cfg.rephrase_user_ids ?? [];
+  const limitNum = Number(rephraseLimit);
+  const limitValid = /^\d{2,4}$/.test(rephraseLimit) && limitNum >= 10 && limitNum <= 2000;
+  const month = access?.rephrase_month;
   const th = { match: Number(thresholds.match), related: Number(thresholds.related), learn: Number(thresholds.learn) };
   const thValid = th.match >= 0.5 && th.match <= 0.99 && th.related >= 0.3 && th.related <= th.match && th.learn >= 0.3 && th.learn <= 0.95;
 
+  const toggleRephraser = (id: string) => {
+    const cur = qc.getQueryData<Config | null>(['copilot-config'])?.rephrase_user_ids ?? rephraseIds;
+    saveNow({ rephrase_user_ids: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
+  };
+
   const toggleApprover = (id: string) => {
-    const next = cfg.approver_ids.includes(id) ? cfg.approver_ids.filter((x) => x !== id) : [...cfg.approver_ids, id];
+    const cur = qc.getQueryData<Config | null>(['copilot-config'])?.approver_ids ?? cfg.approver_ids;
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
     if (next.length === 0) { toast.error('Keep at least one approver'); return; }
-    updateConfig.mutate({ approver_ids: next });
+    saveNow({ approver_ids: next });
   };
 
   return (
     <div className="space-y-4">
       <Section icon={<BookOpen className="h-4 w-4 text-primary" />} title="AI Copilot — Playbook"
-        description="Approvers see suggestions in the order chat. Approved Playbook replies come first; AI drafts only for a chat an approver has open. Sending or approving a suggestion saves it to the Playbook. Operators see no AI.">
+        description="Approvers see suggestions in the order chat. Approved Playbook replies come first; AI drafts only for a chat an approver has open. Sending or approving a suggestion saves it to the Playbook. Operators see no suggestions; the operators picked under Rephrase can have their own words reworded.">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-md border border-border bg-secondary/30 p-3">
             <p className="text-[11px] text-muted-foreground">Approved replies</p>
@@ -347,7 +413,7 @@ export function CopilotPlaybookSettings() {
           <div className="rounded-md border border-border bg-secondary/30 p-3">
             <p className="text-[11px] text-muted-foreground">Open in the Playbook inbox</p>
             <p className="text-lg font-semibold tabular-nums text-foreground">{access?.open_inbox ?? 0}</p>
-            <p className="text-[11px] text-muted-foreground">Conflicts and tentative replies to review</p>
+            <p className="text-[11px] text-muted-foreground">Conflicts, tentative replies and operator replies to review</p>
           </div>
           <div className="rounded-md border border-border bg-secondary/30 p-3">
             <p className="text-[11px] text-muted-foreground">AI spend this month</p>
@@ -356,7 +422,7 @@ export function CopilotPlaybookSettings() {
             <p className="mt-1 text-[11px] text-muted-foreground">of ₹{Math.round(limit).toLocaleString('en-IN')} · alerts at {cfg.budget_alert_pcts.join('% and ')}%</p>
           </div>
         </div>
-        <p className="text-[11px] text-muted-foreground">Operators: off. Approved replies for operators (no AI) are a separate step after about 50 approved replies.</p>
+        <p className="text-[11px] text-muted-foreground">Operators: no suggestions. Approved replies for operators (no AI) are a separate step after about 50 approved replies.</p>
         {!onPlaybookPage && (
           <Button asChild variant="outline" size="sm" className="h-8 text-xs">
             <Link to="/terminal/playbook">Open the Playbook — inbox, questions and stats<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Link>
@@ -387,6 +453,68 @@ export function CopilotPlaybookSettings() {
             </PopoverContent>
           </Popover>
         </div>
+      </Section>
+
+      <Section icon={<Sparkles className="h-4 w-4 text-primary" />} title="Rephrase"
+        description="While someone types in an order chat, the Copilot rewords the message properly: same meaning and decision, nothing added (every rewrite is checked by rules and by a second AI call), never sent on its own. Approvers always have it. Operators picked here get rephrasing only, no suggestions or drafts. A rewrite an approver sends is saved to the Playbook; one an operator sends waits in the Playbook inbox for you to save or dismiss.">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {rephraseIds.map((id) => {
+            const name = userById.get(id) ? userLabel(userById.get(id)!) : id.slice(0, 8);
+            return (
+              <span key={id} className="inline-flex h-7 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 pl-3 pr-1 text-xs text-primary">
+                {name}
+                <button type="button" onClick={() => toggleRephraser(id)} aria-label={`Remove ${name} from Rephrase`}
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-primary/20">
+                  <X className="h-3 w-3" aria-hidden />
+                </button>
+              </span>
+            );
+          })}
+          {!rephraseIds.length && <span className="text-xs text-muted-foreground">No operators yet: only approvers can rephrase.</span>}
+          <Popover open={rephraseOpen} onOpenChange={setRephraseOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs">Choose operators <ChevronDown className="ml-1 h-3 w-3" /></Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64 p-1">
+              <div className="max-h-[50vh] overflow-y-auto overscroll-contain">
+                {users.filter((u) => !cfg.approver_ids.includes(u.id)).map((u) => (
+                  <button key={u.id} type="button" onClick={() => toggleRephraser(u.id)}
+                    className="flex w-full items-center gap-2 rounded px-2 py-2 text-left hover:bg-secondary/80">
+                    <input type="checkbox" readOnly checked={rephraseIds.includes(u.id)} className="accent-primary" />
+                    <span className="truncate text-xs text-foreground">{userLabel(u)}</span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Only people who can read order chats in the Terminal get it. They see it in the chats they reply from in the Terminal (not in the Binance app).</p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <label className="flex items-center gap-2 text-xs text-foreground">
+            <Switch checked={cfg.rephrase_auto !== false} onCheckedChange={(v) => saveNow({ rephrase_auto: v })} />
+            Suggest after a pause in typing
+            <span className="text-[11px] text-muted-foreground">{cfg.rephrase_auto !== false ? '' : '(off: only from the ✨ button)'}</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-foreground">
+            <Switch checked={cfg.rephrase_verify !== false} onCheckedChange={(v) => saveNow({ rephrase_verify: v })} />
+            Double-check each rewrite with a second AI call
+            <span className="text-[11px] text-muted-foreground">{cfg.rephrase_verify !== false ? '(recommended)' : '(off: the built-in checks only)'}</span>
+          </label>
+          <div className="flex items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="cp-rephrase-limit" className="text-xs">Rewrites per person per day</Label>
+              <Input id="cp-rephrase-limit" value={rephraseLimit} inputMode="numeric" className="h-8 w-28 text-xs"
+                onChange={(e) => setRephraseLimit(e.target.value.replace(/[^\d]/g, '').slice(0, 4))} />
+            </div>
+            <Button size="sm" className="h-8 text-xs" disabled={!limitValid || limitNum === (cfg.rephrase_daily_limit ?? 200) || updateConfig.isPending}
+              onClick={() => updateConfig.mutate({ rephrase_daily_limit: limitNum } as TablesUpdate<'copilot_config'>)}>Save</Button>
+          </div>
+        </div>
+        {!limitValid && rephraseLimit !== '' && <p className="text-[11px] text-warning">Between 10 and 2000.</p>}
+        <p className="text-[11px] text-muted-foreground">
+          This month: {month ? `${month.calls} ${month.calls === 1 ? 'rewrite' : 'rewrites'} by ${month.people} ${month.people === 1 ? 'person' : 'people'}, ${month.used} sent · ₹${Number(month.spent_inr).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : 'no rewrites yet'}.
+          {' '}A rewrite costs about {cfg.rephrase_verify !== false ? '₹0.08–0.16 with the second check' : '₹0.05–0.13'}.
+        </p>
       </Section>
 
       <Section icon={<Building2 className="h-4 w-4 text-primary" />} title="Teams"
@@ -474,8 +602,8 @@ export function CopilotPlaybookSettings() {
         </div>
       </Section>
 
-      <Section icon={<Cpu className="h-4 w-4 text-primary" />} title="Models" description="Two models draft side by side so you can compare them. Use the exact Lovable AI Gateway model IDs.">
-        <div className="grid gap-3 sm:grid-cols-3">
+      <Section icon={<Cpu className="h-4 w-4 text-primary" />} title="Models" description="Two models draft side by side so you can compare them. Rewording uses a small, fast model. Use the exact Lovable AI Gateway model IDs; a model missing from the price list is costed high until it is added.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1].map((i) => (
             <div key={i} className="space-y-1">
               <Label htmlFor={`cp-model-${i}`} className="text-xs">Draft model {i === 0 ? 'A' : 'B'}{i === 1 && <span className="text-muted-foreground"> (optional)</span>}</Label>
@@ -485,6 +613,10 @@ export function CopilotPlaybookSettings() {
           <div className="space-y-1">
             <Label htmlFor="cp-utility" className="text-xs">Saving and translation model</Label>
             <Input id="cp-utility" value={utility} onChange={(e) => setUtility(e.target.value.trim())} className="h-8 font-mono text-xs" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="cp-rephrase-model" className="text-xs">Rephrase model</Label>
+            <Input id="cp-rephrase-model" value={rephraseModel} onChange={(e) => setRephraseModel(e.target.value.trim())} className="h-8 font-mono text-xs" />
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground">Question matching: <span className="font-mono">{cfg.embedding_model}</span></p>
@@ -500,7 +632,7 @@ export function CopilotPlaybookSettings() {
           </div>
         </details>
         <Button size="sm" className="h-8 text-xs" disabled={!modelsValid || !thValid || updateConfig.isPending}
-          onClick={() => updateConfig.mutate({ draft_models: models.filter(Boolean), utility_model: utility, match_threshold: th.match, related_threshold: th.related, learn_threshold: th.learn })}>
+          onClick={() => updateConfig.mutate({ draft_models: models.filter(Boolean), utility_model: utility, rephrase_model: rephraseModel, match_threshold: th.match, related_threshold: th.related, learn_threshold: th.learn } as TablesUpdate<'copilot_config'>)}>
           Save models
         </Button>
       </Section>

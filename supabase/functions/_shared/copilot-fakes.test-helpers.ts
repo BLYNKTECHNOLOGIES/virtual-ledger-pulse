@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
 // In-memory Store and AI fakes for the Copilot handler tests (not deployed with any function).
 import type { ChatRow } from './copilot-playbook.ts'
-import type { AppealCase, ContactPick, CopilotConfig, Example, MatchArgs, MatchRow, RequestRow, Store, Team } from './copilot-store.ts'
+import type { AppealCase, ContactPick, CopilotConfig, Example, InboxItem, MatchArgs, MatchRow, RephraseCall, RequestRow, Store, Team } from './copilot-store.ts'
 import type { Mark } from './copilot-situation.ts'
-import type { Ai, ChatResult, EmbedResult } from './copilot-ai.ts'
+import type { Ai, ChatOpts, ChatResult, EmbedResult } from './copilot-ai.ts'
 
 export const SHUBHAM = 'd1a85fd5-f5a8-47af-ae42-e0b4683d82c9'
 export const OPERATOR = '699c8623-8d56-49a9-ba53-4a572649497c'
@@ -14,7 +14,8 @@ export function config(over: Partial<CopilotConfig> = {}): CopilotConfig {
     approver_ids: [SHUBHAM], operators_enabled: false, draft_models: ['openai/gpt-6-astra', 'google/gemini-4-argon'],
     utility_model: 'google/gemini-3-flash-preview', embedding_model: 'openai/text-embedding-3-small', monthly_budget_inr: 25000,
     budget_alert_pcts: [50, 80], usd_inr: 88, hindi_switch_after: 2, match_threshold: 0.78, related_threshold: 0.55, learn_threshold: 0.5,
-    tentative_days: 60, house_style: 'House style.',
+    tentative_days: 60, house_style: 'House style.', rephrase_user_ids: [OPERATOR], rephrase_auto: true, rephrase_daily_limit: 200,
+    rephrase_model: 'google/gemini-3-flash-preview',
     model_prices: { 'openai/gpt-6-astra': { in: 10, out: 50 }, 'google/gemini-4-argon': { in: 2, out: 10 }, 'google/gemini-3-flash-preview': { in: 0.5, out: 3 }, 'openai/text-embedding-3-small': { in: 0.02, out: 0 } },
     ...over,
   }
@@ -109,7 +110,69 @@ export class FakeStore implements Store {
   }
   examplesFor(ids: string[]) { return Promise.resolve(this.exampleRows.filter((x) => ids.includes(x.entry_id))) }
   teams() { return Promise.resolve(this.teamRows) }
-  learnApply(p: Record<string, unknown>) { this.learnCalls.push(p); return Promise.resolve({ data: { ...this.learnResult, action: this.learnResult.action ?? p.p_relation } }) }
+  /** Operators an approver picked for rewording (approvers may anyway). */
+  rephrasers = new Set([OPERATOR])
+  inbox: any[] = []
+  exampleNotes: Array<{ id: string; note: string }> = []
+  canRephrase(u: string) { return Promise.resolve(this.approvers.has(u) || this.rephrasers.has(u)) }
+  /** Binance accounts per person (default: everyone works on the order's account). */
+  accounts: Record<string, string[]> | null = null
+  accountsFor(u: string) { return Promise.resolve(this.accounts ? (this.accounts[u] ?? []) : [BLYNK]) }
+  rephraseCount(u: string, since: string) {
+    return Promise.resolve(this.calls.filter((c) => c.user_id === u && c.purpose === 'rephrase' && ['ok', 'blocked'].includes(c.status)
+      && String(c.created_at ?? '9999') >= since).length)
+  }
+  rephraseCall(i: string): Promise<RephraseCall | null> {
+    const c = this.calls.find((x) => x.id === i)
+    return Promise.resolve(c ? { id: c.id, user_id: c.user_id ?? null, purpose: c.purpose, status: c.status, order_number: c.order_number ?? null, input_text: c.input_text ?? null, output_text: c.output_text ?? null, feedback: c.feedback ?? null, created_at: c.created_at ?? null } : null)
+  }
+  markRephraseUsed(i: string, u: string, edited: boolean) {
+    const c = this.calls.find((x) => x.id === i && x.user_id === u && x.purpose === 'rephrase' && !x.feedback)
+    if (!c) return Promise.resolve(false)
+    Object.assign(c, { feedback: 'used', feedback_edited: edited, feedback_by: u })
+    return Promise.resolve(true)
+  }
+  inboxFails = false
+  addInboxItem(row: Record<string, any>): Promise<{ id?: string; duplicate?: boolean; error?: string }> {
+    if (this.inboxFails) return Promise.resolve({ error: 'insert failed' })
+    if (row.kind === 'operator_reply' && this.inbox.some((i) => i.kind === 'operator_reply' && i.status === 'open' && i.order_number === row.order_number && i.context?.reply_key === row.context?.reply_key)) {
+      return Promise.resolve({ duplicate: true })
+    }
+    const r = { id: id(), status: 'open', ...row }
+    this.inbox.push(r)
+    return Promise.resolve({ id: r.id })
+  }
+  inboxItem(i: string): Promise<InboxItem | null> { return Promise.resolve(this.inbox.find((x) => x.id === i) ?? null) }
+  claimInboxItem(i: string, u: string) {
+    const x = this.inbox.find((y) => y.id === i && y.kind === 'operator_reply' && y.status === 'open')
+    if (!x) return Promise.resolve(false)
+    Object.assign(x, { status: 'resolved', resolved_by: u, resolution: 'saving' })
+    return Promise.resolve(true)
+  }
+  finishInboxItem(i: string, context: Record<string, unknown>) {
+    const x = this.inbox.find((y) => y.id === i && y.resolution === 'saving')
+    if (x) Object.assign(x, { resolution: 'saved', context })
+    return Promise.resolve()
+  }
+  reopenInboxItem(i: string) {
+    const x = this.inbox.find((y) => y.id === i && y.status === 'resolved' && y.resolution === 'saving')
+    if (x) Object.assign(x, { status: 'open', resolved_by: null, resolution: null })
+    return Promise.resolve()
+  }
+  reopenSavedInboxItem(eventId: string) {
+    const x = this.inbox.find((y) => y.kind === 'operator_reply' && y.status === 'resolved' && y.context?.saved_event_id === eventId)
+    if (!x) return Promise.resolve(false)
+    const { saved_entry_id: _e, saved_event_id: _v, ...context } = x.context
+    Object.assign(x, { status: 'open', resolved_by: null, resolution: null, context })
+    return Promise.resolve(true)
+  }
+  learnFails: { message: string; code?: string } | null = null
+  setExampleNote(exampleId: string, note: string) { this.exampleNotes.push({ id: exampleId, note }); return Promise.resolve() }
+  learnApply(p: Record<string, unknown>) {
+    this.learnCalls.push(p)
+    if (this.learnFails) return Promise.resolve({ error: this.learnFails })
+    return Promise.resolve({ data: { ...this.learnResult, action: this.learnResult.action ?? p.p_relation } })
+  }
   undo(u: string, e: string) {
     this.undoCalls.push([u, e])
     if (e === '00000000-0000-4000-8000-999999999999') return Promise.resolve({ error: { message: 'This entry changed after that save; edit it on the Playbook page instead', code: '22023' } })
@@ -118,15 +181,20 @@ export class FakeStore implements Store {
 }
 
 export class FakeAi implements Ai {
-  chats: Array<{ model: string; system: string; user: string }> = []
+  chats: Array<{ model: string; system: string; user: string; opts?: ChatOpts; check?: true }> = []
   embeds: string[][] = []
   replies: Record<string, ChatResult | ((system: string, user: string) => ChatResult)> = {}
+  /** The second check of a rewrite (a schema with "issues"): nothing found unless a test says otherwise. */
+  checkReply: ChatResult | ((system: string, user: string) => ChatResult) = {
+    ok: true, data: { issues: [] }, usage: { input: 400, output: 8, reasoning: 0, estimated: false }, latencyMs: 4,
+  }
   embedFails = false
   embedFailsWhen: ((texts: string[]) => boolean) | null = null
 
-  chatJson(model: string, system: string, user: string): Promise<ChatResult> {
-    this.chats.push({ model, system, user })
-    const r = this.replies[model]
+  chatJson(model: string, system: string, user: string, schema?: Record<string, unknown>, opts?: ChatOpts): Promise<ChatResult> {
+    const check = !!(schema as { properties?: Record<string, unknown> } | undefined)?.properties?.issues
+    this.chats.push({ model, system, user, ...(opts ? { opts } : {}), ...(check ? { check: true as const } : {}) })
+    const r = check ? this.checkReply : this.replies[model]
     const out = typeof r === 'function' ? r(system, user) : r
     return Promise.resolve(out ?? { ok: true, data: { reply: `Draft from ${model}`, new_policy: false, note: '' }, usage: { input: 1000, output: 100, reasoning: 0, estimated: false }, latencyMs: 5 })
   }

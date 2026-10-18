@@ -1,4 +1,4 @@
-// Copilot v2 (Playbook): access, suggestions and auto-save calls for the Terminal chat panel.
+// Copilot v2 (Playbook): access, suggestions, auto-save and rewording calls for the Terminal chat panel.
 // copilot_my_access feeds the screen; every Copilot gate in the UI reads it (the server checks again).
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +13,12 @@ export interface CopilotAccess {
   budget?: { limit_inr: number; spent_inr: number; alert_pcts: number[] };
   approved_entries?: number;
   open_inbox?: number;
+  /** Rephrase: approvers, and the operators an approver picked who can read order chats. */
+  can_rephrase?: boolean;
+  /** A rewrite is offered after a pause in typing (false: only from the ✨ button). */
+  rephrase_auto?: boolean;
+  /** Approvers: this month's rewrites (all people), how many were sent, by how many people, and their cost. */
+  rephrase_month?: { calls: number; used: number; people: number; spent_inr: number };
 }
 
 export function useCopilotAccess() {
@@ -219,6 +225,10 @@ export interface LearnBody {
   beforeAt?: number | null;
   /** The step a reply was picked for ("If: Checking KYC"): it is saved under that step. */
   situation?: string | null;
+  /** The words typed before the reply was reworded: the reason behind it (kept with its example chat). */
+  note?: string | null;
+  /** Saving an operator's rewritten reply from the Playbook inbox (the item is closed once saved). */
+  inboxItemId?: string | null;
 }
 
 export function copilotLearn(body: LearnBody): Promise<LearnResult> {
@@ -237,4 +247,33 @@ export function copilotReject(callId: string, reason: string): Promise<{ rejecte
 }
 export function copilotUndo(eventId: string): Promise<{ undone: boolean; reason?: string }> {
   return invoke('copilot-learn', { action: 'undo', eventId });
+}
+
+/** A rewrite of the words typed in an order chat (Rephrase). Nothing is sent: the person decides what to do with it. */
+export interface RephraseResult {
+  callId: string | null;
+  /** ok: offer it · same: already reads well · blocked: a check held it back (reason) · unclear: nothing to offer */
+  status: 'ok' | 'same' | 'blocked' | 'unclear';
+  text: string | null;
+  language: 'en' | 'hi';
+  /** Shown with the rewrite: things the typed words themselves already did (asking to pay before verification, …). */
+  warnings: Array<{ code: string; label: string }>;
+  reason: string | null;
+  /** Rewrites left today for this person. */
+  left: number;
+}
+export function copilotRephrase(body: {
+  orderNumber: string; exchangeAccountId?: string | null; text: string; lang?: 'auto' | 'en' | 'hi'; avoid?: string[]; hint?: OrderHint;
+  /** How it was asked for: the server refuses automatic requests once automatic rewording is switched off. */
+  mode?: 'auto' | 'manual' | 'another' | 'lang';
+}): Promise<RephraseResult> {
+  return invoke('copilot-rephrase', { action: 'rephrase', ...body });
+}
+/** An operator sent a rewrite: it goes to the Playbook inbox for an approver (approvers' sends are saved through copilotLearn). */
+export function copilotRephraseUsed(body: {
+  callId: string; orderNumber: string; exchangeAccountId?: string | null; finalText: string; sentAt: number; templateValues?: TemplateOrderValues;
+  /** A rewrite of a rewrite: the call made for the words first typed (their typed words are the reason). */
+  roughCallId?: string | null;
+}): Promise<{ queued: boolean; reason?: string; inboxItemId?: string }> {
+  return invoke('copilot-rephrase', { action: 'used', ...body });
 }

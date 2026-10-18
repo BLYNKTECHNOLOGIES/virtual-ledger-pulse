@@ -1,9 +1,12 @@
 // deno-lint-ignore-file no-explicit-any
 // Copilot v2 Playbook upkeep. Approvers only.
-//  learn     — an approver sent or approved a suggestion, or tapped Save on their own reply ("use = approve"): the
-//              reply is generalised (placeholders, "sir"), compared with similar questions and their situation replies,
-//              and saved as a new question, a merge, an update, a wider situation, a reply for a new situation, a
-//              promotion of a tentative reply, or a conflict for the inbox. The client's wording joins the question.
+//  learn     — an approver sent or approved a suggestion or a rewrite of their own words, tapped Save on their own reply
+//              ("use = approve"), or saved an operator's rewritten reply from the inbox: the reply is generalised
+//              (placeholders, "sir"), compared with similar questions and their situation replies, and saved as a new
+//              question, a merge, an update, a wider situation, a reply for a new situation, a promotion of a tentative
+//              reply, or a conflict for the inbox. The client's wording joins the question. The words typed before a
+//              rewrite (the note) are the reason behind the reply: kept with its example chat and shown with a conflict it
+//              raises. They never reach the judge (a one-off decision must not quietly outrank an approved reply).
 //  reject    — a draft was rejected; kept with the reason as an example to avoid, never as SOP.
 //  undo      — reverts a learning event (the toast's Undo).
 //  index     — makes phrasings added on the Playbook page searchable right away (one small embedding call).
@@ -37,6 +40,10 @@ export interface LearnInput {
   beforeAt?: number | null
   /** The step the approver picked the reply for ("If: Checking KYC"): it is filed under that step, not the detected one. */
   situation?: string | null
+  /** The words typed before the reply was reworded (Rephrase): the reason behind it (masked here). */
+  note?: string | null
+  /** Saving an operator's rewritten reply from the Playbook inbox: the item is closed once it is saved. */
+  inboxItemId?: string | null
   callId?: string
   reason?: string
   eventId?: string
@@ -84,7 +91,10 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     const eventId = uuidOrNull(input?.eventId)
     if (!eventId) return { status: 400, body: { error: 'invalid', field: 'eventId' } }
     const r = await store.undo(userId, eventId)
-    return r.error ? dbErr(r.error) : { status: 200, body: r.data }
+    if (r.error) return dbErr(r.error)
+    // A reply saved from the inbox goes back to the inbox when its save is undone.
+    const reopened = await store.reopenSavedInboxItem(eventId)
+    return { status: 200, body: { ...r.data, inboxItemReopened: reopened } }
   }
 
   if (action === 'reject') {
@@ -147,6 +157,15 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
   const sourceCallId = uuidOrNull(input?.sourceCallId)
   const requestId = uuidOrNull(input?.requestId)
   const now = deps.now()
+  // An operator's reply from the inbox: still open, for this order; its typed words are the note unless one is given.
+  const inboxItemId = input?.inboxItemId === undefined || input?.inboxItemId === null ? null : uuidOrNull(input.inboxItemId)
+  if (input?.inboxItemId && !inboxItemId) return { status: 400, body: { error: 'invalid', field: 'inboxItemId' } }
+  const item = inboxItemId ? await store.inboxItem(inboxItemId) : null
+  if (inboxItemId && (!item || item.kind !== 'operator_reply' || item.order_number !== orderNumber)) return { status: 404, body: { error: 'not_found' } }
+  if (item && item.status !== 'open') return { status: 409, body: { error: 'already_resolved', message: 'This reply was already saved or dismissed.' } }
+  const noteText = typeof input?.note === 'string' && input.note.trim() ? input.note : (typeof item?.context?.rough === 'string' ? item.context.rough : '')
+  // Kept the way the reply is: the order's values as placeholders, anything else personal masked.
+  const note = maskPII(generalize(noteText.trim(), input?.templateValues ?? {}, [])).slice(0, 600) || null
 
   // ── The client's question, the order context and the chat's situation ──
   let question = ''
@@ -447,6 +466,10 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
 
   // Never store personal data in the Playbook.
   stored = maskPII(stored)
+  // An operator's reply is taken before it is saved, so two approvers (or a save and a dismiss) never both act on it.
+  if (item && !(await store.claimInboxItem(item.id, userId))) {
+    return { status: 409, body: { error: 'already_resolved', message: 'This reply was already saved or dismissed.' } }
+  }
   const result = await store.learnApply({
     p_user_id: userId, p_cause: cause, p_relation: relation, p_target_entry_id: target,
     p_question_text: phrasing || null, p_question_embedding: phrasingEmbedding, p_question_language: detectLang(phrasing) === 'hi' ? 'hi' : questionLang,
@@ -456,6 +479,8 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     p_context: {
       side: ctxInfo.side, status: ctxInfo.status, category: ctxInfo.category, client_state: ctxInfo.clientState,
       situation: stage, situation_label: situationDef(stage)?.label ?? null, chat: tail,
+      // A conflict raised by a rewrite shows the approver the reason typed for it (decide "keep both" for a decision).
+      ...(note ? { note } : {}),
     },
     p_target_topic_id: targetTopic, p_stage: exampleStage,
     // The chat this reply was used in, kept as an example: later chats like it bring this reply up first.
@@ -463,15 +488,23 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     p_example_text: ctxText || null,
     p_example_embedding: ctxText ? ctxEmbedding : null,
   })
-  if (result.error) return dbErr(result.error)
+  if (result.error) {
+    if (item) await store.reopenInboxItem(item.id)
+    return dbErr(result.error)
+  }
   const d = result.data ?? {}
-  console.log(JSON.stringify({ fn: 'copilot-learn', outcome: d.action, judged, situation: stage }))
+  // The reason behind the reply stays with the chat it was used in (decision options are built from these notes).
+  if (note && d.example_id) await store.setExampleNote(d.example_id, note)
+  if (item) await store.finishInboxItem(item.id, { ...(item.context ?? {}), saved_entry_id: d.entry_id ?? null, saved_event_id: d.event_id ?? null })
+  const closed = !!item
+  console.log(JSON.stringify({ fn: 'copilot-learn', outcome: d.action, judged, situation: stage, note: !!note, inbox: !!inboxItemId }))
   return {
     status: 200,
     body: {
       eventId: d.event_id, action: d.action, entryId: d.entry_id, topicId: d.topic_id ?? null, title: d.title, otherEntryId: d.other_entry_id ?? null,
       inboxItemId: d.inbox_item_id ?? null, stored, storedLanguage: replyLang, judged, reason,
       phrasing: d.phrasing ?? null, situation: exampleStage ? (situationDef(exampleStage)?.label ?? exampleStage) : null,
+      inboxItemClosed: closed,
     },
   }
 }

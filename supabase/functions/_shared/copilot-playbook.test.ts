@@ -27,6 +27,12 @@ Deno.test('maskPII hides personal numbers and handles but keeps amounts and shor
   eq(maskPII('account 50100123456789'), 'account [number]')
   eq(maskPII('UTR 412345678901, ok. Ref 123456789.'), 'UTR [number], ok. Ref [number].')
   eq(maskPII('total 1,00,00,000.50'), 'total 1,00,00,000.50')
+  // Numbers written in groups (CP-7: typed by the desk, so every common format)
+  eq(maskPII('call 987-654-3210 or 98-7654-3210 or 9876 543 210'), 'call [number] or [number] or [number]')
+  eq(maskPII('office 0755-2345678, dubai +971 50 123 4567, uk +44 7911 123456'), 'office [number], dubai [phone], uk [phone]')
+  eq(maskPII('a/c 50100 12345 6789 and 1234.5678.9012'), 'a/c [number] and [number]')
+  eq(maskPII('card 4111 1111 1111 1111'), 'card [number]')
+  eq(maskPII('pay 4,500 at 10.30, order of 18-10-2026, 5 10 15 min'), 'pay 4,500 at 10.30, order of 18-10-2026, 5 10 15 min')
 })
 
 Deno.test('detectLang: Hindi in Roman script, English and neutral', () => {
@@ -231,4 +237,39 @@ Deno.test('routeSchema allows only the candidates or "none"; the router prompt c
   const u = JSON.parse(m.user)
   eq(u.candidates, [{ id: 'Q1', question: 'KYC time', client_wordings: ['how long for kyc'], reply_now: null }])
   eq(u.client_message, 'kitna time?')
+})
+
+Deno.test('maskPII: values glued together, a UPI ID with spaces, a one-letter UPI name, wallet addresses', () => {
+  eq(maskPII('98765 43210ABCDE1234F'), '[phone][pan]')
+  eq(maskPII('pay on blynk @ ybl or x@ybl'), 'pay on [upi] or [upi]')
+  eq(maskPII('wallet TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE / 0x52908400098527886E0F7030069857D2E4169EE7'), 'wallet [wallet] / [wallet]')
+  eq(maskPII('meet at 5 pm, pay ₹4,500 via upi'), 'meet at 5 pm, pay ₹4,500 via upi', 'ordinary text stays')
+})
+
+Deno.test('maskPII, round 2: hashes and other wallets, one-letter and spaced UPI IDs, mixed references, digits in groups', () => {
+  eq(maskPII('tx 0x5d2c1f6a8b3e4d7c9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f done'), 'tx [ref] done')
+  eq(maskPII('hash 5d2c1f6a8b3e4d7c9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f'), 'hash [ref]')
+  eq(maskPII('btc BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ'), 'btc [wallet]', 'bech32 in capitals')
+  eq(maskPII('ltc ltc1qg82tq7kd3n0ldxmqzszsyd3jt5ad5xkfg5w6vd'), 'ltc [wallet]')
+  eq(maskPII('ton EQD2NmD_lH5f5u1Kj3KfGyTvhZSX0Eg6qp2a5IQUKXxOG21n ok'), 'ton [wallet] ok')
+  eq(maskPII('pay a@ybl'), 'pay [upi]', 'a one-letter UPI name with a bank handle')
+  eq(maskPII('x@yz is fine'), 'x@yz is fine', 'but not with any other "handle"')
+  eq(maskPII('ravi @ ybl or a @ okaxis'), '[upi] or [upi]')
+  eq(maskPII('meet @ home'), 'meet @ home', 'spaced "@" only before a bank handle')
+  eq(maskPII('ref UTRABCDE1234F567890'), 'ref [ref]', 'a PAN-shaped middle does not hide a reference')
+  eq(maskPII('list 10 20 30 40 50, then 1 2 3 4 5 6 7 8 9'), 'list 10 20 30 40 50, then 1 2 3 4 5 6 7 8 9', 'lists of small numbers stay')
+  eq(maskPII('12-34 56789 01234'), '12-[number]', 'groups share one separator: the run after the hyphen')
+  eq(maskPII('call 987.654.3210'), 'call [number]')
+  eq(maskPII('on 18-10-2026 10:30'), 'on 18-10-2026 10:30', 'a date and a time are not one number')
+  eq(maskPII('card 4111 1111 1111 1111 now'), 'card [number] now')
+  eq(maskPII('phone ९८७६५४३२१० pls'), 'phone [phone] pls', 'Devanagari digits')
+  eq(maskPII('call 98765\u200b43210'), 'call [phone]', 'a zero-width space inside')
+  const plain = 'Pay ₹１，０００ now 🙏'
+  eq(maskPII(plain), plain, 'nothing personal: the text exactly as given (not normalised)')
+})
+
+Deno.test('the client\'s question is masked before it is cut: no half number at the end', () => {
+  const t: Msg[] = [{ id: 'q', at: 1, who: 'client', kind: 'text', text: `${'x'.repeat(590)} call 98765 43210` }]
+  const q = clientTurn(t)!.question
+  ok(!/\d{3}/.test(q), q.slice(-30)); ok(q.length <= 600)
 })

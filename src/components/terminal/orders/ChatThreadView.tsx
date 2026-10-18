@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -28,6 +28,12 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
   // Chats Binance delivers without an order behind them (ad enquiries) have no
   // side, status or amount to show.
   const isEnquiry = c.orderNumber.startsWith('INQ-');
+  // {amount}, {orderNo} and {name} in quick replies and Copilot replies, as on the order screen (the amount only in rupees).
+  const templateValues = useMemo(() => ({
+    amount: !isEnquiry && (!c.fiatUnit || c.fiatUnit === 'INR') && c.totalPrice ? c.totalPrice : null,
+    orderNo: isEnquiry ? null : c.orderNumber,
+    name: c.verifiedName || c.counterpartyNickname || null,
+  }), [isEnquiry, c.fiatUnit, c.totalPrice, c.orderNumber, c.verifiedName, c.counterpartyNickname]);
 
   const details = (
     <CounterpartyDetailsPanel
@@ -110,6 +116,7 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
             orderQuantity={c.amount}
             orderType={null}
             exchangeAccountId={c.exchangeAccountId}
+            templateValues={templateValues}
           />
         </div>
         <aside className="hidden lg:flex w-[320px] shrink-0 border-l border-border bg-card flex-col min-h-0">

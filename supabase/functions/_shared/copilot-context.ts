@@ -152,6 +152,48 @@ export async function buildChatContext(
   }
 }
 
+/** What rewording a message needs to know about the chat: no client records, no appeal case, no AI. */
+export type LightContext = Pick<ChatContext, 'orderNumber' | 'side' | 'status' | 'accountId' | 'transcript' | 'language' | 'address' | 'situation' | 'binance' | 'signals'> & {
+  /** The order's Binance account from our own records (the stored order, else its stored chat), never from the screen. */
+  knownAccountId: string | null
+}
+
+/**
+ * The chat, its situation, language and form of address, built the same way as buildChatContext (keep the two in step)
+ * from three reads: the stored order, the chat and approvers' situation corrections.
+ */
+export async function buildLightContext(
+  store: Store, cfg: CopilotConfig, orderNumber: string, accountHint: string | null, hint: OrderHint | null | undefined, now: Date,
+): Promise<LightContext> {
+  const [order, rows, marks] = await Promise.all([
+    store.order(orderNumber),
+    store.messages(orderNumber),
+    store.situationMarks(orderNumber).catch((): Mark[] => []),
+  ])
+  const side = normSide(order?.trade_type ?? hint?.tradeType)
+  const status = normStatus(hint?.status ?? order?.order_status)
+  const transcript = buildTranscript(rows, hint?.latest ?? null)
+  const binance = binanceFacts(order, hint)
+  const signals: OrderSignals = {
+    kycVerify: side === 'SELL' ? binance.kycVerify : null,
+    createdAt: binanceTime(order?.create_time),
+    verifiedBy: side === 'SELL' ? verifiedBy(marks) : null,
+  }
+  return {
+    orderNumber,
+    side,
+    status,
+    accountId: (order?.exchange_account_id as string | null) ?? accountHint ?? null,
+    knownAccountId: (order?.exchange_account_id as string | null) ?? rows.find((r) => r.exchange_account_id)?.exchange_account_id ?? null,
+    transcript,
+    language: decideLanguage(transcript, cfg.hindi_switch_after),
+    address: decideAddress(transcript),
+    situation: resolveSituation(side, detectSituation(side, status, transcript, now.getTime(), signals), marks[0] ?? null),
+    binance,
+    signals,
+  }
+}
+
 /**
  * The deadlines that matter at this status: paying while the order is open, releasing once it is marked paid. A paid
  * order without a release time shows none (never the pay deadline instead).

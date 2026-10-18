@@ -1,6 +1,6 @@
 // Copilot v2 panel for approvers (Shubham, Abhishek) in the Terminal order chat.
 // Approved Playbook replies come first (no AI). AI drafts are made only for this open chat, only when no
-// approved reply fits or the approver asks. Nothing is ever sent from here: Insert puts text in the composer.
+// approved reply fits or the approver asks. Insert puts text in the composer; Approve sends it.
 // KYC happens outside the chat, so a step worked out from our messages is a best guess: the question's replies for
 // the neighbouring steps are offered too ("If: Checking KYC"), and sending one sets the chat to that step.
 // When matching by meaning is unsure, a small model picks which approved question the client asked ("Picked by AI");
@@ -409,7 +409,7 @@ export function CopilotPanel({
           {p.missingLanguage && !p.languageNote?.endsWith('_outdated') && <span className="shrink-0 text-[10px] text-warning">· {lang} version not saved yet</span>}
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {p.status === 'tentative' && !p.conflict && (
-              <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground hover:text-trade-buy" onClick={() => onApprove(pick)} title="Approve without sending">
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground hover:text-trade-buy" onClick={() => onApprove(pick)} title="Approve and send to the client">
                 <Check className="mr-1 h-3 w-3" />Confirm
               </Button>
             )}
@@ -472,7 +472,7 @@ export function CopilotPanel({
           <div className="ml-auto flex shrink-0 items-center gap-0.5">
             {!d.blocked && (
               <>
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground hover:text-trade-buy" onClick={() => onApprove(pick)} title="Approve without sending (saves it to the Playbook)">
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground hover:text-trade-buy" onClick={() => onApprove(pick)} title="Approve and send to the client (saves it to the Playbook)">
                   <Check className="mr-1 h-3 w-3" />Approve
                 </Button>
                 <Button variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={() => onInsert(pick)}>

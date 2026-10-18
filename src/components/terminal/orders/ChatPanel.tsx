@@ -677,6 +677,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       });
       queryClient.invalidateQueries({ queryKey: ['copilot-access'] });
     } catch (e) {
+      if (dedupeKey) copilotTaughtRef.current.delete(dedupeKey);
       const err = e as CopilotError;
       if (err?.code === 'no_question') toast('Not saved to the Playbook', { description: 'There was no client question to attach it to.' });
       else toast.error('Could not save to the Playbook', { description: err?.message });
@@ -691,7 +692,9 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
     });
   }, [setCopilotPick]);
-  const approveCopilotPick = useCallback((pick: CopilotPick) => { void teachCopilot('approved', pick.text, pick); }, [teachCopilot]);
+  // Approve sends the reply to the client too; handleSend then saves it to the Playbook once.
+  const approveRef = useRef<(pick: CopilotPick) => void>(() => {});
+  const approveCopilotPick = useCallback((pick: CopilotPick) => { approveRef.current(pick); }, []);
   const saveBubbleToPlaybook = useCallback((m: UnifiedMessage) => {
     if (m.text) void teachCopilot('saved', m.text, null, (m.timestamp || Date.now()) + 1000);
   }, [teachCopilot]);
@@ -745,6 +748,12 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     if (isCopilotApprover && (picked || saveOwn)) {
       void teachCopilot(picked ? 'sent' : 'saved', msg, picked);
     }
+  };
+
+  approveRef.current = (pick: CopilotPick) => {
+    if (isSending) return;
+    setCopilotPick(pick);
+    void handleSend(pick.text);
   };
 
   // Insert (not send) the quick reply into the input with template tokens filled,

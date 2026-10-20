@@ -588,6 +588,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           .from('sales_orders')
           .insert({
             order_number: orderNumber,
+            // Link by the resolved client (Binance userNo), never by name — names collide.
+            client_id: linkedClientId || null,
             client_name: displayName,
             client_phone: (contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null,
             client_state: clientState || null,

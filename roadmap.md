@@ -1,5 +1,9 @@
 # Roadmap
 
+## October 20 reported issues
+- [ ] Diagnose Shivam's stale-session shift-end warning — awaiting confirmation of the shift actually worked
+- [ ] Diagnose and fix BTC conversion approval reporting insufficient BNB; verify ledger integrity and recurrence prevention
+
 ## Urvashi attendance and dated leave balances
 - [x] Align calendar day LOP with the payroll engine, including paid half-day coverage
 - [x] Explain current balance versus balance earned by selected leave dates

@@ -33106,44 +33106,6 @@ export type Database = {
           watchdog_held: boolean | null
           worked_minutes: number | null
         }
-        Insert: {
-          break_minutes?: never
-          date?: string | null
-          early_minutes?: never
-          employee_id?: string | null
-          engine_version?: string | null
-          first_in?: string | null
-          is_late?: never
-          last_out?: string | null
-          late_minutes?: never
-          lop_contribution?: never
-          lunch_minutes?: never
-          session_count?: never
-          status?: never
-          suppressed_count?: never
-          total_hours?: never
-          watchdog_held?: never
-          worked_minutes?: never
-        }
-        Update: {
-          break_minutes?: never
-          date?: string | null
-          early_minutes?: never
-          employee_id?: string | null
-          engine_version?: string | null
-          first_in?: string | null
-          is_late?: never
-          last_out?: string | null
-          late_minutes?: never
-          lop_contribution?: never
-          lunch_minutes?: never
-          session_count?: never
-          status?: never
-          suppressed_count?: never
-          total_hours?: never
-          watchdog_held?: never
-          worked_minutes?: never
-        }
         Relationships: [
           {
             foreignKeyName: "hr_attendance_daily_employee_id_fkey"
@@ -34204,46 +34166,6 @@ export type Database = {
           total_hours: number | null
           watchdog_held: boolean | null
           worked_minutes: number | null
-        }
-        Insert: {
-          break_minutes?: never
-          date?: string | null
-          early_minutes?: never
-          employee_id?: string | null
-          engine_version?: string | null
-          evidence_backed?: never
-          first_in?: string | null
-          is_late?: never
-          last_out?: string | null
-          late_minutes?: never
-          lop_contribution?: never
-          lunch_minutes?: never
-          session_count?: never
-          status?: never
-          suppressed_count?: never
-          total_hours?: never
-          watchdog_held?: never
-          worked_minutes?: never
-        }
-        Update: {
-          break_minutes?: never
-          date?: string | null
-          early_minutes?: never
-          employee_id?: string | null
-          engine_version?: string | null
-          evidence_backed?: never
-          first_in?: string | null
-          is_late?: never
-          last_out?: string | null
-          late_minutes?: never
-          lop_contribution?: never
-          lunch_minutes?: never
-          session_count?: never
-          status?: never
-          suppressed_count?: never
-          total_hours?: never
-          watchdog_held?: never
-          worked_minutes?: never
         }
         Relationships: [
           {

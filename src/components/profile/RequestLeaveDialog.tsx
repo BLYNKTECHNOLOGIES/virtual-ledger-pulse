@@ -250,7 +250,7 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
                         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: t.color || 'hsl(var(--muted-foreground))' }} />
                         {t.name}
                         {isPaidLeaveType(t) && left != null && (
-                          <span className="text-xs text-muted-foreground">· {fmtDays(left)} left</span>
+                          <span className="text-xs text-muted-foreground">· {fmtDays(left)} left today</span>
                         )}
                         {!isPaidLeaveType(t) && <span className="text-xs text-muted-foreground">· unpaid</span>}
                       </span>
@@ -340,6 +340,12 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
             {selectedType && !isLop && form.start_date && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {selectedType.name} available for these dates: <strong className="text-foreground">{balLoading ? '…' : available !== undefined ? fmtDays(available) : '—'}</strong>
+              </p>
+            )}
+            {selectedType && !isLop && !balLoading && available !== undefined
+              && leftToday[selectedType.id] != null && Number(leftToday[selectedType.id]) > available && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Your balance today is {fmtDays(Number(leftToday[selectedType.id]))} day(s), but only {fmtDays(available)} can cover these dates. Credits earned after {fmtDay(endDate)} cannot pay for earlier leave; pending requests also reserve balance.
               </p>
             )}
             {isLop && (

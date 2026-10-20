@@ -16,7 +16,7 @@
 - A day inside approved leave keeps the status the device or HR gives it, and leave is refunded only for the worked part (hr_reconcile_worked_leave_days, re-evaluated on every run), because device punches and HR day marks are the attendance source of truth.
 - Leave accrual (run_leave_accrual) skips anyone whose last working day is before the accrual month's end, because a mid-month leaver earns no leave for the leaving month.
 - hr_attendance_daily is attendance truth (device then HR override); hr_attendance is a trigger-kept mirror whose HR edits route into the calendar, keeping payroll/screens consistent.
-- Attendance screens use resolveDayStatus/hr_attendance_day_range; employee cards use hr_attendance_month_summary (self-only for non-HR), keeping figures identical.
+- Calendar/HR day LOP uses hr_lop_days_window, not status math, so paid half-days agree; summaries use hr_attendance_month_summary (self-only for non-HR).
 - RazorpayX additions use exact hr_razorpay_component_catalog names, mirroring Settings → Salary Component Library; proxy maps or rejects, custom wording goes in remarks, because non-library names fail.
 - A mid-month CTC revision is held from RazorpayX until that month's cockpit Step 7 (payroll run complete) is done, then pushed automatically, because RazorpayX must pay the old CTC for the month being processed.
 - Reports use hr_payslips_v; employer cost = gross + employer contributions; leave is day totals; availability is evidence-backed attendance; owner exclusions cover metrics, drill-downs and exports.

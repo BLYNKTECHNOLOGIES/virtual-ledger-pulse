@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Urvashi attendance and dated leave balances
-- [ ] Align calendar day LOP with the payroll engine, including paid half-day coverage
-- [ ] Explain current balance versus balance earned by selected leave dates
-- [ ] Verify Urvashi and sweep the same mismatch across October; signed-in UI check depends on external sign-in
+- [x] Align calendar day LOP with the payroll engine, including paid half-day coverage
+- [x] Explain current balance versus balance earned by selected leave dates
+- [x] Verify Urvashi: Oct 1 LOP = 0; October sweep checks 720 rows with zero remaining disagreements
+- [ ] Verify signed-in calendar and leave submission — blocked: external unmanaged sign-in prevents authenticated checks
 
 ## Client Management phone layouts
 - [x] Optimize directory, approvals, assignments, client details and related forms without changing business logic

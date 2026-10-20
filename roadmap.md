@@ -1,5 +1,10 @@
 # Roadmap
 
+## Urvashi attendance and dated leave balances
+- [ ] Align calendar day LOP with the payroll engine, including paid half-day coverage
+- [ ] Explain current balance versus balance earned by selected leave dates
+- [ ] Verify Urvashi and sweep the same mismatch across October; signed-in UI check depends on external sign-in
+
 ## Client Management phone layouts
 - [x] Optimize directory, approvals, assignments, client details and related forms without changing business logic
 - [x] Verify isolated sample layouts at 320/390/768/1280px with no page overflow; 397 tests passed and preview build clean

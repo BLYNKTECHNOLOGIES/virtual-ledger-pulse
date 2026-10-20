@@ -164,7 +164,7 @@ export function LeaveTab({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Leave Balances</h3>
-          <p className="text-xs text-muted-foreground">Comp-off shows the current monthly ledger; other leave types are cumulative</p>
+          <p className="text-xs text-muted-foreground">Comp-off shows the current monthly ledger; other leave types are cumulative. Earlier dates may have less balance: later credits cannot cover earlier leave.</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
           <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Balances
@@ -225,7 +225,7 @@ export function LeaveTab({
               <p className="text-sm font-bold text-foreground">{lt?.name || "Unknown"}</p>
               <div className="mt-3 space-y-1.5 text-sm">
                 <div className="flex justify-between gap-6">
-                  <span className="text-muted-foreground">Available Balance</span>
+                  <span className="text-muted-foreground">Current Ledger Balance</span>
                   <span className="font-semibold text-foreground">{available}</span>
                 </div>
                 <div className="flex justify-between gap-6">

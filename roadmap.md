@@ -1,5 +1,11 @@
 # Roadmap
 
+## Urvashi attendance and dated leave balances
+- [x] Align calendar day LOP with the payroll engine, including paid half-day coverage
+- [x] Explain current balance versus balance earned by selected leave dates
+- [x] Verify Urvashi: Oct 1 LOP = 0; October sweep checks 720 rows with zero remaining disagreements
+- [ ] Verify signed-in calendar and leave submission — blocked: external unmanaged sign-in prevents authenticated checks
+
 ## Client Management phone layouts
 - [x] Optimize directory, approvals, assignments, client details and related forms without changing business logic
 - [x] Verify isolated sample layouts at 320/390/768/1280px with no page overflow; 397 tests passed and preview build clean

@@ -786,15 +786,17 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     el.style.height = `${Math.min(el.scrollHeight, 104)}px`;
   }, [text]);
 
-  const handleSend = async (messageText?: string) => {
+  // Returns true only when the reply actually went out; a blocked send (placeholder left unfilled,
+  // or a send already in flight) reports false so the Approve guard below is not armed by it.
+  const handleSend = async (messageText?: string): Promise<boolean> => {
     const msg = messageText || text.trim();
-    if (!msg || isSending) return;
+    if (!msg || isSending) return false;
     // A placeholder such as {contact:kyc} or {amount} (no value filled in) must never reach the client, however it got
     // into the box (a suggestion, a quick reply, a rewrite, pasted).
     const left = unfilledTokens(msg);
     if (left.length) {
       toast.error('Fill in the placeholder before sending', { description: `Replace ${left.join(', ')} with the real value.` });
-      return;
+      return false;
     }
     if (!messageText) setText('');
     setIsSending(true);
@@ -836,6 +838,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         orderNumber, exchangeAccountId: exchangeAccountId ?? null, finalText: msg, sentAt, templateValues,
       }).catch((e) => console.warn('[copilot] the sent rewrite did not reach the Playbook inbox:', (e as Error)?.message ?? e));
     }
+    return true;
   };
 
   const lastApproveRef = useRef<{ key: string; at: number } | null>(null);
@@ -847,9 +850,12 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       toast('Already sent', { description: 'This reply was already approved and sent.' });
       return;
     }
-    lastApproveRef.current = { key, at: now };
+    // The guard is armed only once the reply has actually gone out; a blocked send (placeholder left
+    // unfilled) keeps Approve usable, so the next press fills in and sends instead of saying "Already sent".
     setCopilotPick(pick);
-    void handleSend(pick.text);
+    void handleSend(pick.text).then((sent) => {
+      if (sent) lastApproveRef.current = { key, at: now };
+    });
   };
 
   // Insert (not send) the quick reply into the input with template tokens filled,

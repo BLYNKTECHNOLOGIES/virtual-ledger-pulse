@@ -24,7 +24,7 @@
 - Tests use `bun run test` and import "vitest", never bun:test, for one unified runner.
 
 - Leave days: total_days, apply check, approval recompute and consumption all use hr_leave_working_days (offs/holidays excluded), never fn_calculate_leave_days, so every count matches.
-- Paid leave (CL/CO/SL) is applied/approved only within balance earned by its last day minus pending (hr_leave_available, hr_leave_take_from); CO only from same-month credits; never spills into other types; LOP stamps Absent — unearned or encashed credit must not pay leave.
+- Paid leave (CL/CO/SL) is applied/approved only within balance credited by the end of its last day's month minus pending (hr_leave_available, hr_leave_take_from); CO only from same-month credits; never spills into other types; LOP stamps Absent — unearned or encashed credit must not pay leave.
 - Approved leave: employee cancels only before day 1 (IST); HR not in locked periods; cancel/reject refunds net of worked-day restores, drops worked-day rows, unstamps evidence-free days — a withdrawn leave must not stay paid or refund twice.
 - User Management rights live in public.um_* SQL functions (um_my_access feeds the screen); every UI gate reads them, because screen and server must agree.
 - Auth owns sign-in times/logs; ERP-shell heartbeat is self-only for consistent presence. Legacy role_functions are immutable with retained role UUIDs after deletion, preserving history without blocking role removal.

@@ -1,5 +1,11 @@
 # Roadmap
 
+## October 20 reported issues
+- [ ] Diagnose Shivam's stale-session shift-end warning — awaiting confirmation of the shift actually worked
+- [x] Diagnose BTC conversion CONV-20261020-003: two Binance fills charged 0.00001178 BNB fee; ERP BNB balance is 0; approval was rolled back with no ledger writes
+- [ ] Correct the BNB balance or fee handling — blocked: owner confirmation of how the BNB was obtained
+- [ ] Diagnose Shivam's stale-session warning — blocked: shift question was interrupted
+
 ## Urvashi attendance and dated leave balances
 - [x] Align calendar day LOP with the payroll engine, including paid half-day coverage
 - [x] Explain current balance versus balance earned by selected leave dates

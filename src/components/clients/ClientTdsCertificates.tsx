@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizePan } from "@/lib/tdsCertificates";
 import { downloadCertificate } from "@/lib/tdsCertificateImport";
-import { TdsCertificateUpload } from "@/components/tax/TdsCertificateUpload";
 
 const inr = (n: number | null) => n == null ? "—" : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const QUARTER_LABEL: Record<string, string> = { Q1: "Apr–Jun", Q2: "Jul–Sep", Q3: "Oct–Dec", Q4: "Jan–Mar" };
@@ -43,9 +42,8 @@ export function ClientTdsCertificates({ clientId, clientName }: { clientId?: str
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 flex-wrap">
+      <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg"><FileText className="h-5 w-5" />TDS Certificates</CardTitle>
-        <TdsCertificateUpload />
       </CardHeader>
       <CardContent className="space-y-2">
         {pans.length === 0 && <p className="text-sm text-muted-foreground">No PAN on record for this client, so certificates can't be matched.</p>}

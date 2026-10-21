@@ -20,6 +20,7 @@ import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import * as XLSX from "xlsx";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 import { openTransaction } from "@/components/transaction-detail";
+import { TdsCertificateUpload } from "@/components/tax/TdsCertificateUpload";
 
 interface AllocationRow {
   id: string;
@@ -518,6 +519,7 @@ export function TaxManagementTab() {
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg">TDS by Company</CardTitle>
+            <TdsCertificateUpload />
             {canPay && (
               <ViewOnlyWrapper isViewOnly={!hasPermission('tax_management_manage')}>
                 <Button onClick={() => setShowPaymentDialog(true)}>

@@ -58,7 +58,7 @@ export async function importTdsZip(
         if (!deductorPan) throw new Error("Deductor PAN not found in folder or certificate");
         const path = `${meta.taxYear}/${meta.quarter}/${meta.formCode}_${meta.deducteePan}_${meta.quarter}_${meta.taxYear}.pdf`;
         const { error: upErr } = await supabase.storage.from(BUCKET)
-          .upload(path, new Blob([bytes], { type: "application/pdf" }), { upsert: true, contentType: "application/pdf" });
+          .upload(path, new Blob([bytes as BlobPart], { type: "application/pdf" }), { upsert: true, contentType: "application/pdf" });
         if (upErr) throw upErr;
         const { error } = await supabase.from("client_tds_certificates" as any).upsert({
           deductee_pan: meta.deducteePan, deductor_pan: deductorPan, form_code: meta.formCode,

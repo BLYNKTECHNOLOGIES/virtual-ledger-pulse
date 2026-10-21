@@ -627,3 +627,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-20 (IST): Sales→client link fix: auto_fill_sales_order_client_id no longer name-matches Terminal sales (uses sync client); approval dialog writes client_id; 281 mislinked Terminal sales re-linked to the Binance-userNo owner; 30 ambiguous left untouched.
 - 2026-10-20 (IST): Owner ruling — CL/SL credited on the 15th may fund any leave day in the same month (hr_leave_available/hr_leave_take_from use month-end of the leave's last day).
 2026-10-20: Copilot drafts switched to single model google/gemini-4-argon (gpt-6-astra removed from copilot_config.draft_models) to cut per-draft cost.
+- 2026-10-21: Added TDS certificate store (client_tds_certificates + private tds-certificates bucket); Q1 2026-27 ZIP (823 certs) awaiting owner upload via UI.

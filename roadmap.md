@@ -39,3 +39,4 @@
 - [x] Install copy, department, grade, reporting and login/RACI rules
 - [x] Apply approved catalogue and synchronization data
 - [x] Rollback probes and final resolution table
+- TDS certificates: per-client quarterly download + ZIP upload (Tax Management managers) — owner to upload TDS.zip

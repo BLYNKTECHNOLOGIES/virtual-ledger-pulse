@@ -266,36 +266,41 @@ export function TaxManagementTab() {
 
       // "Already recorded" = the TDS was paid/recorded externally: mark the
       // allocations settled WITHOUT any bank deduction (no expense entry).
+      // Large selections (hundreds of ids) overflow the request URL and fail
+      // with "Bad Request", so update in batches.
+      const updateInChunks = async (patch: Record<string, unknown>) => {
+        for (let i = 0; i < selectedIds.length; i += 100) {
+          const { error } = await supabase.from('tds_payment_allocations')
+            .update(patch as any).in('id', selectedIds.slice(i, i + 100));
+          if (error) return error;
+        }
+        return null;
+      };
+
       if (alreadyRecorded) {
         const batchId = `TDS-PRERECORDED-${selectedQuarter}-${Date.now()}`;
-        const { error: updateError } = await supabase
-          .from('tds_payment_allocations')
-          .update({
+        const updateError = await updateInChunks({
             payment_status: 'PAID',
             already_recorded: true,
             paid_at: new Date().toISOString(),
             paid_by: user?.id,
             payment_bank_account_id: null,
             payment_batch_id: batchId,
-          })
-          .in('id', selectedIds);
+          });
         if (updateError) throw updateError;
 
         return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel, preRecorded: true };
       }
 
       const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
-      const { error: updateError } = await supabase
-        .from('tds_payment_allocations')
-        .update({
+      const updateError = await updateInChunks({
           payment_status: 'PAID',
           already_recorded: false,
           paid_at: new Date().toISOString(),
           paid_by: user?.id,
           payment_bank_account_id: paymentBankAccountId,
           payment_batch_id: batchId,
-        })
-        .in('id', selectedIds);
+        });
       if (updateError) throw updateError;
 
       const { error: expenseError } = await supabase

@@ -28,6 +28,13 @@ async function pdfText(bytes: Uint8Array): Promise<string> {
   return out.join(" | ");
 }
 
+function withTimeout<T>(p: PromiseLike<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((res, rej) => {
+    const t = setTimeout(() => rej(new Error(`${what} timed out — upload the ZIP again to retry`)), ms);
+    Promise.resolve(p).then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); });
+  });
+}
+
 export interface ImportResult {
   saved: number;
   skipped: { file: string; reason: string }[];
@@ -53,19 +60,19 @@ export async function importTdsZip(
         if (!meta) throw new Error("File name does not follow FORM_PAN_Qn_YYYY-YY.pdf");
         const bytes = await e.async("uint8array");
         let parsed = { certificateNo: null as string | null, deductorPan: null as string | null, amountPaid: null as number | null, tdsAmount: null as number | null };
-        try { parsed = parseCertText(await pdfText(bytes)); } catch { /* keep file-name data */ }
+        try { parsed = parseCertText(await withTimeout(pdfText(bytes), 20000, "Reading PDF")); } catch { /* keep file-name data */ }
         const deductorPan = meta.deductorPan || parsed.deductorPan;
         if (!deductorPan) throw new Error("Deductor PAN not found in folder or certificate");
         const path = `${meta.taxYear}/${meta.quarter}/${meta.formCode}_${meta.deducteePan}_${meta.quarter}_${meta.taxYear}.pdf`;
-        const { error: upErr } = await supabase.storage.from(BUCKET)
-          .upload(path, new Blob([bytes as BlobPart], { type: "application/pdf" }), { upsert: true, contentType: "application/pdf" });
+        const { error: upErr } = await withTimeout(supabase.storage.from(BUCKET)
+          .upload(path, new Blob([bytes as BlobPart], { type: "application/pdf" }), { upsert: true, contentType: "application/pdf" }), 45000, "File upload");
         if (upErr) throw upErr;
-        const { error } = await supabase.from("client_tds_certificates" as any).upsert({
+        const { error } = await withTimeout(supabase.from("client_tds_certificates" as any).upsert({
           deductee_pan: meta.deducteePan, deductor_pan: deductorPan, form_code: meta.formCode,
           quarter: meta.quarter, tax_year: meta.taxYear, certificate_no: parsed.certificateNo,
           amount_paid: parsed.amountPaid, tds_amount: parsed.tdsAmount,
           storage_path: path, file_name: name, uploaded_by: userId ?? null, uploaded_at: new Date().toISOString(),
-        }, { onConflict: "deductee_pan,deductor_pan,form_code,quarter,tax_year" });
+        }, { onConflict: "deductee_pan,deductor_pan,form_code,quarter,tax_year" }) as PromiseLike<{ error: any }>, 30000, "Saving certificate");
         if (error) throw error;
         result.saved++; result.pans.push(meta.deducteePan);
       } catch (err: any) {

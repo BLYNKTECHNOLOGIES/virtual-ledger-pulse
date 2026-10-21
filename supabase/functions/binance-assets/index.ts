@@ -1,3 +1,4 @@
+import { isTrustedJobCaller, schedulerSecretLookup } from "../_shared/require-scheduler.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AccountUnavailableError, accountIdFromPayload, resolveAccount } from "../_shared/binance-account.ts";
@@ -143,7 +144,10 @@ serve(async (req) => {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const gateAdmin = createClient(supabaseUrl, serviceRoleKey);
-      const gate = await gateAssetsRequest({
+      // Scheduler secret is trusted only for the read-only balance read.
+      const schedulerRead = action === "getBalances" &&
+        await isTrustedJobCaller(req, undefined, schedulerSecretLookup(gateAdmin));
+      const gate = schedulerRead ? { ok: true as const, kind: "service" as const, userId: null } : await gateAssetsRequest({
         serviceRoleKey,
         async userIdFromToken(token) {
           const c = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });

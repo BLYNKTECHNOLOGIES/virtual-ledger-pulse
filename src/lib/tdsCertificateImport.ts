@@ -39,6 +39,8 @@ export interface ImportResult {
   saved: number;
   skipped: { file: string; reason: string }[];
   pans: string[];
+  /** Certificates skipped because the same PAN + quarter was already uploaded. */
+  alreadyUploaded: number;
 }
 
 export async function importTdsZip(
@@ -48,7 +50,22 @@ export async function importTdsZip(
 ): Promise<ImportResult> {
   const zip = await JSZip.loadAsync(file);
   const entries = Object.values(zip.files).filter((e) => !e.dir && /\.pdf$/i.test(e.name) && !e.name.includes("__MACOSX"));
-  const result: ImportResult = { saved: 0, skipped: [], pans: [] };
+  const result: ImportResult = { saved: 0, skipped: [], pans: [], alreadyUploaded: 0 };
+  // Certificates already saved for the same PAN + quarter are skipped, never re-uploaded.
+  const existing = new Set<string>();
+  const keyOf = (m: { formCode: string; deducteePan: string; quarter: string; taxYear: string }) =>
+    `${m.formCode}|${m.deducteePan}|${m.quarter}|${m.taxYear}`;
+  const periods = new Map<string, { quarter: string; taxYear: string }>();
+  for (const e of entries) { const m = parseCertPath(e.name); if (m) periods.set(`${m.quarter}|${m.taxYear}`, { quarter: m.quarter, taxYear: m.taxYear }); }
+  for (const { quarter, taxYear } of periods.values()) {
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from("client_tds_certificates" as any)
+        .select("form_code,deductee_pan,quarter,tax_year").eq("quarter", quarter).eq("tax_year", taxYear).range(from, from + 999);
+      if (error) throw error;
+      for (const r of (data || []) as any[]) existing.add(`${r.form_code}|${r.deductee_pan}|${r.quarter}|${r.tax_year}`);
+      if (!data || data.length < 1000) break;
+    }
+  }
   let done = 0;
   const queue = [...entries];
   const worker = async () => {
@@ -58,6 +75,7 @@ export async function importTdsZip(
       try {
         const meta = parseCertPath(e.name);
         if (!meta) throw new Error("File name does not follow FORM_PAN_Qn_YYYY-YY.pdf");
+        if (existing.has(keyOf(meta))) { result.alreadyUploaded++; continue; }
         const bytes = await e.async("uint8array");
         let parsed = { certificateNo: null as string | null, deductorPan: null as string | null, amountPaid: null as number | null, tdsAmount: null as number | null };
         try { parsed = parseCertText(await withTimeout(pdfText(bytes), 20000, "Reading PDF")); } catch { /* keep file-name data */ }

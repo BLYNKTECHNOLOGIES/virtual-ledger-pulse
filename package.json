@@ -68,6 +68,7 @@
     "input-otp": "^1.2.4",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.2",
+    "jszip": "^3.10.2",
     "lucide-react": "^0.462.0",
     "mammoth": "^1.12.1",
     "mapbox-gl": "^3.14.0",

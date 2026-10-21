@@ -6228,6 +6228,57 @@ export type Database = {
         }
         Relationships: []
       }
+      client_tds_certificates: {
+        Row: {
+          amount_paid: number | null
+          certificate_no: string | null
+          deductee_name: string | null
+          deductee_pan: string
+          deductor_pan: string
+          file_name: string
+          form_code: string
+          id: string
+          quarter: string
+          storage_path: string
+          tax_year: string
+          tds_amount: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          certificate_no?: string | null
+          deductee_name?: string | null
+          deductee_pan: string
+          deductor_pan: string
+          file_name: string
+          form_code: string
+          id?: string
+          quarter: string
+          storage_path: string
+          tax_year: string
+          tds_amount?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          certificate_no?: string | null
+          deductee_name?: string | null
+          deductee_pan?: string
+          deductor_pan?: string
+          file_name?: string
+          form_code?: string
+          id?: string
+          quarter?: string
+          storage_path?: string
+          tax_year?: string
+          tds_amount?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       client_userno_merge_log: {
         Row: {
           canonical_name: string | null

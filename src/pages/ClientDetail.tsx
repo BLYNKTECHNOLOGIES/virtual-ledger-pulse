@@ -8,6 +8,7 @@ import { ClientValueScore } from "@/components/clients/ClientValueScore";
 import { KYCBankInfo } from "@/components/clients/KYCBankInfo";
 import { PurposeCommunication } from "@/components/clients/PurposeCommunication";
 import { ClientTDSRecords } from "@/components/clients/ClientTDSRecords";
+import { ClientTdsCertificates } from "@/components/clients/ClientTdsCertificates";
 import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnalysis";
 import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
@@ -123,6 +124,10 @@ export default function ClientDetail() {
           <ClientTDSRecords clientId={clientId} clientName={client?.name} clientPhone={client?.phone} />
         )}
       </div>
+
+      {(isSeller || showAsSellerOnly || isComposite) && (
+        <ClientTdsCertificates clientId={clientId} clientName={client?.name} />
+      )}
 
       {/* Row 4.5: Beneficiary Bank Details (sellers/composite only) */}
       {(isSeller || showAsSellerOnly || isComposite) && (

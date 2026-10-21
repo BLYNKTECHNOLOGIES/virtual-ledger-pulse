@@ -39580,6 +39580,13 @@ export type Database = {
         Returns: undefined
       }
       reopen_wallet: { Args: { p_wallet_id: string }; Returns: undefined }
+      report_blocked_recipients: {
+        Args: { p_emails: string[] }
+        Returns: {
+          email: string
+          reason: string
+        }[]
+      }
       request_terminal_appeal_from_small_payment: {
         Args: { p_case_id: string; p_reason?: string }
         Returns: string

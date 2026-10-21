@@ -66,11 +66,18 @@ serve(async (req) => {
         if (cfg.last_sent_on === today) continue;
       }
 
-      const recipients: string[] = Array.isArray(cfg.recipients)
+      const listed: string[] = Array.isArray(cfg.recipients)
         ? cfg.recipients.filter((r: string) => !!r && r.trim())
         : [];
+      // Deactivated, removed or deleted ERP users never receive scheduled reports.
+      const { data: blockedRows, error: blockErr } = await supabase
+        .rpc("report_blocked_recipients", { p_emails: listed });
+      if (blockErr) throw blockErr;
+      const blocked = new Set((blockedRows || []).map((b: any) => String(b.email).toLowerCase()));
+      const recipients = listed.filter((r) => !blocked.has(r.trim().toLowerCase()));
+      const excluded = listed.filter((r) => blocked.has(r.trim().toLowerCase()));
       if (recipients.length === 0) {
-        results.push({ id: cfg.id, name: cfg.name, skipped: "no recipients" });
+        results.push({ id: cfg.id, name: cfg.name, skipped: "no active recipients", excluded });
         continue;
       }
 

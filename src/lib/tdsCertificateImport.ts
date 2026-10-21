@@ -53,16 +53,16 @@ export async function importTdsZip(
   const result: ImportResult = { saved: 0, skipped: [], pans: [], alreadyUploaded: 0 };
   // Certificates already saved for the same PAN + quarter are skipped, never re-uploaded.
   const existing = new Set<string>();
-  const keyOf = (m: { formCode: string; deducteePan: string; quarter: string; taxYear: string }) =>
-    `${m.formCode}|${m.deducteePan}|${m.quarter}|${m.taxYear}`;
+  const keyOf = (m: { formCode: string; deducteePan: string; deductorPan: string; quarter: string; taxYear: string }) =>
+    `${m.formCode}|${m.deducteePan}|${m.deductorPan}|${m.quarter}|${m.taxYear}`;
   const periods = new Map<string, { quarter: string; taxYear: string }>();
   for (const e of entries) { const m = parseCertPath(e.name); if (m) periods.set(`${m.quarter}|${m.taxYear}`, { quarter: m.quarter, taxYear: m.taxYear }); }
   for (const { quarter, taxYear } of periods.values()) {
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase.from("client_tds_certificates" as any)
-        .select("form_code,deductee_pan,quarter,tax_year").eq("quarter", quarter).eq("tax_year", taxYear).range(from, from + 999);
+        .select("form_code,deductee_pan,deductor_pan,quarter,tax_year").eq("quarter", quarter).eq("tax_year", taxYear).range(from, from + 999);
       if (error) throw error;
-      for (const r of (data || []) as any[]) existing.add(`${r.form_code}|${r.deductee_pan}|${r.quarter}|${r.tax_year}`);
+      for (const r of (data || []) as any[]) existing.add(`${r.form_code}|${r.deductee_pan}|${r.deductor_pan}|${r.quarter}|${r.tax_year}`);
       if (!data || data.length < 1000) break;
     }
   }
@@ -75,13 +75,17 @@ export async function importTdsZip(
       try {
         const meta = parseCertPath(e.name);
         if (!meta) throw new Error("File name does not follow FORM_PAN_Qn_YYYY-YY.pdf");
-        if (existing.has(keyOf(meta))) { result.alreadyUploaded++; continue; }
+        if (meta.deductorPan && existing.has(keyOf({ ...meta, deductorPan: meta.deductorPan }))) { result.alreadyUploaded++; continue; }
         const bytes = await e.async("uint8array");
         let parsed = { certificateNo: null as string | null, deductorPan: null as string | null, amountPaid: null as number | null, tdsAmount: null as number | null };
         try { parsed = parseCertText(await withTimeout(pdfText(bytes), 20000, "Reading PDF")); } catch { /* keep file-name data */ }
         const deductorPan = meta.deductorPan || parsed.deductorPan;
         if (!deductorPan) throw new Error("Deductor PAN not found in folder or certificate");
-        const path = `${meta.taxYear}/${meta.quarter}/${meta.formCode}_${meta.deducteePan}_${meta.quarter}_${meta.taxYear}.pdf`;
+        const key = keyOf({ ...meta, deductorPan });
+        if (existing.has(key)) { result.alreadyUploaded++; continue; }
+        existing.add(key);
+        // Deductor PAN is part of the path so two companies' certificates never share a file.
+        const path = `${meta.taxYear}/${meta.quarter}/${deductorPan}/${meta.formCode}_${meta.deducteePan}_${meta.quarter}_${meta.taxYear}.pdf`;
         const { error: upErr } = await withTimeout(supabase.storage.from(BUCKET)
           .upload(path, new Blob([bytes as BlobPart], { type: "application/pdf" }), { upsert: true, contentType: "application/pdf" }), 45000, "File upload");
         if (upErr) throw upErr;

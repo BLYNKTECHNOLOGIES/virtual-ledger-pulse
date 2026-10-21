@@ -34,7 +34,7 @@ export function TdsCertificateUpload({ size = "sm" }: { size?: "sm" | "default" 
       setResult({ ...r, matched: pans.filter((p) => found.has(p)).length, unmatched: pans.filter((p) => !found.has(p)) });
       qc.invalidateQueries({ queryKey: ["client-tds-certificates"] });
     } catch (e: any) {
-      setResult({ saved: 0, skipped: [{ file: file.name, reason: e?.message || "Could not read ZIP" }], pans: [], matched: 0, unmatched: [] });
+      setResult({ saved: 0, skipped: [{ file: file.name, reason: e?.message || "Could not read ZIP" }], pans: [], alreadyUploaded: 0, matched: 0, unmatched: [] });
     } finally { setBusy(false); }
   };
 
@@ -60,7 +60,7 @@ export function TdsCertificateUpload({ size = "sm" }: { size?: "sm" | "default" 
           )}
           {result && !busy && (
             <div className="space-y-2 text-sm text-foreground">
-              <p>Saved: <b>{result.saved}</b> · Matched to clients: <b>{result.matched}</b> · No client with that PAN: <b>{result.unmatched.length}</b> · Failed: <b>{result.skipped.length}</b></p>
+              <p>Saved: <b>{result.saved}</b> · Matched to clients: <b>{result.matched}</b> · No client with that PAN: <b>{result.unmatched.length}</b> · Already uploaded (skipped): <b>{result.alreadyUploaded}</b> · Failed: <b>{result.skipped.length}</b></p>
               {result.unmatched.length > 0 && (
                 <p className="text-muted-foreground">Unmatched certificates are kept and will appear automatically once a client's PAN is saved.</p>
               )}

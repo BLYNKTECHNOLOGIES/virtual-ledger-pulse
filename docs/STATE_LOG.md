@@ -629,3 +629,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-20 (IST): Owner ruling — CL/SL credited on the 15th may fund any leave day in the same month (hr_leave_available/hr_leave_take_from use month-end of the leave's last day).
 2026-10-20: Copilot drafts switched to single model google/gemini-4-argon (gpt-6-astra removed from copilot_config.draft_models) to cut per-draft cost.
 - 2026-10-21: Added TDS certificate store (client_tds_certificates + private tds-certificates bucket); Q1 2026-27 ZIP (823 certs) awaiting owner upload via UI.
+- 2026-10-22: Fixed blank staff attendance calendars (hr_attendance_day_range timed out after the day-view LOP lateral change); now per-day lookup, ~0.5s/month.

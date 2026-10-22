@@ -585,7 +585,8 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
       {/* Local tracking stats */}
       {counterparty && (
         <section className="p-4 space-y-1.5 border-b border-border">
-          <div className={`${SECTION_LABEL} mb-2`}>Local tracking</div>
+          <div className={`${SECTION_LABEL} mb-0.5`}>Our orders with this client</div>
+          <p className="text-[10px] text-muted-foreground mb-2">Only orders with us (any status) — not their Binance totals</p>
           <StatRow label="Total Orders" value={String(counterparty.total_buy_orders + counterparty.total_sell_orders)} />
           <StatRow label="Buy Orders" value={String(counterparty.total_buy_orders)} />
           <StatRow label="Sell Orders" value={String(counterparty.total_sell_orders)} />

@@ -55,6 +55,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.auto-pay-engine]
     verify_jwt = false
+  [functions.merchant-schedule-runner]
+    verify_jwt = false
   [functions.auto-price-engine]
     verify_jwt = false
   [functions.auto-reply-engine]

@@ -15,6 +15,7 @@ import { startAdRest, endAdRest, restAccountsFromPayload, supabaseRestStore, typ
 import { terminalRightRule, gateTerminalRight, adsRequestedAccounts, checkAccountAccess, supabaseAccessDeps, CHAT_READ_ACTIONS, serviceOnlyDenial, serverCaptureSource } from "../_shared/binance-access.ts";
 import { refreshStaleOpenOrders, type StaleCandidate, type BinanceReply } from "../_shared/staleOpenRefresh.ts";
 import type { ResolvedAccount } from "../_shared/binance-account.ts";
+import { restStartOptions } from "../_shared/automationGate.ts";
 
 const REST_CALL_TIMEOUT_MS = 25_000;
 /** Ad detail with a timeout; null when unreadable. */
@@ -1043,7 +1044,17 @@ serve(async (req) => {
 
     // === AM-FIX-2: rest start / end (one server path for Resume and automatic end) ===
     if (action === "startAdRest" || action === "endAdRest") {
+      let startOptions: ReturnType<typeof restStartOptions>;
+      try { startOptions = restStartOptions(payload, callerIsServiceRole); }
+      catch (e) { return new Response(JSON.stringify({ error: (e as Error).message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
       const admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      if (action === "endAdRest" && payload.scheduleOnlyAccountId !== undefined) {
+        if (!callerIsServiceRole) return new Response(JSON.stringify({ error: "Schedule rest end is service-only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const { data: t, error } = await admin.from("ad_rest_timer").select("id,source,exchange_account_id,is_active").eq("id", payload.timerId).maybeSingle();
+        if (error || !t?.is_active || t.source !== "schedule" || t.exchange_account_id !== payload.scheduleOnlyAccountId) {
+          return new Response(JSON.stringify({ error: "Schedule-owned rest not running on this account — left alone" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
       const selfUrl = `${SUPABASE_URL}/functions/v1/binance-ads`;
       const primary = await resolveAccount(null);
       const deps: RestDeps = {
@@ -1138,6 +1149,7 @@ serve(async (req) => {
               // AM-FIX-4: tabs on the AM-FIX-2 screen send { ads: [{ advNo, advStatus, accountId }] }.
               accountIds: restAccountsFromPayload(payload),
               userId: callerUserId, userName: userName || "Operations Associate",
+              ...startOptions,
             })
           : await endAdRest(deps, {
               timerId: payload.timerId ?? null,

@@ -2,12 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { advertiserBadges } from "../_shared/adZone.ts";
+import { manualPricingGate } from "../_shared/automationGate.ts";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 function getInternalAuthKey(): string {
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -65,14 +62,34 @@ serve(async (req) => {
     background = body?.background === true;
   } catch { /* empty body for cron */ }
 
+  try {
+    if (singleRuleId && (typeof singleRuleId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singleRuleId))) {
+      return new Response(JSON.stringify({ error: "Invalid ruleId" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const denied = await manualPricingGate(caller.kind, caller.userId, singleRuleId, async uid => {
+      const { data, error } = await supabase.rpc("terminal_can", { uid, perm: "terminal_pricing_manage" });
+      if (error) throw error;
+      return data === true;
+    }, async id => {
+      const { data, error } = await supabase.rpc("tau_claim_manual_price_run", { p_rule_id: id });
+      if (error) throw error;
+      return data;
+    });
+    if (denied) return new Response(JSON.stringify({ error: denied.error }), { status: denied.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e) {
+    console.error("Manual pricing gate:", (e as Error).message);
+    return new Response(JSON.stringify({ error: "Manual pricing permission/run check failed — try again" }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
   // A full cycle walks every asset through several sequential Binance calls, so it can
   // easily outlive the caller's HTTP connection. Manual triggers ask for background mode:
   // we acknowledge immediately and let the cycle finish server-side.
   if (background) {
     // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime
-    EdgeRuntime.waitUntil(
-      runCycle(supabase, singleRuleId).catch((e) => console.error("[background] cycle failed:", e)),
-    );
+    if (typeof EdgeRuntime !== "undefined") {
+      // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime
+      EdgeRuntime.waitUntil(runCycle(supabase, singleRuleId).catch((e) => console.error("[background] cycle failed:", e)));
+    } else return await runCycle(supabase, singleRuleId);
     return new Response(JSON.stringify({ success: true, started: true, message: "Run started" }), {
       status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

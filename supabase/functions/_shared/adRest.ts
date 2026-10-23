@@ -51,6 +51,9 @@ export interface RestTimerRow {
   ended_by_mode?: string | null;
   ended_by_user_id?: string | null;
   ended_by_name?: string | null;
+  source?: string;
+  schedule_id?: string | null;
+  exchange_account_id?: string | null;
 }
 
 export interface EndedBy { mode: "manual" | "automatic"; userId: string | null; userName: string }
@@ -71,7 +74,7 @@ export interface LiveAd {
 
 export interface RestStore {
   getActiveTimer(): Promise<RestTimerRow | null>;
-  insertTimer(row: { started_by: string; duration_minutes: number; deactivated_ad_nos: string[]; deactivated_ad_statuses: RestAdSnapshot[] }): Promise<RestTimerRow>;
+  insertTimer(row: { started_by: string; duration_minutes: number; deactivated_ad_nos: string[]; deactivated_ad_statuses: RestAdSnapshot[]; source?: string; schedule_id?: string; exchange_account_id?: string }): Promise<RestTimerRow>;
   /**
    * Atomic: records the ads that went off and marks the start finished, ONLY
    * while the timer is still active. Returns false when the timer had already
@@ -189,7 +192,7 @@ export function restAccountsFromPayload(payload: any): (string | null)[] {
 
 export async function startAdRest(
   deps: RestDeps,
-  args: { accountIds: (string | null)[]; userId: string | null; userName: string; durationMinutes?: number },
+  args: { accountIds: (string | null)[]; userId: string | null; userName: string; durationMinutes?: number; source?: string; scheduleId?: string; exchangeAccountId?: string },
 ) {
   const now = (deps.now ?? (() => new Date()))();
   const existing = await deps.store.getActiveTimer();
@@ -228,6 +231,7 @@ export async function startAdRest(
     timer = await deps.store.insertTimer({
       started_by: args.userName,
       duration_minutes: args.durationMinutes ?? 60,
+      ...(args.source === "schedule" ? { source: "schedule", schedule_id: args.scheduleId, exchange_account_id: args.exchangeAccountId } : {}),
       deactivated_ad_nos: intended.map((s) => s.advNo),
       deactivated_ad_statuses: intended,
     });

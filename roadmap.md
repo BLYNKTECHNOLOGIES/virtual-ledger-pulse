@@ -4,7 +4,7 @@
 - [ ] Enforce automation table rights and column-level toggle restrictions
 - [ ] Gate pricing/pay engines and atomically limit manual pricing runs
 - [ ] Implement IST merchant schedules through existing safe ad rests, with dry-run and retention
-- [ ] Select most-specific auto-reply tier in ascending priority
+- [x] AU-F6 withdrawn by owner: auto-reply-engine and its current matching/order stay unchanged; VERIFY 6 skipped
 - [ ] Deploy and report all seven mandatory verification outputs, clearly identifying unavailable checks
 
 ## Mobile RA assignment

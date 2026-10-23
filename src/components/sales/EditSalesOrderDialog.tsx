@@ -14,6 +14,7 @@ import { Plus, Minus, CheckCircle2, AlertCircle, Edit, Loader2 } from "lucide-re
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
+import { sameAllocation, sameValue } from "@/lib/order-edit-changes";
 import { cn } from "@/lib/utils";
 import { ShareBar } from "@/components/finance-ui/primitives";
 import {
@@ -109,7 +110,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
   // Wallets — active wallets plus this order's wallet (even if deactivated)
   const orderWalletId = order?.wallet_id || order?.wallet?.id || '';
-  const { data: wallets } = useQuery<{ id: string; wallet_name: string; is_active: boolean }[]>({
+  const { data: wallets, isPending: walletsPending } = useQuery<{ id: string; wallet_name: string; is_active: boolean }[]>({
     queryKey: ['edit_order_wallets', orderWalletId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -124,7 +125,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
 
   // Fetch payment methods
-  const { data: paymentMethods } = useQuery({
+  const { data: paymentMethods, isPending: paymentMethodsPending } = useQuery({
     queryKey: ['sales_payment_methods', order?.sales_payment_method_id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -156,7 +157,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
   });
 
   // Fetch existing split records
-  const { data: existingSplits } = useQuery({
+  const { data: existingSplits, isPending: existingSplitsPending } = useQuery({
     queryKey: ['sales_order_edit_payment_splits', order?.id],
     queryFn: async () => {
       if (!order?.id) return [];
@@ -170,6 +171,10 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     },
     enabled: open && !!order?.id,
   });
+
+  // The form holds the order's saved wallet, method and splits; until their lists arrive a save
+  // could post against data the screen has not shown, so Update waits for them.
+  const optionsLoading = walletsPending || paymentMethodsPending || (!!order?.id && existingSplitsPending);
 
   const formatPaymentMethodLabel = (method: any) => {
     if (!method) return 'Unknown payment method';
@@ -282,7 +287,16 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       const walletChanged = originalWalletId && data.warehouse_id && originalWalletId !== data.warehouse_id;
       const quantityChanged = order.quantity !== data.quantity;
       const amountChanged = order.total_amount !== data.total_amount;
-      const paymentMethodChanged = originalPaymentMethodId !== data.sales_payment_method_id;
+      // null, undefined and '' all mean "no method": only a real change moves the INCOME.
+      const paymentMethodChanged = !sameValue(originalPaymentMethodId, data.sales_payment_method_id);
+      // A split order's INCOME and settlements are rebuilt only when the split itself changed.
+      const splitsChanged = isMultiplePayments && (
+        !order.is_split_payment ||
+        !sameAllocation(
+          paymentSplits.map((s) => ({ id: s.payment_method_id, amount: s.amount })),
+          (existingSplits ?? []).map((s: any) => ({ id: s.payment_method_id, amount: s.amount })),
+        )
+      );
 
       // ── Handle non-split completed order reconciliation (existing logic) ──
       if (!isMultiplePayments && isCompleted && (amountChanged || quantityChanged || walletChanged)) {
@@ -343,30 +357,11 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           if (pmError) throw new Error(`Failed to transfer payment method: ${pmError.message}`);
           if (pmResult && !(pmResult as any).success) throw new Error((pmResult as any).error);
         }
-
-        // Repair: if order is completed + has payment method + no INCOME tx exists
-        const selectedPaymentMethod = paymentMethods?.find((m: any) => m.id === data.sales_payment_method_id);
-        const selectedIsGateway = Boolean((selectedPaymentMethod as any)?.payment_gateway);
-        if (!paymentMethodChanged && data.sales_payment_method_id && !selectedIsGateway) {
-          const { count } = await supabase
-            .from('bank_transactions')
-            .select('id', { count: 'exact', head: true })
-            .eq('reference_number', data.order_number)
-            .eq('transaction_type', 'INCOME');
-
-          if ((count || 0) === 0) {
-            await supabase.rpc('handle_sales_order_payment_method_change', {
-              p_order_id: order.id,
-              p_old_payment_method_id: null,
-              p_new_payment_method_id: data.sales_payment_method_id,
-              p_total_amount: data.total_amount,
-            });
-          }
-        }
+        // An unchanged method posts nothing here: a missing INCOME is not re-posted by an edit.
       }
 
       // ── Handle split payment updates for completed orders ──
-      if (isMultiplePayments && isCompleted) {
+      if (splitsChanged && isCompleted) {
         // 1. Reverse old bank transactions for this order's splits (immutable ledger — no deletes)
         const { data: oldTxs } = await supabase
           .from('bank_transactions')
@@ -523,7 +518,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       if (error) throw error;
 
       // Guarantee one pending settlement per gateway split (self-heals races/trigger cleanups)
-      if (isMultiplePayments && isCompleted) {
+      if (splitsChanged && isCompleted) {
         const { error: syncErr } = await supabase.rpc('sync_split_payment_settlements', {
           p_order_id: order.id,
         });
@@ -564,6 +559,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (optionsLoading) return;
     
     if (!formData.order_number.trim()) {
       toast({ title: "Error", description: "Order number is required", variant: "destructive" });
@@ -737,9 +733,11 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               <div className="space-y-3.5">
                 <FieldGrid>
                   <Field label="Product" htmlFor="eso-product">
+                    {/* The product, wallet and payment-method selects have no empty option: an empty value is
+                        Radix reporting a saved value whose option has not loaded yet, never a choice, so it is ignored. */}
                     <Select
                       value={formData.product_id}
-                      onValueChange={(value) => handleInputChange('product_id', value)}
+                      onValueChange={(value) => { if (value) handleInputChange('product_id', value); }}
                     >
                       <SelectTrigger id="eso-product">
                         <SelectValue placeholder="Select product" />
@@ -757,7 +755,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                   <Field label="Wallet" htmlFor="eso-wallet" required hint={walletHint}>
                     <Select
                       value={formData.warehouse_id}
-                      onValueChange={(value) => handleInputChange('warehouse_id', value)}
+                      onValueChange={(value) => { if (value) handleInputChange('warehouse_id', value); }}
                     >
                       <SelectTrigger id="eso-wallet">
                         <SelectValue placeholder="Select wallet" />
@@ -852,7 +850,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                 {!isMultiplePayments ? (
                   <Select
                     value={formData.sales_payment_method_id}
-                    onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+                    onValueChange={(value) => { if (value) handleInputChange('sales_payment_method_id', value); }}
                   >
                     <SelectTrigger id="eso-payment-method">
                       <SelectValue placeholder="Select payment method" />
@@ -915,7 +913,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                           <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
                             <Select
                               value={split.payment_method_id}
-                              onValueChange={(value) => updatePaymentSplit(index, 'payment_method_id', value)}
+                              onValueChange={(value) => { if (value) updatePaymentSplit(index, 'payment_method_id', value); }}
                             >
                               <SelectTrigger aria-label={`Split ${index + 1} payment method`}>
                                 <SelectValue placeholder="Select payment method" />
@@ -994,7 +992,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             </Button>
             <Button
               type="submit"
-              disabled={updateSalesOrderMutation.isPending}
+              disabled={updateSalesOrderMutation.isPending || optionsLoading}
             >
               {updateSalesOrderMutation.isPending ? (
                 <>

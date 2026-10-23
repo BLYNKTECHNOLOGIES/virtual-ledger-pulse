@@ -19,6 +19,7 @@ import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaul
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
+import { resolveSalesOrderClientId, AmbiguousClientNameError } from "@/lib/salesClientLink";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
@@ -315,6 +316,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         .from('sales_orders')
         .insert([{
           order_number: data.order_number,
+          // The picked client (or the only client with exactly this name) — never a guess.
+          client_id: data.client_id || null,
           client_name: data.client_name,
           client_phone: data.client_phone || null,
           client_state: data.client_state || null,
@@ -474,17 +477,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         }
       }
 
-      // Check if client already exists in the clients table (exact name match, not deleted)
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id, name')
-        .ilike('name', data.client_name.trim())
-        .eq('is_deleted', false)
-        .limit(1)
-        .maybeSingle();
-
-      // If client doesn't exist, create an onboarding approval request
-      if (!existingClient) {
+      // No linked client (nothing picked and no client with exactly this name): a new buyer,
+      // so create an onboarding approval request. A linked client gets the order's details.
+      if (!data.client_id) {
         const { error: approvalError } = await supabase
           .from('client_onboarding_approvals')
           .insert({
@@ -504,7 +499,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         // Update client's phone/state if provided in the order
         const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
         await updateClientFromOrder({
-          clientId: existingClient.id,
+          clientId: data.client_id,
           phone: data.client_phone,
           state: data.client_state,
           panNumber: data.pan_number,
@@ -645,7 +640,21 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     // For off-market orders, generate the actual order number at submission (consuming the sequence)
     const submitOrder = async () => {
       let orderNumber = formData.order_number;
-      
+
+      // Settle which client this order belongs to before anything is written or numbered.
+      let clientId: string | null;
+      try {
+        clientId = await resolveSalesOrderClientId(selectedClientId, formData.client_name);
+      } catch (err: any) {
+        isSubmittingRef.current = false;
+        toast({
+          title: err instanceof AmbiguousClientNameError ? "Pick the customer" : "Error",
+          description: err instanceof AmbiguousClientNameError ? err.message : `Could not check the customer: ${err?.message || 'unknown error'}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
       if (isOffMarket) {
         try {
           const { data: offMarketNumber, error } = await supabase.rpc('generate_off_market_sales_order_number');
@@ -673,6 +682,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       
       createSalesOrderMutation.mutate({
         ...formData,
+        client_id: clientId,
         order_number: orderNumber,
         is_off_market: isOffMarket,
         is_split_payment: isSplitPayment,

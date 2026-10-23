@@ -118,12 +118,14 @@ interface LogActionParams {
 
 /**
  * Logs an action to the system_action_logs table.
- * 
+ *
  * Key behaviors:
- * - Idempotent: Uses upsert with ignoreDuplicates to prevent duplicate logs
+ * - One row per call: a plain insert, so repeated edits of the same order are all kept.
+ *   (The table has no unique key on entity_id + action_type, so an upsert with that
+ *   conflict target is rejected by the database and nothing would be logged.)
  * - Non-blocking: Errors are logged but don't throw
  * - Server-side timestamp: Uses current timestamp at execution time
- * 
+ *
  * @param params - The action parameters to log
  */
 export async function logAction(params: LogActionParams): Promise<void> {
@@ -144,22 +146,16 @@ export async function logAction(params: LogActionParams): Promise<void> {
   try {
     const { error } = await supabase
       .from('system_action_logs')
-      .upsert(
-        {
-          user_id: userId,
-          action_type: actionType,
-          entity_type: entityType,
-          entity_id: entityId,
-          module: module,
-          recorded_at: new Date().toISOString(),
-          metadata: metadata || {},
-          ...(userName ? { user_name: userName } : {}),
-        },
-        {
-          onConflict: 'entity_id,action_type',
-          ignoreDuplicates: true,
-        }
-      );
+      .insert({
+        user_id: userId,
+        action_type: actionType,
+        entity_type: entityType,
+        entity_id: entityId,
+        module: module,
+        recorded_at: new Date().toISOString(),
+        metadata: metadata || {},
+        ...(userName ? { user_name: userName } : {}),
+      });
 
     if (error) {
       console.error('[SystemActionLogger] Failed to log action:', error);

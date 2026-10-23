@@ -23,5 +23,6 @@ Deno.test("personal rest ignores forged schedule duration and ownership", () => 
 });
 Deno.test("service rest retains 300 minute schedule marker and account", () => {
   const id = "00000000-0000-0000-0000-000000000001";
-  assertEquals(restStartOptions({ source: "schedule", durationMinutes: 300, scheduleId: id, accountIds: [id] }, true), { durationMinutes: 300, source: "schedule", scheduleId: id, exchangeAccountId: id });
+  const occurrenceEnd = new Date(Date.now() + 301 * 60_000).toISOString();
+  assertEquals(restStartOptions({ source: "schedule", durationMinutes: 300, scheduleId: id, accountIds: [id], occurrenceEnd }, true), { durationMinutes: 300, source: "schedule", scheduleId: id, exchangeAccountId: id, occurrenceEnd });
 });

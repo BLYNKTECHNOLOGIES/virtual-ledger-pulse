@@ -76,7 +76,7 @@ Deno.serve(async req => {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
             body: JSON.stringify(d.outcome === "started" ? {
               action: "startAdRest", accountIds: [d.exchange_account_id], durationMinutes,
-              source: "schedule", scheduleId: d.schedule_id, userName: `Merchant schedule · ${d.schedule_name}`,
+              source: "schedule", scheduleId: d.schedule_id, occurrenceEnd: d.occurrence_end, userName: `Merchant schedule · ${d.schedule_name}`,
             } : { action: "endAdRest", timerId, scheduleOnlyAccountId: d.exchange_account_id,
               userName: `Merchant schedule · ${d.schedule_name}` }),
           });

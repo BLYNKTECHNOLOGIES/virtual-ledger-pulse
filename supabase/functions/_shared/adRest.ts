@@ -192,7 +192,7 @@ export function restAccountsFromPayload(payload: any): (string | null)[] {
 
 export async function startAdRest(
   deps: RestDeps,
-  args: { accountIds: (string | null)[]; userId: string | null; userName: string; durationMinutes?: number; source?: string; scheduleId?: string; exchangeAccountId?: string },
+  args: { accountIds: (string | null)[]; userId: string | null; userName: string; durationMinutes?: number; source?: string; scheduleId?: string; exchangeAccountId?: string; occurrenceEnd?: string },
 ) {
   const now = (deps.now ?? (() => new Date()))();
   const existing = await deps.store.getActiveTimer();
@@ -226,11 +226,13 @@ export async function startAdRest(
   }
 
   // Row first: ads are never switched off without a timer that lists them.
+  const remaining = args.occurrenceEnd ? Math.floor((Date.parse(args.occurrenceEnd) - (deps.now ?? (() => new Date()))().getTime()) / 60_000) : args.durationMinutes ?? 60;
+  if (remaining < 1) throw new Error("Schedule window has less than one minute remaining — no rest started");
   let timer: RestTimerRow;
   try {
     timer = await deps.store.insertTimer({
       started_by: args.userName,
-      duration_minutes: args.durationMinutes ?? 60,
+      duration_minutes: Math.min(args.durationMinutes ?? 60, remaining),
       ...(args.source === "schedule" ? { source: "schedule", schedule_id: args.scheduleId, exchange_account_id: args.exchangeAccountId } : {}),
       deactivated_ad_nos: intended.map((s) => s.advNo),
       deactivated_ad_statuses: intended,

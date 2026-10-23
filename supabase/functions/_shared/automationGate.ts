@@ -21,11 +21,15 @@ export function restStartOptions(payload: Record<string, unknown>, service: bool
     throw new Error("durationMinutes must be an integer between 1 and 1440");
   }
   if (payload.source !== "schedule") return { durationMinutes: duration };
+  const occurrenceEnd = payload.occurrenceEnd;
+  if (typeof occurrenceEnd !== "string" || !Number.isFinite(Date.parse(occurrenceEnd))) throw new Error("Schedule rests require occurrenceEnd");
+  const remaining = Math.floor((Date.parse(occurrenceEnd) - Date.now()) / 60_000);
+  if (remaining < 1 || remaining > 1440) throw new Error("Schedule window has less than one minute remaining or exceeds one day");
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (typeof payload.scheduleId !== "string" || !uuid.test(payload.scheduleId) ||
       !Array.isArray(payload.accountIds) || payload.accountIds.length !== 1 ||
       typeof payload.accountIds[0] !== "string" || !uuid.test(payload.accountIds[0])) {
     throw new Error("Schedule rests require scheduleId and exactly one account UUID");
   }
-  return { durationMinutes: duration, source: "schedule", scheduleId: payload.scheduleId, exchangeAccountId: payload.accountIds[0] };
+  return { durationMinutes: Math.min(duration, remaining), source: "schedule", scheduleId: payload.scheduleId, exchangeAccountId: payload.accountIds[0], occurrenceEnd };
 }

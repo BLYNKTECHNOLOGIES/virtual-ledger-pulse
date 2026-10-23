@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuickAction } from "@/hooks/useQuickAction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -942,8 +943,8 @@ export function ClientDashboard() {
       </Tabs>
 
       {/* Sticky assignment action bar */}
-      {canAssignRA && selectedClientIds.size > 0 && (
-        <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-40 flex max-w-[calc(100vw-1.5rem)] flex-wrap justify-center items-center gap-2 rounded-lg border bg-background px-3 py-3">
+      {canAssignRA && selectedClientIds.size > 0 && createPortal(
+        <div role="region" aria-label="Selected client actions" className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-40 flex w-max max-w-[calc(100vw-1.5rem)] flex-wrap justify-center items-center gap-2 rounded-lg border border-border bg-background text-foreground px-3 py-3 shadow-lg">
           <span className="text-sm font-medium">{selectedClientIds.size} selected</span>
           <Button size="sm" onClick={() => setShowAssignDialog(true)}>
             <Headset className="h-4 w-4 mr-1" />
@@ -952,7 +953,8 @@ export function ClientDashboard() {
           <Button size="sm" variant="ghost" onClick={() => setSelectedClientIds(new Set())}>
             Clear
           </Button>
-        </div>
+        </div>,
+        document.body
       )}
 
       <AssignToRADialog

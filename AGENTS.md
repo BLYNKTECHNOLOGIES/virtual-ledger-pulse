@@ -1,6 +1,7 @@
 # Project architecture decisions
 
 - Tables fit; client tables stack labelled cells via client-mobile.css on phones. Narrow settlements stack; only wide grids set minimums.
+- Client selection actions render in a body portal, outside animated page ancestors, so fixed RA assignment controls stay viewport-anchored on phones and desktop.
 - Settlement links use sales_view + Sales orderId; fetch missing linked orders to reach older sales.
 - Sales details read PAN only from the explicit client_id with client-view access and a user-scoped cache; never match names or nicknames, because PAN must not cross client identities.
 

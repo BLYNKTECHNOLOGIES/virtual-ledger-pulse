@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { SupplierAutocomplete } from "@/components/purchase/SupplierAutocomplete";
-import { fetchAndLockMarketRate } from "@/lib/effectiveUsdtEngine";
+import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
@@ -319,11 +319,21 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
         return;
       }
 
+      const currentUserId = await requireCurrentUserId();
+
+      // Lock the CoinUSDT rate before anything is written: the purchase adds its cost at this rate.
+      const selectedProductCode =
+        products?.find((product: any) => product.id === formData.product_id)?.code?.toUpperCase() ||
+        item.asset.toUpperCase();
+      const locked = await fetchAndLockMarketRate(selectedProductCode, {
+        entryType: 'erp_purchase_entry',
+        requestedBy: currentUserId || undefined,
+      });
+
       const { data: orderNumber, error: orderNumErr } = await supabase.rpc('generate_off_market_purchase_order_number');
       if (orderNumErr || !orderNumber) throw new Error('Failed to generate order number');
 
       const totalAmount = parseFloat(formData.total_amount) || 0;
-      const currentUserId = await requireCurrentUserId();
 
       let result: Record<string, unknown>;
       let functionError: Error | null = null;
@@ -332,7 +342,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
 
       if (isMultiplePayments && paymentSplits.length > 0) {
         const splitPaymentsJson = paymentSplits.map(s => ({ bank_account_id: s.bank_account_id, amount: parseFloat(s.amount) }));
-        const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments_rpc', {
+        const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments_rpc' as any, {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
           p_order_date: formData.order_date,
@@ -349,11 +359,12 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
           p_is_off_market: formData.is_off_market,
           p_created_by: currentUserId || undefined,
           p_payment_splits: splitPaymentsJson,
+          p_market_rate_usdt: locked.price,
         });
         result = data as Record<string, unknown>;
         functionError = error;
       } else {
-        const { data, error } = await supabase.rpc('create_manual_purchase_complete_rpc', {
+        const { data, error } = await supabase.rpc('create_manual_purchase_complete_rpc' as any, {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
           p_order_date: formData.order_date,
@@ -370,6 +381,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
           p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
           p_is_off_market: formData.is_off_market,
           p_created_by: currentUserId || undefined,
+          p_market_rate_usdt: locked.price,
         });
         result = data as Record<string, unknown>;
         functionError = error;
@@ -384,16 +396,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
 
       const createdOrderId = typeof result?.purchase_order_id === 'string' ? result.purchase_order_id : null;
       if (createdOrderId) {
-        const selectedProductCode =
-          products?.find((product: any) => product.id === formData.product_id)?.code?.toUpperCase() ||
-          item.asset.toUpperCase();
-
-        const locked = await fetchAndLockMarketRate(selectedProductCode, {
-          entryType: 'erp_purchase_entry',
-          referenceId: createdOrderId,
-          referenceType: 'purchase_order',
-          requestedBy: currentUserId || undefined,
-        });
+        await linkSnapshotToReference(locked.snapshotId, createdOrderId, 'purchase_order');
 
         const effectiveUsdtQty = netCreditQty * locked.price;
         const effectiveUsdtRate = effectiveUsdtQty > 0 ? totalAmount / effectiveUsdtQty : null;

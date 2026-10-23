@@ -408,6 +408,11 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         throw new Error('This order is already linked to another terminal sync record. Please refresh the queue.');
       }
 
+      // Lock the CoinUSDT rate before anything is written: the purchase adds its cost at this rate.
+      const asset = (od.asset || 'USDT').toUpperCase();
+      const locked = await fetchAndLockMarketRate(asset, { entryType: 'purchase_approval' });
+      const marketRateUsdt = locked.price;
+
       if (existingPurchase?.id) {
         result = { success: true, purchase_order_id: existingPurchase.id, recovered: true };
       } else if (isMultiplePayments) {
@@ -439,6 +444,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_is_off_market: false,
           p_created_by: userId || undefined,
           p_payment_splits: splitPaymentsJson,
+          p_market_rate_usdt: marketRateUsdt,
         };
 
         const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments_rpc' as any, rpcParams);
@@ -469,6 +475,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_is_off_market: false,
           p_created_by: userId || null,
           p_contact_number: contactNumber || null,
+          p_market_rate_usdt: marketRateUsdt,
         };
 
         const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2_rpc' as any, rpcParams);
@@ -527,13 +534,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
       // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {
-        const asset = (od.asset || 'USDT').toUpperCase();
-        const locked = await fetchAndLockMarketRate(asset, {
-          entryType: 'purchase_approval',
-          referenceId: result.purchase_order_id,
-          referenceType: 'purchase_order',
-        });
-        const marketRateUsdt = locked.price;
+        await linkSnapshotToReference(locked.snapshotId, result.purchase_order_id, 'purchase_order');
 
         // Calculate fee in USDT equivalent
         const rawCommission = Number(od.commission || 0);
@@ -557,51 +558,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             effective_usdt_rate: effectiveUsdtRate,
           })
           .eq('id', result.purchase_order_id);
-
-        // Update WAC cost pool for non-USDT assets so Realized P&L calculates correctly
-        if (asset !== 'USDT' && marketRateUsdt > 0) {
-          const grossQtyVal = parseFloat(od.amount) || 0;
-          const commissionVal = parseFloat(od.commission) || 0;
-          const netQtyVal = grossQtyVal - commissionVal;
-          const costUsdt = netQtyVal * marketRateUsdt;
-          const walletId = od.wallet_id;
-
-          if (walletId && netQtyVal > 0) {
-            // Upsert into wallet_asset_positions to track WAC
-            const { data: existingPos } = await supabase
-              .from('wallet_asset_positions' as any)
-              .select('id, qty_on_hand, cost_pool_usdt, avg_cost_usdt')
-              .eq('wallet_id', walletId)
-              .eq('asset_code', asset)
-              .maybeSingle();
-
-            const pos = existingPos as any;
-            if (pos) {
-              const newQty = Number(pos.qty_on_hand || 0) + netQtyVal;
-              const newPool = Number(pos.cost_pool_usdt || 0) + costUsdt;
-              const newAvg = newQty > 0 ? newPool / newQty : 0;
-              await supabase
-                .from('wallet_asset_positions' as any)
-                .update({
-                  qty_on_hand: newQty,
-                  cost_pool_usdt: newPool,
-                  avg_cost_usdt: newAvg,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', pos.id);
-            } else {
-              await supabase
-                .from('wallet_asset_positions' as any)
-                .insert({
-                  wallet_id: walletId,
-                  asset_code: asset,
-                  qty_on_hand: netQtyVal,
-                  cost_pool_usdt: costUsdt,
-                  avg_cost_usdt: marketRateUsdt,
-                });
-            }
-          }
-        }
       }
     },
     onSuccess: () => {

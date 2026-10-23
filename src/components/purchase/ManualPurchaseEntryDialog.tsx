@@ -405,6 +405,11 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         }
       }
 
+      // Lock the CoinUSDT rate before anything is written: the purchase adds its cost at this rate.
+      const selectedProductCode = selectedProduct?.code?.toUpperCase() || 'USDT';
+      const locked = await fetchAndLockMarketRate(selectedProductCode, { entryType: 'manual_purchase' });
+      const marketRateUsdt = locked.price;
+
       // For off-market orders, generate the actual order number now (consuming the sequence)
       // For regular orders, use the form value or auto-generate
       let orderNumber: string;
@@ -449,7 +454,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
           p_is_off_market: formData.is_off_market,
           p_created_by: currentUserId || undefined,
-          p_payment_splits: splitPaymentsJson
+          p_payment_splits: splitPaymentsJson,
+          p_market_rate_usdt: marketRateUsdt
         };
         
         const { data, error } = await supabase.rpc(
@@ -476,7 +482,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_pan_number: formData.pan_number || undefined,
           p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
           p_is_off_market: formData.is_off_market,
-          p_created_by: currentUserId || undefined
+          p_created_by: currentUserId || undefined,
+          p_market_rate_usdt: marketRateUsdt
         };
         
         const { data, error } = await supabase.rpc(
@@ -508,13 +515,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const orderId = (result as Record<string, unknown>).purchase_order_id as string;
 
       // Store market_rate_usdt (CoinUSDT rate at purchase time)
-      const selectedProductCode = selectedProduct?.code?.toUpperCase() || 'USDT';
-      const locked = await fetchAndLockMarketRate(selectedProductCode, {
-        entryType: 'manual_purchase',
-        referenceId: orderId,
-        referenceType: 'purchase_order',
-      });
-      const marketRateUsdt = locked.price;
+      await linkSnapshotToReference(locked.snapshotId, orderId, 'purchase_order');
       {
         const mpEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
         const mpQty = parseFloat(formData.quantity) || 0;

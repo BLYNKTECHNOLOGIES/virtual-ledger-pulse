@@ -196,6 +196,10 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
       const totalFee = Number(record.total_fee || 0);
       const netQty = totalQty - totalFee;
 
+      // Lock the CoinUSDT rate before anything is written: the purchase adds its cost at this rate.
+      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
+      const marketRate = locked.price;
+
       let result: any;
       let rpcError: any;
 
@@ -221,6 +225,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
           p_is_off_market: false,
           p_created_by: userId || undefined,
           p_payment_splits: splitPaymentsJson,
+          p_market_rate_usdt: marketRate,
         });
         result = data;
         rpcError = error;
@@ -242,6 +247,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
           p_is_off_market: false,
           p_created_by: userId || null,
           p_contact_number: null,
+          p_market_rate_usdt: marketRate,
         });
         result = data;
         rpcError = error;
@@ -265,12 +271,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
 
       // Update purchase_orders source & market rate
       if (result?.purchase_order_id) {
-        const locked = await fetchAndLockMarketRate(assetCode, {
-          entryType: 'batch_approval',
-          referenceId: result.purchase_order_id,
-          referenceType: 'purchase_order',
-        });
-        const marketRate = locked.price;
+        await linkSnapshotToReference(locked.snapshotId, result.purchase_order_id, 'purchase_order');
         const rawFee = totalFee;
         const feeUsdt = assetCode === 'USDT' ? rawFee : rawFee * (marketRate > 0 ? marketRate : 0);
 

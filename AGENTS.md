@@ -2,6 +2,7 @@
 
 - Tables fit; client tables stack labelled cells via client-mobile.css on phones. Narrow settlements stack; only wide grids set minimums.
 - Settlement links use sales_view + Sales orderId; fetch missing linked orders to reach older sales.
+- Sales details read PAN only from the explicit client_id with client-view access and a user-scoped cache; never match names or nicknames, because PAN must not cross client identities.
 
 - Read subdirectory AGENTS.md before edits (ATS, workforce, Terminal, quiz, edge functions).
 

@@ -1,12 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCaller } from "../_shared/require-caller.ts";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 interface BinanceOrder {
   orderNumber: string;
@@ -425,6 +421,9 @@ serve(async (req) => {
 
   const caller = await requireCaller(req, corsHeaders);
   if (!caller.ok) return caller.response;
+  if (caller.kind === "user") return new Response(JSON.stringify({ error: "Auto-pay runs only from the internal scheduler or service" }), {
+    status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
   const startedAt = Date.now();
   let runId: string | null = null;

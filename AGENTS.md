@@ -31,6 +31,7 @@
 - User Management rights live in public.um_* SQL functions (um_my_access feeds the screen); every UI gate reads them, because screen and server must agree.
 - Auth owns sign-in times/logs; ERP-shell heartbeat is self-only for consistent presence. Legacy role_functions are immutable with retained role UUIDs after deletion, preserving history without blocking role removal.
 - Binance account access comes only from public.binance_accounts_for_user (screen + edge functions), so they cannot drift.
+- Merchant schedules use the existing globally serialized ad-rest path with schedule ownership/account markers and claim-before-execution occurrences; manual pricing uses an atomic pre-acknowledgement cooldown, because overlapping external actions cannot be safely replayed.
 
 - Designation authority is positions: triggers sync title/grade/department to employed people, open onboarding, ERP logins and RACI; leavers preserve exit history. hierarchy_level is company grade, reports_to_position_id is JD structure, managers are separate. Edit departments/designations only in HRMS Organization; RazorpayX imports never create them, keeping titles consistent.
 - Joining previews and dispatch share `_shared/joiningBatch.ts` through an HRMS re-export, preventing browser/server scheduling drift.

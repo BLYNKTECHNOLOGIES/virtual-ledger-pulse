@@ -2,7 +2,7 @@
 
 ## Sales order counterparty PAN
 - [x] Add the missing PAN to the shared Sales details window using the exact linked client and existing client access
-- [ ] Run targeted identity/access tests and check preview errors
+- [x] Five targeted identity/access tests passed; preview reports build OK
 - [ ] Verify authenticated order window — blocked: external unmanaged sign-in prevents authenticated checks
 
 ## October 20 reported issues

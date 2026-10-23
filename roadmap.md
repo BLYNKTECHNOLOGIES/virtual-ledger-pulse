@@ -1,5 +1,12 @@
 # Roadmap
 
+## TAU-FIX-1 — server-side automation
+- [ ] Enforce automation table rights and column-level toggle restrictions
+- [ ] Gate pricing/pay engines and atomically limit manual pricing runs
+- [ ] Implement IST merchant schedules through existing safe ad rests, with dry-run and retention
+- [ ] Select most-specific auto-reply tier in ascending priority
+- [ ] Deploy and report all seven mandatory verification outputs, clearly identifying unavailable checks
+
 ## Mobile RA assignment
 - [x] Reproduce fixed action bar falling below the viewport inside animated client pages
 - [x] Anchor the shared Buyers/Sellers selection bar outside animated ancestors without changing assignment logic or access

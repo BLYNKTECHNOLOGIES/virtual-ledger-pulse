@@ -1,4 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { decide, occurrenceKey, type CurrentRest } from "./decisions.ts";
@@ -19,7 +20,19 @@ const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body)
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return reply({ error: "POST required" }, 405);
-  const caller = await requireCaller(req, corsHeaders);
+  let dueSchedules: unknown[] | null = null;
+  const schedulerSecret = req.headers.get("x-scheduler-secret");
+  let caller;
+  if (schedulerSecret) {
+    const url = Deno.env.get("SUPABASE_URL"), key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return reply({ error: "Missing internal configuration" }, 503);
+    const admin = createClient(url, key);
+    const { data, error } = await admin.rpc("tau_merchant_schedule_tick", { p_secret: schedulerSecret });
+    if (error) return reply({ error: "Scheduler lookup failed" }, 503);
+    if (!data?.authorized) return reply({ error: "Unauthorized" }, 401);
+    dueSchedules = data.schedules;
+    caller = { ok: true as const, kind: "scheduler" as const, userId: null, admin };
+  } else caller = await requireCaller(req, corsHeaders);
   if (!caller.ok) return caller.response;
   if (caller.kind === "user") return reply({ error: "Internal scheduler or service callers only" }, 403);
   let raw: unknown;
@@ -48,8 +61,12 @@ Deno.serve(async req => {
       return reply({ dryRun: true, decisions, writes: 0, binanceCalls: 0 });
     }
     // Single SQL SELECT returns only due, unclaimed occurrences. Empty tick exits here.
-    const { data, error } = await caller.admin.rpc("tau_due_merchant_schedules");
-    if (error) throw error;
+    let data = dueSchedules;
+    if (data === null) {
+      const result = await caller.admin.rpc("tau_due_merchant_schedules");
+      if (result.error) throw result.error;
+      data = result.data;
+    }
     if (!data?.length) return reply({ processed: 0, message: "No schedules due" });
     const schedules = z.array(scheduleSchema).parse(data);
     const results = [];

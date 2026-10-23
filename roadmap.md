@@ -1,7 +1,7 @@
 # Roadmap
 
 ## TAU-FIX-1 — server-side automation
-- [ ] AAT-0: unschedule only terminal-ad-uptime-rollup-nightly; verify collector remains
+- [x] AAT-0: unscheduled only terminal-ad-uptime-rollup-nightly; query returns collector job 130, active, every minute
 - [ ] Enforce automation table rights and column-level toggle restrictions
 - [ ] Gate pricing/pay engines and atomically limit manual pricing runs
 - [ ] Implement IST merchant schedules through existing safe ad rests, with dry-run and retention

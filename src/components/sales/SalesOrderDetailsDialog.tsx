@@ -31,6 +31,8 @@ import {
 } from "@/components/orders-ui";
 
 import { usersDirectory } from "@/lib/usersDirectory";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchSalesClientPan } from "@/lib/salesClientPan";
 
 // Below 768px the app's global CSS forces every <h3> to 16px (index.css, mobile text block);
 // keep the kit's 11px section headings inside this dialog. Presentation only.
@@ -46,7 +48,13 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
   const { toast } = useToast();
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
   const canViewClient = hasPermission('clients_view') || hasPermission('clients_manage');
+  const clientPan = useQuery({
+    queryKey: ['sales-client-pan', user?.id, order?.client_id, canViewClient],
+    queryFn: () => fetchSalesClientPan(order?.client_id, canViewClient),
+    enabled: open && !!user?.id && !!order?.client_id && canViewClient,
+  });
 
   const openClientPage = () => {
     if (!canViewClient || !order?.client_id) return;
@@ -251,6 +259,15 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
               items={[
                 { label: "Name", value: customerName },
                 { label: "Phone", value: <span className="tabular-nums">{order.client_phone || "—"}</span> },
+                canViewClient ? {
+                  label: "PAN",
+                  value: clientPan.isError ? "Unable to load" : order.client_id && clientPan.isPending ? "Loading…" : clientPan.data ? (
+                    <span className="inline-flex items-center gap-1 font-mono">
+                      {clientPan.data}
+                      <CopyButton value={clientPan.data} label="Copy PAN" />
+                    </span>
+                  ) : "Not recorded",
+                } : null,
                 order.client_state ? { label: "State", value: order.client_state } : null,
               ]}
             />

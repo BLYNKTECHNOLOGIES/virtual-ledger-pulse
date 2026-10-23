@@ -1,5 +1,10 @@
 # Roadmap
 
+## Sales order counterparty PAN
+- [x] Add the missing PAN to the shared Sales details window using the exact linked client and existing client access
+- [x] Five targeted identity/access tests passed; preview reports build OK
+- [ ] Verify authenticated order window — blocked: external unmanaged sign-in prevents authenticated checks
+
 ## October 20 reported issues
 - [x] Owner confirmed Shivam's 18 Oct 01:02 IST punch was stray; voided through the existing resolver, original punch preserved in audit, zero open stale sessions verified; Oct 17 remains Present with 439 worked minutes
 - [x] Diagnose BTC conversion CONV-20261020-003: two Binance fills charged 0.00001178 BNB fee; ERP BNB balance is 0; approval was rolled back with no ledger writes

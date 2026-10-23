@@ -4,7 +4,7 @@
 - Replace permissive writes on the five automation tables with the requested rights, administrator shortcut, column guards and range checks; preserve signed-in small-order reads.
 - Require pricing-manage for manual pricing; reject paused rules and enforce one manual run per rule per 60 seconds atomically. Restrict auto-pay to internal callers.
 - Add the exact schedule/run names requested, schedule-owned rest markers and an IST runner using the existing safe ad-rest path. Offline/rest windows last until their end; online only ends a schedule-owned rest. Never touch a person's rest.
-- Select only the most-specific matching reply tier, lowest priority number first; preserve claims and deduplication.
+- Leave auto-reply-engine unchanged: every matching rule remains sent in the current order; AU-F6 and VERIFY 6 are withdrawn.
 - Deploy changed functions and report each requested verification with actual evidence. Do not execute a real merchant schedule against live ads.
 
 ## Technical details and assumptions

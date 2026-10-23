@@ -401,6 +401,7 @@ export type Database = {
           last_competitor_price: number | null
           last_error: string | null
           last_manual_edit_at: string | null
+          last_manual_run_at: string | null
           last_matched_merchant: string | null
           manual_override_cooldown_minutes: number | null
           max_ceiling: number | null
@@ -456,6 +457,7 @@ export type Database = {
           last_competitor_price?: number | null
           last_error?: string | null
           last_manual_edit_at?: string | null
+          last_manual_run_at?: string | null
           last_matched_merchant?: string | null
           manual_override_cooldown_minutes?: number | null
           max_ceiling?: number | null
@@ -511,6 +513,7 @@ export type Database = {
           last_competitor_price?: number | null
           last_error?: string | null
           last_manual_edit_at?: string | null
+          last_manual_run_at?: string | null
           last_matched_merchant?: string | null
           manual_override_cooldown_minutes?: number | null
           max_ceiling?: number | null
@@ -557,8 +560,11 @@ export type Database = {
           ended_by_mode: string | null
           ended_by_name: string | null
           ended_by_user_id: string | null
+          exchange_account_id: string | null
           id: string
           is_active: boolean
+          schedule_id: string | null
+          source: string
           start_completed_at: string | null
           started_at: string
           started_by: string | null
@@ -574,8 +580,11 @@ export type Database = {
           ended_by_mode?: string | null
           ended_by_name?: string | null
           ended_by_user_id?: string | null
+          exchange_account_id?: string | null
           id?: string
           is_active?: boolean
+          schedule_id?: string | null
+          source?: string
           start_completed_at?: string | null
           started_at?: string
           started_by?: string | null
@@ -591,13 +600,24 @@ export type Database = {
           ended_by_mode?: string | null
           ended_by_name?: string | null
           ended_by_user_id?: string | null
+          exchange_account_id?: string | null
           id?: string
           is_active?: boolean
+          schedule_id?: string | null
+          source?: string
           start_completed_at?: string | null
           started_at?: string
           started_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ad_rest_timer_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_merchant_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       adjustment_posting_audit: {
         Row: {
@@ -25515,6 +25535,56 @@ export type Database = {
         }
         Relationships: []
       }
+      p2p_merchant_schedule_runs: {
+        Row: {
+          action: string | null
+          created_at: string | null
+          exchange_account_id: string | null
+          id: string
+          message: string | null
+          occurrence_end: string | null
+          occurrence_start: string
+          outcome: string | null
+          rest_timer_id: string | null
+          schedule_id: string | null
+          schedule_name: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          message?: string | null
+          occurrence_end?: string | null
+          occurrence_start: string
+          outcome?: string | null
+          rest_timer_id?: string | null
+          schedule_id?: string | null
+          schedule_name?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string | null
+          exchange_account_id?: string | null
+          id?: string
+          message?: string | null
+          occurrence_end?: string | null
+          occurrence_start?: string
+          outcome?: string | null
+          rest_timer_id?: string | null
+          schedule_id?: string | null
+          schedule_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_merchant_schedule_runs_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_merchant_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       p2p_merchant_schedules: {
         Row: {
           action: string
@@ -25522,6 +25592,7 @@ export type Database = {
           created_by: string | null
           day_of_week: number
           end_time: string
+          exchange_account_id: string
           id: string
           is_active: boolean
           name: string
@@ -25534,6 +25605,7 @@ export type Database = {
           created_by?: string | null
           day_of_week: number
           end_time: string
+          exchange_account_id?: string
           id?: string
           is_active?: boolean
           name?: string
@@ -25546,6 +25618,7 @@ export type Database = {
           created_by?: string | null
           day_of_week?: number
           end_time?: string
+          exchange_account_id?: string
           id?: string
           is_active?: boolean
           name?: string
@@ -39770,6 +39843,32 @@ export type Database = {
       }
       sync_terminal_shift_windows: { Args: never; Returns: undefined }
       sync_usdt_stock: { Args: never; Returns: undefined }
+      tau_claim_manual_price_run: {
+        Args: { p_rule_id: string }
+        Returns: string
+      }
+      tau_due_merchant_schedules: {
+        Args: never
+        Returns: {
+          action: string
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          end_time: string
+          exchange_account_id: string
+          id: string
+          is_active: boolean
+          name: string
+          start_time: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "p2p_merchant_schedules"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       terminal_ad_zone_map: {
         Args: never
         Returns: {
@@ -39786,6 +39885,7 @@ export type Database = {
           role_id: string
         }[]
       }
+      terminal_can: { Args: { perm: string; uid: string }; Returns: boolean }
       terminal_can_edit_user: { Args: { p_target: string }; Returns: boolean }
       terminal_can_manage_devices: {
         Args: { p_user_id: string }

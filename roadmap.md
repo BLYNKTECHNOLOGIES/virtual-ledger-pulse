@@ -1,5 +1,10 @@
 # Roadmap
 
+## Mobile RA assignment
+- [x] Reproduce fixed action bar falling below the viewport inside animated client pages
+- [x] Anchor the shared Buyers/Sellers selection bar outside animated ancestors without changing assignment logic or access
+- [ ] Verify phone/desktop action-bar visibility and dialog opening; real signed-in assignment remains blocked by external unmanaged sign-in
+
 ## Sales order counterparty PAN
 - [x] Add the missing PAN to the shared Sales details window using the exact linked client and existing client access
 - [x] Five targeted identity/access tests passed; preview reports build OK

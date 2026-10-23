@@ -39869,6 +39869,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      tau_merchant_schedule_tick: { Args: { p_secret: string }; Returns: Json }
       terminal_ad_zone_map: {
         Args: never
         Returns: {

@@ -1,0 +1,3 @@
+CREATE OR REPLACE FUNCTION public.tau_merchant_schedule_tick(p_secret text) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$ BEGIN IF p_secret IS NULL OR p_secret='' OR NOT EXISTS(SELECT 1 FROM public.app_scheduler_secrets WHERE name='internal_cron' AND secret_value=p_secret) THEN RETURN jsonb_build_object('authorized',false); END IF; RETURN jsonb_build_object('authorized',true,'schedules',(SELECT coalesce(jsonb_agg(s),'[]'::jsonb) FROM public.tau_due_merchant_schedules() s)); END $$;
+REVOKE ALL ON FUNCTION public.tau_merchant_schedule_tick(text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.tau_merchant_schedule_tick(text) TO service_role;

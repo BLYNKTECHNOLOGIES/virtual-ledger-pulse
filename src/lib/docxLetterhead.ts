@@ -203,7 +203,7 @@ export function applyLetterheadToDocx(
   const ext = image.mime === "image/png" ? "png" : "jpeg";
   let mediaName = `blynk_letterhead.${ext}`;
   for (let i = 2; files[`word/media/${mediaName}`]; i++) mediaName = `blynk_letterhead_${i}.${ext}`;
-  files[`word/media/${mediaName}`] = image.bytes;
+  files[`word/media/${mediaName}`] = new Uint8Array(image.bytes);
   if (!new RegExp(`<Default\\b[^>]*\\bExtension="${ext}"`, "i").test(contentTypes)) {
     contentTypes = contentTypes.replace(/<\/Types>\s*$/, `<Default Extension="${ext}" ContentType="${image.mime}"/></Types>`);
   }

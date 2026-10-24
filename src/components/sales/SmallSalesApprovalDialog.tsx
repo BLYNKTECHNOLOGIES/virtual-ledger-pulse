@@ -50,12 +50,27 @@ interface PaymentSplit {
   amount: string;
 }
 
+// The approval call writes several tables; only a clash on the order number is retried with a fresh number.
 function isDuplicateConstraintError(error: any): boolean {
   const message = [error?.code, error?.message, error?.details, error?.hint]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
-  return message.includes('23505') || message.includes('duplicate key') || message.includes('unique constraint');
+  return (message.includes('23505') || message.includes('duplicate key') || message.includes('unique constraint'))
+    && message.includes('order_number');
+}
+
+/**
+ * create_sales_order_with_postings saves everything or nothing. When the database answered with an error
+ * (it carries a 5-character SQLSTATE code), nothing was saved: say so, unless the message already does.
+ * A network error carries no code; then the outcome is unknown and the message is left as it is.
+ */
+function withNothingSaved(err: unknown, description: string): string {
+  const e = err as { fromApprovalCall?: boolean; code?: unknown } | null;
+  if (!e?.fromApprovalCall || !/^[0-9A-Z]{5}$/.test(String(e.code ?? ''))) return description;
+  if (/nothing was saved/i.test(description)) return description;
+  const text = description.trim();
+  return `${text}${/[.!?]$/.test(text) ? '' : '.'} Nothing was saved.`;
 }
 
 export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) {
@@ -233,23 +248,10 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         throw new Error('Select a payment method');
       }
 
-      let createdSalesOrderId: string | null = null;
-      let claimed = false;
-
-      try {
-        // ── Idempotency guard: atomically claim this batch so a second click cannot create a duplicate ──
-        const { data: claimRows, error: claimErr } = await supabase
-          .from('small_sales_sync')
-          .update({ sync_status: 'processing' })
-          .eq('id', record.id)
-          .eq('sync_status', 'pending_approval')
-          .select('id');
-        if (claimErr) throw claimErr;
-        if (!claimRows || claimRows.length === 0) {
-          throw new Error('This batch is already being processed or has been approved. Please refresh.');
-        }
-        claimed = true;
-
+      // No claim or rollback is needed: the order, its postings, the wallet debit and the batch's approval
+      // mark are saved by ONE database call (create_sales_order_with_postings), which locks the batch, refuses
+      // it unless it is still pending, and saves everything or nothing.
+      {
         const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
         const marketRate = locked.price;
 
@@ -305,8 +307,138 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         const orderDateSource = record.time_window_end || record.time_window_start || approvalTimestamp;
         const orderDate = new Date(orderDateSource).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-        // ── Insert sales_orders header ──────────────────────────────
-        // Retry order-number collisions so a stale sequence can never block approval.
+        // ── Bank/settlement legs, payment_splits rows and the wallet debit, saved with the order ──
+        const postingSteps = (orderNumber: string) => {
+          const steps: any[] = [];
+
+          if (isMultiplePayments) {
+            let hasAnyGateway = false;
+
+            for (const split of paymentSplits) {
+              const splitAmount = parseFloat(split.amount);
+              if (splitAmount <= 0 || !split.payment_method_id) continue;
+
+              const pm = paymentMethods!.find(m => m.id === split.payment_method_id);
+              const resolvedBankAccountId = pm!.bank_account_id;
+              const splitIsGateway = Boolean(pm?.payment_gateway);
+
+              if (splitIsGateway) {
+                hasAnyGateway = true;
+                const expectedDate = pm?.settlement_days
+                  ? new Date(new Date(orderDate).getTime() + pm.settlement_days * 86400000)
+                      .toISOString()
+                      .split('T')[0]
+                  : new Date(new Date(orderDate).getTime() + 86400000)
+                      .toISOString()
+                      .split('T')[0];
+
+                steps.push({
+                  op: 'insert',
+                  table: 'pending_settlements',
+                  order_id_column: 'sales_order_id',
+                  row: {
+                    order_number: orderNumber,
+                    client_name: 'Small Sales',
+                    total_amount: splitAmount,
+                    settlement_amount: splitAmount,
+                    order_date: orderDate,
+                    payment_method_id: split.payment_method_id,
+                    bank_account_id: resolvedBankAccountId,
+                    settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
+                    settlement_days: pm?.settlement_days || null,
+                    expected_settlement_date: expectedDate,
+                    status: 'PENDING',
+                    created_by: userId,
+                  },
+                });
+              } else {
+                steps.push({
+                  op: 'insert',
+                  table: 'bank_transactions',
+                  row: {
+                    bank_account_id: resolvedBankAccountId,
+                    transaction_type: 'INCOME',
+                    amount: splitAmount,
+                    transaction_date: orderDate,
+                    description: `Sales Order - ${orderNumber} - Small Sales (Split)`,
+                    reference_number: orderNumber,
+                    category: 'Sales',
+                    related_account_name: 'Small Sales',
+                    created_by: userId,
+                  },
+                });
+              }
+
+              steps.push({
+                op: 'insert',
+                table: 'sales_order_payment_splits',
+                order_id_column: 'sales_order_id',
+                row: {
+                  bank_account_id: resolvedBankAccountId,
+                  amount: splitAmount,
+                  payment_method_id: split.payment_method_id,
+                  is_gateway: splitIsGateway,
+                  created_by: userId,
+                },
+              });
+            }
+
+            if (hasAnyGateway) {
+              steps.push({ op: 'update_order', set: { settlement_status: 'PENDING' } });
+            }
+
+            // Guarantee one pending settlement per gateway split
+            steps.push({ op: 'sync_split_settlements' });
+          } else {
+            // Single-method path (existing behaviour preserved)
+            steps.push({
+              op: 'insert',
+              table: 'sales_order_payment_splits',
+              order_id_column: 'sales_order_id',
+              row: {
+                bank_account_id: singleResolvedBankId,
+                amount: Number(record.total_amount),
+                payment_method_id: paymentMethodId,
+                is_gateway: isGateway,
+                created_by: userId,
+              },
+            });
+
+            if (isGateway) {
+              // sales_orders already has create_pending_settlement_trigger, which inserts/updates
+              // the gateway settlement row for single-method approvals. Inserting here again causes
+              // a unique conflict on (sales_order_id, payment_method_id).
+            } else {
+              steps.push({
+                op: 'insert',
+                table: 'bank_transactions',
+                row: {
+                  bank_account_id: singleResolvedBankId,
+                  transaction_type: 'INCOME',
+                  amount: Number(record.total_amount),
+                  transaction_date: orderDate,
+                  description: `Sales Order - ${orderNumber} - Small Sales`,
+                  reference_number: orderNumber,
+                  category: 'Sales',
+                  related_account_name: 'Small Sales',
+                  created_by: userId,
+                },
+              });
+            }
+          }
+
+          // ── Wallet deduction (asset + fee) — same regardless of split ──
+          if (record.wallet_id) {
+            const totalWalletDebit = Number(record.total_quantity || 0) + Number(record.total_fee || 0);
+            steps.push({ op: 'wallet_deduction', wallet_id: record.wallet_id, amount: totalWalletDebit, asset_code: record.asset_code });
+          }
+
+          return steps;
+        };
+
+        // ── Create the sales order with its postings and mark the batch approved, in one call ──
+        // Retry order-number collisions so a stale sequence can never block approval
+        // (a failed call saves nothing, so trying again with a fresh number is safe).
         let orderNumber = '';
         let salesOrder: { id: string } | null = null;
         for (let attempt = 0; attempt < 5 && !salesOrder; attempt++) {
@@ -314,9 +446,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           if (orderNumErr || !nextOrderNum) throw orderNumErr || new Error('Failed to generate order number');
           orderNumber = nextOrderNum as string;
 
-          const { data, error: soErr } = await supabase
-            .from('sales_orders')
-            .insert({
+          const { data, error: soErr } = await supabase.rpc('create_sales_order_with_postings' as any, {
+            p_order: {
               order_number: orderNumber,
               client_name: 'Small Sales',
               client_phone: null,
@@ -343,187 +474,54 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
               market_rate_usdt: marketRate,
               effective_usdt_qty: ssEffUsdtQty,
               effective_usdt_rate: ssEffUsdtRate,
-            })
-            .select('id')
-            .single();
+            },
+            p_steps: postingSteps(orderNumber),
+            p_source: {
+              table: 'small_sales_sync',
+              id: record.id,
+              set: { reviewed_by: userId, reviewed_at: new Date().toISOString() },
+            },
+          });
 
           if (soErr) {
             if (isDuplicateConstraintError(soErr) && attempt < 4) continue;
-            throw soErr;
+            throw Object.assign(soErr, { fromApprovalCall: true });
           }
-          salesOrder = data;
+          salesOrder = { id: (data as unknown as { sales_order_id: string }).sales_order_id };
         }
 
         if (!salesOrder) throw new Error('Failed to create sales order');
-        createdSalesOrderId = salesOrder.id;
 
-        // ── Bank/settlement legs + payment_splits rows ───────────────
-        if (isMultiplePayments) {
-          let hasAnyGateway = false;
-
-          for (const split of paymentSplits) {
-            const splitAmount = parseFloat(split.amount);
-            if (splitAmount <= 0 || !split.payment_method_id) continue;
-
-            const pm = paymentMethods!.find(m => m.id === split.payment_method_id);
-            const resolvedBankAccountId = pm!.bank_account_id;
-            const splitIsGateway = Boolean(pm?.payment_gateway);
-
-            if (splitIsGateway) {
-              hasAnyGateway = true;
-              const expectedDate = pm?.settlement_days
-                ? new Date(new Date(orderDate).getTime() + pm.settlement_days * 86400000)
-                    .toISOString()
-                    .split('T')[0]
-                : new Date(new Date(orderDate).getTime() + 86400000)
-                    .toISOString()
-                    .split('T')[0];
-
-              const { error: settlementErr } = await supabase
-                .from('pending_settlements')
-                .insert({
-                  sales_order_id: salesOrder.id,
-                  order_number: orderNumber,
-                  client_name: 'Small Sales',
-                  total_amount: splitAmount,
-                  settlement_amount: splitAmount,
-                  order_date: orderDate,
-                  payment_method_id: split.payment_method_id,
-                  bank_account_id: resolvedBankAccountId,
-                  settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
-                  settlement_days: pm?.settlement_days || null,
-                  expected_settlement_date: expectedDate,
-                  status: 'PENDING',
-                  created_by: userId,
-                });
-              if (settlementErr) throw settlementErr;
-            } else {
-              const { error: bankTxErr } = await supabase
-                .from('bank_transactions')
-                .insert({
-                  bank_account_id: resolvedBankAccountId,
-                  transaction_type: 'INCOME',
-                  amount: splitAmount,
-                  transaction_date: orderDate,
-                  description: `Sales Order - ${orderNumber} - Small Sales (Split)`,
-                  reference_number: orderNumber,
-                  category: 'Sales',
-                  related_account_name: 'Small Sales',
-                  created_by: userId,
-                });
-              if (bankTxErr) throw bankTxErr;
-            }
-
-            const { error: splitInsertErr } = await supabase
-              .from('sales_order_payment_splits')
-              .insert({
-                sales_order_id: salesOrder.id,
-                bank_account_id: resolvedBankAccountId,
-                amount: splitAmount,
-                payment_method_id: split.payment_method_id,
-                is_gateway: splitIsGateway,
-                created_by: userId,
-              });
-            if (splitInsertErr) throw splitInsertErr;
-          }
-
-          if (hasAnyGateway) {
-            await supabase
-              .from('sales_orders')
-              .update({ settlement_status: 'PENDING' })
-              .eq('id', salesOrder.id);
-          }
-
-          // Guarantee one pending settlement per gateway split
-          await supabase.rpc('sync_split_payment_settlements', { p_order_id: salesOrder.id });
-        } else {
-          // Single-method path (existing behaviour preserved)
-          const { error: splitErr } = await supabase.from('sales_order_payment_splits').insert({
-            sales_order_id: salesOrder.id,
-            bank_account_id: singleResolvedBankId,
-            amount: Number(record.total_amount),
-            payment_method_id: paymentMethodId,
-            is_gateway: isGateway,
-            created_by: userId,
+        // The batch is approved. The valuation record is reporting only (not money or stock), so a failure here
+        // must not show an error (that makes people approve again); it is shown as a warning instead.
+        const notSaved: string[] = [];
+        try {
+          await persistBatchValuation({
+            batchId: orderNumber,
+            batchType: 'small_sales',
+            assetCode,
+            totalInrValue: ssTotalAmt,
+            totalAssetQty: ssQty,
+            marketRateUsdt: marketRate,
+            aggregatedUsdtQty: ssEffUsdtQty,
+            effectiveUsdtRate: ssEffUsdtRate,
+            orderId: salesOrder.id,
+            priceSnapshotId: locked.snapshotId,
+            createdBy: userId,
           });
-          if (splitErr) throw splitErr;
-
-          if (isGateway) {
-            // sales_orders already has create_pending_settlement_trigger, which inserts/updates
-            // the gateway settlement row for single-method approvals. Inserting here again causes
-            // a unique conflict on (sales_order_id, payment_method_id).
-          } else {
-            const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
-              bank_account_id: singleResolvedBankId,
-              transaction_type: 'INCOME',
-              amount: Number(record.total_amount),
-              transaction_date: orderDate,
-              description: `Sales Order - ${orderNumber} - Small Sales`,
-              reference_number: orderNumber,
-              category: 'Sales',
-              related_account_name: 'Small Sales',
-              created_by: userId,
-            });
-            if (bankTxErr) throw bankTxErr;
-          }
+        } catch {
+          notSaved.push('the USDT valuation record');
         }
 
-        // ── Wallet deduction (asset + fee) — same regardless of split ──
-        if (record.wallet_id) {
-          const totalWalletDebit = Number(record.total_quantity || 0) + Number(record.total_fee || 0);
-          const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
-            sales_order_id: salesOrder.id,
-            usdt_amount: totalWalletDebit,
-            wallet_id: record.wallet_id,
-            p_asset_code: record.asset_code,
-          });
-          if (walletErr) throw walletErr;
-        }
-
-        await persistBatchValuation({
-          batchId: orderNumber,
-          batchType: 'small_sales',
-          assetCode,
-          totalInrValue: ssTotalAmt,
-          totalAssetQty: ssQty,
-          marketRateUsdt: marketRate,
-          aggregatedUsdtQty: ssEffUsdtQty,
-          effectiveUsdtRate: ssEffUsdtRate,
-          orderId: salesOrder.id,
-          priceSnapshotId: locked.snapshotId,
-          createdBy: userId,
-        });
-
-        const { error: syncUpdateErr } = await supabase
-          .from('small_sales_sync')
-          .update({
-            sync_status: 'approved',
-            sales_order_id: salesOrder.id,
-            reviewed_by: userId,
-            reviewed_at: new Date().toISOString(),
-          })
-          .eq('id', record.id);
-        if (syncUpdateErr) throw syncUpdateErr;
-
-        return salesOrder;
-      } catch (error) {
-        // On any failure, fully reverse what we created so the operator can retry.
-        if (createdSalesOrderId) {
-          await supabase.rpc('delete_sales_order_with_reversal', { p_order_id: createdSalesOrderId });
-        }
-        // Release the idempotency claim so the operator can retry after fixing the issue.
-        if (claimed) {
-          await supabase
-            .from('small_sales_sync')
-            .update({ sync_status: 'pending_approval' })
-            .eq('id', record.id)
-            .eq('sync_status', 'processing');
-        }
-        throw error;
+        return { salesOrder, notSaved };
       }
     },
-    onSuccess: () => {
-      toast({ title: 'Approved', description: 'Small sales entry created in ERP' });
+    onSuccess: ({ notSaved }) => {
+      if (notSaved.length > 0) {
+        toast({ title: 'Approved', description: `Small sales entry created in ERP, but ${notSaved.join(', ')} did not save.`, variant: 'warning' });
+      } else {
+        toast({ title: 'Approved', description: 'Small sales entry created in ERP' });
+      }
       queryClient.invalidateQueries({ queryKey: ['small_sales_sync'] });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['pending_settlements'] });
@@ -534,7 +532,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
     },
     onError: (err: any) => {
       const { title, description } = parseApprovalError(err, 'Small Sales');
-      toast({ title, description, variant: 'destructive' });
+      toast({ title, description: withNothingSaved(err, description), variant: 'destructive' });
     },
   });
 

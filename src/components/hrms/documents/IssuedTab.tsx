@@ -154,6 +154,24 @@ export function IssuedTab() {
       await (supabase as any).from("hr_employee_documents")
         .update({ is_hidden: false, hidden_reason: null })
         .eq("id", d.employee_document_id);
+    } else if (d.employee_id && (d.pdf_path || d.file_path)) {
+      // A letter revoked before the candidate joined was never filed — file it now.
+      const { privateDocRef } = await import("@/lib/storedDoc");
+      const { data: filed } = await (supabase as any).from("hr_employee_documents").upsert({
+        employee_id: d.employee_id,
+        document_type: "hr_letter",
+        document_name: `${d.reference_no} — ${d.template_name}`,
+        file_url: privateDocRef("hr-doc-issued", d.pdf_path || d.file_path),
+        source: "issued",
+        source_ref: `issued:${d.id}`,
+        notes: "Issued from HR Document Studio",
+        uploaded_by: d.issued_by_name || null,
+        is_hidden: false,
+        hidden_reason: null,
+      }, { onConflict: "employee_id,source_ref" }).select("id").maybeSingle();
+      if (filed?.id) {
+        await (supabase as any).from("hr_documents_issued").update({ employee_document_id: filed.id }).eq("id", d.id);
+      }
     }
     await (supabase as any).from("hr_doc_audit_log").insert({
       entity_type: "issued_document", entity_id: d.id, action: "restored",
@@ -215,6 +233,7 @@ export function IssuedTab() {
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {d.employee_name || "—"}
+                    {d.onboarding_id && !d.employee_id ? " · candidate (not joined yet)" : ""}
                     {d.issued_at ? ` · ${new Date(d.issued_at).toLocaleDateString()}` : ""}
                     {d.issued_by_name ? ` · by ${d.issued_by_name}` : ""}
                   </p>
@@ -229,7 +248,7 @@ export function IssuedTab() {
 
                   {d.status !== "revoked" ? (
                     <>
-                      <Button size="sm" variant="ghost" title="Email to employee" onClick={() => sendEmail(d)}>
+                      <Button size="sm" variant="ghost" title={d.onboarding_id && !d.employee_id ? "Email to candidate" : "Email to employee"} onClick={() => sendEmail(d)}>
                         <Mail className="h-4 w-4" />
                       </Button>
                       <Button size="sm" variant="ghost" title="Revoke" onClick={() => setRevokeTarget(d)}>

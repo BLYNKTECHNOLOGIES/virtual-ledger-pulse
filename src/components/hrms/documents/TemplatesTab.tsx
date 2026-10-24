@@ -94,6 +94,9 @@ export function TemplatesTab() {
               <div className="flex flex-wrap gap-1.5">
                 <Badge variant="outline" className="text-[10px] capitalize">{t.status}</Badge>
                 <Badge variant="outline" className="text-[10px] gap-1"><History className="h-3 w-3" />{t.lane}</Badge>
+                {(t.subject === "candidate" || t.subject === "any" || (!t.subject && t.category === "offer")) && (
+                  <Badge variant="outline" className="text-[10px]">{t.subject === "any" ? "employees + candidates" : "candidates"}</Badge>
+                )}
                 {t.contains_sensitive && (
                   <Badge variant="outline" className="text-[10px] gap-1 text-amber-500 border-amber-500/40">
                     <ShieldAlert className="h-3 w-3" /> salary

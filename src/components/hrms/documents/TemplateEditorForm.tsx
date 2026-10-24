@@ -11,18 +11,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { AlertTriangle, Braces, Check, FileLock2, ShieldAlert, Upload } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
-import { parsePlaceholders, mergeMappings, type PlaceholderMapping } from "@/lib/docTemplate";
+import { parsePlaceholders, mergeMappings, autoFillMappings, type PlaceholderMapping } from "@/lib/docTemplate";
 import { parseDocxToResult } from "@/lib/docxPlaceholders";
+import { RESOLVER_SOURCES } from "@/lib/docResolvers";
 
 
 
 const CATEGORIES = [
+  { value: "offer", label: "Offer Letter" },
   { value: "relieving", label: "Relieving cum Experience Letter" },
   { value: "appointment", label: "Appointment Letter" },
   { value: "appraisal", label: "Appraisal Letter" },
   { value: "warning", label: "Warning / Disciplinary" },
   { value: "custom", label: "Custom" },
 ];
+
+/** Who a template is issued to. Candidates are read from their onboarding record. */
+const SUBJECTS = [
+  { value: "employee", label: "Employees" },
+  { value: "candidate", label: "Candidates (onboarding record)" },
+  { value: "any", label: "Employees or candidates" },
+];
+
+const defaultSubjectFor = (category: string) => (category === "offer" ? "candidate" : "employee");
+
+const DEFAULT_PAGE_SETUP = { size: "A4", marginMm: { top: 25, left: 20, right: 20, bottom: 25 } };
 
 export interface TemplateRecord {
   id: string;
@@ -34,6 +47,7 @@ export interface TemplateRecord {
   reference_pattern: string | null;
   status: string;
   current_version_id: string | null;
+  subject?: string | null;
 }
 
 /**
@@ -51,7 +65,7 @@ export function TemplateEditorForm({
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [form, setForm] = useState({
-    name: "", category: "custom", description: "",
+    name: "", category: "custom", description: "", subject: "employee",
     requires_approval: false, reference_pattern: "BLYNK/{TYPE}/{FY}/{SEQ:4}",
   });
   const [html, setHtml] = useState("<p></p>");
@@ -63,6 +77,8 @@ export function TemplateEditorForm({
   const [sourceName, setSourceName] = useState<string | null>(null);
   /** Plain text of the locked .docx — used only to discover its placeholders. */
   const [docxText, setDocxText] = useState("");
+  /** Locked Word lane: print the company letterhead behind every page. */
+  const [letterhead, setLetterhead] = useState(false);
 
 
   const { data: fields = [] } = useQuery({
@@ -103,15 +119,17 @@ export function TemplateEditorForm({
         name: template.name,
         category: template.category,
         description: template.description || "",
+        subject: template.subject || defaultSubjectFor(template.category),
         requires_approval: template.requires_approval,
         reference_pattern: template.reference_pattern || "BLYNK/{TYPE}/{FY}/{SEQ:4}",
       });
     } else {
-      setForm({ name: "", category: "custom", description: "", requires_approval: false, reference_pattern: "BLYNK/{TYPE}/{FY}/{SEQ:4}" });
+      setForm({ name: "", category: "custom", description: "", subject: "employee", requires_approval: false, reference_pattern: "BLYNK/{TYPE}/{FY}/{SEQ:4}" });
       setHtml("<p></p>");
       setMappings([]);
       setLane("native");
       setSourcePath(null); setSourceName(null); setDocxText("");
+      setLetterhead(false);
     }
   }, [template]);
 
@@ -123,6 +141,7 @@ export function TemplateEditorForm({
       setLane(isDocx ? "docx" : "native");
       setSourcePath(version.source_file_path || null);
       setSourceName(version.source_file_name || null);
+      setLetterhead(isDocx && !!(version.page_setup as any)?.letterhead);
       if (isDocx) loadLockedText(version.source_file_path);
       else setDocxText("");
     }
@@ -172,6 +191,7 @@ export function TemplateEditorForm({
       setImporting(true);
       const buffer = await file.arrayBuffer();
       const { extractDocxText, parseDocxPlaceholders, validateDocxTemplate } = await import("@/lib/docxTemplate");
+      const { docxHasOwnLetterhead } = await import("@/lib/docxLetterhead");
       const text = extractDocxText(buffer);
       const found = parseDocxPlaceholders(text);
 
@@ -194,6 +214,8 @@ export function TemplateEditorForm({
       setSourceName(file.name);
       setDocxText(text);
       setHtml("");
+      // A plain Word file (no header, footer or letterhead of its own) is printed on the company letterhead.
+      setLetterhead(!docxHasOwnLetterhead(new Uint8Array(buffer)));
       toast.success(
         found.length
           ? `Stored as-is — ${found.length} variable${found.length === 1 ? "" : "s"} detected` +
@@ -213,10 +235,20 @@ export function TemplateEditorForm({
   );
 
 
+  // Keep one mapping per token. New tokens are matched against the shared variable
+  // dictionary (keys + aliases), so {{CANDIDATE_NAME}} or {{EMPLOYEE_NAME}} map
+  // themselves; HR only maps the rest. Runs only when the tokens change.
   useEffect(() => {
-    setMappings((prev) => mergeMappings(parsed.placeholders, prev));
+    setMappings((prev) => mergeMappings(parsed.placeholders, prev, fields as any[]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed.placeholders.map((p) => p.token).join("|")]);
+
+  // The dictionary can arrive after the template: then fill only still-empty
+  // mappings — never add, drop or change one (a stored Word file may still be loading).
+  useEffect(() => {
+    if (fields.length) setMappings((prev) => autoFillMappings(prev, fields as any[]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.length]);
 
 
   const fieldByKey = useMemo(
@@ -249,6 +281,7 @@ export function TemplateEditorForm({
         name: form.name.trim(),
         category: form.category,
         description: form.description || null,
+        subject: form.subject,
         lane,
 
         contains_sensitive: containsSensitive,
@@ -281,6 +314,7 @@ export function TemplateEditorForm({
           content_html: lane === "docx" ? null : html,
           source_file_path: lane === "docx" ? sourcePath : null,
           source_file_name: lane === "docx" ? sourceName : null,
+          page_setup: { ...((version?.page_setup as any) || DEFAULT_PAGE_SETUP), letterhead: lane === "docx" && letterhead },
 
           placeholder_map: mappings,
           unparsed_tokens: parsed.unparsed,
@@ -327,12 +361,27 @@ export function TemplateEditorForm({
             </div>
             <div>
               <Label className="text-xs">Letter type</Label>
-              <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
+              <Select
+                value={form.category}
+                onValueChange={(v) => setForm((f) => ({ ...f, category: v, subject: defaultSubjectFor(v) }))}
+              >
                 <SelectTrigger className="h-9 mt-1 text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Issued to</Label>
+              <Select value={form.subject} onValueChange={(v) => setForm((f) => ({ ...f, subject: v }))}>
+                <SelectTrigger className="h-9 mt-1 text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SUBJECTS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Candidate letters are filled from the onboarding form and move to the employee's documents when they join.
+              </p>
             </div>
           </div>
 
@@ -371,9 +420,19 @@ export function TemplateEditorForm({
                 is identical to your document. To change wording, edit it in Word and import it again.
               </p>
               <p className="text-xs text-muted-foreground">
-                {parsed.placeholders.length} variable{parsed.placeholders.length === 1 ? "" : "s"} found — map
-                them in the panel on the right.
+                {parsed.placeholders.length} variable{parsed.placeholders.length === 1 ? "" : "s"} found — they are
+                matched to the shared variable list automatically; map any that are left in the panel on the right.
               </p>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+                <div>
+                  <Label className="text-xs">Print on company letterhead</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Puts the letterhead from Company identity behind every page and keeps text inside its safe margins.
+                    Leave off if this Word file has its own letterhead, header or footer — they would print over it.
+                  </p>
+                </div>
+                <Switch checked={letterhead} onCheckedChange={setLetterhead} />
+              </div>
               <Button type="button" size="sm" variant="outline" className="h-8"
                 onClick={() => { setLane("native"); setSourcePath(null); setSourceName(null); setDocxText(""); }}>
                 Switch to editable canvas
@@ -391,8 +450,13 @@ export function TemplateEditorForm({
               <Braces className="h-3.5 w-3.5" /> Variables detected ({parsed.placeholders.length})
             </p>
             <p className="text-[11px] text-muted-foreground">
-              Write <code>{"{field}"}</code> anywhere in the letter. Use <code>{"{{"}</code> for a literal brace.
-              Numbered tokens like <code>{"{sign1}"}</code> and <code>{"{sign2}"}</code> map independently.
+              {lane === "docx" ? (
+                <>Word files use <code>{"{{VARIABLE}}"}</code>. </>
+              ) : (
+                <>Write <code>{"{field}"}</code> anywhere in the letter. Use <code>{"{{"}</code> for a literal brace. </>
+              )}
+              Names from the Variables tab (or their aliases) map automatically, so every template shares the same
+              variables. Numbered tokens like <code>{"sign1"}</code> and <code>{"sign2"}</code> map independently.
             </p>
 
             {parsed.placeholders.length === 0 && (
@@ -406,7 +470,7 @@ export function TemplateEditorForm({
               return (
                 <div key={m.token} className="rounded-md border border-border p-2 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <code className="text-[11px] text-foreground">{`{${m.token}}`}</code>
+                    <code className="text-[11px] text-foreground">{lane === "docx" ? `{{${m.token.toUpperCase()}}}` : `{${m.token}}`}</code>
                     <span className="text-[10px] text-muted-foreground">
                       {meta?.count && meta.count > 1 ? `${meta.count}×` : ""}
                       {m.field_key ? <Check className="inline h-3 w-3 text-emerald-500 ml-1" /> : null}
@@ -418,8 +482,11 @@ export function TemplateEditorForm({
                       // Kind is stored explicitly — never inferred from how the token is spelled.
                       const dt = fieldByKey.get(v)?.data_type;
                       const kind = dt === "signature" ? "signature" : dt === "image" ? "seal" : "text";
+                      // A text variable never keeps a signatory picked for an earlier image mapping.
                       setMappings((prev) =>
-                        prev.map((x) => (x.token === m.token ? { ...x, field_key: v, kind } : x))
+                        prev.map((x) =>
+                          x.token === m.token ? { ...x, field_key: v, kind, signatory_id: kind === "text" ? null : x.signatory_id } : x
+                        )
                       );
                     }}
                   >
@@ -439,6 +506,15 @@ export function TemplateEditorForm({
                       ))}
                     </SelectContent>
                   </Select>
+                  {field && !isSignature && (
+                    <p className="text-[10px] text-muted-foreground">
+                      {field.resolver_id && RESOLVER_SOURCES[field.resolver_id]
+                        ? RESOLVER_SOURCES[field.resolver_id]
+                        : field.default_value
+                          ? `Default: ${field.default_value}`
+                          : "Asked while generating"}
+                    </p>
+                  )}
                   {isSignature && (
                     <Select
                       value={m.signatory_id || ""}

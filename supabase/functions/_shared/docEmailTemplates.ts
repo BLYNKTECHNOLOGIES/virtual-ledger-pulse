@@ -16,6 +16,8 @@ export type DocEmailCtx = {
   issuedDate: string; // already formatted, e.g. "19 Aug 2026"
   lastWorkingDate?: string | null;
   designation?: string | null;
+  /** Offer letters: formatted date of joining. */
+  joiningDate?: string | null;
   hrEmail?: string;
   category?: string | null;
 };
@@ -111,6 +113,28 @@ function appointment(c: DocEmailCtx): DocEmailTemplate {
   };
 }
 
+/** Offer of Employment — sent to a candidate before joining */
+function offer(c: DocEmailCtx): DocEmailTemplate {
+  return {
+    subject: `Offer of Employment - ${c.employeeName}`,
+    html: [
+      p(`Dear ${c.employeeName},`),
+      p(
+        `Congratulations! We are pleased to offer you ${c.designation ? `the position of <strong>${c.designation}</strong> with` : "a position with"}
+         <strong>Blynk Virtual Technologies Pvt. Ltd.</strong> Your <strong>Offer of Employment</strong> is attached.`,
+      ),
+      factTable(c, [["Designation", c.designation], ["Date of joining", c.joiningDate]]),
+      p(
+        `Please read the offer and its salary annexure carefully. To accept it, sign the acceptance section and
+         return it to the HR desk before your date of joining.`,
+      ),
+      p(`For any clarification on the terms of this offer, please write to ${mailLink(c)}.`),
+      p(`We look forward to welcoming you to the team.`),
+      p(`Warm regards,`),
+    ].join(""),
+  };
+}
+
 /** Appraisal / Increment Letter */
 function appraisal(c: DocEmailCtx): DocEmailTemplate {
   return {
@@ -171,16 +195,45 @@ function generic(c: DocEmailCtx): DocEmailTemplate {
   };
 }
 
-/** Resolve a template by category first, then by document/template name. */
-export function buildDocEmail(c: DocEmailCtx): DocEmailTemplate {
+/** Text from records (names, roles — some typed by candidates) is escaped before it enters HTML. */
+const esc = (v: string | null | undefined) =>
+  v == null
+    ? v
+    : String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+function pick(c: DocEmailCtx): (c: DocEmailCtx) => DocEmailTemplate {
   const cat = (c.category || "").toLowerCase().trim();
   const n = (c.documentName || "").toLowerCase();
+  // The letter's own type decides first; the template name is only a fallback.
+  const byCategory: Record<string, (c: DocEmailCtx) => DocEmailTemplate> = {
+    offer,
+    relieving: relievingCumExperience,
+    appointment,
+    appraisal,
+    warning,
+  };
+  if (byCategory[cat]) return byCategory[cat];
+  if (n.includes("reliev") || n.includes("experience")) return relievingCumExperience;
+  if (n.includes("appointment")) return appointment;
+  if (n.includes("offer letter") || n.includes("offer of employment")) return offer;
+  if (n.includes("appraisal") || n.includes("increment") || n.includes("promotion")) return appraisal;
+  if (n.includes("warning") || n.includes("disciplinary") || n.includes("show cause")) return warning;
+  return generic;
+}
 
-  if (cat === "relieving" || n.includes("reliev") || n.includes("experience")) return relievingCumExperience(c);
-  if (cat === "appointment" || n.includes("appointment") || n.includes("offer letter")) return appointment(c);
-  if (cat === "appraisal" || n.includes("appraisal") || n.includes("increment") || n.includes("promotion"))
-    return appraisal(c);
-  if (cat === "warning" || n.includes("warning") || n.includes("disciplinary") || n.includes("show cause"))
-    return warning(c);
-  return generic(c);
+/** Resolve a template by category first, then by document/template name. */
+export function buildDocEmail(c: DocEmailCtx): DocEmailTemplate {
+  const template = pick(c);
+  const safe: DocEmailCtx = {
+    ...c,
+    employeeName: esc(c.employeeName) as string,
+    referenceNo: esc(c.referenceNo) as string,
+    documentName: esc(c.documentName) as string,
+    issuedDate: esc(c.issuedDate) as string,
+    lastWorkingDate: esc(c.lastWorkingDate),
+    designation: esc(c.designation),
+    joiningDate: esc(c.joiningDate),
+  };
+  // Subject lines are plain text (sanitised by the sender); only the HTML is escaped.
+  return { subject: template(c).subject, html: template(safe).html };
 }

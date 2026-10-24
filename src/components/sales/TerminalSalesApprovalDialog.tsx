@@ -566,82 +566,58 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       const locked = await fetchAndLockMarketRate(asset, { entryType: 'sales_approval' });
       const marketRateUsdt = locked.price;
 
-      // Check if a sales order already exists for THIS sync record (partial approval recovery)
-      // Use terminal_sync_id instead of order_number to avoid false matches from collisions
-      const { data: existingSO } = await supabase
-        .from('sales_orders')
-        .select('id')
-        .eq('terminal_sync_id', syncRecord.id)
-        .maybeSingle();
+      const tsEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
+      const tsEffUsdtQty = quantity * tsEffRate;
+      const tsEffUsdtRate = tsEffUsdtQty > 0 ? totalAmount / tsEffUsdtQty : null;
 
-      let salesOrder: { id: string };
+      // The order, the wallet debit, the fee row, the split postings and the approval mark are saved
+      // by ONE database call (create_sales_order_with_postings): all of it is saved or none of it, so a
+      // failed approval leaves nothing behind and can simply be approved again. The rows are the same
+      // ones this dialog used to write itself, in the same order.
+      const order = {
+        order_number: orderNumber,
+        // Link by the resolved client (Binance userNo), never by name — names collide.
+        client_id: linkedClientId || null,
+        client_name: displayName,
+        client_phone: (contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null,
+        client_state: clientState || null,
+        order_date: orderDate,
+        total_amount: totalAmount,
+        quantity: quantity,
+        price_per_unit: unitPrice,
+        product_id: usdtProduct?.id || null,
+        wallet_id: od.wallet_id || null,
+        platform: od.wallet_name || 'Binance',
+        fee_percentage: 0,
+        fee_amount: commission,
+        net_amount: totalAmount,
+        sales_payment_method_id: isMultiplePayments ? null : paymentMethodId,
+        is_split_payment: isMultiplePayments,
+        payment_status: 'COMPLETED',
+        status: 'COMPLETED',
+        settlement_status: isMultiplePayments ? 'DIRECT' : (isGateway ? 'PENDING' : 'DIRECT'),
+        is_off_market: false,
+        description: `Terminal P2P Sale - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
+        created_by: userId,
+        source: 'terminal',
+        terminal_sync_id: syncRecord.id,
+        market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
+        effective_usdt_qty: tsEffUsdtQty,
+        effective_usdt_rate: tsEffUsdtRate,
+      };
+      const steps: any[] = [];
+      // The wallet debit and its fee row go after the bank and settlement postings: every money call
+      // (purchases, Small sales, New order) posts bank before wallet, so two saves at the same moment
+      // never wait on each other in opposite order.
+      const walletSteps: any[] = [];
 
-      if (existingSO) {
-        // Sales order already exists from a previous partial approval — reuse it
-        salesOrder = existingSO;
-      } else {
-        const tsEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
-        const tsEffUsdtQty = quantity * tsEffRate;
-        const tsEffUsdtRate = tsEffUsdtQty > 0 ? totalAmount / tsEffUsdtQty : null;
-
-        const { data: newSO, error: soErr } = await supabase
-          .from('sales_orders')
-          .insert({
-            order_number: orderNumber,
-            // Link by the resolved client (Binance userNo), never by name — names collide.
-            client_id: linkedClientId || null,
-            client_name: displayName,
-            client_phone: (contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null,
-            client_state: clientState || null,
-            order_date: orderDate,
-            total_amount: totalAmount,
-            quantity: quantity,
-            price_per_unit: unitPrice,
-            product_id: usdtProduct?.id || null,
-            wallet_id: od.wallet_id || null,
-            platform: od.wallet_name || 'Binance',
-            fee_percentage: 0,
-            fee_amount: commission,
-            net_amount: totalAmount,
-            sales_payment_method_id: isMultiplePayments ? null : paymentMethodId,
-            is_split_payment: isMultiplePayments,
-            payment_status: 'COMPLETED',
-            status: 'COMPLETED',
-            settlement_status: isMultiplePayments ? 'DIRECT' : (isGateway ? 'PENDING' : 'DIRECT'),
-            is_off_market: false,
-            description: `Terminal P2P Sale - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
-            created_by: userId,
-            source: 'terminal',
-            terminal_sync_id: syncRecord.id,
-            market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
-            effective_usdt_qty: tsEffUsdtQty,
-            effective_usdt_rate: tsEffUsdtRate,
-          })
-          .select('id')
-          .single();
-
-        if (soErr) throw soErr;
-        salesOrder = newSO;
-      }
-
-      // Skip wallet/fee processing if recovering from a partial approval (already done)
-      if (!existingSO) {
       // Binance SELL wallet impact = sold quantity + commission (commission is a separate crypto expense).
       // Post the full physical deduction in one wallet debit to prevent recurring drift.
       if (od.wallet_id && quantity > 0) {
         const assetCode = (od.asset || 'USDT').toUpperCase();
         const totalWalletDebit = quantity + Math.max(commission, 0);
 
-        const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
-          sales_order_id: salesOrder.id,
-          usdt_amount: totalWalletDebit,
-          wallet_id: od.wallet_id,
-          p_asset_code: assetCode,
-        });
-        if (walletErr) {
-          await supabase.from('sales_orders').delete().eq('id', salesOrder.id);
-          throw new Error(`Wallet deduction failed: ${walletErr.message}. Sales order was not created.`);
-        }
+        walletSteps.push({ op: 'wallet_deduction', wallet_id: od.wallet_id, amount: totalWalletDebit, asset_code: assetCode });
 
         // Keep fee analytics/reporting without creating a second wallet DEBIT row.
         if (commission > 0) {
@@ -652,11 +628,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             .single();
           const avgBuyPrice = Number(usdtProd?.average_buying_price || 0);
 
-          await supabase
-            .from('wallet_fee_deductions')
-            .insert({
+          walletSteps.push({
+            op: 'insert',
+            table: 'wallet_fee_deductions',
+            order_id_column: 'order_id',
+            row: {
               wallet_id: od.wallet_id,
-              order_id: salesOrder.id,
               order_type: 'SALES',
               order_number: orderNumber,
               gross_amount: totalAmount,
@@ -669,7 +646,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               fee_inr_value_at_buying_price: commission * avgBuyPrice,
               market_rate_usdt_snapshot: marketRateUsdt > 0 ? marketRateUsdt : null,
               price_fetched_at: new Date().toISOString(),
-            });
+            },
+          });
         }
       }
 
@@ -692,76 +670,100 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           if (splitIsGateway) {
             // Gateway/POS split → create pending settlement, NOT a direct INCOME entry
             hasAnyGateway = true;
-            await supabase.from('pending_settlements').insert({
-              sales_order_id: salesOrder.id,
-              order_number: orderNumber,
-              client_name: displayName,
-              total_amount: splitAmount,
-              settlement_amount: splitAmount,
-              order_date: orderDate,
-              payment_method_id: split.payment_method_id,
-              bank_account_id: resolvedBankAccountId,
-              settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
-              settlement_days: pm?.settlement_days || null,
-              expected_settlement_date: pm?.settlement_days
-                ? new Date(new Date(orderDate).getTime() + (pm.settlement_days * 86400000)).toISOString().split('T')[0]
-                : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0],
-              status: 'PENDING',
+            steps.push({
+              op: 'insert',
+              table: 'pending_settlements',
+              order_id_column: 'sales_order_id',
+              row: {
+                order_number: orderNumber,
+                client_name: displayName,
+                total_amount: splitAmount,
+                settlement_amount: splitAmount,
+                order_date: orderDate,
+                payment_method_id: split.payment_method_id,
+                bank_account_id: resolvedBankAccountId,
+                settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
+                settlement_days: pm?.settlement_days || null,
+                expected_settlement_date: pm?.settlement_days
+                  ? new Date(new Date(orderDate).getTime() + (pm.settlement_days * 86400000)).toISOString().split('T')[0]
+                  : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0],
+                status: 'PENDING',
+              },
             });
           } else {
             // Direct bank split → create INCOME bank transaction
-            await supabase.from('bank_transactions').insert({
-              bank_account_id: resolvedBankAccountId,
-              transaction_type: 'INCOME',
-              amount: splitAmount,
-              transaction_date: orderDate,
-              description: `Sales Order - ${orderNumber} - ${displayName} (Split)`,
-              reference_number: orderNumber,
-              category: 'Sales',
-              related_account_name: displayName,
-              created_by: userId,
+            steps.push({
+              op: 'insert',
+              table: 'bank_transactions',
+              row: {
+                bank_account_id: resolvedBankAccountId,
+                transaction_type: 'INCOME',
+                amount: splitAmount,
+                transaction_date: orderDate,
+                description: `Sales Order - ${orderNumber} - ${displayName} (Split)`,
+                reference_number: orderNumber,
+                category: 'Sales',
+                related_account_name: displayName,
+                created_by: userId,
+              },
             });
           }
 
           // Record split in sales_order_payment_splits
-          await supabase.from('sales_order_payment_splits').insert({
-            sales_order_id: salesOrder.id,
-            bank_account_id: resolvedBankAccountId,
-            amount: splitAmount,
-            payment_method_id: split.payment_method_id,
-            is_gateway: splitIsGateway,
-            created_by: userId,
+          steps.push({
+            op: 'insert',
+            table: 'sales_order_payment_splits',
+            order_id_column: 'sales_order_id',
+            row: {
+              bank_account_id: resolvedBankAccountId,
+              amount: splitAmount,
+              payment_method_id: split.payment_method_id,
+              is_gateway: splitIsGateway,
+              created_by: userId,
+            },
           });
         }
 
         // If any gateway split exists, set settlement_status to PENDING
         if (hasAnyGateway) {
-          await supabase
-            .from('sales_orders')
-            .update({ settlement_status: 'PENDING' })
-            .eq('id', salesOrder.id);
+          steps.push({ op: 'update_order', set: { settlement_status: 'PENDING' } });
         }
 
         // Guarantee one pending settlement per gateway split
-        await supabase.rpc('sync_split_payment_settlements', { p_order_id: salesOrder.id });
+        steps.push({ op: 'sync_split_settlements' });
       }
+      steps.push(...walletSteps);
 
-      } // end if (!existingSO)
+      // Save it all and mark the sync record approved (the call refuses a record that is no longer pending).
+      const { data: created, error: createErr } = await supabase.rpc('create_sales_order_with_postings' as any, {
+        p_order: order,
+        p_steps: steps,
+        p_source: {
+          table: 'terminal_sales_sync',
+          id: syncRecord.id,
+          set: {
+            client_id: linkedClientId || null,
+            contact_number: contactNumber || null,
+            state: clientState || null,
+            reviewed_by: userId,
+            reviewed_at: new Date().toISOString(),
+          },
+        },
+      });
+      if (createErr) throw Object.assign(createErr, { fromApprovalCall: true });
+      const salesOrder = { id: (created as unknown as { sales_order_id: string }).sales_order_id };
 
-      // Update sync record
-      const { error: updateErr } = await supabase
-        .from('terminal_sales_sync')
-        .update({
-          sync_status: 'approved',
-          sales_order_id: salesOrder.id,
-          client_id: linkedClientId || null,
-          contact_number: contactNumber || null,
-          state: clientState || null,
-          reviewed_by: userId,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', syncRecord.id);
-      if (updateErr) throw updateErr;
+      // The sale is saved. Nothing below is money or stock: a failure here must not show an error (that makes
+      // people approve again), so it is collected and shown as a warning with the success message.
+      const notSaved: string[] = [];
+      const saveExtra = async (label: string, save: () => PromiseLike<{ error?: unknown } | void>) => {
+        try {
+          const result = await save();
+          if (result && result.error) notSaved.push(label);
+        } catch {
+          notSaved.push(label);
+        }
+      };
 
       // Update counterparty contact records — only when we have a real (unmasked) nickname.
       // Masked values like "Sa***" are useless as identity keys and cause cross-contamination.
@@ -769,7 +771,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         || sanitizeNickname(od.counterparty_nickname)
         || sanitizeNickname(syncRecord.counterparty_name);
       if (contactNick && (contactNumber || clientState)) {
-        await supabase
+        await saveExtra('the Terminal contact record', () => supabase
           .from('counterparty_contact_records')
           .upsert({
             counterparty_nickname: contactNick,
@@ -777,71 +779,88 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             state: clientState || null,
             collected_by: userId,
             updated_at: new Date().toISOString(),
-          }, { onConflict: 'counterparty_nickname' });
+          }, { onConflict: 'counterparty_nickname' }));
       }
 
       // Sync contact/state to client master — overwrite if operator provides different values
       if (linkedClientId && (contactNumber || clientState)) {
-        const { data: existingClient } = await supabase
-          .from('clients')
-          .select('phone, state')
-          .eq('id', linkedClientId)
-          .maybeSingle();
+        await saveExtra("the client's phone and state", async () => {
+          const { data: existingClient } = await supabase
+            .from('clients')
+            .select('phone, state')
+            .eq('id', linkedClientId)
+            .maybeSingle();
 
-        const updates: any = {};
-        if (contactNumber && existingClient?.phone !== contactNumber) {
-          updates.phone = contactNumber;
-        }
-        if (clientState && existingClient?.state !== clientState) {
-          updates.state = clientState;
-        }
-        if (Object.keys(updates).length > 0) {
-          await supabase.from('clients').update(updates).eq('id', linkedClientId);
-        }
+          const updates: any = {};
+          if (contactNumber && existingClient?.phone !== contactNumber) {
+            updates.phone = contactNumber;
+          }
+          if (clientState && existingClient?.state !== clientState) {
+            updates.state = clientState;
+          }
+          if (Object.keys(updates).length > 0) {
+            return await supabase.from('clients').update(updates).eq('id', linkedClientId);
+          }
+        });
       }
 
       // Persist the Binance userNo → client link (the only identity anchor).
       if (linkedClientId && lockedUserNo) {
-        await linkClientUserNo(linkedClientId, lockedUserNo, 'approval');
+        await saveExtra('the Binance User No link', () => linkClientUserNo(linkedClientId, lockedUserNo, 'approval'));
       }
 
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval
       if (linkedClientId) {
-        const { data: clientRecord } = await supabase
-          .from('clients')
-          .select('buyer_approval_status, name, phone, state')
-          .eq('id', linkedClientId)
-          .maybeSingle();
-
-        if (clientRecord && clientRecord.buyer_approval_status === 'PENDING') {
-          // Check no approval record already exists for this sales order
-          const { data: existingApproval } = await supabase
-            .from('client_onboarding_approvals')
-            .select('id')
-            .eq('sales_order_id', salesOrder.id)
+        await saveExtra('the buyer approval request', async () => {
+          const { data: clientRecord } = await supabase
+            .from('clients')
+            .select('buyer_approval_status, name, phone, state')
+            .eq('id', linkedClientId)
             .maybeSingle();
 
-          if (!existingApproval) {
-            await supabase.from('client_onboarding_approvals').insert({
-              sales_order_id: salesOrder.id,
-              client_name: clientRecord.name || displayName,
-              client_phone: (clientRecord.phone && !await isPhoneBlocked(clientRecord.phone)) ? clientRecord.phone : ((contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null),
-              resolved_client_id: linkedClientId,
-              cp_userno: lockedUserNo || null,
-              binance_nickname: sanitizeNickname(od.counterparty_nickname_unmasked || od.counterparty_nickname) || null,
-              // Pass state only if operator manually entered it in the dialog.
-              // If left blank (null), Buyer Approval officer will enter it during review.
-              client_state: clientState || null,
-              order_amount: totalAmount,
-              order_date: orderDate,
-              approval_status: 'PENDING',
-            });
+          if (clientRecord && clientRecord.buyer_approval_status === 'PENDING') {
+            // Check no approval record already exists for this sales order
+            const { data: existingApproval } = await supabase
+              .from('client_onboarding_approvals')
+              .select('id')
+              .eq('sales_order_id', salesOrder.id)
+              .maybeSingle();
+
+            if (!existingApproval) {
+              const inserted = await supabase.from('client_onboarding_approvals').insert({
+                sales_order_id: salesOrder.id,
+                client_name: clientRecord.name || displayName,
+                client_phone: (clientRecord.phone && !await isPhoneBlocked(clientRecord.phone)) ? clientRecord.phone : ((contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null),
+                resolved_client_id: linkedClientId,
+                cp_userno: lockedUserNo || null,
+                binance_nickname: sanitizeNickname(od.counterparty_nickname_unmasked || od.counterparty_nickname) || null,
+                // Pass state only if operator manually entered it in the dialog.
+                // If left blank (null), Buyer Approval officer will enter it during review.
+                client_state: clientState || null,
+                order_amount: totalAmount,
+                order_date: orderDate,
+                approval_status: 'PENDING',
+              });
+              // A pending request for this client, User No or order already exists (unique index): nothing is missing.
+              if (inserted.error?.code === '23505') return;
+              return inserted;
+            }
           }
-        }
+        });
       }
+
+      return { notSaved };
     }, // end mutationFn
-    onSuccess: () => {
-      toast({ title: "Sales Order Approved", description: "Terminal sell order has been approved and sales order created" });
+    onSuccess: ({ notSaved }) => {
+      if (notSaved.length > 0) {
+        toast({
+          title: "Sales Order Approved",
+          description: `The sales order was created, but ${joinLabels(notSaved)} did not save. Check the client record.`,
+          variant: "warning",
+        });
+      } else {
+        toast({ title: "Sales Order Approved", description: "Terminal sell order has been approved and sales order created" });
+      }
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
       queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
@@ -858,7 +877,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     },
     onError: (err: Error) => {
       const { title, description } = parseApprovalError(err, 'Sales');
-      toast({ title, description, variant: "destructive" });
+      toast({ title, description: withNothingSaved(err, description), variant: "destructive" });
     },
   });
 
@@ -1323,6 +1342,26 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       </DialogContent>
     </Dialog>
   );
+}
+
+/* ── Approval messages (private to this dialog) ────────────────────────── */
+
+/**
+ * create_sales_order_with_postings saves everything or nothing. When the database answered with an error
+ * (it carries a 5-character SQLSTATE code), nothing was saved: say so, unless the message already does.
+ * A network error carries no code; then the outcome is unknown and the message is left as it is.
+ */
+function withNothingSaved(err: unknown, description: string): string {
+  const e = err as { fromApprovalCall?: boolean; code?: unknown } | null;
+  if (!e?.fromApprovalCall || !/^[0-9A-Z]{5}$/.test(String(e.code ?? ''))) return description;
+  if (/nothing was saved/i.test(description)) return description;
+  const text = description.trim();
+  return `${text}${/[.!?]$/.test(text) ? '' : '.'} Nothing was saved.`;
+}
+
+/** "a", "a and b", "a, b and c" */
+function joinLabels(labels: string[]): string {
+  return labels.length <= 1 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
 }
 
 /* ── Presentation helpers (private to this dialog) ─────────────────────── */

@@ -16,6 +16,7 @@ import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { CustomerAutocomplete } from "@/components/sales/CustomerAutocomplete";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
+import { resolveSalesOrderClientId, AmbiguousClientNameError } from "@/lib/salesClientLink";
 import { AlertTriangle, Plus, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
@@ -285,6 +286,9 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
         throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`);
       }
 
+      // Settle which client this order belongs to before anything is written or numbered:
+      // the picked client, or the only client with exactly this name — never a guess.
+      const clientId = await resolveSalesOrderClientId(selectedClientId, formData.client_name);
 
       const { data: orderNumber } = await supabase.rpc("generate_off_market_sales_order_number");
       const createdBy = await requireCurrentUserId();
@@ -293,6 +297,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
         .from("sales_orders")
         .insert([{
           order_number: orderNumber || `ERP-S-${Date.now()}`,
+          client_id: clientId,
           client_name: formData.client_name,
           client_phone: formData.client_phone || null,
           client_state: formData.client_state || null,
@@ -459,15 +464,9 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
         }
       }
 
-      // Handle client onboarding
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id, name')
-        .or(`name.ilike.%${formData.client_name}%,phone.eq.${formData.client_phone || 'NO_PHONE_MATCH'}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (!existingClient) {
+      // Handle client onboarding: no linked client means a new buyer; a linked client gets the
+      // order's phone/state (only that client — never one found by a partial name or a phone).
+      if (!clientId) {
         await supabase.from('client_onboarding_approvals').insert({
           sales_order_id: result.id,
           client_name: formData.client_name,
@@ -480,7 +479,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
       } else {
         const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
         await updateClientFromOrder({
-          clientId: existingClient.id,
+          clientId,
           phone: formData.client_phone,
           state: formData.client_state,
         });
@@ -500,6 +499,10 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
       onOpenChange(false);
     },
     onError: (err: any) => {
+      if (err instanceof AmbiguousClientNameError) {
+        toast({ title: "Pick the customer", description: err.message, variant: "destructive" });
+        return;
+      }
       const { title, description } = parseApprovalError(err, 'Sales');
       toast({ title, description, variant: "destructive" });
     },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, Building, Copy, Clock, CheckCircle, Check, WalletCards } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isMethodAvailable, withLiveSalesUsage } from "@/lib/sales-new-order";
 import { Chip, DialogBody, DialogFoot, DialogHead, PanelMessage, PanelSkeleton, dialogContentClass, fmtInr } from "@/components/orders-ui";
 
 interface PaymentMethodSelectionDialogProps {
@@ -17,7 +18,10 @@ interface PaymentMethodSelectionDialogProps {
   orderId: string;
   riskCategory: string;
   paymentType: 'UPI' | 'Bank Transfer';
-  onStatusChange: (status: string, paymentMethodId?: string) => void;
+  /** Optional: the method to preselect each time the dialog opens (when it is in the list). */
+  selectedMethodId?: string;
+  /** The chosen method's id, and the method itself (with its live usage) as a third argument. */
+  onStatusChange: (status: string, paymentMethodId?: string, paymentMethod?: any) => void;
 }
 
 export function PaymentMethodSelectionDialog({ 
@@ -28,13 +32,14 @@ export function PaymentMethodSelectionDialog({
   orderId,
   riskCategory,
   paymentType,
+  selectedMethodId,
   onStatusChange
 }: PaymentMethodSelectionDialogProps) {
   const { toast } = useToast();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
 
   // Fetch available payment methods
-  const { data: paymentMethods, isLoading } = useQuery({
+  const { data: paymentMethods, isLoading, error: loadError } = useQuery({
     queryKey: ['sales_payment_methods', riskCategory, paymentType],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -56,16 +61,28 @@ export function PaymentMethodSelectionDialog({
 
       if (error) throw error;
       
-      // Filter methods that have available capacity AND active bank accounts
-      const filteredData = (data || []).filter(method => 
-        method.current_usage < method.payment_limit &&
-        method.bank_accounts?.status === 'ACTIVE'
-      );
+      // Filter methods that have available capacity AND active bank accounts. Capacity is compared with the
+      // live usage (orders / pending settlements); the stored current_usage column is not maintained.
+      const withUsage = await withLiveSalesUsage(data || []);
+      const filteredData = withUsage.filter(method => isMethodAvailable(method, method.current_usage));
       
       return filteredData;
     },
     enabled: open
   });
+
+  // Each time the dialog opens: start from the caller's method (when it is listed), never from an earlier pick.
+  const preselectedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) {
+      preselectedFor.current = null;
+      setSelectedPaymentMethod(null);
+      return;
+    }
+    if (!paymentMethods || preselectedFor.current !== null) return;
+    preselectedFor.current = selectedMethodId ?? "";
+    setSelectedPaymentMethod(paymentMethods.find((m: any) => m.id === selectedMethodId) ?? null);
+  }, [open, paymentMethods, selectedMethodId]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -77,7 +94,7 @@ export function PaymentMethodSelectionDialog({
       toast({ title: "Error", description: "Please select a payment method", variant: "destructive" });
       return;
     }
-    onStatusChange("USER_PAYING", selectedPaymentMethod.id);
+    onStatusChange("USER_PAYING", selectedPaymentMethod.id, selectedPaymentMethod);
     onOpenChange(false);
   };
 
@@ -86,7 +103,7 @@ export function PaymentMethodSelectionDialog({
       toast({ title: "Error", description: "Please select a payment method", variant: "destructive" });
       return;
     }
-    onStatusChange("PAYMENT_DONE", selectedPaymentMethod.id);
+    onStatusChange("PAYMENT_DONE", selectedPaymentMethod.id, selectedPaymentMethod);
     onOpenChange(false);
   };
 
@@ -236,6 +253,10 @@ export function PaymentMethodSelectionDialog({
         <DialogBody>
           {isLoading ? (
             <PanelSkeleton rows={3} label="Loading payment methods" />
+          ) : loadError ? (
+            <PanelMessage icon={WalletCards} tone="danger" title="Payment methods could not be loaded" className="rounded-lg border border-dashed border-border py-10">
+              {String((loadError as Error)?.message || "Unknown error").replace(/\.$/, "")}. Close this window and try again.
+            </PanelMessage>
           ) : paymentMethods && paymentMethods.length > 0 ? (
             <div role="radiogroup" aria-label="Payment methods" className="space-y-2.5" onKeyDown={moveRadioFocus}>
               {paymentMethods.map(renderPaymentMethodCard)}

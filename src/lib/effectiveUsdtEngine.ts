@@ -38,54 +38,65 @@ export async function fetchAndLockMarketRate(
     manualPrice?: number;
   }
 ): Promise<LockedMarketRate> {
+  const rate = await fetchMarketRate(assetCode, options);
+  return recordLockedRate(rate, options);
+}
+
+/** The asset and the USDT rate to use, before anything is saved (see fetchMarketRate). */
+export interface MarketRate {
+  assetCode: string;
+  price: number;
+  source: string;
+  timestamp: Date;
+}
+
+/**
+ * The USDT rate for an asset without saving a price snapshot yet: same sources and the same refusal as
+ * fetchAndLockMarketRate. Use it when the rate must be known before a record exists (the purchase create
+ * calls take it as p_market_rate_usdt), then save the snapshot with recordLockedRate once the record has its
+ * id — price_snapshots rows cannot be updated afterwards (no UPDATE policy).
+ */
+export async function fetchMarketRate(
+  assetCode: string,
+  options?: { allowManualOverride?: boolean; manualPrice?: number },
+): Promise<MarketRate> {
   const code = assetCode?.toUpperCase() || 'USDT';
 
   // USDT is always 1:1
   if (code === 'USDT') {
-    const snapshot = await persistPriceSnapshot({
-      assetCode: 'USDT',
-      usdtPrice: 1.0,
-      source: 'Static',
-      entryType: options?.entryType,
-      referenceId: options?.referenceId,
-      referenceType: options?.referenceType,
-      requestedBy: options?.requestedBy,
-    });
-    return { price: 1.0, source: 'Static', timestamp: new Date(), snapshotId: snapshot?.id };
+    return { assetCode: 'USDT', price: 1.0, source: 'Static', timestamp: new Date() };
   }
 
   // Attempt live fetch
   const livePrice = await fetchCoinMarketRate(code);
-
   if (livePrice > 0) {
-    const snapshot = await persistPriceSnapshot({
-      assetCode: code,
-      usdtPrice: livePrice,
-      source: 'Binance',
-      entryType: options?.entryType,
-      referenceId: options?.referenceId,
-      referenceType: options?.referenceType,
-      requestedBy: options?.requestedBy,
-    });
-    return { price: livePrice, source: 'Binance', timestamp: new Date(), snapshotId: snapshot?.id };
+    return { assetCode: code, price: livePrice, source: 'Binance', timestamp: new Date() };
   }
 
   // Price unavailable — check manual override
   if (options?.allowManualOverride && options?.manualPrice && options.manualPrice > 0) {
-    const snapshot = await persistPriceSnapshot({
-      assetCode: code,
-      usdtPrice: options.manualPrice,
-      source: 'Manual',
-      entryType: options?.entryType,
-      referenceId: options?.referenceId,
-      referenceType: options?.referenceType,
-      requestedBy: options?.requestedBy,
-    });
-    return { price: options.manualPrice, source: 'Manual', timestamp: new Date(), snapshotId: snapshot?.id };
+    return { assetCode: code, price: options.manualPrice, source: 'Manual', timestamp: new Date() };
   }
 
   // Block entry — no price available
   throw new Error(`Market price unavailable for ${code}. Cannot proceed without a valid USDT rate.`);
+}
+
+/** Saves the price snapshot for a rate from fetchMarketRate (with the record it was used for, when known). */
+export async function recordLockedRate(
+  rate: MarketRate,
+  options?: { entryType?: string; referenceId?: string; referenceType?: string; requestedBy?: string },
+): Promise<LockedMarketRate> {
+  const snapshot = await persistPriceSnapshot({
+    assetCode: rate.assetCode,
+    usdtPrice: rate.price,
+    source: rate.source,
+    entryType: options?.entryType,
+    referenceId: options?.referenceId,
+    referenceType: options?.referenceType,
+    requestedBy: options?.requestedBy,
+  });
+  return { price: rate.price, source: rate.source, timestamp: rate.timestamp, snapshotId: snapshot?.id };
 }
 
 /**

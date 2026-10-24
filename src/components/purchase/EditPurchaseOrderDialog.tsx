@@ -14,6 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Minus, CheckCircle2, AlertCircle, Check, Edit, Loader2 } from "lucide-react";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
+import { pickChanged, sameAllocation, sameValue } from "@/lib/order-edit-changes";
+import { fetchMarketRate, recordLockedRate } from "@/lib/effectiveUsdtEngine";
 import { cn } from "@/lib/utils";
 import { ShareBar } from "@/components/finance-ui/primitives";
 import {
@@ -175,6 +177,9 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
   const [quantityInput, setQuantityInput] = useState('');
   const [pricePerUnitInput, setPricePerUnitInput] = useState('');
+  // What the form opened with (the saved order): a save changes only what differs from it.
+  const [initialForm, setInitialForm] = useState<typeof formData | null>(null);
+  const [initialSplits, setInitialSplits] = useState<{ multi: boolean; rows: PaymentSplit[] }>({ multi: false, rows: [] });
 
 
   // Fetch products
@@ -191,7 +196,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   // Wallets — active wallets plus this order's wallet (even if deactivated),
   // so the saved wallet always resolves in the dropdown.
   const orderWalletId = order?.wallet_id || order?.wallet?.id || order?.purchase_order_items?.[0]?.warehouse_id || '';
-  const { data: walletOptions } = useQuery({
+  const { data: walletOptions, isPending: walletOptionsPending } = useQuery({
     queryKey: ['edit_order_wallets', orderWalletId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -206,7 +211,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
 
   // Fetch bank accounts
-  const { data: bankAccounts } = useQuery({
+  const { data: bankAccounts, isPending: bankAccountsPending } = useQuery({
     queryKey: ['bank-accounts'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -220,7 +225,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   });
 
   // Fetch existing payment splits
-  const { data: existingSplits } = useQuery({
+  const { data: existingSplits, isPending: existingSplitsPending } = useQuery({
     queryKey: ['payment_splits_edit', order?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -234,7 +239,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   });
 
   // Fallback wallet for legacy orders where wallet_id/warehouse_id was not persisted
-  const { data: existingWalletCredit } = useQuery({
+  const { data: existingWalletCredit, isPending: existingWalletCreditPending } = useQuery({
     queryKey: ['purchase_wallet_credit', order?.id],
     queryFn: async () => {
       if (!order?.id) return null;
@@ -251,6 +256,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     },
     enabled: !!order?.id && open,
   });
+
+  // The form opens with the order's saved wallet, bank and splits; until they arrive a save could
+  // post against data the screen has not shown, so Update waits for them.
+  const optionsLoading = walletOptionsPending || bankAccountsPending ||
+    (!!order?.id && (existingSplitsPending || existingWalletCreditPending));
 
   useEffect(() => {
     if (order) {
@@ -272,7 +282,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         }
       }
 
-      setFormData({
+      const initial = {
         order_number: order.order_number || '',
         supplier_name: order.supplier_name || '',
         contact_number: order.contact_number || '',
@@ -287,7 +297,9 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         warehouse_id: warehouseId,
         bank_account_id: order.bank_account_id || '',
         product_id: productId,
-      });
+      };
+      setFormData(initial);
+      setInitialForm(initial);
       setQuantityInput(toDecimalInput(quantity));
       setPricePerUnitInput(toDecimalInput(pricePerUnit));
     }
@@ -297,16 +309,22 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   useEffect(() => {
     if (existingSplits && existingSplits.length > 0) {
       const isMulti = existingSplits.length > 1;
-      setIsMultiplePayments(isMulti);
-      setPaymentSplits((existingSplits as ExistingPaymentSplit[]).map((s) => ({
+      const rows = (existingSplits as ExistingPaymentSplit[]).map((s) => ({
         bank_account_id: s.bank_account_id || '',
         amount: String(s.amount || ''),
-      })));
+      }));
+      setIsMultiplePayments(isMulti);
+      setPaymentSplits(rows);
+      setInitialSplits({ multi: isMulti, rows });
       // Backfill single-select value from split when main order field is empty
       if (!isMulti && existingSplits.length === 1 && existingSplits[0].bank_account_id) {
         setFormData(prev => prev.bank_account_id
           ? prev
           : { ...prev, bank_account_id: existingSplits[0].bank_account_id }
+        );
+        setInitialForm(prev => prev && !prev.bank_account_id
+          ? { ...prev, bank_account_id: existingSplits[0].bank_account_id }
+          : prev
         );
       }
     } else if (order?.bank_account_id) {
@@ -315,19 +333,32 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         bank_account_id: order.bank_account_id, 
         amount: '' 
       }]);
+      setInitialSplits({ multi: false, rows: [] });
     } else {
       setIsMultiplePayments(false);
       setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+      setInitialSplits({ multi: false, rows: [] });
     }
   }, [existingSplits, order]);
 
-  // Calculate amounts based on TDS option
-  // Use formData.total_amount (preserves original value, only recalculated when user changes qty/price)
-  const totalAmount = parseDecimalInput(quantityInput) * parseDecimalInput(pricePerUnitInput);
+  // Calculate amounts based on TDS option.
+  // The saved total, TDS and net payable stay as saved until quantity, price or the TDS option
+  // change; then today's arithmetic applies. (Terminal purchases save the gross Binance total with
+  // the net-of-fee quantity, so quantity × price is not their total.)
+  const quantityPriceChanged = !!initialForm && (
+    parseDecimalInput(quantityInput) !== initialForm.quantity ||
+    parseDecimalInput(pricePerUnitInput) !== initialForm.price_per_unit
+  );
+  const amountsChanged = quantityPriceChanged || (!!initialForm && formData.tds_option !== initialForm.tds_option);
+  const totalAmount = quantityPriceChanged
+    ? parseDecimalInput(quantityInput) * parseDecimalInput(pricePerUnitInput)
+    : parseDecimalInput(order?.total_amount);
   const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
-  const tdsAmount = totalAmount * tdsRate;
-  const netPayableAmount = totalAmount - tdsAmount;
-  const tdsApplied = formData.tds_option !== "NO_TDS";
+  const tdsAmount = amountsChanged ? totalAmount * tdsRate : parseDecimalInput(order?.tds_amount);
+  // The amount the order's bank entry was posted with: net payable under TDS, else the total.
+  const savedNetPayable = parseDecimalInput(order?.tds_applied && order?.net_payable_amount ? order.net_payable_amount : order?.total_amount);
+  const netPayableAmount = amountsChanged ? totalAmount - tdsAmount : savedNetPayable;
+  const tdsApplied = amountsChanged ? formData.tds_option !== "NO_TDS" : !!order?.tds_applied;
 
   // Split payment allocation
   const splitAllocation = useMemo(() => {
@@ -365,8 +396,23 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       const isCompleted = order.status === 'COMPLETED';
 
+      // What really changed against the saved order (the values the form opened with). Only those
+      // are re-posted: a save that changes nothing financial reconciles nothing and rewrites no amount.
+      const initial = initialForm ?? data;
+      const quantityChanged = data.quantity !== initial.quantity;
+      const priceChanged = data.price_per_unit !== initial.price_per_unit;
+      const walletChanged = !sameValue(data.warehouse_id, initial.warehouse_id);
+      const productChanged = !sameValue(data.product_id, initial.product_id);
+      const splitsChanged = isMultiplePayments !== initialSplits.multi || (isMultiplePayments && !sameAllocation(
+        paymentSplits.map((s) => ({ id: s.bank_account_id, amount: s.amount })),
+        initialSplits.rows.map((s) => ({ id: s.bank_account_id, amount: s.amount })),
+      ));
+      const bankChanged = splitsChanged || (!isMultiplePayments && !sameValue(data.bank_account_id, initial.bank_account_id));
+      const netPayableChanged = netPayableAmount !== savedNetPayable;
+      const reconcileNeeded = bankChanged || netPayableChanged || walletChanged || quantityChanged || productChanged;
+
       // For completed orders, reconcile all dependent records (bank, wallet, fees)
-      if (isCompleted) {
+      if (isCompleted && reconcileNeeded) {
         const oldNetPayable = parseDecimalInput(order.tds_applied && order.net_payable_amount
           ? order.net_payable_amount
           : order.total_amount);
@@ -395,6 +441,21 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           if (selectedProd?.code) productCode = selectedProd.code;
         }
 
+        // A product change re-posts the coins as the new product. The order's stored USDT rate is for the old
+        // coin, so record the new coin's rate for this purchase first: the database adds the new coin's cost at
+        // that rate. Without it nothing is saved.
+        if (productChanged && productCode.toUpperCase() !== 'USDT') {
+          const newCoinRate = await fetchMarketRate(productCode);
+          const recorded = await recordLockedRate(newCoinRate, {
+            entryType: 'purchase_edit',
+            referenceId: order.id,
+            referenceType: 'purchase_order',
+          });
+          if (!recorded.snapshotId) {
+            throw new Error(`The ${productCode.toUpperCase()} rate could not be recorded for this purchase. Nothing was saved. Try again.`);
+          }
+        }
+
         // Build split payments JSON if using multiple payments
         const splitPaymentsJson = isMultiplePayments && paymentSplits.length > 0
           ? paymentSplits
@@ -407,11 +468,12 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           p_order_number: data.order_number,
           p_order_date: data.order_date,
           p_supplier_name: data.supplier_name,
-          p_old_bank_account_id: order.bank_account_id || null,
+          // An unchanged bank or wallet goes in as old = new, so the reconcile re-posts only real changes.
+          p_old_bank_account_id: bankChanged ? order.bank_account_id || null : (isMultiplePayments ? null : selectedBankId),
           p_new_bank_account_id: isMultiplePayments ? null : selectedBankId,
           p_old_net_payable: oldNetPayable,
           p_new_net_payable: netPayableAmount,
-          p_old_wallet_id: oldWalletId,
+          p_old_wallet_id: walletChanged ? oldWalletId : data.warehouse_id || null,
           p_new_wallet_id: data.warehouse_id || null,
           p_old_quantity: oldQuantity,
           p_new_quantity: data.quantity,
@@ -437,22 +499,28 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       const { data: result, error } = await supabase
         .from('purchase_orders')
         .update({
-          order_number: data.order_number,
-          supplier_name: data.supplier_name,
-          contact_number: data.contact_number,
-          total_amount: totalAmount,
-          order_date: data.order_date,
-          description: data.description,
-          assigned_to: data.assigned_to,
-          tds_applied: tdsApplied,
-          pan_number: data.pan_number,
-          tds_amount: tdsAmount,
-          net_payable_amount: netPayableAmount,
-          total_paid: netPayableAmount,
-          quantity: data.quantity,
-          price_per_unit: data.price_per_unit,
-          wallet_id: data.warehouse_id || null,
-          bank_account_id: selectedBankId,
+          // Only the columns whose value changed, so an unchanged amount is never rewritten and no
+          // trigger (TDS rebuild) acts on a value that did not change.
+          ...pickChanged({
+            order_number: data.order_number,
+            supplier_name: data.supplier_name,
+            contact_number: data.contact_number,
+            order_date: data.order_date,
+            description: data.description,
+            assigned_to: data.assigned_to,
+            pan_number: data.pan_number,
+            ...(amountsChanged ? {
+              total_amount: totalAmount,
+              tds_applied: tdsApplied,
+              tds_amount: tdsAmount,
+              net_payable_amount: netPayableAmount,
+              total_paid: netPayableAmount,
+            } : {}),
+            ...(quantityChanged ? { quantity: data.quantity } : {}),
+            ...(priceChanged ? { price_per_unit: data.price_per_unit } : {}),
+            ...(walletChanged ? { wallet_id: data.warehouse_id || null } : {}),
+            ...(bankChanged ? { bank_account_id: selectedBankId } : {}),
+          }, order),
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id)
@@ -461,22 +529,26 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       if (error) throw error;
 
-      // Update purchase order items if they exist
+      // Update purchase order items if they exist (only what changed; the item total follows quantity × price)
       if (order.purchase_order_items?.length > 0) {
-        const firstItemId = order.purchase_order_items[0].id;
-        await supabase
-          .from('purchase_order_items')
-          .update({
-            quantity: data.quantity,
-            unit_price: data.price_per_unit,
-            total_price: totalAmount,
-            warehouse_id: data.warehouse_id || null,
-            product_id: data.product_id || null,
-          })
-          .eq('id', firstItemId);
+        const firstItem = order.purchase_order_items[0];
+        const itemChanges = pickChanged({
+          ...(quantityChanged ? { quantity: data.quantity } : {}),
+          ...(priceChanged ? { unit_price: data.price_per_unit } : {}),
+          ...(quantityChanged || priceChanged ? { total_price: totalAmount } : {}),
+          ...(walletChanged ? { warehouse_id: data.warehouse_id || null } : {}),
+          ...(productChanged ? { product_id: data.product_id || null } : {}),
+        }, firstItem);
+        if (Object.keys(itemChanges).length > 0) {
+          await supabase
+            .from('purchase_order_items')
+            .update(itemChanges)
+            .eq('id', firstItem.id);
+        }
       }
 
-      if (isCompleted) {
+      // The effective USDT valuation is built from quantity, total and product: re-run it only when one changed.
+      if (isCompleted && (quantityChanged || priceChanged || productChanged)) {
         const { data: valuationResult, error: valuationError } = await supabase.rpc(
           'recalculate_purchase_order_effective_usdt' as never,
           {
@@ -625,6 +697,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (optionsLoading) return;
 
     if (!formData.order_number.trim()) {
       toast({ title: "Error", description: "Order number is required", variant: "destructive" });
@@ -709,7 +782,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         <DialogHead
           icon={Edit}
           title="Edit purchase order"
-          description="For a completed order, saving re-posts its bank, wallet and stock entries."
+          description="For a completed order, changes to amounts, TDS, product, wallet or bank re-post its ledger entries when you save."
           meta={
             <>
               <span className="inline-flex min-w-0 items-center gap-0.5">
@@ -766,9 +839,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
               <div className="space-y-3.5">
                 <FieldGrid>
                   <Field label="Product" htmlFor="edit_product_id" required>
+                    {/* The product, wallet and bank selects have no empty option: an empty value is Radix
+                        reporting a saved value whose option has not loaded yet, never a choice, so it is ignored. */}
                     <Select
                       value={formData.product_id}
-                      onValueChange={(value) => handleInputChange('product_id', value)}
+                      onValueChange={(value) => { if (value) handleInputChange('product_id', value); }}
                     >
                       <SelectTrigger id="edit_product_id">
                         <SelectValue placeholder="Select product" />
@@ -820,7 +895,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                     </RupeeAffix>
                   </Field>
 
-                  <Field label="Total amount" htmlFor="edit_total_amount" hint="Quantity × price per unit">
+                  <Field label="Total amount" htmlFor="edit_total_amount" hint={quantityPriceChanged ? "Quantity × price per unit" : "Saved on the order"}>
                     <output
                       id="edit_total_amount"
                       aria-live="polite"
@@ -839,7 +914,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                 <Field label="Wallet" htmlFor="edit_wallet_id" required>
                   <Select
                     value={formData.warehouse_id}
-                    onValueChange={(value) => handleInputChange('warehouse_id', value)}
+                    onValueChange={(value) => { if (value) handleInputChange('warehouse_id', value); }}
                   >
                     <SelectTrigger id="edit_wallet_id">
                       <SelectValue placeholder="Select wallet" />
@@ -884,7 +959,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                   {!isMultiplePayments ? (
                     <Select
                       value={formData.bank_account_id}
-                      onValueChange={(value) => handleInputChange('bank_account_id', value)}
+                      onValueChange={(value) => { if (value) handleInputChange('bank_account_id', value); }}
                     >
                       <SelectTrigger id="edit_bank_account_id">
                         <SelectValue placeholder="Select bank account" />
@@ -945,7 +1020,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                             <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
                               <Select
                                 value={split.bank_account_id}
-                                onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                                onValueChange={(value) => { if (value) updatePaymentSplit(index, 'bank_account_id', value); }}
                               >
                                 <SelectTrigger aria-label={`Split ${index + 1} bank account`}>
                                   <SelectValue placeholder="Select bank account" />
@@ -1067,7 +1142,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={updatePurchaseOrderMutation.isPending}>
+            <Button type="submit" disabled={updatePurchaseOrderMutation.isPending || optionsLoading}>
               {updatePurchaseOrderMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

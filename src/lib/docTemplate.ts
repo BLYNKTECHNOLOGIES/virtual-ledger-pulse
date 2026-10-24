@@ -118,12 +118,81 @@ export type PlaceholderMapping = {
 };
 
 
+/** The slice of a variable-dictionary entry that auto-mapping needs. */
+export interface DictionaryEntry {
+  field_key: string;
+  aliases?: string[] | null;
+  data_type?: string | null;
+}
+
+/**
+ * Normalised spelling → dictionary key. A field's own key always wins over
+ * another field's alias, so adding an alias can never hijack an existing key.
+ */
+export function buildAliasIndex(catalog: DictionaryEntry[]): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const f of catalog) {
+    const key = normaliseToken(f.field_key || "");
+    if (key && !index.has(key)) index.set(key, f.field_key);
+  }
+  for (const f of catalog) {
+    for (const a of f.aliases || []) {
+      const alias = normaliseToken(String(a || ""));
+      if (alias && !index.has(alias)) index.set(alias, f.field_key);
+    }
+  }
+  return index;
+}
+
+/** Dictionary key a template token refers to: exact key, alias, then the un-numbered base ({sign2} → sign). */
+export function autoMapToken(token: string, index: Map<string, string>): string | null {
+  const t = normaliseToken(token);
+  if (!t) return null;
+  if (index.has(t)) return index.get(t)!;
+  const { base, instance } = splitInstance(t);
+  if (instance !== null && base && index.has(base)) return index.get(base)!;
+  return null;
+}
+
+export function kindForDataType(dataType?: string | null): "text" | "signature" | "seal" {
+  if (dataType === "signature") return "signature";
+  if (dataType === "image") return "seal";
+  return "text";
+}
+
+/**
+ * Keep existing mappings, add new tokens, and — when the dictionary is known —
+ * map every still-unmapped token to the shared variable it names, so a template
+ * using {{CANDIDATE_NAME}} or {{EMPLOYEE_NAME}} needs no manual mapping.
+ * An explicit mapping is never overwritten.
+ */
 export function mergeMappings(
   placeholders: ParsedPlaceholder[],
-  existing: PlaceholderMapping[]
+  existing: PlaceholderMapping[],
+  catalog?: DictionaryEntry[]
 ): PlaceholderMapping[] {
   const byToken = new Map(existing.map((m) => [m.token, m]));
-  return placeholders.map(
+  const merged = placeholders.map(
     (p) => byToken.get(p.token) || { token: p.token, field_key: null, signatory_id: null }
   );
+  return catalog && catalog.length ? autoFillMappings(merged, catalog) : merged;
+}
+
+/**
+ * Fill only the mappings that are still empty from the dictionary. Never adds,
+ * removes or changes a mapping — safe to run whenever the dictionary loads.
+ */
+export function autoFillMappings(mappings: PlaceholderMapping[], catalog: DictionaryEntry[]): PlaceholderMapping[] {
+  if (!catalog.length || !mappings.some((m) => !m.field_key)) return mappings;
+  const index = buildAliasIndex(catalog);
+  const typeOf = new Map(catalog.map((f) => [f.field_key, f.data_type]));
+  let changed = false;
+  const out = mappings.map((m) => {
+    if (m.field_key) return m;
+    const key = autoMapToken(m.token, index);
+    if (!key) return m;
+    changed = true;
+    return { ...m, field_key: key, kind: kindForDataType(typeOf.get(key)) };
+  });
+  return changed ? out : mappings;
 }

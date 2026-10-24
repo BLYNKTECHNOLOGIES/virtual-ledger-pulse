@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
       const sent: string[] = [];
       for (const cat of cats) {
         const names: Record<string, string> = {
+          offer: "Offer Letter",
           relieving: "Relieving cum Experience Letter",
           appointment: "Appointment Letter",
           appraisal: "Appraisal Letter",
@@ -154,6 +155,7 @@ Deno.serve(async (req) => {
           issuedDate: fmt(new Date().toISOString())!,
           lastWorkingDate: cat === "relieving" ? "31 Jul 2026" : null,
           designation: "Senior Operations Manager",
+          joiningDate: cat === "offer" ? "02 Nov 2026" : null,
         });
         const subj = `[SAMPLE] ${sanitizeSubject(t.subject)}`.slice(0, 72);
         await sendMail(mb, overrideTo, subj, wrapHrEmail(t.html, {
@@ -190,6 +192,26 @@ Deno.serve(async (req) => {
         if (!to) to = String(emp.email || "").trim();
       }
     }
+    const snapshot = (doc.values_snapshot && typeof doc.values_snapshot === "object") ? doc.values_snapshot as Record<string, unknown> : {};
+    if (!doc.employee_id && doc.onboarding_id) {
+      // A letter issued to a candidate before joining goes to the email it was
+      // issued to (frozen with the letter), not whatever the record says today.
+      if (!to) to = String(snapshot.recipient_email || snapshot.employee_email || "").trim();
+      if (!to) {
+        const { data: cand } = await admin
+          .from("hr_employee_onboarding")
+          .select("email")
+          .eq("id", doc.onboarding_id).maybeSingle();
+        to = String(cand?.email || "").trim();
+      }
+    }
+
+    // Offer emails quote the role and joining date exactly as the letter printed them.
+    let joiningDate: string | null = null;
+    if (String(doc.category || "").toLowerCase() === "offer") {
+      designation = String(snapshot.designation || "").trim() || null;
+      joiningDate = String(snapshot.date_of_joining || "").trim() || null;
+    }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: "No valid recipient email available" }, 400);
 
     // Attachment — reuse the archived PDF only, never re-convert
@@ -213,6 +235,7 @@ Deno.serve(async (req) => {
       issuedDate: fmt(doc.issued_at) || fmt(new Date().toISOString())!,
       lastWorkingDate: lastWorking,
       designation,
+      joiningDate,
     });
     const safeSubject = sanitizeSubject(tpl.subject);
     const html = wrapHrEmail(tpl.html, {

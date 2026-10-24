@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { FileSignature, FilePlus2, Archive, PenLine, Library, Users, Building2 } from "lucide-react";
+import { FileSignature, FilePlus2, Archive, PenLine, Library, Users, Building2, Braces } from "lucide-react";
 import TemplatesTab from "@/components/hrms/documents/TemplatesTab";
 import SignatoriesTab from "@/components/hrms/documents/SignatoriesTab";
 import CompanyLibraryTab from "@/components/hrms/documents/CompanyLibraryTab";
@@ -9,6 +9,7 @@ import EmployeeFilesTab from "@/components/hrms/documents/EmployeeFilesTab";
 import GenerateTab from "@/components/hrms/documents/GenerateTab";
 import IssuedTab from "@/components/hrms/documents/IssuedTab";
 import CompanyIdentityTab from "@/components/hrms/documents/CompanyIdentityTab";
+import VariablesTab from "@/components/hrms/documents/VariablesTab";
 
 export default function DocumentsPage() {
   const [tab, setTab] = useState("templates");
@@ -25,6 +26,7 @@ export default function DocumentsPage() {
           <TabsTrigger value="templates" className="gap-1.5"><FileSignature className="h-4 w-4" />Templates</TabsTrigger>
           <TabsTrigger value="generate" className="gap-1.5"><FilePlus2 className="h-4 w-4" />Generate</TabsTrigger>
           <TabsTrigger value="issued" className="gap-1.5"><Archive className="h-4 w-4" />Issued</TabsTrigger>
+          <TabsTrigger value="variables" className="gap-1.5"><Braces className="h-4 w-4" />Variables</TabsTrigger>
           <TabsTrigger value="signatories" className="gap-1.5"><PenLine className="h-4 w-4" />Signatories</TabsTrigger>
           <TabsTrigger value="library" className="gap-1.5"><Library className="h-4 w-4" />Company library</TabsTrigger>
           <TabsTrigger value="identity" className="gap-1.5"><Building2 className="h-4 w-4" />Company identity</TabsTrigger>
@@ -35,6 +37,7 @@ export default function DocumentsPage() {
 
         <TabsContent value="generate"><GenerateTab /></TabsContent>
         <TabsContent value="issued"><IssuedTab /></TabsContent>
+        <TabsContent value="variables"><VariablesTab /></TabsContent>
 
         <TabsContent value="signatories"><SignatoriesTab /></TabsContent>
         <TabsContent value="library"><CompanyLibraryTab /></TabsContent>

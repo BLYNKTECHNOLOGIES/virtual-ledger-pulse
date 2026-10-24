@@ -135,8 +135,9 @@ export async function issueLetterForEmployee(
     if (!isName && !isDesig && !m.signatory_id) continue;
     const s = m.signatory_id ? signatories.find((x: any) => x.id === m.signatory_id) : signingSignatory;
     if (!s) continue;
-    if (isName) tokenValues[m.token] = s.display_name || "";
-    if (isDesig) tokenValues[m.token] = s.designation || "";
+    // Only real values — an empty designation must surface as a missing detail.
+    if (isName && s.display_name) tokenValues[m.token] = s.display_name;
+    if (isDesig && s.designation) tokenValues[m.token] = s.designation;
   }
 
   const values: Record<string, any> = {
@@ -173,6 +174,38 @@ export async function issueLetterForEmployee(
     );
   }
 
+  // Load and trial-build the Word letter before a reference number is allocated:
+  // a missing template file, letterhead or merge error must never use one up.
+  let renderWordLetter: ((ref: string) => Promise<Blob>) | null = null;
+  if (isDocx) {
+    const { data: srcBlob, error: dlErr } = await supabase.storage
+      .from("hr-doc-templates")
+      .download(version.source_file_path);
+    if (dlErr || !srcBlob) throw dlErr || new Error("The Word template file is missing");
+    const source = await srcBlob.arrayBuffer();
+    const { renderDocx, flattenDocxMedia } = await import("@/lib/docxTemplate");
+    let applyLetterhead: ((b: Blob) => Promise<Blob>) | null = null;
+    if ((version.page_setup as any)?.letterhead) {
+      // Plain Word templates are printed on the company letterhead (template setting).
+      const sheet = await resolveLetterhead(await fetchCompanyIdentity());
+      const { letterheadImage, applyLetterheadToDocxBlob } = await import("@/lib/docxLetterhead");
+      const image = await letterheadImage(sheet);
+      applyLetterhead = (b) => applyLetterheadToDocxBlob(b, sheet, image);
+    }
+    renderWordLetter = async (ref: string) => {
+      const systemValues: Record<string, string> = { reference_no: ref, generated_by: actorEmail || "" };
+      for (const m of mappings) {
+        const key = m.field_key || m.token;
+        if (key === "reference_no" || m.token === "reference_no") systemValues[m.token] = ref;
+        if (key === "generated_by" || m.token === "generated_by") systemValues[m.token] = actorEmail || "";
+      }
+      let mergedDocx = renderDocx(source.slice(0), { ...docxValues, ...systemValues }, images);
+      if (applyLetterhead) mergedDocx = await applyLetterhead(mergedDocx);
+      return flattenDocxMedia(mergedDocx);
+    };
+    await renderWordLetter("BLYNK/CHECK/0000");
+  }
+
   const { data: refNo, error: refErr } = await (supabase as any).rpc("hr_doc_allocate_reference", {
     _scope_key: `${template.category || "doc"}`,
     _pattern: template.reference_pattern || null,
@@ -185,22 +218,8 @@ export async function issueLetterForEmployee(
   let mime: string;
   let pdfPath: string | null = null;
 
-  if (isDocx) {
-    const { data: srcBlob, error: dlErr } = await supabase.storage
-      .from("hr-doc-templates")
-      .download(version.source_file_path);
-    if (dlErr || !srcBlob) throw dlErr || new Error("The Word template file is missing");
-    const { renderDocx, flattenDocxMedia } = await import("@/lib/docxTemplate");
-
-    const systemValues: Record<string, string> = { reference_no: String(refNo), generated_by: actorEmail || "" };
-    for (const m of mappings) {
-      const key = m.field_key || m.token;
-      if (key === "reference_no" || m.token === "reference_no") systemValues[m.token] = String(refNo);
-      if (key === "generated_by" || m.token === "generated_by") systemValues[m.token] = actorEmail || "";
-    }
-    const merged = await flattenDocxMedia(
-      renderDocx(await srcBlob.arrayBuffer(), { ...docxValues, ...systemValues }, images),
-    );
+  if (isDocx && renderWordLetter) {
+    const merged = await renderWordLetter(String(refNo));
     path = `${employeeId}/${safeRef}.docx`;
     mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     const { error: upErr } = await supabase.storage

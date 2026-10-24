@@ -145,23 +145,28 @@ function tenureText(doj: unknown, lwd: unknown): string {
 const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
 
 /**
- * Probation length as letter text. The person's own probation end date wins —
- * "N months" when it falls on a month boundary (±1 day), otherwise "N days" —
- * and the offer-letter policy's default applies only when no end date is set.
+ * Probation length as letter text, by the same rule the HRMS applies to
+ * probation (hr_probation_end_date): the person's own probation end date wins,
+ * otherwise the HR probation policy's default days (90). An end date that equals
+ * the policy days prints in days ("90 days"); one on a calendar-month boundary
+ * (or the day before it) prints in months; anything else in days.
  */
-export function probationText(doj: unknown, probationEnd: unknown, policyMonths: number | null | undefined): string {
+export function probationText(doj: unknown, probationEnd: unknown, policyDays: number | null | undefined): string {
   const start = toValidDate(doj);
   const end = toValidDate(probationEnd);
+  const standard = Number(policyDays);
+  const hasStandard = Number.isFinite(standard) && standard > 0;
   if (start && end && end.getTime() > start.getTime()) {
     const DAY = 86400000;
+    const days = Math.round((end.getTime() - start.getTime()) / DAY);
+    if (hasStandard && days === standard) return plural(days, "day");
     for (let n = 1; n <= 24; n++) {
       const drift = Math.round((end.getTime() - addMonths(start, n).getTime()) / DAY);
-      if (Math.abs(drift) <= 1) return plural(n, "month");
+      if (drift === 0 || drift === -1) return plural(n, "month");
     }
-    return plural(Math.round((end.getTime() - start.getTime()) / DAY), "day");
+    return plural(days, "day");
   }
-  const m = Number(policyMonths);
-  return Number.isFinite(m) && m > 0 ? plural(m, "month") : "";
+  return hasStandard ? plural(standard, "day") : "";
 }
 
 /** RazorpayX-aligned employee type → wording for a letter. */
@@ -239,7 +244,7 @@ export const RESOLVER_SOURCES: Record<string, string> = {
   "salary.special_allowance_annual": "Standard structure share of CTC (Special Allowance, takes rounding), yearly",
   "salary.lta_monthly": "Standard structure share of CTC (LTA), monthly",
   "salary.lta_annual": "Standard structure share of CTC (LTA), yearly",
-  "terms.probation_period": "Person's probation end date; else Offer letter policy months",
+  "terms.probation_period": "Person's probation end date; else the HR probation policy (90 days)",
   "terms.notice_period_probation": "Offer letter policy — notice during probation (days)",
   "terms.notice_period_confirmed": "Offer letter policy — notice after confirmation (days)",
   "company.name": "Company identity — trade name",
@@ -312,20 +317,31 @@ async function fetchCompany(): Promise<Record<string, string>> {
 }
 
 interface LetterPolicy {
-  probation_months: number | null;
+  probation_days: number;
   notice_confirmed_days: number | null;
   notice_probation_forfeit_days: number | null;
 }
 
-/** Offer-letter terms (probation, notice) — Settings → Offer letter policy. */
+/**
+ * Letter terms. Probation comes from the HR probation policy — the same default
+ * the HRMS uses to decide who is on probation (90 days unless changed there);
+ * notice periods come from the offer-letter policy.
+ */
 async function fetchLetterPolicy(): Promise<LetterPolicy> {
-  const { data } = await (supabase as any)
-    .from("hr_offer_letter_policy")
-    .select("probation_months,notice_confirmed_days,notice_probation_forfeit_days")
-    .limit(1)
-    .maybeSingle();
+  const [{ data }, { data: probation }] = await Promise.all([
+    (supabase as any)
+      .from("hr_offer_letter_policy")
+      .select("notice_confirmed_days,notice_probation_forfeit_days")
+      .limit(1)
+      .maybeSingle(),
+    (supabase as any)
+      .from("hr_probation_policy")
+      .select("default_probation_days")
+      .limit(1)
+      .maybeSingle(),
+  ]);
   return {
-    probation_months: data?.probation_months ?? null,
+    probation_days: Number(probation?.default_probation_days) || 90,
     notice_confirmed_days: data?.notice_confirmed_days ?? null,
     notice_probation_forfeit_days: data?.notice_probation_forfeit_days ?? null,
   };
@@ -493,7 +509,7 @@ async function employeeSource(employeeId: string, policy: LetterPolicy) {
     "employment.work_location": work?.location || work?.company_name || "",
     "employment.shift": shift && !shift.is_training_shift ? shiftLabel(shift) : "",
     "derived.tenure": tenureText(work?.joining_date, lastWorkingDay),
-    "terms.probation_period": probationText(work?.joining_date, work?.probation_end_date, policy.probation_months),
+    "terms.probation_period": probationText(work?.joining_date, work?.probation_end_date, policy.probation_days),
   };
 
   return {
@@ -572,7 +588,7 @@ async function candidateSource(onboardingId: string, policy: LetterPolicy) {
     "employment.work_location": "",
     "employment.shift": shift ? shiftLabel(shift) : "",
     "derived.tenure": "",
-    "terms.probation_period": probationText(o.date_of_joining, o.probation_end_date, policy.probation_months),
+    "terms.probation_period": probationText(o.date_of_joining, o.probation_end_date, policy.probation_days),
   };
 
   return {

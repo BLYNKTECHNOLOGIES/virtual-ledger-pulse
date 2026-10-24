@@ -157,13 +157,19 @@ describe("letter formatting", () => {
     expect(amountInWords(1500000000)).toBe("One Hundred Fifty Crore");
   });
 
-  it("derives the probation length from the person's own dates first", () => {
-    expect(probationText("2026-11-02", "2027-02-02", 4)).toBe("3 months");
-    expect(probationText("2026-11-02", "2027-02-01", 4)).toBe("3 months");
-    expect(probationText("2026-11-02", "2027-01-31", 4)).toBe("90 days");
-    expect(probationText("2026-11-02", null, 4)).toBe("4 months");
-    expect(probationText(null, null, 1)).toBe("1 month");
+  it("states probation by the HRMS rule: the person's end date, else the policy's 90 days", () => {
+    // No end date on the record → the HR probation policy.
+    expect(probationText("2026-11-02", null, 90)).toBe("90 days");
+    expect(probationText(null, null, 90)).toBe("90 days");
     expect(probationText(null, null, null)).toBe("");
+    // An end date of joining + 90 days reads as 90 days, even where it lands on a month boundary.
+    expect(probationText("2026-11-02", "2027-01-31", 90)).toBe("90 days");
+    expect(probationText("2027-02-01", "2027-05-02", 90)).toBe("90 days");
+    // HR set a different end date on the record → the letter follows it.
+    expect(probationText("2026-11-02", "2027-02-02", 90)).toBe("3 months");
+    expect(probationText("2026-11-02", "2027-02-01", 90)).toBe("3 months");
+    expect(probationText("2026-11-02", "2027-03-02", 90)).toBe("4 months");
+    expect(probationText("2026-11-02", "2026-12-17", 90)).toBe("45 days");
   });
 
   it("words the employee type for a letter", () => {

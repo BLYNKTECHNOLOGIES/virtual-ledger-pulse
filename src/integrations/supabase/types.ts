@@ -38540,6 +38540,10 @@ export type Database = {
         Args: { p_action: string; p_id: string; p_reason?: string }
         Returns: string
       }
+      hr_reschedule_loan: {
+        Args: { p_loan_id: string; p_new_emi: number; p_reason?: string }
+        Returns: Json
+      }
       hr_resolve_employee_by_pin: {
         Args: { _device_serial: string; _pin: string; _punch_time?: string }
         Returns: string

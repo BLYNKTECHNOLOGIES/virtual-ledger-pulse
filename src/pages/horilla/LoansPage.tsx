@@ -34,6 +34,8 @@ export default function LoansPage() {
   });
   // Month used when staging a payout addition from the loan detail dialog
   const [stageMonth, setStageMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [newEmi, setNewEmi] = useState("");
+  const [emiReason, setEmiReason] = useState("");
   // EMI is derived from amount / tenure / interest until HR types their own figure.
   const [emiTouched, setEmiTouched] = useState(false);
 
@@ -281,6 +283,27 @@ export default function LoansPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Change EMI mid-loan: collected installments stay, the rest is re-spread
+  const reschedule = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).rpc("hr_reschedule_loan", {
+        p_loan_id: selectedLoan.id, p_new_emi: Number(newEmi), p_reason: emiReason || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      qc.invalidateQueries({ queryKey: ["hr_loan_repayments", selectedLoan?.id] });
+      setSelectedLoan((prev: any) => (prev ? { ...prev, emi_amount: Number(newEmi) } : prev));
+      setEmiReason("");
+      toast.success(selectedLoan?.status === "paused"
+        ? "EMI changed — the new plan is built when recovery resumes"
+        : `EMI changed — ${d?.new_installments ?? 0} installments re-planned`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   // Pause stops the scheduler from pushing further EMIs; resume rebuilds the plan
   const togglePause = useMutation({
     mutationFn: async (pause: boolean) => {
@@ -387,7 +410,7 @@ export default function LoansPage() {
         ) : filtered.length === 0 ? (
           <Card><CardContent className="p-0"><EmptyState icon={Wallet} title="No loans found" description="Create a loan or advance for an employee." /></CardContent></Card>
         ) : filtered.map((l: any) => (
-          <Card key={l.id} onClick={() => setSelectedLoan(l)} className="cursor-pointer active:bg-muted/50">
+          <Card key={l.id} onClick={() => { setSelectedLoan(l); setNewEmi(String(l.emi_amount ?? "")); setEmiReason(""); }} className="cursor-pointer active:bg-muted/50">
             <CardContent className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -434,7 +457,7 @@ export default function LoansPage() {
                 <tr><td colSpan={9}><EmptyState icon={Wallet} title="No loans found" description="Create a loan or advance for an employee." /></td></tr>
               ) : (
                 filtered.map((l: any) => (
-                  <tr key={l.id} className="border-b hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedLoan(l)}>
+                  <tr key={l.id} className="border-b hover:bg-muted/20 cursor-pointer" onClick={() => { setSelectedLoan(l); setNewEmi(String(l.emi_amount ?? "")); setEmiReason(""); }}>
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{l.hr_employees?.first_name} {l.hr_employees?.last_name}</td>
                     <td className="px-4 py-3 capitalize">{l.loan_type?.replace(/_/g, " ")}</td>
                     <td className="px-4 py-3 font-medium text-right tabular-nums">₹{Number(l.amount).toLocaleString("en-IN")}</td>
@@ -654,6 +677,47 @@ export default function LoansPage() {
                   </div>
                 )}
               </div>
+
+              {["approved", "active", "paused"].includes(selectedLoan.status) && (() => {
+                const collected = repayments.filter((r: any) => ["paid", "pushed"].includes(r.status)).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+                const remaining = Math.max(0, Number(selectedLoan.amount || 0) - collected);
+                if (remaining <= 0) return null;
+                const emi = Number(newEmi);
+                const months = emi > 0 ? Math.ceil((remaining - 0.005) / emi) : 0;
+                return (
+                  <div className="border-t pt-4 space-y-2">
+                    <h4 className="text-sm font-semibold">Change EMI</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Already collected ₹{collected.toLocaleString("en-IN")} stays as it is. The remaining ₹{remaining.toLocaleString("en-IN")} is re-spread from the first month whose payroll has not run yet.
+                    </p>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div>
+                        <Label className="text-xs">New EMI (₹)</Label>
+                        <Input type="number" className="h-9 w-32" value={newEmi} onChange={(e) => setNewEmi(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">or months left</Label>
+                        <Input type="number" min={1} className="h-9 w-24" placeholder="—"
+                          onChange={(e) => { const m = Number(e.target.value); if (m > 0) setNewEmi(String(Math.ceil(remaining / m))); }} />
+                      </div>
+                      <div className="flex-1 min-w-[160px]">
+                        <Label className="text-xs">Reason</Label>
+                        <Input className="h-9" value={emiReason} onChange={(e) => setEmiReason(e.target.value)} placeholder="e.g. employee asked to stretch" />
+                      </div>
+                      <Button size="sm" disabled={reschedule.isPending || !(emi > 0) || emi > remaining || emi === Number(selectedLoan.emi_amount)}
+                        onClick={() => reschedule.mutate()}>
+                        Save new EMI
+                      </Button>
+                    </div>
+                    {emi > 0 && emi <= remaining && (
+                      <p className="text-xs text-muted-foreground">
+                        {months} more installment{months === 1 ? "" : "s"}{months > 1 ? `, last ₹${Math.round(remaining - emi * (months - 1)).toLocaleString("en-IN")}` : ""}.
+                      </p>
+                    )}
+                    {emi > remaining && <p className="text-xs text-destructive">EMI cannot be more than the remaining ₹{remaining.toLocaleString("en-IN")}.</p>}
+                  </div>
+                );
+              })()}
 
               {["razorpay_advance", "payroll_addition"].includes(selectedLoan.disbursement_mode) &&
                 !selectedLoan.payroll_addition_id &&

@@ -410,7 +410,7 @@ export default function LoansPage() {
         ) : filtered.length === 0 ? (
           <Card><CardContent className="p-0"><EmptyState icon={Wallet} title="No loans found" description="Create a loan or advance for an employee." /></CardContent></Card>
         ) : filtered.map((l: any) => (
-          <Card key={l.id} onClick={() => setSelectedLoan(l)} className="cursor-pointer active:bg-muted/50">
+          <Card key={l.id} onClick={() => { setSelectedLoan(l); setNewEmi(String(l.emi_amount ?? "")); setEmiReason(""); }} className="cursor-pointer active:bg-muted/50">
             <CardContent className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -457,7 +457,7 @@ export default function LoansPage() {
                 <tr><td colSpan={9}><EmptyState icon={Wallet} title="No loans found" description="Create a loan or advance for an employee." /></td></tr>
               ) : (
                 filtered.map((l: any) => (
-                  <tr key={l.id} className="border-b hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedLoan(l)}>
+                  <tr key={l.id} className="border-b hover:bg-muted/20 cursor-pointer" onClick={() => { setSelectedLoan(l); setNewEmi(String(l.emi_amount ?? "")); setEmiReason(""); }}>
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{l.hr_employees?.first_name} {l.hr_employees?.last_name}</td>
                     <td className="px-4 py-3 capitalize">{l.loan_type?.replace(/_/g, " ")}</td>
                     <td className="px-4 py-3 font-medium text-right tabular-nums">₹{Number(l.amount).toLocaleString("en-IN")}</td>

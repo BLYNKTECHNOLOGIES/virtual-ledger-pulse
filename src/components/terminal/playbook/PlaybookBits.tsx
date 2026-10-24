@@ -32,7 +32,7 @@ export function Kbd({ children }: { children: ReactNode }) {
 /** A reply as the client would read it: wraps, keeps line breaks, and marks placeholders. */
 export function ReplyText({ text, className }: { text: string | null | undefined; className?: string }) {
   if (!text) return <span className="text-xs italic text-muted-foreground">Not written yet</span>;
-  const parts = text.split(/(\{(?:amount|orderNo|name|upi|contact:[a-z][a-z0-9_]{0,23})\})/g);
+  const parts = text.split(/(\{(?:amount|orderNo|name|upi|net_amount|tds_amount|greeting|contact:[a-z][a-z0-9_]{0,23})\})/g);
   return (
     <span className={cn('whitespace-pre-wrap break-words text-xs leading-relaxed text-card-foreground', className)}>
       {parts.map((p, i) => (/^\{.+\}$/.test(p)

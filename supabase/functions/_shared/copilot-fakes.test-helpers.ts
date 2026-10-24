@@ -3,6 +3,7 @@
 import type { ChatRow } from './copilot-playbook.ts'
 import type { AppealCase, ContactPick, CopilotConfig, Example, InboxItem, MatchArgs, MatchRow, RephraseCall, RequestRow, Store, Team } from './copilot-store.ts'
 import type { Mark } from './copilot-situation.ts'
+import type { StepEntry } from './copilot-steps.ts'
 import type { Ai, ChatOpts, ChatResult, EmbedResult } from './copilot-ai.ts'
 
 export const SHUBHAM = 'd1a85fd5-f5a8-47af-ae42-e0b4683d82c9'
@@ -166,6 +167,29 @@ export class FakeStore implements Store {
     Object.assign(x, { status: 'open', resolved_by: null, resolution: null, context })
     return Promise.resolve(true)
   }
+  /** The Playbook's steps (kind 'step'). */
+  stepRows: StepEntry[] = []
+  steps() { return Promise.resolve(this.stepRows) }
+  /** One save per press (copilot_learn_keys). */
+  learnKeys = new Map<string, { user_id: string; order_number: string; result: any; token?: string }>()
+  undoneEvents = new Set<string>()
+  claimLearnKey(key: string, userId: string, orderNumber: string) {
+    const k = this.learnKeys.get(key)
+    if (k) return Promise.resolve({ claimed: false, token: null, result: k.result })
+    const token = id()
+    this.learnKeys.set(key, { user_id: userId, order_number: orderNumber, result: null, token })
+    return Promise.resolve({ claimed: true, token, result: null })
+  }
+  reclaimLearnKey(key: string, userId: string, undoneEventId: string) {
+    const k = this.learnKeys.get(key)
+    if (!k || k.result?.eventId !== undoneEventId) return Promise.resolve(null)
+    const token = id()
+    Object.assign(k, { result: null, user_id: userId, token })
+    return Promise.resolve(token)
+  }
+  finishLearnKey(key: string, token: string | null, result: any) { const k = this.learnKeys.get(key); if (k && token && k.token === token) k.result = result; return Promise.resolve() }
+  releaseLearnKey(key: string, token: string | null) { const k = this.learnKeys.get(key); if (k && token && k.token === token) this.learnKeys.delete(key); return Promise.resolve() }
+  eventUndone(e: string) { return Promise.resolve(this.undoneEvents.has(e)) }
   learnFails: { message: string; code?: string } | null = null
   setExampleNote(exampleId: string, note: string) { this.exampleNotes.push({ id: exampleId, note }); return Promise.resolve() }
   learnApply(p: Record<string, unknown>) {
@@ -176,6 +200,7 @@ export class FakeStore implements Store {
   undo(u: string, e: string) {
     this.undoCalls.push([u, e])
     if (e === '00000000-0000-4000-8000-999999999999') return Promise.resolve({ error: { message: 'This entry changed after that save; edit it on the Playbook page instead', code: '22023' } })
+    this.undoneEvents.add(e)
     return Promise.resolve({ data: { event_id: e, undone: true, action: 'created' } })
   }
 }

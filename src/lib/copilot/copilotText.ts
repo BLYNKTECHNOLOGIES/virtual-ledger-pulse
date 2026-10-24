@@ -15,21 +15,27 @@ export interface CopilotPick {
   title?: string;
   /** A reply picked for another step: sending it sets the chat to that step, and it is saved under it. */
   situation?: { code: string; label: string; side: 'BUY' | 'SELL'; detected: string | null } | null;
+  /** Inserted from the panel's next step (the step's key): sending it as it is counts a use of that step. */
+  step?: string | null;
 }
 
 interface EntrySource { entryId: string; title: string; text: string; conflict?: boolean }
 interface DraftSource { callId: string | null; text: string; blocked: boolean }
 interface StepSource extends EntrySource { steps: string[]; stepLabels: string[] }
+/** A step of the team's script offered as the next message (copilot-draft "next"). */
+interface ScriptSource { entryId: string; label: string; text: string; option?: boolean; key?: string }
 
 /**
  * The suggestions in the order the panel shows them and the composer cycles them: the Playbook replies for this
- * step, the AI drafts (also for this step), then the replies for other steps. A reply for another step carries its
- * step (the first one listed: the step the chat will show once it is sent, else the closest), so sending it sets the
- * chat to that step and saves it there.
+ * step, the AI drafts (also for this step), then the replies for other steps, then the next step of the script. A reply
+ * for another step carries its step (the first one listed: the step the chat will show once it is sent, else the
+ * closest), so sending it sets the chat to that step and saves it there. When the client asked nothing (nothing to
+ * look up), the next step of the script comes first.
  */
 export function buildCopilotPicks(a: {
   playbook: EntrySource[]; drafts: DraftSource[]; alternatives?: StepSource[] | null; requestId: string | null;
   side: 'BUY' | 'SELL' | null; detected: string | null; fill: (text: string) => string;
+  script?: ScriptSource[] | null; scriptFirst?: boolean;
 }): CopilotPick[] {
   const stepOf = (p: StepSource): CopilotPick['situation'] =>
     (a.side && p.steps[0] ? { code: p.steps[0], label: p.stepLabels[0] ?? p.steps[0], side: a.side, detected: a.detected } : null);
@@ -41,7 +47,12 @@ export function buildCopilotPicks(a: {
     const situation = stepOf(p);
     if (!p.conflict && situation) picks.push({ kind: 'entry', entryId: p.entryId, requestId: a.requestId, text: a.fill(p.text), title: p.title, situation });
   }
-  return picks;
+  // The script's steps: the next one before the options; a step already offered as a reply is not offered twice.
+  const shown = new Set(picks.map((p) => p.entryId).filter(Boolean));
+  const script = [...(a.script ?? [])].sort((x, y) => Number(!!x.option) - Number(!!y.option))
+    .filter((s) => !shown.has(s.entryId))
+    .map((s) => ({ kind: 'entry' as const, entryId: s.entryId, requestId: a.requestId, text: a.fill(s.text), title: s.label, step: s.key ?? null }));
+  return a.scriptFirst ? [...script, ...picks] : [...picks, ...script];
 }
 
 /** One suggestion's identity (two suggestions can have the same text; a draft whose call was not logged has no id). */
@@ -60,7 +71,10 @@ export function teamLabel(code: string, teams?: Array<{ code: string; label: str
   return teams?.find((t) => t.code === code)?.label ?? TEAM_FALLBACK[code] ?? code;
 }
 
-/** Fills order values ({amount} {orderNo} {name} {upi}) and company contact numbers. Unknown tokens stay visible. */
+/**
+ * Fills order values ({amount} {orderNo} {name} {upi}; {net_amount} {tds_amount} on buy orders; {greeting}) and company
+ * contact numbers. Unknown tokens stay visible.
+ */
 export function fillCopilotText(text: string, values: TemplateOrderValues | undefined, contacts: PickedContacts | undefined): string {
   const withValues = fillTemplate(text, values || {});
   return withValues.replace(CONTACT_RE, (whole, purpose: ContactPurpose) => contacts?.[purpose]?.phone ?? whole);
@@ -72,7 +86,7 @@ export function contactsUsed(text: string): ContactPurpose[] {
   return [...out];
 }
 
-const TOKEN_RE = /\{(amount|orderNo|name|upi|contact:[a-z][a-z0-9_]{0,23})\}/g;
+const TOKEN_RE = /\{(amount|orderNo|name|upi|net_amount|tds_amount|greeting|contact:[a-z][a-z0-9_]{0,23})\}/g;
 
 /**
  * Hides personal numbers and handles in text an approver adds to the Playbook — the same rules, in the same order, the
@@ -239,7 +253,12 @@ export function statusLabel(status: string | null | undefined, side?: 'BUY' | 'S
 
 export interface LearnResult {
   eventId?: string;
-  action?: 'created' | 'merged' | 'promoted' | 'updated' | 'conflict' | 'replaced' | 'widened' | 'variant';
+  action?: 'created' | 'merged' | 'promoted' | 'updated' | 'conflict' | 'replaced' | 'widened' | 'variant' | 'skipped';
+  /** A step of the team's script ('step'), counted as used rather than learned. */
+  kind?: 'step' | null;
+  stepKey?: string | null;
+  /** The same press reached the server again: this is the first save's answer. */
+  repeated?: boolean;
   entryId?: string;
   topicId?: string | null;
   title?: string;
@@ -252,11 +271,22 @@ export interface LearnResult {
   situation?: string | null;
 }
 
-/** Toast wording after a reply was saved to the Playbook. */
-export function learnToast(r: LearnResult): { title: string; description: string; tone: 'success' | 'warning' } {
+/** Toast wording after a reply was saved to the Playbook (or, for a step or a message that asked nothing, why not). */
+export function learnToast(r: LearnResult): { title: string; description: string; tone: 'success' | 'warning' | 'info' } {
   const t = r.title ? `“${r.title}”` : 'this reply';
   const sit = r.situation ? ` (${r.situation})` : '';
   const wording = r.phrasing === 'added' ? ' The client’s wording was added as another way of asking, so a similar message can match without AI next time.' : '';
+  if (r.repeated) return { title: 'Already saved', description: `This reply was saved for this chat before${r.title ? `: ${t}` : ''}.`, tone: 'info' };
+  if (r.action === 'skipped') {
+    if (r.reason === 'step_edited') return { title: 'Sent as you wrote it', description: `Script step ${t} keeps its words. To change them, use Edit or the Playbook page.`, tone: 'info' };
+    if (r.reason === 'no_question') return { title: 'Not saved to the Playbook', description: 'There was no question to file it under (the client sent a picture, a number or an answer to ours).', tone: 'info' };
+    if (r.reason === 'step_empty') return { title: 'Not counted', description: `Script step ${t} has no saved words in this language yet.`, tone: 'info' };
+    return { title: 'Not saved to the Playbook', description: r.title ? `${t} was not saved.` : 'Nothing was saved.', tone: 'info' };
+  }
+  if (r.kind === 'step') {
+    if (r.action === 'promoted') return { title: 'Playbook confirmed', description: `Script step ${t} is now approved.`, tone: 'success' };
+    return { title: 'Script step used', description: `${t} counted as used.`, tone: 'success' };
+  }
   switch (r.action) {
     case 'created': return { title: 'Saved to Playbook', description: `New question ${t}${sit}`, tone: 'success' };
     case 'merged': return { title: 'Saved to Playbook', description: `Reply for ${t}${sit} used again.${wording}`, tone: 'success' };
@@ -268,6 +298,63 @@ export function learnToast(r: LearnResult): { title: string; description: string
     case 'conflict': return { title: 'Saved — conflict to resolve', description: `Differs from the approved ${t}. Pick one in the Playbook inbox.`, tone: 'warning' };
     default: return { title: 'Saved to Playbook', description: t, tone: 'success' };
   }
+}
+
+// ─── Next step: the waiting clock and Binance actions ─────────────────────────────────────────────────
+
+/**
+ * How long the client has waited for our reply, as a chip: amber from 3 minutes, red from 5 (new clients leave after ~11).
+ * Only on an open order while the client wrote last (the screen knows it at once when we reply).
+ */
+export function waitingChip(sinceIso: string | null | undefined, now: number, open = true): { label: string; tone: 'muted' | 'amber' | 'red'; title: string } | null {
+  const since = sinceIso ? Date.parse(sinceIso) : NaN;
+  if (!open || !Number.isFinite(since)) return null;
+  const mins = Math.max(0, Math.floor((now - since) / 60_000));
+  return {
+    label: `Client waiting ${minsLabel(mins)}`,
+    tone: mins >= 5 ? 'red' : mins >= 3 ? 'amber' : 'muted',
+    title: `The client has been waiting for our reply since ${istClock(since, now)}`,
+  };
+}
+
+/**
+ * An action in Binance or the bank the script calls for now (not a message). "Share the payment details" only when the
+ * client is known to be verified (false); unknown counts as not verified.
+ */
+export function hintText(hint: 'share_details' | 'send_proof' | 'extend_time', beforeVerification: boolean | null | undefined): { label: string; title: string } {
+  if (hint === 'extend_time') return { label: 'Extend the payment time in Binance', title: 'KYC is still running and the order is about to expire.' };
+  if (hint === 'send_proof') return { label: 'Send the payment screenshot first', title: 'The order is marked paid but there is no payment proof in the chat yet.' };
+  return beforeVerification === false
+    ? { label: 'Share the payment details', title: 'The client is verified and has no payment details in the chat yet.' }
+    : { label: 'Verify the client in Binance, then share the payment details', title: 'The KYC steps are done (or KYC is on file). The payment details go only after Binance’s Verify.' };
+}
+
+/**
+ * The next step read again quietly (mode 'context') merged into what the panel shows: the next step and the order facts
+ * are the refresh's; the suggestions stay. For every team the refresh names (with a number, or missing one), its view wins,
+ * so a number added (or a team switched off) since the last answer shows as it is now.
+ */
+export function mergeRefresh<T extends { next?: unknown; context?: unknown; contacts?: Partial<Record<string, unknown>>; missingContacts?: string[] }>(
+  d: T, res: Pick<T, 'next' | 'context' | 'contacts' | 'missingContacts'>,
+): T {
+  const named = new Set([...Object.keys(res.contacts ?? {}), ...(res.missingContacts ?? [])]);
+  const contacts: Partial<Record<string, unknown>> = { ...(d.contacts ?? {}) };
+  for (const p of named) {
+    if (res.contacts && res.contacts[p] !== undefined) contacts[p] = res.contacts[p];
+    else delete contacts[p];
+  }
+  const missing = [...(d.missingContacts ?? []).filter((p) => !named.has(p)), ...(res.missingContacts ?? [])];
+  return { ...d, next: res.next ?? d.next, context: res.context ?? d.context, contacts: contacts as T['contacts'], missingContacts: [...new Set(missing)] };
+}
+
+/**
+ * Whether a new chat message calls for the next step to be read again: not the chat's first messages arriving, and not a
+ * new client message or our reply to one (the panel reloads for those itself); our further messages and Binance's
+ * notices do.
+ */
+export function refreshAfterMessage(a: { prevChat: string; chat: string; prevTrigger: string | null; trigger: string | null }): boolean {
+  if (a.chat === a.prevChat || !a.prevChat) return false;
+  return a.trigger === a.prevTrigger;
 }
 
 // ─── Order and client facts for the panel ───────────────────────────────────────────────────────────

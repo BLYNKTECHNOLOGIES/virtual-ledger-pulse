@@ -11,6 +11,7 @@ import {
   beforeVerification, detectSituation, evidenceText, resolveSituation, situationDef, verifiedBy, type Mark, type OrderSignals, type Situation,
 } from './copilot-situation.ts'
 import type { AppealCase, CopilotConfig, Store } from './copilot-store.ts'
+import { type PlanInput, waitingSince } from './copilot-steps.ts'
 
 export interface OrderHint {
   tradeType?: string | null
@@ -290,15 +291,32 @@ export function contextSummary(c: ChatContext): Record<string, unknown> {
     pay_by: iso(d.payBy),
     release_by: iso(d.releaseBy),
     appeal_case: c.appeal ? { status: c.appeal.status, response_due: iso(c.appeal.responseDueAt) } : null,
+    // Since when the client has been waiting for us (their first message after our last one), for the panel's clock.
+    client_waiting_since: iso(waitingSince(c.transcript)),
     // What we hold on this client, as counts and yes/no (for the panel's client line).
     client: c.clientState === 'new' ? null : {
-      on_file: [...(Array.isArray(f.documents_on_file) ? f.documents_on_file : []), ...(f.phone_on_file ? ['phone'] : [])],
+      on_file: onFileOf(c),
       earlier_orders: earlierOrders(c.side, f),
       // Appeal cases on the client's orders, this one included (as the client card counts them).
       appeals: f.appeals_on_this_clients_orders ?? null,
       name_check: f.binance_name_vs_client_record ?? null,
       limit_request_pending: f.limit_request_pending === true,
     },
+  }
+}
+
+/** What we hold on the client ('aadhaar', 'pan', 'vkyc', 'bank_statement', 'source_of_fund', 'phone'); empty for a new client. */
+export function onFileOf(c: Pick<ChatContext, 'clientState' | 'clientFacts'>): string[] {
+  if (c.clientState === 'new') return []
+  const f = c.clientFacts as Record<string, any>
+  return [...(Array.isArray(f.documents_on_file) ? f.documents_on_file : []), ...(f.phone_on_file ? ['phone'] : [])]
+}
+
+/** The order as the next-step plan reads it (copilot-steps.ts): side, status, step, client, the chat and the pay deadline. */
+export function stepInput(c: ChatContext, now: Date, over: Partial<PlanInput> = {}): PlanInput {
+  return {
+    side: c.side, status: c.status, stage: c.situation.code, clientState: c.clientState, onFile: onFileOf(c),
+    transcript: c.transcript, now: now.getTime(), payBy: liveDeadlines(c).payBy, ...over,
   }
 }
 

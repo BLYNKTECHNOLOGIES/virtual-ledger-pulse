@@ -138,10 +138,27 @@ const hhmm = (ms: number) =>
   new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ms))
 
 const ours = (m: Msg) => m.who === 'us' || m.who === 'auto'
+/** Our message saying the money went ("payment done sir please check and release", "we have sent the payment"). */
+const PAID_PROOF = /\b(payment (is |has been )?(done|sent|made|completed|transferred)|we have (sent|made|completed|transferred) the payment|payment (bhej|kar) (diya|di|diye)|paid)\b/i
+/** Our request for the KYC documents themselves (not the purpose, source of funds or mobile number alone). */
+const DOCS_ASK = /\baadha+r\b|\badhar\b|\bpan\s*card\b|\bdocuments?\b|\bid\s*(card|proof)\b/i
+/**
+ * Asking again for what was sent: in so many words ("again", "not clear", "once more", "missing", "the photo is cut",
+ * "share the correct Aadhaar"), or for one side only ("back side aadhar", "the other side"). A first request names both
+ * sides ("front and back side", "both sides"); "properly" or "your details are correct" ask nothing again. (Our Aadhaar
+ * messages over 14 days to 24 Oct 2026: 41 re-asks, 1,688 first requests and others.)
+ */
+const RE_ASK_WORDS = /\b(again|not clear|unclear|blur\w*|once more|dobara|phir se|fir se|missing|re-?send|re-?upload|not visible|not readable|cut|cropped|incomplete|other side)\b|\b(share|send|upload|provide)\b[^.?!]{0,20}\bcorrect\b/i
+const FRONT_SIDE = /\bfront\s*(side|part|photo|image|pic|copy)\b/i
+const BACK_SIDE = /\bback\s*(side|part|photo|image|pic|copy)\b|\bbackside\b/i
+const reAsks = (text: string) => RE_ASK_WORDS.test(text)
+  || (FRONT_SIDE.test(text) && !/\bback(side)?\b/i.test(text)) || (BACK_SIDE.test(text) && !/\bfront\b/i.test(text))
+/** Our screenshot often goes a moment before the order is marked paid. */
+const PROOF_LEAD_MS = 5 * 60_000
 
 // Our standard messages (operators follow a script; checked against 30 days of chats). The verification call is the
 // KYC team's, even where operators' messages say "RM team".
-const KYC_ASK = /\baadha+r\b|\bmobile (no|number)\b|\bpurpose of (buying|purchas)|\bsource of (fund|income)|\bkyc\b[^.?!]{0,40}\b(share|send|complete|submit|provide)\b|\b(share|send|provide)\b[^.?!]{0,40}\b(documents?|kyc)\b/i
+const KYC_ASK = /\baadha+r\b|\bmobile (no|number)\b|\b(front|back) side\b|\bpurpose of (buying|purchas)|\bsource of (fund|income)|\bkyc\b[^.?!]{0,40}\b(share|send|complete|submit|provide)\b|\b(share|send|provide)\b[^.?!]{0,40}\b(documents?|kyc)\b/i
 const RM = /one[\s-]?time verification|\brm\b|relationship manager|verifying with (the )?team|verification (is )?(in progress|pending|under process)|team will (connect|call|reach)|\bvideo kyc\b|\bvkyc\b|will (call|connect with) you|\bek\s*baar\s*(ka\s+|ki\s+)?verification\b(?!\s+(complete|poori|puri|done|ho\s+ja|hone|hote|ke\s+baad))|\b(kyc|verification)\b[^.?!]{0,60}\b(connect|call)\s+(karegi|karega|karenge)\b/i
 // A UPI ID may end a sentence ("our UPI ID is blynk@ybl."); "blynk@ybl.in" is an e-mail address, not a UPI ID.
 const UPI_ID = /\b[a-z0-9._-]{2,}@[a-z]{2,}\b(?!@|[.-][a-z0-9])/i
@@ -177,6 +194,18 @@ const KYC_NOT_DONE = /\b(not|nahi|nahin|yet to|pending|incomplete)\b[^.?!]{0,20}
 const saysKycDone = (text: string) => KYC_DONE.test(text) && !KYC_NOT_DONE.test(text)
 const PROMISE = /\b(sending|will send|i will share|bhej (raha|rahi|deta|deti|dunga|dungi)|abhi bhej|one min(ute)?|1 min)\b/i
 
+// The same readings for the next-step script (copilot-steps.ts), so a step and the situation never disagree.
+/** Our verification-call message ("our team will connect you shortly", "one-time verification… RM team"). */
+export const isVerificationCallText = (text: string | null | undefined) => RM.test(String(text ?? ''))
+/** Our message gives the payment details, or tells the client to pay to them now. */
+export const sharesPaymentDetails = (text: string | null | undefined) => sharesDetails(String(text ?? ''))
+/** A client message that asks something ("?", how / what / kitna…). */
+export const isQuestionText = (text: string | null | undefined) => QUESTION.test(String(text ?? ''))
+/** "sending", "one min": the client is about to send something. */
+export const isPromiseText = (text: string | null | undefined) => PROMISE.test(String(text ?? ''))
+/** Our request for documents again (the photo is not clear, the back side, once more…), not the first request. */
+export const isReAskText = (text: string | null | undefined) => reAsks(String(text ?? ''))
+
 const latest = (t: Msg[], f: (m: Msg) => boolean): Msg | null => {
   for (let i = t.length - 1; i >= 0; i--) if (f(t[i])) return t[i]
   return null
@@ -200,7 +229,15 @@ function fromStatus(side: Side | null, status: string, t: Msg[]): Detected | nul
   if (status === 'BUYER_PAYED') {
     const e = ev(['seller_payed', 'buyer_payed'])
     if (side === 'SELL') return { code: 'sell.pay.checking', evidence: [{ at: e?.at ?? null, text: 'Client marked the order as paid' }], since: e?.at ?? 0 }
-    if (side === 'BUY') return { code: 'buy.pay.sent', evidence: [{ at: e?.at ?? null, text: 'We marked the order as paid' }], since: e?.at ?? 0 }
+    if (side === 'BUY') {
+      // Marked paid is not yet paid: the order is sometimes marked before the money goes (Oct 2026: 4 of 263 buy orders,
+      // the screenshot 8–35 min later). Until our proof is in the chat (a screenshot, or our "payment done" text, from
+      // shortly before the mark on) we are still paying, so nothing says the money was sent.
+      if (e && !t.some((m) => m.who === 'us' && m.at >= e.at - PROOF_LEAD_MS && (m.kind === 'image' || m.kind === 'file' || (m.kind === 'text' && PAID_PROOF.test(m.text))))) {
+        return { code: 'buy.pay.processing', evidence: [{ at: e.at, text: 'We marked the order as paid' }, { at: null, text: 'no payment proof in the chat yet' }], since: e.at }
+      }
+      return { code: 'buy.pay.sent', evidence: [{ at: e?.at ?? null, text: 'We marked the order as paid' }], since: e?.at ?? 0 }
+    }
   }
   return null
 }
@@ -269,7 +306,13 @@ function detectSell(t: Msg[], sig: OrderSignals, now: number): Detected {
   }
 
   const after = askMsg?.at ?? kycStart
-  const gave = latest(t, (m) => m.at > after && answer(m))
+  // A repeat of the standard documents request after the client already sent documents asks nothing new: clients upload
+  // as soon as Binance's card asks (17–23 Oct 2026: 19% of completed sell orders), and the operator's request often
+  // follows. The documents are in; we are checking them. A real re-ask ("not clear", "back side aadhar", "again") still waits
+  // for new ones, and the request stays our latest step (an approver's earlier correction ends there).
+  const repeatOnly = !!askMsg && DOCS_ASK.test(askMsg.text) && !reAsks(askMsg.text)
+    && t.some((m) => m.at > kycStart! && m.at < askMsg!.at && m.who === 'client' && (m.kind === 'image' || m.kind === 'file'))
+  const gave = latest(t, (m) => m.at > (repeatOnly ? kycStart! : after) && answer(m))
   const docs = latest(t, (m) => m.at > kycStart! && m.who === 'client' && (m.kind === 'image' || m.kind === 'file'))
   if (gave) {
     const ev: Evidence[] = []

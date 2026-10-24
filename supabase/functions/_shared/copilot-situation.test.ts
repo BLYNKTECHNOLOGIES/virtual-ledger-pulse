@@ -19,6 +19,7 @@ const at = (min: number) => T0 + min * 60_000
 const us = (min: number, text: string): ChatRow => ({ binance_message_id: `u${++n}`, message_type: 'text', sender_is_self: true, message_text: text, binance_create_time: at(min) })
 const client = (min: number, text: string, type = 'text'): ChatRow => ({ binance_message_id: `c${++n}`, message_type: type, sender_is_self: false, message_text: text, binance_create_time: at(min) })
 const sys = (min: number, type: string): ChatRow => ({ binance_message_id: `s${++n}`, message_type: 'system', is_system_message: true, message_text: JSON.stringify({ type }), binance_create_time: at(min) })
+const usPic = (min: number): ChatRow => ({ binance_message_id: `p${++n}`, message_type: 'image', sender_is_self: true, message_text: '', binance_create_time: at(min) })
 const auto = (min: number, text: string, self = true): ChatRow => ({ dedupe_key: `a${++n}`, message_type: 'auto_reply', sender_is_self: self, message_text: text, binance_create_time: at(min) })
 const card = (min: number): ChatRow => ({ binance_message_id: `k${++n}`, message_type: 'card', sender_is_self: true, message_text: '{"addKycVrfInfo":[{"displayTitleValue":"Identity"}]}', binance_create_time: at(min) })
 
@@ -107,7 +108,40 @@ Deno.test('buy: details asked, received, paying, beneficiary waiting period, pai
   eq(evidenceText(c.evidence), 'Beneficiary added 11:15 · payment possible from about 11:45')
   const ended = sit('BUY', 'TRADING', cooling, 36)
   eq(ended.code, 'buy.pay.processing'); eq(evidenceText(ended.evidence), 'Beneficiary waiting period ended 11:45')
-  eq(sit('BUY', 'BUYER_PAYED', [...cooling, sys(40, 'buyer_payed')], 41).code, 'buy.pay.sent')
+  eq(sit('BUY', 'BUYER_PAYED', [...cooling, sys(40, 'buyer_payed'), usPic(40.2)], 41).code, 'buy.pay.sent')
+})
+
+Deno.test('buy: marked paid is "waiting for release" only once our proof is in the chat', () => {
+  const paying = [sys(0, 'buyer_merchant_trading'), us(0.3, 'Good Evening Sir'), us(1, 'Kindly wait sir paying on your given details')]
+  const marked = sit('BUY', 'BUYER_PAYED', [...paying, sys(10, 'buyer_payed')], 11)
+  eq(marked.code, 'buy.pay.processing', 'marked paid with no screenshot yet: the money may not have gone')
+  eq(evidenceText(marked.evidence), 'We marked the order as paid 11:20 · no payment proof in the chat yet')
+  eq(sit('BUY', 'BUYER_PAYED', [...paying, sys(10, 'buyer_payed'), usPic(10.1)], 11).code, 'buy.pay.sent')
+  eq(sit('BUY', 'BUYER_PAYED', [...paying, usPic(8), sys(10, 'buyer_payed')], 11).code, 'buy.pay.sent', 'the screenshot went just before the mark')
+  eq(sit('BUY', 'BUYER_PAYED', [...paying, sys(10, 'buyer_payed'), us(30, 'Payment done kindly check and release')], 31).code, 'buy.pay.sent')
+  eq(sit('BUY', 'BUYER_PAYED', [...paying, usPic(1.2), sys(10, 'buyer_payed')], 11).code, 'buy.pay.processing',
+    'a picture of ours from long before the mark (our company documents) is not the proof')
+  eq(sit('BUY', 'BUYER_PAYED', paying, 11).code, 'buy.pay.sent', 'without the notice in the chat, the status alone decides (as before)')
+})
+
+Deno.test('sell: documents sent before our standard request are not asked for again', () => {
+  const rows = [sys(0, 'order_created_with_additional_kyc_maker_sell'), card(0.02), client(0.2, 'img', 'image'), client(0.25, 'img', 'image'),
+    us(0.4, 'Good Evening Sir'), us(0.5, 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no')]
+  const s = sit('SELL', 'TRADING', rows)
+  eq(s.code, 'sell.kyc.review', 'the documents are already in')
+  eq(s.since, at(0.5), 'the request is still our latest step')
+  eq(sit('SELL', 'TRADING', [...rows, us(1, 'Sir, the Aadhar image is not clear. Please share it again')]).code, 'sell.kyc.pending', 'a real re-ask waits')
+  eq(sit('SELL', 'TRADING', [...rows, us(1, 'Please share back side also sir')]).code, 'sell.kyc.pending')
+  // CP-8: a typed first request after the documents names both sides; one side, "again" or "the correct Aadhaar" is a re-ask
+  for (const first of ['please share aadhar front and back side sir', 'Sir please share both side aadhar card image & mobile no', 'Please share your Aadhaar properly']) {
+    eq(sit('SELL', 'TRADING', [...rows, us(1, first)]).code, 'sell.kyc.review', first)
+  }
+  for (const again of ['back side aadhar card sir', 'no problem sir please share correct aadhar', 'Sir please share the other side of the Aadhaar']) {
+    eq(sit('SELL', 'TRADING', [...rows, us(1, again)]).code, 'sell.kyc.pending', again)
+  }
+  eq(sit('SELL', 'TRADING', [...rows, us(1, 'May I know your purpose of buying USDT ?')]).code, 'sell.kyc.pending', 'a new question waits for its answer')
+  eq(sit('SELL', 'TRADING', [sys(0, 'order_created_with_additional_kyc_maker_sell'), us(0.5, 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no')]).code,
+    'sell.kyc.pending', 'no documents yet: pending as before')
 })
 
 Deno.test("an approver's correction wins until our next step or a status change", () => {

@@ -68,6 +68,42 @@ export interface CopilotContext {
   appeal_case?: { status: string; response_due: string | null } | null;
   /** What we hold on the client (counts and yes/no only); null for a client not in our records. */
   client?: CopilotClientSummary | null;
+  /** Since when the client has been waiting for our reply (ISO); null when we wrote last. */
+  client_waiting_since?: string | null;
+}
+/** One step of the team's script and where this chat is with it. */
+export interface CopilotStepState {
+  key: string;
+  label: string;
+  /** done: asked and answered (or sent) · asked: waiting for the client · todo · skipped: not needed (e.g. KYC on file). */
+  state: 'done' | 'asked' | 'todo' | 'skipped';
+  /** The client's short answer (masked), e.g. "salary". */
+  answer: string | null;
+}
+/** The words for a step, from the Playbook (approved, or tentative until it is used or approved). */
+export interface CopilotStepOffer {
+  key: string;
+  label: string;
+  entryId: string;
+  title: string;
+  status: 'approved' | 'tentative';
+  text: string;
+  language: 'en' | 'hi';
+  languageNote: string | null;
+  /** Something the desk sometimes adds (profession, paying bank…), not the next step itself. */
+  option: boolean;
+}
+/** Actions in Binance or the bank, not messages. */
+export type CopilotStepHint = 'share_details' | 'send_proof' | 'extend_time';
+/** The next step of the team's own script for this chat (no AI). */
+export interface CopilotNextSteps {
+  offers: CopilotStepOffer[];
+  checklist: CopilotStepState[];
+  waitingFor: string | null;
+  hints: CopilotStepHint[];
+  knownClient: boolean;
+  waitingSince: string | null;
+  missing?: Array<{ key: string; label: string }>;
 }
 export interface CopilotClientSummary {
   on_file: string[];
@@ -143,6 +179,8 @@ export interface DraftResponse {
   lead?: { topicId: string; similarity: number; next: number | null } | null;
   /** status 'pending': when the request being made may be taken over (ms). */
   retryAfterMs?: number;
+  /** The next step of the script, worked out fresh for every answer (cached or not). */
+  next?: CopilotNextSteps | null;
 }
 export interface CopilotRoute {
   result: 'picked' | 'unsure' | 'none' | 'failed' | 'capped';
@@ -229,6 +267,10 @@ export interface LearnBody {
   note?: string | null;
   /** Saving an operator's rewritten reply from the Playbook inbox (the item is closed once saved). */
   inboxItemId?: string | null;
+  /** Inserted from the panel's next step: that step's key (sending it as it is counts a use of the step). */
+  stepKey?: string | null;
+  /** The client message the reply answers, as the screen names it (two client messages, two saves). */
+  turnKey?: string | null;
 }
 
 export function copilotLearn(body: LearnBody): Promise<LearnResult> {

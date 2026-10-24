@@ -621,6 +621,9 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     () => (isCopilotApprover ? latestUnanswered(currentOrderMessages) : null),
     [isCopilotApprover, currentOrderMessages],
   );
+  // The client message a reply answers, read when it is sent (before our message shows in the chat).
+  const copilotTriggerRef = useRef(copilotTrigger);
+  copilotTriggerRef.current = copilotTrigger;
   // The suggestion currently in the composer; sending it saves it to the Playbook ("use = approve").
   const copilotPickRef = useRef<CopilotPick | null>(null);
   // The step of a reply picked for another step, shown under the composer while that reply is in it.
@@ -654,14 +657,18 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     payMethod: paymentMethod ?? null,
     ...copilotBinance,
   }), [tradeType, orderStatus, templateValues?.amount, orderAsset, paymentMethod, copilotBinance]);
+  // The order's values for placeholders, with its side: {net_amount} and {tds_amount} exist only on our buy orders.
+  const fillValues = useMemo<TemplateOrderValues>(() => ({ ...(templateValues ?? {}), side: tradeType ?? null }), [templateValues, tradeType]);
 
-  // One approval per reply per order: repeated Approve / Send / Ctrl+Enter taps on the same text are ignored.
+  // One approval per reply per client message: repeated Approve / Send / Ctrl+Enter taps on the same text are ignored
+  // (the same words for the client's next message are a save of their own).
   const copilotTaughtRef = useRef<Set<string>>(new Set());
   const teachCopilot = useCallback(async (
     cause: LearnBody['cause'], finalText: string, picked: CopilotPick | null, beforeAt?: number,
     rewrite?: { callId: string | null; text: string; rough: string } | null,
   ) => {
-    const dedupeKey = beforeAt ? null : `${orderNumber}\n${finalText.trim().replace(/\s+/g, ' ').toLowerCase()}`;
+    const turnKey = beforeAt ? null : (copilotTriggerRef.current?.key ?? null);
+    const dedupeKey = beforeAt ? null : `${orderNumber}\n${turnKey ?? ''}\n${finalText.trim().replace(/\s+/g, ' ').toLowerCase()}`;
     if (dedupeKey) {
       if (copilotTaughtRef.current.has(dedupeKey)) {
         toast('Already approved', { description: 'This reply was already saved for this chat.' });
@@ -681,14 +688,18 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         insertedText: picked?.text ?? rewrite?.text ?? null,
         note: !picked ? rewrite?.rough ?? null : null,
         finalText,
-        templateValues,
+        templateValues: fillValues,
         hint: copilotHint,
         beforeAt: beforeAt ?? null,
         // A reply picked for another step ("If: Checking KYC") is saved under that step.
         situation: beforeAt ? null : (picked?.situation?.code ?? null),
+        stepKey: beforeAt ? null : (picked?.step ?? null),
+        turnKey,
       });
+      // Not saved (the client asked nothing, or a step was edited): the same words may be saved later, for a real question.
+      if (res.action === 'skipped' && dedupeKey) copilotTaughtRef.current.delete(dedupeKey);
       const t = learnToast(res);
-      (t.tone === 'warning' ? toast.warning : toast.success)(t.title, {
+      (t.tone === 'warning' ? toast.warning : t.tone === 'info' ? toast : toast.success)(t.title, {
         description: t.description,
         duration: 9000,
         action: res.eventId ? {
@@ -703,12 +714,14 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       });
       queryClient.invalidateQueries({ queryKey: ['copilot-access'] });
     } catch (e) {
-      if (dedupeKey) copilotTaughtRef.current.delete(dedupeKey);
       const err = e as CopilotError;
+      // The same press is being saved already (another tap or the other approver): it will finish on its own.
+      if (err?.code === 'in_progress') { toast('Saving already', { description: 'This reply is being saved from another tap.' }); return; }
+      if (dedupeKey) copilotTaughtRef.current.delete(dedupeKey);
       if (err?.code === 'no_question') toast('Not saved to the Playbook', { description: 'There was no client question to attach it to.' });
       else toast.error('Could not save to the Playbook', { description: err?.message });
     }
-  }, [orderNumber, exchangeAccountId, templateValues, copilotHint, queryClient]);
+  }, [orderNumber, exchangeAccountId, fillValues, copilotHint, queryClient]);
 
   // ── Copilot · Rephrase: approvers and the operators an approver picked (the server checks again). ──
   const canRephrase = !!copilotAccess?.can_rephrase && !isEnquiryThread;
@@ -835,7 +848,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       // An operator's sent rewrite waits in the Playbook inbox for an approver; nothing to show if that fails.
       copilotRephraseUsed({
         callId: rewrite.callId, roughCallId: rewrite.roughCallId && rewrite.roughCallId !== rewrite.callId ? rewrite.roughCallId : null,
-        orderNumber, exchangeAccountId: exchangeAccountId ?? null, finalText: msg, sentAt, templateValues,
+        orderNumber, exchangeAccountId: exchangeAccountId ?? null, finalText: msg, sentAt, templateValues: fillValues,
       }).catch((e) => console.warn('[copilot] the sent rewrite did not reach the Playbook inbox:', (e as Error)?.message ?? e));
     }
     return true;
@@ -863,7 +876,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const handleQuickReply = (replyText: string) => {
     const prev = inputRef.current?.value ?? '';
     if (!prev.trim()) setCopilotPick(null);
-    const filled = fillTemplate(replyText, templateValues || {});
+    const filled = fillTemplate(replyText, fillValues);
     const next = prev.trim() ? `${prev.trim()} ${filled}` : filled;
     setText(next);
     markPlaced(next);
@@ -875,7 +888,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   useEffect(() => subscribeQuickReplyHotkey((idx) => {
     const reply = (hotkeyReplies as any[])[idx];
     if (reply?.message_text) handleQuickReply(reply.message_text);
-  }), [hotkeyReplies, templateValues]);
+  }), [hotkeyReplies, fillValues]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
@@ -1049,13 +1062,14 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               asset={orderAsset}
               payMethod={paymentMethod}
               trigger={copilotTrigger}
-              templateValues={templateValues}
+              templateValues={fillValues}
               onInsert={insertCopilotPick}
               onApprove={approveCopilotPick}
               onState={handleCopilotState}
               refreshKey={copilotRefresh}
               binance={copilotBinance}
               binanceLoading={binanceDetailLoading}
+              chatKey={lastMessageId}
             />
           </div>
         )}

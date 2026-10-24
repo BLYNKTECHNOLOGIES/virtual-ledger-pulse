@@ -4,6 +4,7 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import type { ChatRow, Prices, SmallRange } from './copilot-playbook.ts'
 import type { Mark } from './copilot-situation.ts'
+import type { StepEntry } from './copilot-steps.ts'
 
 export interface CopilotConfig {
   approver_ids: string[]
@@ -187,9 +188,27 @@ export interface Store {
   reopenSavedInboxItem(eventId: string): Promise<boolean>
   /** The typed words behind a saved reply, kept on its example chat (masked by the caller). */
   setExampleNote(exampleId: string, note: string): Promise<void>
+  /** The Playbook's steps (kind 'step'): approved ones, and tentative ones (the caller checks their expiry). */
+  steps(): Promise<StepEntry[]>
+  /**
+   * One save per press: takes this key (a hash of the order, the suggestion, the client message and the sent text) with a
+   * token of its own. Not taken when it was already taken; the earlier save's answer comes back once it has one. An
+   * unfinished save gives its key up after two minutes. Never blocks saving when the table cannot be read (token null).
+   */
+  claimLearnKey(key: string, userId: string, orderNumber: string): Promise<{ claimed: boolean; token: string | null; result: any | null }>
+  /** Takes back a key whose save was undone (one caller wins: a conditional update); the new token, or null. */
+  reclaimLearnKey(key: string, userId: string, undoneEventId: string): Promise<string | null>
+  /** The answer of the save that took the key (for a repeated press); only while this token holds it. */
+  finishLearnKey(key: string, token: string | null, result: any): Promise<void>
+  /** Gives the key back (the save failed or was skipped), so the same press can save again; only while this token holds it. */
+  releaseLearnKey(key: string, token: string | null): Promise<void>
+  /** Whether a learning event was undone. */
+  eventUndone(eventId: string): Promise<boolean>
 }
 
 const vec = (v: number[] | string) => (typeof v === 'string' ? v : `[${v.join(',')}]`)
+/** How long an unfinished save holds its key (copilot_learn_keys). */
+export const LEARN_KEY_STALE_MS = 2 * 60_000
 
 /** The chat's latest messages (oldest first) with Binance's KYC notices from before them, each message once. */
 export function withNotices(recent: ChatRow[], notices: ChatRow[]): ChatRow[] {
@@ -339,6 +358,58 @@ export function makeStore(admin: SupabaseClient, user: SupabaseClient): Store {
         .update({ feedback: 'rejected', feedback_reason: reason || null, feedback_by: userId, feedback_at: new Date().toISOString() })
         .eq('id', id).or('feedback.is.null,feedback.eq.approved').select('id')
       return (data ?? []).length > 0
+    },
+    async steps() {
+      const { data } = await db.from('copilot_playbook_entries')
+        .select('id, step_key, title, status, scope, reply_en, reply_hi, reply_en_stale, reply_hi_stale, expires_at')
+        .eq('kind', 'step').in('status', ['approved', 'tentative']).limit(200)
+      return (data ?? []) as StepEntry[]
+    },
+    async claimLearnKey(key, userId, orderNumber) {
+      const token = crypto.randomUUID()
+      const { error } = await db.from('copilot_learn_keys').insert({ key, user_id: userId, order_number: orderNumber, claim_token: token })
+      if (!error) {
+        // Old keys are of no use (Undo works for 24 hours): now and then, keys older than 30 days go.
+        if (Math.random() < 0.02) {
+          const { error: e } = await db.from('copilot_learn_keys').delete().lt('created_at', new Date(Date.now() - 30 * 86_400_000).toISOString())
+          if (e) console.error(JSON.stringify({ fn: 'copilot', outcome: 'learn_keys_cleanup_failed', code: e.code }))
+        }
+        return { claimed: true, token, result: null }
+      }
+      if (error.code !== '23505') {
+        console.error(JSON.stringify({ fn: 'copilot', outcome: 'learn_key_failed', code: error.code }))
+        return { claimed: true, token: null, result: null }
+      }
+      const { data } = await db.from('copilot_learn_keys').select('result, created_at').eq('key', key).maybeSingle()
+      // A save that never finished (the function stopped mid-way) gives its key up after two minutes; one caller takes it.
+      if (data && data.result == null && Date.now() - Date.parse(String(data.created_at)) > LEARN_KEY_STALE_MS) {
+        const { data: taken } = await db.from('copilot_learn_keys').update({ user_id: userId, claim_token: token, created_at: new Date().toISOString() })
+          .eq('key', key).is('result', null).lt('created_at', new Date(Date.now() - LEARN_KEY_STALE_MS).toISOString()).select('key')
+        if ((taken ?? []).length) return { claimed: true, token, result: null }
+      }
+      return { claimed: false, token: null, result: data?.result ?? null }
+    },
+    async reclaimLearnKey(key, userId, undoneEventId) {
+      const token = crypto.randomUUID()
+      const { data, error } = await db.from('copilot_learn_keys')
+        .update({ result: null, user_id: userId, claim_token: token, created_at: new Date().toISOString() })
+        .eq('key', key).eq('result->>eventId', undoneEventId).select('key')
+      if (error) console.error(JSON.stringify({ fn: 'copilot', outcome: 'learn_key_reclaim_failed', code: error.code }))
+      return (data ?? []).length ? token : null
+    },
+    async finishLearnKey(key, token, result) {
+      if (!token) return
+      const { error } = await db.from('copilot_learn_keys').update({ result }).eq('key', key).eq('claim_token', token)
+      if (error) console.error(JSON.stringify({ fn: 'copilot', outcome: 'learn_key_finish_failed', code: error.code }))
+    },
+    async releaseLearnKey(key, token) {
+      if (!token) return
+      const { error } = await db.from('copilot_learn_keys').delete().eq('key', key).eq('claim_token', token)
+      if (error) console.error(JSON.stringify({ fn: 'copilot', outcome: 'learn_key_release_failed', code: error.code }))
+    },
+    async eventUndone(eventId) {
+      const { data } = await db.from('copilot_learning_events').select('undone_at').eq('id', eventId).maybeSingle()
+      return !!data?.undone_at
     },
     async entries(ids) {
       if (!ids.length) return []

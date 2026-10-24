@@ -119,7 +119,8 @@ export function CopilotEntryDialog({ entryId, onOpenChange }: { entryId: string 
         <DialogHeader>
           <DialogTitle>Edit Playbook reply</DialogTitle>
           <DialogDescription>
-            Write replies with “sir”; the Copilot switches to “ma'am” when needed. Placeholders: {'{amount}'} {'{orderNo}'} {'{name}'} {'{upi}'}
+            Write replies with “sir”; the Copilot switches to “ma'am” when needed. Placeholders: {'{amount}'} {'{orderNo}'} {'{name}'} {'{upi}'} {'{greeting}'};
+            on buy orders {'{net_amount}'} (what we pay after 1% TDS) and {'{tds_amount}'}
             {teamTokens.length ? <>, and a team's number: {teamTokens.join(' ')}</> : null}. Give a number only when the client asks for one.
           </DialogDescription>
         </DialogHeader>

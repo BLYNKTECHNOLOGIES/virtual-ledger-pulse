@@ -1062,3 +1062,105 @@ Deno.test("Binance-only \"verified\": a KYC request after an approver's own \"Cl
   const r = await run(s, new FakeAi())
   eq(r.body.context.situation, 'sell.kyc.pending'); eq(r.body.playbook.length, 0); eq(r.body.heldBack.length, 1)
 })
+
+// ─── CP-8: the next step of the script, and no AI for answers ─────────────────────────────────────
+
+const stepRow = (step_key: string, reply_en: string, over: Record<string, unknown> = {}): any =>
+  ({ id: id(), step_key, title: step_key, status: 'approved', scope: { sides: ['SELL'] }, reply_en, reply_hi: null, ...over })
+const NEW_CLIENT = { status: 'not_found' }
+
+Deno.test('an answer to our question gets the next step: no lookup, no request, no AI', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = NEW_CLIENT
+  s.stepRows = [stepRow('purpose', 'Sir, may I know the purpose of this trade?'), stepRow('source_of_funds', 'Sir, may I know your source of funds?')]
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('us', 'Sir, may I know the purpose of this trade?'), msg('client', 'trading')]
+  const r = await run(s, a)
+  eq([r.status, r.body.status, r.body.skippedReason], [200, 'ready', 'no_question'])
+  eq(a.chats.length + a.embeds.length, 0, 'no AI'); eq(s.requests.size, 0, 'no request row'); eq(s.matchCalls.length, 0, 'no lookup')
+  eq(r.body.next.offers[0].key, 'source_of_funds'); eq(r.body.next.offers[0].text, 'Sir, may I know your source of funds?')
+  eq(r.body.next.checklist.find((c: any) => c.key === 'purpose').answer, 'trading')
+  eq([r.body.route, r.body.question, r.body.drafts], [null, null, []])
+  // pictures and values the same way
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('client', 'Mobile no 9876543210')]
+  const p = await run(s, a)
+  eq(p.body.skippedReason, 'no_question'); eq(a.chats.length + a.embeds.length, 0)
+})
+
+Deno.test('a question still gets the Playbook lookup, with the next step beside it', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = NEW_CLIENT
+  s.stepRows = [stepRow('purpose', 'Sir, may I know the purpose of this trade?')]
+  s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('client', 'Why do you need my Aadhaar?')]
+  const r = await run(s, a)
+  eq(a.embeds.length, 1, 'looked up'); ok(r.body.skippedReason !== 'no_question')
+  eq(r.body.next.offers.map((o: any) => o.key), ['purpose'])
+  // the same chat state again is the cached answer, with today's next step
+  const again = await run(s, a)
+  eq(again.body.cached, true); eq(again.body.next.offers.map((o: any) => o.key), ['purpose'])
+  // no words saved for a step: named, so an approver can add them
+  s.stepRows = []
+  eq((await run(s, a, { mode: 'context' })).body.next.missing, [{ key: 'purpose', label: 'Purpose' }])
+})
+
+Deno.test('questions and complaints while we wait for an answer still get the lookup (never taken as the answer)', async () => {
+  for (const text of ['I am already verified', 'Mera KYC ho chuka hai', 'jaldi karo', 'police complaint karunga', 'sending, can I pay from my wife account?', 'UPI sir']) {
+    const s = new FakeStore(), a = new FakeAi()
+    s.panel = NEW_CLIENT
+    s.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('us', 'Which bank will you use to pay, sir?'), msg('client', text)]
+    const r = await run(s, a)
+    ok(r.body.skippedReason !== 'no_question', text); eq(a.embeds.length, 1, text)
+  }
+  // our buy orders: the client asks when we pay
+  for (const text of ['When are you sending the payment?', 'When you will send payment?']) {
+    const b = new FakeStore(), a = new FakeAi()
+    b.orderRow = { ...b.orderRow, trade_type: 'BUY' }
+    b.rows = [msg('us', 'Kindly share your PAN card and mobile number, sir.'), msg('client', text)]
+    const r = await run(b, a)
+    ok(r.body.skippedReason !== 'no_question', text); eq(a.embeds.length, 1, text)
+  }
+})
+
+Deno.test('"Draft anyway" on a picture or a plain answer still drafts; the request keeps that the client asked nothing', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.rows = [msg('client', 'img', 'image')]
+  const r = await run(s, a, { mode: 'force' })
+  eq(draftCalls(a).length, 2); ok(r.body.skippedReason !== 'no_question')
+  eq([...s.requests.values()].at(-1)?.context?.asks_nothing, true)
+  // a plain answer to our question (copilot-learn never files it as a client question)
+  const t = new FakeStore()
+  t.panel = NEW_CLIENT
+  t.rows = [...kycAsked(), msg('client', 'img', 'image'), msg('us', 'Sir, may I know the purpose of this trade?'), msg('client', 'trading')]
+  await run(t, new FakeAi(), { mode: 'force' })
+  eq([...t.requests.values()].at(-1)?.context?.asks_nothing, true)
+  // a question
+  const u = new FakeStore()
+  u.rows = [msg('client', 'Why is my order not released yet?')]
+  await run(u, new FakeAi(), { mode: 'force' })
+  eq([...u.requests.values()].at(-1)?.context?.asks_nothing, false)
+})
+
+Deno.test('the order view (context) carries the next step and the numbers its words need', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.panel = NEW_CLIENT
+  s.contactRows = [{ id: 'c1', purpose: 'kyc', person_name: 'Asha', phone: '+919876543210', available_now: true, priority: 1 }]
+  s.stepRows = [stepRow('purpose', 'Sir, may I know the purpose of this trade? For help: {contact:kyc}.')]
+  s.rows = [...kycAsked(), msg('client', 'img', 'image')]
+  const r = await run(s, a, { mode: 'context' })
+  eq(r.body.status, 'nothing_to_answer'); eq(r.body.next.offers[0].key, 'purpose'); eq(r.body.next.missing, [])
+  eq(r.body.contacts.kyc.name, 'Asha'); eq(a.chats.length + a.embeds.length, 0)
+  ok(typeof r.body.next.waitingSince === 'string', 'the client is waiting for us')
+})
+
+Deno.test('a reply written for this kind of client wins over one for every client at the same step', async () => {
+  const { bestFitting } = await import('./handler.ts')
+  const t = id()
+  const general = entry({ topic_id: t, scope: { stages: ['sell.kyc.call'] }, specificity: 3 })
+  const returning = entry({ topic_id: t, scope: { stages: ['sell.kyc.call'], client_states: ['approved'] }, specificity: 3 })
+  eq(bestFitting([general, returning]).map((m) => m.entry_id), [returning.entry_id])
+  // a tentative one for this kind of client is shown beside the approved general one
+  const tentative = entry({ topic_id: t, status: 'tentative', scope: { stages: ['sell.kyc.call'], client_states: ['approved'] }, specificity: 3 })
+  eq(bestFitting([general, tentative]).map((m) => m.entry_id), [general.entry_id, tentative.entry_id])
+  // a deeper step still beats a kind of client
+  const deeper = entry({ topic_id: t, scope: { stages: ['sell.kyc.call'] }, specificity: 4 })
+  eq(bestFitting([deeper, returning]).map((m) => m.entry_id), [deeper.entry_id])
+})

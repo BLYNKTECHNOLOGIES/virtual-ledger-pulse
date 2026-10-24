@@ -413,6 +413,11 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     if (!recordId || !record) return;
 
     try {
+      // Check before creating any employee, leave allocation or external account.
+      const {data:joiningRecord,error:joiningError}=await supabase.from('hr_employee_onboarding').select('prejoining,date_of_joining').eq('id',recordId).single();
+      if(joiningError) throw joiningError;
+      const packageState=joiningRecord.prejoining as Record<string,any>;
+      if(packageState?.enabled && (packageState.state!=='ready' || !packageState.arrival_confirmed_at)) throw new Error('Complete HR review and confirm actual arrival before finalizing joining.');
       // Split off fields that are NOT columns on hr_employee_onboarding.
       // bank_details -> written to hr_employee_bank_details below.
       // razorpay_employee_id -> operator-entered RazorpayX Employee ID; kept

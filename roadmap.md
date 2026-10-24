@@ -41,9 +41,10 @@
 - [x] Assess the existing candidate link and joining side effects
 - [x] Prepare the detailed optional-flow plan for owner review
 - [x] Implement shared joining-date foundation and concrete rule tests
-- [ ] Rebuild approved final-page E2 on company letterhead with candidate details; exclude Annexure C permanently
-- [ ] Implement optional package, single-link submission/review and joining handoff using existing offer documents
-- [ ] Verify E2 document layout and candidate submission/review safeguards
+- [x] Rebuild approved final-page E2 on company letterhead with candidate details; exclude Annexure C permanently
+- [x] Implement optional package, single-link submission/review and joining handoff using existing offer documents; no existing package enabled
+- [x] Verify E2 PDF visually (one A4 page; letterhead, disclosures and signature clear); repaired local letterhead decoding; 31 rule tests, rollback submission/duplicate/activation checks, anonymous denial and preview build pass
+- [ ] Verify real signed-in HR publish → candidate upload → HR review → joining flow — blocked: external unmanaged authentication; no real invitation or email sent
 
 ## WF7 — Workforce Planning rules (17 Oct) — done
 - [x] §1 automatic priority

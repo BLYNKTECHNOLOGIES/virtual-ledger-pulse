@@ -5,23 +5,29 @@
 // the neighbouring steps are offered too ("If: Checking KYC"), and sending one sets the chat to that step.
 // When matching by meaning is unsure, a small model picks which approved question the client asked ("Picked by AI");
 // the reply is still the approved text. Binance's deadlines and what we hold on the client are shown as chips.
+// Next step (CP-8): most client messages answer our question (documents, a number, a bank's name, "salary"), so the panel
+// always shows the next message of the team's own script for this chat, with what the client has answered so far, how long
+// they have waited for us, and actions in Binance (share the details, send the proof, extend the time). No AI: the words
+// are Playbook steps the approvers own. It is read again quietly after our own messages and once a minute while open.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  AlertTriangle, BookCheck, Check, ChevronDown, ChevronUp, Clock, CornerDownLeft, History, Languages, Loader2, MapPin, Phone, RefreshCw,
-  ShieldAlert, Signpost, Sparkles, UserRound, Wand2, X,
+  AlertTriangle, BookCheck, Check, ChevronDown, ChevronUp, Circle, CircleCheck, CircleDashed, CircleMinus, Clock, CornerDownLeft, History,
+  Hourglass, Info, Languages, ListChecks, Loader2, MapPin, Phone, RefreshCw, ShieldAlert, Signpost, Sparkles, UserRound, Wand2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  copilotDraft, copilotReject, CopilotError, type AiDraft, type DraftResponse, type PlaybookSuggestion, type StepSuggestion,
+  copilotDraft, copilotReject, CopilotError, type AiDraft, type CopilotNextSteps, type CopilotStepOffer, type CopilotStepState,
+  type DraftResponse, type PlaybookSuggestion, type StepSuggestion,
 } from '@/hooks/useCopilotPlaybook';
 import { copilotAdmin, useCopilotSituations, useCopilotTeams, useUserNames, userLabel } from '@/hooks/useCopilotAdmin';
 import {
   FLAG_LABEL, KYC_WAIT_MS, REJECT_REASONS, buildCopilotPicks, clientSummary, contactsUsed, deadlineChips, deadlineContext, fillCopilotText,
-  kycReload, modelLabel, statusLabel, teamLabel, waitForLiveKyc, type ContactPurpose, type CopilotPick,
+  hintText, kycReload, mergeRefresh, modelLabel, orderStatusCode, refreshAfterMessage, statusLabel, teamLabel, waitForLiveKyc, waitingChip,
+  type ContactPurpose, type CopilotPick,
 } from '@/lib/copilot/copilotText';
 import { markableSituations, STATUS_SITUATIONS } from '@/lib/copilot/situations';
 import type { TemplateOrderValues } from '@/lib/fill-template';
@@ -49,11 +55,19 @@ interface Props {
   binance?: { kycVerify?: number | null; payBy?: number | null; releaseBy?: number | null } | null;
   /** The screen is still loading Binance's order detail (the first request on an open sell order waits a moment for it). */
   binanceLoading?: boolean;
+  /** Changes with every new message in the chat (ours too): the next step is read again once the server has it. */
+  chatKey?: string;
 }
 
 const COLLAPSE_KEY = 'terminal-copilot-collapsed';
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; } };
 const writeCollapsed = (v: boolean) => { try { localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0'); } catch { /* storage unavailable */ } };
+
+/** How often the next step is read again while the panel is open (time-based steps: the call wait, the release reminder). */
+const NEXT_REFRESH_MS = 60_000;
+/** Our own message reaches the server a moment after it is sent. */
+const NEXT_AFTER_SEND_MS = 2_500;
+const OPEN_STATUSES = new Set(['TRADING', 'PENDING', 'BUYER_PAYED']);
 
 const INSTRUCTION_CHIPS: Array<{ key: string; label: string }> = [
   { key: 'shorter', label: 'Shorter' },
@@ -160,7 +174,7 @@ function SituationMenu({ side, current, detected, detectedLabel, marked, disable
 
 export function CopilotPanel({
   orderNumber, exchangeAccountId, tradeType, orderStatus, totalPrice, asset, payMethod, trigger, templateValues, onInsert, onApprove, onState,
-  refreshKey = 0, binance = null, binanceLoading = false,
+  refreshKey = 0, binance = null, binanceLoading = false, chatKey = '',
 }: Props) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [data, setData] = useState<DraftResponse | null>(null);
@@ -187,6 +201,8 @@ export function CopilotPanel({
   // reload on "verified" below.
   const sentKyc = useRef<number | null>(null);
   const scheduled = useRef(false);
+  /** Requests of any mode on their way (a quiet refresh never runs beside one, so an older answer never lands last). */
+  const inFlight = useRef(0);
   /** 'context': the order facts only, with nothing to answer (no AI, nothing saved): no skeleton and no error line. */
   const load = useCallback(async (mode: 'suggest' | 'redraft' | 'force' | 'context', instruction: string | null = null) => {
     const quiet = mode === 'context';
@@ -195,6 +211,7 @@ export function CopilotPanel({
     sentKyc.current = binanceRef.current?.kycVerify ?? null;
     if (!quiet) { if (mode === 'suggest') setLoading(true); else setBusy(instruction ?? mode); }
     setError(null);
+    inFlight.current++;
     try {
       const res = await copilotDraft({
         orderNumber, exchangeAccountId: exchangeAccountId ?? null, mode, instruction,
@@ -213,13 +230,43 @@ export function CopilotPanel({
       if (err.code === 'cancelled' || quiet) return;
       setError(err.code === 'too_many_requests' ? 'Too many requests — wait a moment and try again.' : err.message || 'Could not load suggestions.');
     } finally {
+      inFlight.current--;
       if (mine === seq.current) { setLoading(false); setBusy(null); }
     }
   }, [orderNumber, exchangeAccountId, tradeType, orderStatus, totalPrice, asset, payMethod]);
 
+  // The next step, read again quietly (the order view: no lookup, no AI, nothing saved): after our own messages and once a
+  // minute while the panel is open. Only the next step, the order facts and contact numbers change; the suggestions stay.
+  const pendingRef = useRef(false);
+  const nextSeq = useRef(0);
+  const refreshNext = useCallback(async () => {
+    // Never beside a request (running or about to go out); it brings the next step itself.
+    if (pendingRef.current || scheduled.current || inFlight.current > 0) return;
+    const mine = ++nextSeq.current;
+    const during = seq.current;
+    try {
+      const res = await copilotDraft({
+        orderNumber, exchangeAccountId: exchangeAccountId ?? null, mode: 'context',
+        hint: {
+          tradeType, status: orderStatus, totalPrice, asset, payMethod, latest: triggerRef.current?.hint ?? null,
+          kycVerify: binanceRef.current?.kycVerify ?? null, payBy: binanceRef.current?.payBy ?? null, releaseBy: binanceRef.current?.releaseBy ?? null,
+        },
+      });
+      // A load started meanwhile, or a newer refresh: theirs wins. Only what is shown is refreshed: an empty panel (a load
+      // failed, or is about to go out) stays empty, so Retry asks for suggestions, never a redraft.
+      if (mine !== nextSeq.current || during !== seq.current || pendingRef.current || scheduled.current || inFlight.current > 0) return;
+      setData((d) => (d ? mergeRefresh(d, res) : d));
+    } catch { /* quiet: the next minute tries again */ }
+  }, [orderNumber, exchangeAccountId, tradeType, orderStatus, totalPrice, asset, payMethod]);
+
   // New client message (or a new order status) → suggestions for it. With nothing to answer, a quiet request brings the
   // order facts only (the situation, deadlines and client records; no AI, nothing saved). Closing the chat stops everything.
+  // Right after our reply, it waits until our message has reached the server (Binance confirms it in 1–2 s), so the next
+  // step it brings already counts our message.
+  const prevTrigger = useRef(triggerKey);
   useEffect(() => {
+    const replied = !triggerKey && prevTrigger.current !== null;
+    prevTrigger.current = triggerKey;
     seq.current++;
     setData(null);
     setError(null);
@@ -236,7 +283,7 @@ export function CopilotPanel({
         && Date.now() - started < KYC_WAIT_MS) { t = setTimeout(go, 200); return; }
       void load(triggerKey ? 'suggest' : 'context');
     };
-    t = setTimeout(go, 600);
+    t = setTimeout(go, replied ? NEXT_AFTER_SEND_MS : 600);
     // Bumping the sequence on cleanup drops any answer that arrives after the chat changed or closed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { clearTimeout(t); seq.current++; scheduled.current = false; };
@@ -258,6 +305,7 @@ export function CopilotPanel({
   const kycVerify = binance?.kycVerify ?? null;
   const answeredKyc = data?.context?.binance_kyc ?? null;
   const pending = loading || !!busy;
+  pendingRef.current = pending;
   const factsOnly = !data || data.status === 'nothing_to_answer';
   useEffect(() => {
     const mode = kycReload({
@@ -266,6 +314,27 @@ export function CopilotPanel({
     });
     if (mode) void load(mode);
   }, [kycVerify, answeredKyc, pending, tradeType, orderStatus, load, factsOnly]);
+
+  // A new message in the chat with no new client message (ours, or Binance's notice): the next step once the server has it.
+  // A new client message brings a full reload instead (above).
+  const seenChat = useRef(chatKey);
+  const seenTrigger = useRef(triggerKey);
+  useEffect(() => {
+    const due = refreshAfterMessage({ prevChat: seenChat.current, chat: chatKey, prevTrigger: seenTrigger.current, trigger: triggerKey });
+    seenChat.current = chatKey;
+    seenTrigger.current = triggerKey;
+    if (!due) return;
+    const t = setTimeout(() => void refreshNext(), NEXT_AFTER_SEND_MS);
+    return () => clearTimeout(t);
+  }, [chatKey, triggerKey, refreshNext]);
+  // Once a minute while the panel is open on an open order and the tab is in view (the call wait, the release reminder
+  // and "extend the time" depend on the clock, not on a new message).
+  const orderOpen = OPEN_STATUSES.has(orderStatusCode(orderStatus) ?? '');
+  useEffect(() => {
+    if (collapsed || !orderOpen) return;
+    const t = setInterval(() => { if (document.visibilityState === 'visible') void refreshNext(); }, NEXT_REFRESH_MS);
+    return () => clearInterval(t);
+  }, [collapsed, orderOpen, refreshNext]);
 
   const fill = useCallback((text: string) => fillCopilotText(text, templateValues, data?.contacts), [templateValues, data?.contacts]);
   const requestId = data?.requestId ?? null;
@@ -276,10 +345,18 @@ export function CopilotPanel({
   const otherSteps = useMemo(() => data?.otherSteps ?? [], [data?.otherSteps]);
   const side = data?.context?.side ?? null;
   const detected = data?.context?.situation_detected ?? null;
+  const next: CopilotNextSteps | null = data?.next ?? null;
+  const offers = useMemo(() => next?.offers ?? [], [next?.offers]);
+  // The client asked nothing (pictures, values, "ok", a plain answer): the next step comes first.
+  const noQuestion = data?.skippedReason === 'no_question';
+  const scriptFirst = noQuestion || !data || data.status === 'nothing_to_answer';
 
   const picks = useMemo<CopilotPick[]>(
-    () => buildCopilotPicks({ playbook, drafts, alternatives, requestId, side, detected, fill }),
-    [playbook, drafts, alternatives, requestId, side, detected, fill],
+    () => buildCopilotPicks({
+      playbook, drafts, alternatives, requestId, side, detected, fill,
+      script: offers.map((o) => ({ entryId: o.entryId, label: o.label, text: o.text, option: o.option, key: o.key })), scriptFirst,
+    }),
+    [playbook, drafts, alternatives, requestId, side, detected, fill, offers, scriptFirst],
   );
 
   useEffect(() => { onState({ requestId, picks }); }, [requestId, picks, onState]);
@@ -336,7 +413,9 @@ export function CopilotPanel({
   // Binance's deadlines: the screen's live values first, so they show even with nothing to answer. The countdown is
   // worked out at each render; a 5-second tick (and coming back to the tab) re-renders while there is one.
   const deadlineCtx = deadlineContext({ tradeType, orderStatus, live: binance, server: facts });
-  const hasDeadline = !!(deadlineCtx.pay_by || deadlineCtx.release_by || deadlineCtx.appeal_case?.response_due);
+  // How long the client has waited: only on an open order while a client message waits (gone the moment we reply).
+  const waitingSince = orderOpen && triggerKey ? next?.waitingSince ?? facts?.client_waiting_since ?? null : null;
+  const hasDeadline = !!(deadlineCtx.pay_by || deadlineCtx.release_by || deadlineCtx.appeal_case?.response_due || waitingSince);
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!hasDeadline) return;
@@ -347,6 +426,10 @@ export function CopilotPanel({
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, [hasDeadline]);
   const deadlines = deadlineChips(deadlineCtx, Date.now());
+  const waiting = waitingChip(waitingSince, Date.now());
+  // "Share the payment details" only when the client is known to be verified: the server's step says so and Binance's live
+  // field does not say otherwise.
+  const detailsAllowed = ctx?.before_verification === false && !deadlineCtx.kyc_pending;
   const client = useMemo(() => clientSummary(facts?.client), [facts?.client]);
 
   const statusLine = (() => {
@@ -356,11 +439,12 @@ export function CopilotPanel({
     if (!data) return null;
     if (data.status === 'nothing_to_answer') return <span className="text-muted-foreground">No new client message.</span>;
     if (data.status === 'capped') return <span className="text-warning">AI drafting paused: this month's AI budget is used up. Approved replies still work.</span>;
+    if (noQuestion) return <span className="text-foreground">{offers.some((o) => !o.option) ? 'No question to answer — next step below.' : 'No question to answer.'}</span>;
     if (approvedFound) return <span className="text-trade-buy">Approved reply found — no AI used.</span>;
     if (aiPicked) return <span className="text-trade-buy">Approved reply picked by AI — nothing drafted.</span>;
     if (conflictFound) return <span className="text-destructive">Two approved answers disagree — pick one in the <Link to="/terminal/playbook?tab=inbox" className="underline underline-offset-2">Playbook inbox</Link>.</span>;
     if (aiFailed && !drafts.length) return <span className="text-warning">The AI did not answer this time{playbook.length ? ' — Playbook replies are below' : ''}.</span>;
-    if (playbook.length && drafts.length) return <span className="text-foreground">From the Playbook, plus AI drafts</span>;
+    if (playbook.length && drafts.length) return <span className="text-foreground">From the Playbook, plus {drafts.length === 1 ? 'an AI draft' : 'AI drafts'}</span>;
     if (drafts.length) return <span className="text-foreground">New — not in the Playbook yet.</span>;
     if (playbook.length) return <span className="text-foreground">From the Playbook</span>;
     return <span className="text-muted-foreground">No suggestion this time.</span>;
@@ -464,7 +548,7 @@ export function CopilotPanel({
     return (
       <div key={d.callId ?? d.label} className={`rounded-md border bg-card px-2.5 py-2 ${d.blocked ? 'border-destructive/30' : 'border-border'}`}>
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-          <Chip tone="primary">{d.label}</Chip>
+          {drafts.length > 1 && <Chip tone="primary">{d.label}</Chip>}
           <span className="shrink-0 text-[11px] font-medium text-foreground">{modelLabel(d.model)}</span>
           {d.newPolicy && <Chip tone="amber" title="States a rule or time frame that is not in the Playbook">New policy — your call</Chip>}
           {soft.map((f) => <Chip key={f} tone="amber">{FLAG_LABEL[f] ?? f}</Chip>)}
@@ -491,6 +575,102 @@ export function CopilotPanel({
     );
   };
 
+  // ── Next step of the script ──
+  const stepPick = (o: CopilotStepOffer): CopilotPick => {
+    const text = fill(o.text);
+    // The step's own pick (it carries the step, so sending it counts the step), else one made here.
+    return picks.find((p) => p.kind === 'entry' && p.entryId === o.entryId && p.step === o.key)
+      ?? { kind: 'entry', entryId: o.entryId, requestId, text, title: o.label, step: o.key };
+  };
+  const stepCardNext = (o: CopilotStepOffer) => {
+    const pick = stepPick(o);
+    return (
+      <div key={o.entryId} className={`rounded-md border bg-card px-2.5 py-2 ${o.status === 'approved' ? 'border-trade-buy/25' : 'border-warning/30'}`}>
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <Chip tone={o.status === 'approved' ? 'green' : 'amber'}>{o.status === 'approved' ? 'Approved' : 'Tentative'}</Chip>
+          <span className="min-w-0 max-w-full truncate text-[11px] font-medium text-foreground" title={o.title}>{o.label}</span>
+          {o.languageNote && <span className="min-w-0 max-w-full text-[10px] text-warning">· {lang} copy {o.languageNote.endsWith('_outdated') ? 'out of date' : 'not saved yet'} — {o.language === 'en' ? 'English' : 'Hindi'} shown</span>}
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {o.status === 'tentative' && (
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground hover:text-trade-buy" onClick={() => onApprove(pick)} title="Approve and send to the client">
+                <Check className="mr-1 h-3 w-3" />Confirm
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={() => onInsert(pick)}>
+              <CornerDownLeft className="mr-1 h-3 w-3" />Insert
+            </Button>
+          </div>
+        </div>
+        <div className="mt-1 whitespace-pre-wrap break-words text-xs leading-snug text-card-foreground">{pick.text}</div>
+        {o.status === 'tentative' && <div className="mt-1 text-[10px] text-warning">Tentative script step — sending it as it is, or Confirm, makes it approved.</div>}
+        {contactLine(o.text)}
+      </div>
+    );
+  };
+  const stepIcon = (st: CopilotStepState) => (st.state === 'done' ? <CircleCheck className="h-2.5 w-2.5 shrink-0" />
+    : st.state === 'asked' ? <CircleDashed className="h-2.5 w-2.5 shrink-0" />
+      : st.state === 'skipped' ? <CircleMinus className="h-2.5 w-2.5 shrink-0" /> : <Circle className="h-2.5 w-2.5 shrink-0" />);
+  const stepTitle = (st: CopilotStepState) => (st.state === 'done' ? 'Done' : st.state === 'asked' ? 'Asked; waiting for the client'
+    : st.state === 'skipped' ? 'Not needed: we hold it already' : 'Still to do');
+  // A returning client's KYC step is offered as "ask again".
+  const offerLabel = (o: CopilotStepOffer) => (o.key === 'kyc' && next?.knownClient ? 'Ask for KYC again' : o.label);
+  const mainOffers = offers.filter((o) => !o.option);
+  const optionOffers = offers.filter((o) => o.option);
+  const waitingLabel = next?.waitingFor ? next.checklist.find((c) => c.key === next.waitingFor)?.label ?? null : null;
+  // "Purpose" → "purpose" mid-sentence; "KYC documents" stays as it is.
+  const midSentence = (label: string) => (/^[A-Z][a-z]/.test(label) ? label[0].toLowerCase() + label.slice(1) : label);
+  const nextBlock = next && (mainOffers.length > 0 || optionOffers.length > 0 || next.checklist.length > 0 || next.hints.length > 0 || (next.missing ?? []).length > 0) ? (
+    <div role="group" className="space-y-1.5 rounded-md border border-primary/25 bg-background/60 px-2 py-1.5" aria-label="Next step">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px] leading-snug">
+        <ListChecks className="h-3 w-3 shrink-0 text-primary" />
+        <span className="font-medium text-foreground">Next step</span>
+        {next.knownClient && <Chip tone="green" title="KYC on file: which bank, then the payment details after Binance’s Verify.">KYC on file</Chip>}
+        {waitingLabel && <span className="text-muted-foreground">Waiting for the client: {midSentence(waitingLabel)}</span>}
+      </div>
+      {next.checklist.length > 0 && (
+        <div role="list" aria-label="Script so far" className="flex flex-wrap items-center gap-1">
+          {next.checklist.map((st) => (
+            <span role="listitem" key={st.key} title={stepTitle(st)}
+              className={`inline-flex h-5 min-w-0 max-w-full items-center gap-1 rounded-full border px-2 text-[10px] leading-none ${st.state === 'done' ? 'border-trade-buy/30 bg-trade-buy/10 text-trade-buy'
+                : st.state === 'asked' ? 'border-warning/40 bg-warning/10 text-warning' : 'border-border bg-secondary/60 text-muted-foreground'}`}>
+              {stepIcon(st)}
+              <span className="truncate">{st.label}{st.answer ? `: ${st.answer}` : st.state === 'skipped' ? ': on file' : ''}</span>
+              <span className="sr-only">({stepTitle(st)})</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {next.hints.map((h) => {
+        const ht = hintText(h, !detailsAllowed);
+        return (
+          <div key={h} className="flex items-start gap-1.5 rounded border border-warning/30 bg-warning/5 px-2 py-1 text-[10px] leading-snug text-warning" title={ht.title}>
+            <Info className="mt-px h-3 w-3 shrink-0" /><span><span className="font-medium">{ht.label}</span> · {ht.title}</span>
+          </div>
+        );
+      })}
+      {mainOffers.map((o) => stepCardNext(o))}
+      {optionOffers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+          <span>Also:</span>
+          {optionOffers.map((o) => {
+            const pick = stepPick(o);
+            return (
+              <button key={o.entryId} type="button" onClick={() => onInsert(pick)} title={pick.text} aria-label={`Insert: ${offerLabel(o)}${o.status === 'tentative' ? ' (tentative)' : ''}`}
+                className={`inline-flex h-5 min-w-0 max-w-full items-center gap-1 rounded-full border px-2 text-[10px] font-medium hover:bg-secondary ${o.status === 'approved' ? 'border-border bg-secondary/60 text-foreground' : 'border-warning/40 bg-warning/5 text-foreground'}`}>
+                <CornerDownLeft className="h-2.5 w-2.5 shrink-0" /><span className="truncate">{offerLabel(o)}{o.status === 'tentative' ? ' · tentative' : ''}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {(next.missing ?? []).length > 0 && (
+        <div className="text-[10px] leading-snug text-muted-foreground">
+          No saved words fit this order for {(next.missing ?? []).map((m) => midSentence(m.label)).join(', ')}: type your own, or add a reply to that step on the <Link to="/terminal/playbook" className="underline underline-offset-2">Playbook</Link> page.
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="@container w-full min-w-0 rounded-lg border border-primary/25 bg-primary/[0.04]">
       {/* Header: what the Copilot assumed about this chat */}
@@ -498,8 +678,10 @@ export function CopilotPanel({
       <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 px-2.5 py-1.5">
         <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
         <span className="shrink-0 text-[11px] font-semibold text-foreground">Copilot</span>
-        {(ctx || deadlines.length > 0 || risks.length > 0 || budget?.alertPct != null) && <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1 @[32rem]:order-none @[32rem]:flex-1 @[32rem]:basis-0">
+        {(ctx || deadlines.length > 0 || risks.length > 0 || budget?.alertPct != null || waiting) && <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-1 @[32rem]:order-none @[32rem]:flex-1 @[32rem]:basis-0">
           {ctx && <Chip title={ctx.language_reason}><Languages className="h-2.5 w-2.5" />{lang} · {address}</Chip>}
+          {/* How long the client has waited for us: visible while the panel is collapsed too. */}
+          {waiting && <Chip tone={waiting.tone} title={waiting.title}><Hourglass className="h-2.5 w-2.5" />{waiting.label}</Chip>}
           {/* Binance's deadlines stay visible while the panel is collapsed. */}
           {deadlines.map((d) => (
             <Chip key={d.key} tone={d.tone} title={d.title} fluid>
@@ -579,6 +761,9 @@ export function CopilotPanel({
             </div>
           )}
 
+          {/* Next step first when the client asked nothing; after the replies when they asked a question (below). */}
+          {!loading && scriptFirst && nextBlock}
+
           {!loading && (data?.heldBack ?? []).map((h) => (
             <div key={h.entryId} className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/5 px-2 py-1.5 text-[10px] leading-snug text-warning">
               <ShieldAlert className="mt-px h-3 w-3 shrink-0" /><span>Held back “{h.title}”: {h.reason}</span>
@@ -587,7 +772,7 @@ export function CopilotPanel({
           {!loading && playbook.map((p) => playbookCard(p))}
           {!loading && (data?.otherSituations ?? []).map((o) => (
             <div key={o.topicId} className="text-[10px] leading-snug text-muted-foreground">
-              “{o.title}” has replies only for {o.situations.join(', ')}, not for this situation{drafts.length ? ' — the drafts below are for this one. Sending one saves it for this situation' : ''}.
+              “{o.title}” has replies only for {o.situations.join(', ')}, not for this situation{drafts.length ? ` — ${drafts.length === 1 ? 'the draft below is' : 'the drafts below are'} for this one. Sending ${drafts.length === 1 ? 'it' : 'one'} saves it for this situation` : ''}.
             </div>
           ))}
           {!loading && drafts.map((d) => draftCard(d))}
@@ -619,6 +804,8 @@ export function CopilotPanel({
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Drafting…</div>
           )}
 
+          {!loading && !scriptFirst && nextBlock}
+
           {!loading && missing.length > 0 && (
             <div className="text-[10px] text-warning">
               No {missing.map((p) => teamLabel(p, teams)).join(' or ')} contact number saved. Add one in <Link to="/terminal/playbook?tab=settings" className="underline underline-offset-2">Playbook settings</Link>, or type it before sending.
@@ -639,7 +826,7 @@ export function CopilotPanel({
             <div className="flex justify-end pt-0.5">
               <Button variant="ghost" size="sm" disabled={working} onClick={() => void load('force')} className="h-6 px-2 text-[11px] text-primary">
                 {busy === 'force' ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Wand2 className="mr-1 h-3 w-3" />}
-                {approvedFound || aiPicked || conflictFound ? 'Draft with AI anyway' : aiFailed ? 'Try the AI again' : 'Draft with AI'}
+                {approvedFound || aiPicked || conflictFound || noQuestion ? 'Draft with AI anyway' : aiFailed ? 'Try the AI again' : 'Draft with AI'}
               </Button>
             </div>
           )}

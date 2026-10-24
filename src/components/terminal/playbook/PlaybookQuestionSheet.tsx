@@ -164,7 +164,8 @@ export function PlaybookQuestionSheet({ target, onOpenChange }: { target: SheetT
   const expired = reply ? isExpired(reply) : false;
   const placeholderHelp = (
     <p className="text-[11px] leading-relaxed text-muted-foreground">
-      Write with “sir”; the Copilot switches to “ma'am” when needed. Filled in when inserted: {'{amount}'} {'{orderNo}'} {'{name}'} {'{upi}'}
+      Write with “sir”; the Copilot switches to “ma'am” when needed. Filled in when inserted: {'{amount}'} {'{orderNo}'} {'{name}'} {'{upi}'} {'{greeting}'};
+      on buy orders {'{net_amount}'} (what we pay after 1% TDS) and {'{tds_amount}'}
       {teams.filter((t) => t.active).map((t) => <span key={t.code}> · {`{contact:${t.code}}`} {t.label}</span>)}. Give a number only where the client asks for one.
     </p>
   );

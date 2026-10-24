@@ -101,7 +101,9 @@ export function buildTranscript(rows: ChatRow[], hint?: { id?: string | null; te
   if (h) {
     const hid = String(hint?.id ?? '')
     const known = out.some((m) => (hid && m.id === hid) || (m.who === 'client' && m.text === h && m === out[out.length - 1]))
-    if (!known) out.push({ id: hid || `hint-${out.length}`, at: (out[out.length - 1]?.at ?? 0) + 1, who: 'client', kind: 'text', text: h })
+    // The screen names a picture or a file it has not stored yet "[image]" / "[file]": it is one here too, not a text.
+    const kind = h === '[image]' ? 'image' : h === '[file]' ? 'file' : 'text'
+    if (!known) out.push({ id: hid || `hint-${out.length}`, at: (out[out.length - 1]?.at ?? 0) + 1, who: 'client', kind, text: h })
   }
   return out
 }
@@ -477,7 +479,7 @@ export function detectRisks(t: Msg[], opts: { hasComplaint?: boolean; status?: s
 
 // ─── Draft safety checks ────────────────────────────────────────────────────────────────────────────
 
-export const PLACEHOLDERS = ['{amount}', '{orderNo}', '{name}', '{upi}']
+export const PLACEHOLDERS = ['{amount}', '{orderNo}', '{name}', '{upi}', '{net_amount}', '{tds_amount}', '{greeting}']
 /** A team's code from copilot_teams (kyc, rm, support, or one added later). */
 export type ContactPurpose = string
 const CONTACT_TOKEN = /\{contact:([a-z][a-z0-9_]{0,23})\}/g
@@ -500,6 +502,7 @@ export function guardDraft(input: string, opts: { side?: Side | null; situation?
   // Normalise placeholder spelling the models sometimes vary.
   text = text.replace(/\{\s*contact\s*[:_-]\s*([a-z][a-z0-9_]{0,23})\s*\}/gi, (_w, p) => `{contact:${String(p).toLowerCase()}}`)
     .replace(/\{\s*(amount|upi|name)\s*\}/gi, (_w, p) => `{${String(p).toLowerCase()}}`)
+    .replace(/\{\s*(net|tds)[\s_-]*amount\s*\}/gi, (_w, p) => `{${String(p).toLowerCase()}_amount}`)
     .replace(/\{\s*order\s*_?no\s*\}/gi, '{orderNo}')
   const flags: string[] = []
   const reasons: string[] = []
@@ -616,7 +619,7 @@ export function buildDraftMessages(c: DraftContext): { system: string; user: str
     '- Use only facts from the data given. Never state anything about this order, payment or client that is not in the data. If you need information, ask the client, or say we will check.',
     '- "client" holds our internal records: use them to decide what to ask (never ask again for a document or detail we have on file) and how careful to be. Never mention internal records, order counts, past appeals or name checks to the client.',
     '- Deadlines in "order" come from Binance. Only when order.pay_deadline is given on a sell order may you tell the client how much time is left to pay; before verification order.order_expires only lets you ask them to finish the KYC steps quickly. Never promise anything by a deadline.',
-    '- Placeholders: {amount} is the order amount, {orderNo} the order number, {name} the client\'s name, {upi} our UPI ID; a company team\'s number is {contact:<team>} with the teams listed in "teams". Use them instead of writing any such value.',
+    '- Placeholders: {amount} is the order amount, {orderNo} the order number, {name} the client\'s name, {upi} our UPI ID; on our buy orders {net_amount} is what we pay after the 1% TDS and {tds_amount} the TDS; a company team\'s number is {contact:<team>} with the teams listed in "teams". Use them instead of writing any such value.',
     '- Give a contact number only when the client asks for one (for example which number will call them); never offer one otherwise. Pick the team from "teams" that fits this client and situation.',
     '- Never ask the client to skip or avoid KYC, and never say KYC is not needed. KYC rules come only from the approved answers.',
     '- "avoid" lists earlier drafts a manager rejected for similar questions, with the reason. Do not repeat those mistakes.',
@@ -692,22 +695,46 @@ export function buildRouteMessages(input: {
 
 // ─── Learning helpers ───────────────────────────────────────────────────────────────────────────────
 
-export interface TemplateValues { amount?: number | string | null; orderNo?: string | null; name?: string | null; upi?: string | null }
+export interface TemplateValues {
+  amount?: number | string | null; orderNo?: string | null; name?: string | null; upi?: string | null
+  /** The order's side: the amount after TDS ({net_amount}, {tds_amount}) exists only on our buy orders. */
+  side?: string | null
+}
 
 function esc(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
+
+/**
+ * 1% TDS (Section 194S) on our buy orders, to the paisa: tds = round(total × 1%, 2), net = total − tds, as finance books
+ * it (tds_records). The screen's fill-template.ts works it out the same way.
+ */
+export function tdsSplit(amount: number): { tds: number; net: number } | null {
+  if (!Number.isFinite(amount) || amount <= 0) return null
+  const paise = Math.round(amount * 100)
+  const tdsPaise = Math.round(paise / 100)
+  return { tds: tdsPaise / 100, net: (paise - tdsPaise) / 100 }
+}
+const moneyForms = (n: number) => new Set<string>([
+  n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+  n.toLocaleString('en-IN', { maximumFractionDigits: 2 }),
+  n.toFixed(2),
+  String(n),
+])
 
 /** Turns a sent message back into a reusable reply: filled values → placeholders, contact numbers → {contact:x}, ma'am → sir. */
 export function generalize(text: string, v: TemplateValues, contacts: Array<{ purpose: string; phone: string }>): string {
   let t = String(text ?? '')
   const amt = v.amount === null || v.amount === undefined || v.amount === '' ? null : Number(v.amount)
   if (amt !== null && Number.isFinite(amt)) {
-    const forms = new Set<string>([
-      amt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      amt.toLocaleString('en-IN', { maximumFractionDigits: 2 }),
-      amt.toFixed(2),
-      String(amt),
-    ])
-    for (const f of [...forms].sort((a, b) => b.length - a.length)) t = t.replace(new RegExp(`(?<![\\d,.])${esc(f)}(?![\\d])`, 'g'), '{amount}')
+    for (const f of [...moneyForms(amt)].sort((a, b) => b.length - a.length)) t = t.replace(new RegExp(`(?<![\\d,.])${esc(f)}(?![\\d])`, 'g'), '{amount}')
+    // On our buy orders: what we pay after the 1% TDS, and the TDS. A whole-rupee TDS ("45") only after ₹, Rs or INR.
+    const split = String(v.side ?? '').toUpperCase() === 'BUY' ? tdsSplit(amt) : null
+    if (split) {
+      for (const f of [...moneyForms(split.net)].sort((a, b) => b.length - a.length)) t = t.replace(new RegExp(`(?<![\\d,.])${esc(f)}(?![\\d])`, 'g'), '{net_amount}')
+      for (const f of [...moneyForms(split.tds)].sort((a, b) => b.length - a.length)) {
+        const lead = /[.,]/.test(f) ? '(?<![\\d,.])' : '(?<=(?:₹|\\brs\\.?|\\binr)\\s?)'
+        t = t.replace(new RegExp(`${lead}${esc(f)}(?![\\d]|[.,]\\d)`, 'gi'), '{tds_amount}')
+      }
+    }
   }
   if (v.orderNo) t = t.replace(new RegExp(esc(String(v.orderNo)), 'g'), '{orderNo}')
   if (v.upi) t = t.replace(new RegExp(esc(String(v.upi)), 'gi'), '{upi}')
@@ -777,7 +804,7 @@ export function buildJudgeMessages(input: {
     '- "conflict": a reply that fits now, in the same circumstances, answers the same question with a different substance (different rule, time frame, amount, requirement or instruction). target_entry_id = that reply.',
     '- "new": no candidate is the same question.',
     'Use "" for an id you do not need.',
-    'generalized_reply: the reply in its own language with anything that only fits this client or order replaced by placeholders ({amount}, {orderNo}, {name}, {upi}, {contact:<team>}) or removed. Change nothing else. client_specific tells whether you had to change anything.',
+    'generalized_reply: the reply in its own language with anything that only fits this client or order replaced by placeholders ({amount}, {orderNo}, {name}, {upi}, {net_amount}, {tds_amount}, {contact:<team>}) or removed. Change nothing else. client_specific tells whether you had to change anything.',
     `other_language_reply: the same reply in ${other} Keep placeholders and terms such as Aadhaar, PAN, UPI ID and UTR.`,
     'title: a short name for the question (at most 6 words), for example "TDS certificate timing".',
     'phrasing: the client\'s message, or the part of it, that this reply answers, copied word for word from client_question, at most 120 characters.',
@@ -811,7 +838,7 @@ export function buildTranslateMessages(text: string, to: 'en' | 'hi', houseStyle
   const system = [
     'You rewrite one reply that a crypto P2P desk sends to clients in Binance order chats into the other language. Keep exactly the same meaning, facts and instructions; add nothing.',
     `Write it in ${target}`,
-    'Keep placeholders such as {amount}, {orderNo}, {name}, {upi} and {contact:kyc} unchanged, and terms such as Aadhaar, PAN, UPI ID and UTR in English. Keep "sir" or "ma\'am".',
+    'Keep placeholders such as {amount}, {orderNo}, {name}, {upi}, {net_amount}, {tds_amount} and {contact:kyc} unchanged, and terms such as Aadhaar, PAN, UPI ID and UTR in English. Keep "sir" or "ma\'am".',
     '',
     'House style:',
     houseStyle.trim(),

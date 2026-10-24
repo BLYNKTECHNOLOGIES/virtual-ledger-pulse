@@ -207,6 +207,17 @@ Deno.test('used: nothing queued without a client question; bad input refused', a
   eq((await run(s, a, { action: 'used', callId, orderNumber: ORDER, sentAt: NOW.getTime(), finalText: '' })).body.field, 'finalText')
 })
 
+Deno.test('used: a reply to a message that asks nothing (a picture, a number, "ok", an answer) is not queued', async () => {
+  for (const [text, type] of [['img', 'image'], ['9876543210', 'text'], ['ok sir', 'text'], ['trading', 'text']]) {
+    const s = new FakeStore(), a = new FakeAi()
+    const last = (s.rows = [msg('client', 'hello'), msg('us', 'Sir, may I know the purpose of this trade?'), msg('client', text, type)])[2]
+    const callId = await rewrite(s, a, 'thik hai checking', 'Sir, thank you; we are checking.')
+    const r = await run(s, a, { action: 'used', callId, orderNumber: ORDER, sentAt: NOW.getTime(), finalText: 'Sir, thank you; we are checking.' })
+    eq([r.body.queued, r.body.reason], [false, 'no_question'], String(last.message_text)); eq(s.inbox.length, 0)
+    eq(s.calls.find((x) => x.id === callId).feedback, 'used')
+  }
+})
+
 // ── Second round (review) ──
 
 Deno.test('only for orders on a Binance account the person works on (our records decide, never the screen)', async () => {

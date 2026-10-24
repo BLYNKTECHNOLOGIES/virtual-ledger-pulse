@@ -1,7 +1,7 @@
 // Run: deno test supabase/functions/_shared/copilot-playbook.test.ts
 import {
   applyAddress, buildDraftMessages, buildRouteMessages, buildTranscript, clientFacts, clientTurn, costInr, decideAddress, decideLanguage, detectLang,
-  detectRisks, generalize, greetingFor, guardDraft, maskPII, orderCategory, readUsage, routeSchema, type ChatRow, type Msg,
+  detectRisks, generalize, greetingFor, guardDraft, maskPII, orderCategory, readUsage, routeSchema, tdsSplit, type ChatRow, type Msg,
 } from './copilot-playbook.ts'
 
 function eq(actual: unknown, expected: unknown, msg = '') {
@@ -304,4 +304,18 @@ Deno.test('generalize never puts {name} inside a UPI ID, an email or a handle (t
   eq(maskPII(generalize('Sir Ravi, we have sent the payment to ravi@ybl.', v, [])), 'Sir {name}, we have sent the payment to [upi].')
   eq(maskPII(generalize('ravi.kumar@okaxis and ravi@gmail.com', v, [])), '[upi] and [email]')
   eq(generalize('Thank you, Ravi.', v, []), 'Thank you, {name}.')
+})
+
+Deno.test('TDS on our buy orders: 1% to the paisa, as finance books it; back to placeholders only on buy orders', () => {
+  eq(tdsSplit(4500), { tds: 45, net: 4455 })
+  eq(tdsSplit(12345.67), { tds: 123.46, net: 12222.21 })
+  eq(tdsSplit(100.5), { tds: 1.01, net: 99.49 }, 'half a paisa rounds up, as round(x, 2) does')
+  eq(tdsSplit(0), null); eq(tdsSplit(Number.NaN), null)
+  const buy = { amount: 4500, side: 'BUY' }
+  eq(generalize('We paid ₹4,455.00 after 1% TDS (₹45.00).', buy, []), 'We paid ₹{net_amount} after 1% TDS (₹{tds_amount}).')
+  eq(generalize('TDS Rs 45 deducted, 4455 paid', buy, []), 'TDS Rs {tds_amount} deducted, {net_amount} paid')
+  eq(generalize('Please wait 45 minutes', buy, []), 'Please wait 45 minutes', 'a whole-rupee TDS only after ₹, Rs or INR')
+  eq(generalize('We paid ₹4,455.00', { amount: 4500, side: 'SELL' }, []), 'We paid ₹4,455.00', 'no TDS amounts on sell orders')
+  eq(guardDraft('Sir, we will pay {net amount} after {TDS_amount} TDS.').text, 'Sir, we will pay {net_amount} after {tds_amount} TDS.')
+  ok(!guardDraft('Sir, we pay {net_amount}.').flags.includes('unknown_placeholder'))
 })

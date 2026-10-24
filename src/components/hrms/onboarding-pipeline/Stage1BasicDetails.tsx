@@ -13,6 +13,8 @@ import { User } from "lucide-react";
 import { CandidateInviteCard } from "./CandidateInviteCard";
 import { composeAddress, parseAddress } from "@/lib/addressParse";
 
+const ADDRESS_KEYS = ["address", "city", "state", "zip", "country"];
+
 interface Stage1Props {
   data: any;
   onSave: (data: any, options?: { silent?: boolean }) => Promise<void>;
@@ -45,11 +47,56 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     probation_end_date: "",
   });
   const [fullAddress, setFullAddress] = useState("");
+  /** A save should be scheduled (an edit not yet sent). */
   const dirtyRef = useRef(false);
+  /**
+   * Edits not yet confirmed saved: field → edit count. A field stays protected until
+   * a save that carried its latest value succeeds, so a record refresh never reverts it
+   * and a failed save never loses it. Untouched fields follow the saved record (another
+   * screen, the candidate's form or an import may change it), and once the record exists
+   * only edited fields are saved, so newer values written elsewhere are not overwritten.
+   */
+  const editsRef = useRef<Map<string, number>>(new Map());
+  const touch = useCallback((...keys: string[]) => {
+    dirtyRef.current = true;
+    for (const k of keys) editsRef.current.set(k, (editsRef.current.get(k) || 0) + 1);
+  }, []);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Saves run one after another, never overlapping, so they reach the database in order. */
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const formRef = useRef(form);
+  formRef.current = form;
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const recordIdRef = useRef<string | null>(null);
+  recordIdRef.current = data?.id || null;
+
+  /** Save every pending edit, after any save already running. Rejects if the save fails (the edits stay pending). */
+  const savePending = useCallback((): Promise<void> => {
+    const run = saveChainRef.current.catch(() => {}).then(async () => {
+      const sent = new Map(editsRef.current);
+      dirtyRef.current = false;
+      if (!sent.size) return;
+      const current = formRef.current as Record<string, unknown>;
+      // A new draft is created from the whole form; an existing record gets only what was edited.
+      const payload = recordIdRef.current
+        ? Object.fromEntries([...sent.keys()].filter((k) => k in current).map((k) => [k, current[k]]))
+        : current;
+      try {
+        await onSaveRef.current(payload, { silent: true });
+      } catch (err) {
+        dirtyRef.current = true;
+        throw err;
+      }
+      // Saved: a field stays protected only if it was edited again meanwhile.
+      for (const [k, n] of sent) if (editsRef.current.get(k) === n) editsRef.current.delete(k);
+      if (editsRef.current.size) dirtyRef.current = true;
+    });
+    saveChainRef.current = run;
+    return run;
+  }, []);
 
   useEffect(() => {
-    if (dirtyRef.current) return;
     if (data) {
       // Legacy drafts stored `full_time` / `part_time`; the Select only offers
       // permanent/contract/intern now. Map legacy → permanent so the field
@@ -57,7 +104,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
       // of silently blanking the trigger while the DB keeps the old value.
       const rawType = data.employee_type || "";
       const normalizedType = rawType === "full_time" || rawType === "part_time" ? "permanent" : rawType;
-      setForm({
+      const fromData = {
         first_name: data.first_name || "",
         last_name: data.last_name || "",
         email: data.email || "",
@@ -78,21 +125,32 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         hiring_requirement_declined: !!data.hiring_requirement_declined,
         employee_type: normalizedType,
         probation_end_date: data.probation_end_date || "",
-      });
-      setFullAddress(composeAddress({
+      };
+      const savedAddress = composeAddress({
         address: data.address || "",
         city: data.city || "",
         state: data.state || "",
         zip: data.zip || "",
         country: data.country || "",
-      }));
-      // If we rewrote the legacy value, mark dirty so the autosave persists
-      // the normalized value back to the draft on the next tick.
-      if (rawType && rawType !== normalizedType) {
-        dirtyRef.current = true;
+      });
+      const edited = editsRef.current;
+      if (edited.size) {
+        // Edits not yet saved stay as typed; everything else follows the saved record.
+        setForm((prev) => {
+          const next: Record<string, unknown> = { ...fromData };
+          for (const k of edited.keys()) if (k in prev) next[k] = (prev as Record<string, unknown>)[k];
+          return next as typeof prev;
+        });
+        if (!ADDRESS_KEYS.some((k) => edited.has(k))) setFullAddress(savedAddress);
+      } else {
+        setForm(fromData);
+        setFullAddress(savedAddress);
       }
+      // If we rewrote the legacy value, mark it edited so the autosave persists
+      // the normalized value back to the draft on the next tick.
+      if (rawType && rawType !== normalizedType) touch("employee_type");
     }
-  }, [data]);
+  }, [data, touch]);
 
 
   const { data: departments } = useQuery({
@@ -129,16 +187,23 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     if (!dirtyRef.current || readOnly) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      dirtyRef.current = false;
-      onSave(form, { silent: true }).catch((err: any) => console.warn("Stage 1 autosave failed:", err));
+      savePending().catch((err: any) => {
+        // The edits stay pending: the next change or "Send onboarding form" saves them again.
+        console.warn("Stage 1 autosave failed:", err);
+        toast.error(`Stage 1 changes were not saved${err?.message ? `: ${err.message}` : ""}. They will be saved with your next change, or when you send the onboarding form.`, { id: "stage1-autosave" });
+      });
     }, 900);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [form, onSave, readOnly]);
+  }, [form, onSave, readOnly, savePending]);
 
   const update = (field: string, value: string) => {
-    dirtyRef.current = true;
+    // The field, and what changing it resets.
+    if (field === "position_id") touch(field, "job_role", "hiring_requirement_id", "hiring_requirement_declined");
+    else if (field === "department_id") touch(field, "position_id", "job_role", "hiring_requirement_id", "hiring_requirement_declined");
+    else if (field === "hiring_requirement_id") touch(field, "hiring_requirement_declined");
+    else touch(field);
     setForm(prev => {
       const next: any = { ...prev, [field]: value };
       // The designation is the only title (the database keeps job_role equal to it). Mirror the
@@ -160,14 +225,14 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   };
   const setRequirement = useCallback((v: string) => update("hiring_requirement_id", v), [positions]); // eslint-disable-line react-hooks/exhaustive-deps
   const declineRequirement = useCallback(() => {
-    dirtyRef.current = true;
+    touch("hiring_requirement_id", "hiring_requirement_declined");
     setForm((prev: any) => ({ ...prev, hiring_requirement_id: "", hiring_requirement_declined: true }));
-  }, []);
+  }, [touch]);
 
   // One input, structured storage: parse the typed line into
   // address / city / state / zip / country on every keystroke.
   const updateAddress = (value: string) => {
-    dirtyRef.current = true;
+    touch(...ADDRESS_KEYS);
     setFullAddress(value);
     const parsed = parseAddress(value);
     setForm(prev => ({ ...prev, ...parsed }));
@@ -183,10 +248,23 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   };
 
   const handleSave = () => onSave(form);
+  /**
+   * Save pending edits now (and wait for an autosave already running), so the
+   * send dialog starts from the saved record. A failed save keeps the edits
+   * pending and is reported — the dialog must not open on stale details.
+   */
+  const flushDraft = useCallback(async () => {
+    if (readOnly) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    await savePending();
+  }, [readOnly, savePending]);
   const handleComplete = async () => {
     if (!validate()) return;
     setIsCompleting(true);
     try {
+      // Completing writes the whole form; let a running autosave land first so it cannot overwrite it.
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      await saveChainRef.current.catch(() => {});
       await onComplete(form);
     } catch {
       // Parent wizard shows the detailed failure toast.
@@ -199,7 +277,12 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     <div className="space-y-4">
     {/* Candidate self-service onboarding form — kept at the top so the invite
         link / email is the first action available in Stage 1. */}
-    <CandidateInviteCard onboardingId={data?.id} email={form.email} />
+    <CandidateInviteCard
+      onboardingId={data?.id}
+      beforeOpen={flushDraft}
+      packageEnabled={!!(data as any)?.prejoining?.enabled}
+      recordVersion={(data as any)?.updated_at || null}
+    />
     <Card>
       <CardHeader className="py-3 px-4">
         <CardTitle className="text-base flex items-center gap-2">

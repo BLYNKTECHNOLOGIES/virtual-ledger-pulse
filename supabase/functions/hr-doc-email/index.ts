@@ -175,6 +175,17 @@ Deno.serve(async (req) => {
     const { data: doc } = await admin.from("hr_documents_issued").select("*").eq("id", issuedId).maybeSingle();
     if (!doc) return json({ error: "Issued document not found" }, 404);
     if (doc.status === "revoked") return json({ error: "This letter is revoked and cannot be emailed" }, 400);
+    if (doc.status === "superseded") return json({ error: "This letter was replaced by a revised one and cannot be emailed" }, 400);
+    // One live offer per candidate: an older offer is never emailed once a revision exists.
+    if (String(doc.category || "").toLowerCase() === "offer" && doc.onboarding_id) {
+      const { data: newest, error: newestErr } = await admin.from("hr_documents_issued").select("id,reference_no")
+        .eq("onboarding_id", doc.onboarding_id).eq("category", "offer").in("status", ["issued", "delivered"])
+        .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
+      if (newestErr) return json({ error: newestErr.message }, 500);
+      if (newest && newest.id !== doc.id) {
+        return json({ error: `A newer offer, ${newest.reference_no}, was issued for this candidate. Email that one (or send it with the onboarding form) instead.` }, 400);
+      }
+    }
 
     // Recipient
     let to = overrideTo;

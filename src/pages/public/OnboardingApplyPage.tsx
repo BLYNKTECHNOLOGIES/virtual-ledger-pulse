@@ -194,6 +194,12 @@ function LiveOnboardingApplyPage() {
                 Please fill in your details and upload the required documents. Your progress is saved
                 automatically, so you can return to this link any time before submitting.
               </p>
+              {pkg?.enabled && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Your offer letter and the E2 declaration are under “Offer & joining confirmation”. Download
+                  both, sign them, and upload the signed copies with your documents.
+                </p>
+              )}
             </Card>
 
             {errors.length > 0 && (
@@ -263,6 +269,8 @@ function LiveOnboardingApplyPage() {
               </Grid>
             </Section>
 
+            {pkg?.enabled && <CandidatePackageForm form={form} pkg={pkg} set={set} token={token}/>}
+
             <Section title="Documents">
               <div className="space-y-3">
                 {(pkg?.enabled ? PREJOINING_DOCS : DOCS).map((d) => (
@@ -271,7 +279,6 @@ function LiveOnboardingApplyPage() {
               </div>
             </Section>
 
-            {pkg?.enabled && <CandidatePackageForm form={form} pkg={pkg} set={set}/>}
             <Section title="Declaration">
               <label className="flex items-start gap-3 text-sm text-foreground">
                 <Checkbox checked={!!form.declaration_accepted} onCheckedChange={(v) => set("declaration_accepted", !!v)} className="mt-0.5" />

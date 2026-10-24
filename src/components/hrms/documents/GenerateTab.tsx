@@ -776,11 +776,11 @@ export function GenerateTab() {
               <div>
                 <Label className="text-xs">Issue to</Label>
                 <div className="mt-1">
-                  <SegmentedControl<SubjectKind>
+                  <SegmentedControl
                     size="sm"
                     aria-label="Issue to"
                     value={subjectKind}
-                    onValueChange={(v) => { setSubjectKind(v); setPersonId(""); }}
+                    onValueChange={(v) => { setSubjectKind(v as SubjectKind); setPersonId(""); }}
                     options={[{ value: "employee", label: "Employee" }, { value: "candidate", label: "Candidate" }]}
                   />
                 </div>

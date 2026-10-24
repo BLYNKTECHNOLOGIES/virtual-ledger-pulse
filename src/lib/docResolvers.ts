@@ -42,6 +42,11 @@ export interface LetterSubject {
   kind: SubjectKind;
   /** hr_employees.id for an employee, hr_employee_onboarding.id for a candidate. */
   id: string;
+  /**
+   * Candidates only: onboarding fields HR is entering right now and has not saved
+   * yet (the send-form dialog), applied over the saved record.
+   */
+  draft?: Record<string, unknown> | null;
 }
 
 export interface ResolvedValues {
@@ -217,7 +222,8 @@ export const RESOLVER_SOURCES: Record<string, string> = {
   "employee.address": "Address, city, state, PIN — onboarding form or employee record",
   "employee.phone": "Mobile — onboarding form or employee record",
   "employee.email": "Email — onboarding form or employee record",
-  "employee.pan": "PAN — employee record (not collected on the onboarding form)",
+  "employee.pan": "PAN — employee record, or the candidate's onboarding form",
+  "employee.date_of_birth": "Date of birth — onboarding form or employee record",
   "derived.salutation": "Mr./Ms. from gender",
   "derived.pronoun_subject": "he/she from gender",
   "derived.pronoun_possessive": "his/her from gender",
@@ -446,7 +452,7 @@ async function sharedSource(actorName?: string) {
 async function employeeSource(employeeId: string, policy: LetterPolicy) {
   const { data: emp, error } = await (supabase as any)
     .from("hr_employees")
-    .select("id,badge_id,first_name,last_name,email,phone,address,city,state,zip,country,gender,pan_number,total_salary,basic_salary,last_working_day,resignation_date,notice_period_end_date,account_deletion_date")
+    .select("id,badge_id,first_name,last_name,email,phone,address,city,state,zip,country,gender,dob,pan_number,total_salary,basic_salary,last_working_day,resignation_date,notice_period_end_date,account_deletion_date")
     .eq("id", employeeId)
     .maybeSingle();
   if (error) throw error;
@@ -497,6 +503,7 @@ async function employeeSource(employeeId: string, policy: LetterPolicy) {
     "employee.phone": emp.phone || "",
     "employee.email": emp.email || "",
     "employee.pan": emp.pan_number || "",
+    "employee.date_of_birth": emp.dob || "",
     "employment.designation": designation,
     "employment.department": department,
     "employment.date_of_joining": work?.joining_date || "",
@@ -524,14 +531,23 @@ async function employeeSource(employeeId: string, policy: LetterPolicy) {
   };
 }
 
-async function candidateSource(onboardingId: string, policy: LetterPolicy) {
-  const { data: o, error } = await (supabase as any)
+/** Onboarding fields a letter reads — and the ones an unsaved draft may change. */
+export const CANDIDATE_LETTER_FIELDS = [
+  "first_name", "last_name", "email", "phone", "gender", "date_of_birth", "address", "city", "state", "zip", "country",
+  "department_id", "position_id", "job_role", "shift_id", "post_training_shift_id", "employee_type", "ctc",
+  "post_training_ctc", "training_completion_date", "date_of_joining", "probation_end_date", "reporting_manager_id",
+] as const;
+
+async function candidateSource(onboardingId: string, policy: LetterPolicy, draft?: Record<string, unknown> | null) {
+  const { data: saved, error } = await (supabase as any)
     .from("hr_employee_onboarding")
-    .select("id,status,first_name,last_name,email,phone,gender,address,city,state,zip,country,department_id,position_id,job_role,shift_id,post_training_shift_id,employee_type,ctc,post_training_ctc,training_completion_date,date_of_joining,probation_end_date,reporting_manager_id,employee_id,essl_badge_id")
+    .select(`id,status,employee_id,essl_badge_id,documents,${CANDIDATE_LETTER_FIELDS.join(",")}`)
     .eq("id", onboardingId)
     .maybeSingle();
   if (error) throw error;
-  if (!o) throw new Error("Onboarding record not found");
+  if (!saved) throw new Error("Onboarding record not found");
+  const o: Record<string, any> = { ...saved };
+  for (const k of CANDIDATE_LETTER_FIELDS) if (draft && k in draft) o[k] = draft[k];
 
   const [positionTitle, department, manager, mainShift, laterShift] = await Promise.all([
     fetchName("positions", "title", o.position_id),
@@ -577,7 +593,9 @@ async function candidateSource(onboardingId: string, policy: LetterPolicy) {
     "employee.address": addressLine,
     "employee.phone": o.phone || "",
     "employee.email": o.email || "",
-    "employee.pan": "",
+    // PAN as the candidate gave it on the self-service form (or HR in Stage 3).
+    "employee.pan": String(o.documents?.pan?.value || "").trim().toUpperCase(),
+    "employee.date_of_birth": o.date_of_birth || "",
     "employment.designation": positionTitle || o.job_role || "",
     "employment.department": department,
     "employment.date_of_joining": o.date_of_joining || "",
@@ -624,7 +642,7 @@ export async function resolveSubjectValues(
 ): Promise<ResolvedValues> {
   const shared = await sharedSource(actorName);
   const person = subject.kind === "candidate"
-    ? await candidateSource(subject.id, shared.policy)
+    ? await candidateSource(subject.id, shared.policy, subject.draft)
     : await employeeSource(subject.id, shared.policy);
 
   const salary = salarySource(person.annualCtc, shared.structure);

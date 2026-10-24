@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,26 +15,38 @@ import { FilePlus2, Printer, AlertTriangle, ShieldAlert, FileCheck2, Info, Check
 import {
   fetchCatalog,
   resolveSubjectValues,
-  formatValue,
-  salaryValues,
-  isCtcDerivedResolver,
-  SYSTEM_FILLED_KEYS,
-  ALWAYS_EDITABLE_KEYS,
   type CatalogField,
   type SubjectKind,
 } from "@/lib/docResolvers";
-import { MIN_ANNUAL_CTC, componentFieldStem, parseAmount } from "@/lib/docCtcBreakdown";
-import { renderTemplateHtml, buildPrintDocument, printDocument } from "@/lib/docRender";
+import { buildPrintDocument, printDocument } from "@/lib/docRender";
 import type { PlaceholderMapping } from "@/lib/docTemplate";
 import { fetchCompanyIdentity, resolveLetterhead } from "@/lib/companyIdentity";
 import { safeFormat } from "@/lib/safe-date";
+import {
+  catalogIndex,
+  fixedSignatoryIdOf,
+  isSystemMapping,
+  letterSignatoryIds,
+  parseFieldInput,
+  placeholderKind,
+  planLetter,
+  signingSignatoryOf,
+  templateSubject,
+} from "@/lib/docLetterPlan";
+import { issuePlannedLetter, prepareDocxRenderer } from "@/lib/docIssue";
 
-type TemplateSubject = "employee" | "candidate" | "any";
+const OFFER_VIA_ONBOARDING =
+  "This candidate's onboarding form carries their offer. Issue a new or revised offer from HRMS → Onboarding → Stage 1 → “Update and send again…”, so the form, E2 and email carry it too.";
 
-/** Who a template is issued to — offer letters go to candidates by default. */
-export function templateSubject(t: any): TemplateSubject {
-  if (t?.subject === "employee" || t?.subject === "candidate" || t?.subject === "any") return t.subject;
-  return t?.category === "offer" ? "candidate" : "employee";
+/**
+ * Does the candidate's open onboarding form carry their offer (a joining package)?
+ * Then new offers come from Onboarding. After joining (or cancelling) Generate is free again.
+ */
+async function offerComesFromOnboarding(onboardingId: string): Promise<boolean> {
+  const { data, error } = await (supabase as any)
+    .from("hr_employee_onboarding").select("prejoining, status").eq("id", onboardingId).maybeSingle();
+  if (error) throw error;
+  return !!data?.prejoining?.enabled && !["completed", "cancelled"].includes(String(data?.status || ""));
 }
 
 export function GenerateTab() {
@@ -92,6 +104,17 @@ export function GenerateTab() {
 
   const { data: catalog = [] } = useQuery({ queryKey: ["hr_doc_field_catalog"], queryFn: fetchCatalog });
 
+  /** Offers for a candidate with a joining package are issued from Onboarding, so the form, E2 and email follow. */
+  const { data: candidatePackaged } = useQuery({
+    queryKey: ["hr_doc_candidate_package", personId],
+    enabled: subjectKind === "candidate" && !!personId,
+    staleTime: 0,
+    queryFn: () => offerComesFromOnboarding(personId),
+  });
+  const offerViaOnboarding = template?.category === "offer" && subjectKind === "candidate" && !!candidatePackaged;
+  /** One issue at a time: a second click while the first is checking or issuing does nothing. */
+  const issuingRef = useRef(false);
+
   /** Universal letterhead every letter is printed on — header/footer are never overwritten. */
   const { data: letterhead } = useQuery({
     queryKey: ["hr_company_letterhead"],
@@ -137,44 +160,22 @@ export function GenerateTab() {
     [version]
   );
 
-  const catalogByKey = useMemo(
-    () => new Map((catalog as CatalogField[]).map((c) => [c.field_key, c])),
-    [catalog]
-  );
+  const catalogByKey = useMemo(() => catalogIndex(catalog as CatalogField[]), [catalog]);
 
-  /**
-   * Placeholder kind comes from the mapping (explicit `kind`, else the mapped
-   * catalog field's data_type) — never from how the token happens to be spelled,
-   * so {gm_signature} or {authorised_signatory} behave correctly.
-   */
-  const kindOf = useMemo(() => {
-    return (m: PlaceholderMapping): "text" | "signature" | "seal" => {
-      if (m.kind) return m.kind;
-      const dt = m.field_key ? catalogByKey.get(m.field_key)?.data_type : undefined;
-      if (dt === "signature") return "signature";
-      if (dt === "image") return "seal";
-      return "text";
-    };
-  }, [catalogByKey]);
-
-  const imageTokens = useMemo(
-    () => new Set(mappings.filter((m) => kindOf(m) !== "text").map((m) => m.token)),
-    [mappings, kindOf]
+  /** Kind comes from the mapping, never from how the token happens to be spelled. */
+  const kindOf = useMemo(
+    () => (m: PlaceholderMapping) => placeholderKind(m, catalogByKey),
+    [catalogByKey]
   );
 
   /** A signature image bound to a signatory fixes the signer; otherwise HR picks who signs. */
-  const fixedSignatoryId =
-    mappings.find((m) => m.signatory_id && kindOf(m) !== "text")?.signatory_id || null;
-  const usesSignatory = mappings.some(
-    (m) => kindOf(m) !== "text" || m.field_key === "signatory_name" || m.field_key === "signatory_designation" ||
-      /^signatory_name|^hr_name|_signatory_name|^signatory_designation|^hr_designation/.test(m.token)
-  );
+  const fixedSignatoryId = fixedSignatoryIdOf(mappings, catalogByKey);
 
   /** The signatory this letter is signed by — every signatory token follows it. */
-  const signingSignatory = useMemo(() => {
-    const id = fixedSignatoryId || signerId || (signatories.length === 1 ? (signatories[0] as any).id : null);
-    return signatories.find((x: any) => x.id === id) || null;
-  }, [fixedSignatoryId, signerId, signatories]);
+  const signingSignatory = useMemo(
+    () => signingSignatoryOf(fixedSignatoryId, signerId, signatories as any[]),
+    [fixedSignatoryId, signerId, signatories]
+  );
 
   const { data: images = {} } = useQuery({
     queryKey: ["hr_doc_signature_urls", version?.id, signatories.length, catalog.length, (signingSignatory as any)?.id || null],
@@ -221,16 +222,7 @@ export function GenerateTab() {
    */
   const setFieldValue = (field: CatalogField, raw: string) => {
     const key = field.field_key;
-    let error = "";
-    let printable = "";
-    if (raw.trim()) {
-      if (field.data_type === "currency") {
-        const n = parseAmount(raw);
-        if (n === null) error = "Enter the amount in rupees, e.g. 1,63,200";
-        else if (key === "annual_ctc" && n < MIN_ANNUAL_CTC) error = "That looks too small for an annual CTC — enter the yearly figure in rupees";
-      }
-      if (!error) printable = formatValue(raw, field.data_type, field.formatter);
-    }
+    const { printable, error } = parseFieldInput(field, raw);
     const put = (o: Record<string, string>, v: string) => {
       const next = { ...o };
       if (v) next[key] = v; else delete next[key];
@@ -241,102 +233,37 @@ export function GenerateTab() {
     setFieldErrors((o) => put(o, error));
   };
 
-  /** Per-token signatory text (name / designation) so two signatories never collide. */
-  const tokenValues = useMemo(() => {
-    const out: Record<string, string> = {};
-    for (const m of mappings) {
-      const isName = m.field_key === "signatory_name" || /^signatory_name|^hr_name|_signatory_name/.test(m.token);
-      const isDesig = m.field_key === "signatory_designation" || /^signatory_designation|^hr_designation/.test(m.token);
-      if (!isName && !isDesig) continue;
-      const s = m.signatory_id ? signatories.find((x: any) => x.id === m.signatory_id) : signingSignatory;
-      if (!s) continue;
-      // Only real values here — an empty designation must fall through to what HR types.
-      const v = isName ? s.display_name : s.designation;
-      if (v) out[m.token] = v;
-    }
-    return out;
-  }, [mappings, signatories, signingSignatory]);
-
-  /** Salary variables follow the annual CTC — HR's typed CTC when the record had none. */
-  const typedCtc = parseAmount(rawOverrides.annual_ctc);
-  const effectiveCtc = typedCtc && typedCtc >= MIN_ANNUAL_CTC ? typedCtc : resolved?.annualCtc ?? null;
-  const ctcValues = useMemo(
-    () => (resolved ? salaryValues(effectiveCtc, resolved.structure, catalog as CatalogField[]) : {}),
-    [resolved, effectiveCtc, catalog]
-  );
-
-  const signatoryValues = useMemo(
-    () =>
-      signingSignatory
-        ? {
-            signatory_name: (signingSignatory as any).display_name || "",
-            signatory_designation: (signingSignatory as any).designation || "",
-          }
-        : {},
-    [signingSignatory]
-  );
-
-  /** What the records give, before anything HR types — decides which fields to ask for. */
-  const baseValues = useMemo<Record<string, string>>(
-    () => ({
-      ...(resolved?.values || {}),
-      ...(resolved ? salaryValues(resolved.annualCtc, resolved.structure, catalog as CatalogField[]) : {}),
-      ...signatoryValues,
-    }),
-    [resolved, catalog, signatoryValues]
-  );
-
-  const values = useMemo<Record<string, any>>(
-    () => ({ ...(resolved?.values || {}), ...ctcValues, ...signatoryValues, ...overrides }),
-    [resolved, ctcValues, signatoryValues, overrides]
-  );
-
   /** Locked Word lane: the .docx is merged as-is, never converted to HTML. */
   const isDocx = version?.lane === "docx" && !!version?.source_file_path;
   const usesLetterhead = isDocx && !!(version?.page_setup as any)?.letterhead;
 
-  const isSystemToken = (m: PlaceholderMapping) =>
-    SYSTEM_FILLED_KEYS.has(m.field_key || m.token) || SYSTEM_FILLED_KEYS.has(m.token);
-
-  const valueOf = (m: PlaceholderMapping, vals: Record<string, any>): string =>
-    String(tokenValues[m.token] ?? (m.field_key ? vals[m.field_key] : undefined) ?? vals[m.token] ?? "");
-
-  /** Token -> merged value, used by the locked Word lane. */
-  const docxValues = useMemo(() => {
-    const out: Record<string, string> = {};
-    for (const m of mappings) out[m.token] = valueOf(m, values);
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mappings, tokenValues, values]);
-
-  /** Reference is allocated at issue time; the preview shows a dummy so it never blocks. */
-  const renderWith = (referenceNo: string) => {
-    if (!version?.content_html) return null;
-    return renderTemplateHtml(version.content_html, {
-      values: { ...values, reference_no: referenceNo, generated_by: values.generated_by || me?.email || "" },
-      tokenValues,
-      images,
-      mappings,
-    });
-  };
-
-  const rendered = useMemo(
-    () => renderWith("BLY-DRAFT"),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version, values, images, mappings, tokenValues, me?.email]
+  /**
+   * Everything about this letter for this person: the value of every variable,
+   * what HR still has to type (decided from the records alone, so an input stays
+   * on screen while HR types), what may be adjusted, and the notes to check.
+   * Shared with the onboarding "Send onboarding form" dialog.
+   */
+  const plan = useMemo(
+    () =>
+      planLetter({
+        mappings,
+        catalog: catalog as CatalogField[],
+        signatories: signatories as any[],
+        signerId,
+        resolved,
+        overrides,
+        rawOverrides,
+        isDocx,
+        native: { html: version?.content_html, images, generatedBy: me?.email || "" },
+      }),
+    [mappings, catalog, signatories, signerId, resolved, overrides, rawOverrides, isDocx, version, images, me?.email]
   );
+  const {
+    imageTokens, usesSignatory, tokenValues, baseValues, values, docxValues, rendered,
+    promptFields, editableFields, stillToFill, unresolvedTokens, notes,
+  } = plan;
 
-  /** Tokens without a value for a given value set (images and system values never count). */
-  const pendingTokens = (vals: Record<string, any>) =>
-    mappings.filter((m) => !imageTokens.has(m.token) && !isSystemToken(m) && !valueOf(m, vals)).map((m) => m.token);
-
-  /** Unresolved tokens right now, whichever lane the template uses — this gates issuing. */
-  const unresolvedTokens = useMemo(() => {
-    const out = new Set(pendingTokens(values));
-    if (!isDocx) for (const t of rendered?.unresolved || []) if (!imageTokens.has(t) && !SYSTEM_FILLED_KEYS.has(t)) out.add(t);
-    return [...out];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDocx, mappings, values, tokenValues, rendered, imageTokens]);
+  const isSystemToken = isSystemMapping;
 
   /**
    * Signature/seal placeholders whose signatory has no uploaded image.
@@ -346,87 +273,6 @@ export function GenerateTab() {
     () => mappings.filter((m) => imageTokens.has(m.token) && !images[m.token]).map((m) => m.token),
     [mappings, images, imageTokens]
   );
-
-  /**
-   * Fields the letter needs that the records could not fill. Decided from the
-   * records alone, so an input stays on screen while HR types into it. Salary
-   * variables are never asked one by one: they follow from the annual CTC.
-   */
-  const promptFields = useMemo(() => {
-    if (!resolved) return [] as CatalogField[];
-    const byToken = new Map(mappings.map((m) => [m.token, m]));
-    const keys = new Set<string>();
-    for (const token of pendingTokens(baseValues)) {
-      const key = byToken.get(token)?.field_key || token;
-      if (isCtcDerivedResolver(catalogByKey.get(key)?.resolver_id)) keys.add("annual_ctc");
-      else keys.add(key);
-    }
-    if (!isDocx) {
-      // Native letters may hold tokens the editor never mapped.
-      for (const t of rendered?.unresolved || []) {
-        if (imageTokens.has(t) || SYSTEM_FILLED_KEYS.has(t) || byToken.has(t)) continue;
-        keys.add(t);
-      }
-    }
-    return [...keys].map(
-      (key) =>
-        catalogByKey.get(key) ||
-        ({ field_key: key, label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), field_group: "custom", data_type: "text", formatter: null, resolver_id: null, is_sensitive: false, default_value: null } as CatalogField)
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolved, mappings, baseValues, catalogByKey, isDocx, rendered, imageTokens, tokenValues]);
-
-  const stillToFill = promptFields.filter((f) => !String(values[f.field_key] ?? "").trim()).length;
-
-  /**
-   * Resolved-but-adjustable fields used by this template (letter date, last
-   * working day, probation and notice terms) — letters are routinely dated in
-   * the past and offer terms are agreed per person.
-   */
-  const editableFields = useMemo(() => {
-    const promptKeys = new Set(promptFields.map((f) => f.field_key));
-    const used = new Set(
-      mappings.map((m) => m.field_key).filter((k): k is string => !!k && ALWAYS_EDITABLE_KEYS.has(k))
-    );
-    return [...used]
-      .filter((k) => !promptKeys.has(k))
-      .map((k) => catalogByKey.get(k))
-      .filter(Boolean) as CatalogField[];
-  }, [mappings, catalogByKey, promptFields]);
-
-  /** Does this template print any salary figure? Salary notes only matter then. */
-  const printsSalary = useMemo(
-    () => mappings.some((m) => {
-      const rid = m.field_key ? catalogByKey.get(m.field_key)?.resolver_id : null;
-      return !!rid && (rid === "salary.annual_ctc" || isCtcDerivedResolver(rid));
-    }),
-    [mappings, catalogByKey]
-  );
-
-  /** Non-blocking things to check before issuing. */
-  const notes = useMemo(() => {
-    const out = [...(resolved?.notes || []), ...(printsSalary ? resolved?.salaryNotes || [] : [])];
-    // A salary component in the standard structure that this template never prints
-    // means its annexure rows will not add up to the CTC printed beside them.
-    const printed = new Set<string>();
-    for (const m of mappings) {
-      const rid = m.field_key ? catalogByKey.get(m.field_key)?.resolver_id : null;
-      const hit = rid ? /^salary\.([a-z0-9_]+)_(monthly|annual)$/.exec(rid) : null;
-      if (hit && hit[1] !== "monthly_ctc") printed.add(hit[1]);
-    }
-    if (printed.size && resolved) {
-      for (const c of resolved.structure) {
-        const stem = componentFieldStem(c.key);
-        if (Number(c.value) > 0 && !printed.has(stem)) {
-          out.push(`The standard structure includes ${c.label || c.key} (${c.mode === "fixed" ? "fixed" : `${c.value}%`}) but this template does not print it — its break-up will not add up to the CTC.`);
-        }
-      }
-    }
-    if (usesSignatory && !fixedSignatoryId && !signingSignatory && signatories.length > 1) {
-      out.push("Choose who signs this letter.");
-    }
-    return out;
-  }, [resolved, printsSalary, mappings, catalogByKey, usesSignatory, fixedSignatoryId, signingSignatory, signatories.length]);
 
   /** Download a generated Word file (anchor must be in the DOM for Firefox). */
   const saveBlob = (blob: Blob, filename: string) => {
@@ -445,46 +291,10 @@ export function GenerateTab() {
    * letterhead) once and return a renderer. Anything missing fails here, before
    * a reference number is allocated.
    */
-  const prepareDocx = async () => {
-    const { data: blob, error } = await supabase.storage
-      .from("hr-doc-templates")
-      .download(version.source_file_path);
-    if (error || !blob) throw error || new Error("The Word template file is missing");
-    const source = await blob.arrayBuffer();
-    const { renderDocx, flattenDocxMedia } = await import("@/lib/docxTemplate");
-    const docImages: Record<string, string> = {};
-    for (const m of mappings) if (imageTokens.has(m.token) && images[m.token]) docImages[m.token] = images[m.token];
-
-    // Plain Word templates are printed on the company letterhead, like native letters.
-    let applyLetterhead: ((b: Blob) => Promise<Blob>) | null = null;
-    if (usesLetterhead) {
-      const sheet = letterhead || (await resolveLetterhead(await fetchCompanyIdentity()));
-      const { letterheadImage, applyLetterheadToDocxBlob } = await import("@/lib/docxLetterhead");
-      const image = await letterheadImage(sheet);
-      applyLetterhead = (b) => applyLetterheadToDocxBlob(b, sheet, image);
-    }
-
-    return async (referenceNo: string, draft = false) => {
-      // The Word file may name the reference token anything (ref_no, reference_no, ref…);
-      // inject the issued reference into every token mapped to the system reference field.
-      const refText = draft ? `${referenceNo} — DRAFT, NOT ISSUED` : referenceNo;
-      const systemValues: Record<string, string> = {
-        reference_no: refText,
-        generated_by: docxValues.generated_by || me?.email || "",
-      };
-      for (const m of mappings) {
-        const key = m.field_key || m.token;
-        if (key === "reference_no" || m.token === "reference_no") systemValues[m.token] = refText;
-        if (key === "generated_by" || m.token === "generated_by")
-          systemValues[m.token] = docxValues.generated_by || me?.email || "";
-      }
-      let merged = renderDocx(source.slice(0), { ...docxValues, ...systemValues }, docImages);
-      if (applyLetterhead) merged = await applyLetterhead(merged);
-      // Flatten transparent media onto white so PDF conversion can never bake the
-      // watermark's alpha into a grey rectangle (visible in mobile PDF readers).
-      return flattenDocxMedia(merged);
-    };
-  };
+  const prepareDocx = () =>
+    prepareDocxRenderer({
+      version, mappings, imageTokens, images, docxValues, usesLetterhead, letterhead, actorEmail: me?.email || null,
+    });
 
   const fileStem = (s: string) => s.replace(/[^\w.-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 
@@ -514,187 +324,59 @@ export function GenerateTab() {
     if (unresolvedTokens.length > 0) return toast.error("Fill the remaining fields before issuing");
     if (missingSignatures.length > 0) return toast.error("Upload the signature image for this template's signatory first");
     if (Object.keys(fieldErrors).length > 0) return toast.error("Correct the highlighted fields before issuing");
+    if (issuingRef.current) return;
+    issuingRef.current = true;
     setIssuing(true);
     try {
-      // Build the letter once before allocating a reference number: a missing
-      // template file, letterhead or merge error must never use one up.
-      let renderDocxLetter: ((ref: string, draft?: boolean) => Promise<Blob>) | null = null;
-      if (isDocx) {
-        renderDocxLetter = await prepareDocx();
-        await renderDocxLetter("BLYNK/CHECK/0000");
-      } else if (!renderWith("BLYNK/CHECK/0000")) {
-        throw new Error("Template has no saved content");
-      }
-
-      const { data: refNo, error: refErr } = await (supabase as any).rpc("hr_doc_allocate_reference", {
-        _scope_key: `${template.category || "doc"}`,
-        _pattern: template.reference_pattern || null,
-        _type_code: (template.category || "doc").slice(0, 6),
-      });
-      if (refErr) throw refErr;
-
-      // A candidate who has not joined yet has no employee folder: their letters
-      // live under the onboarding record and move to the employee on joining.
-      const ownerEmployeeId: string | null = resolved.employeeId;
-      const folder = ownerEmployeeId || `candidates/${resolved.onboardingId}`;
-      const safeRef = refNo.replace(/[^\w.-]+/g, "_");
-      let path: string;
-      let mime: string;
-      let docxBlob: Blob | null = null;
-      let fullHtml = "";
-
-      if (isDocx) {
-        // Locked Word lane: merge into the original .docx, byte-identical layout.
-        docxBlob = await renderDocxLetter!(refNo);
-        path = `${folder}/${safeRef}.docx`;
-        mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-        const { error: upErr } = await supabase.storage
-          .from("hr-doc-issued").upload(path, docxBlob, { contentType: mime, upsert: false });
-        if (upErr) throw upErr;
-      } else {
-        // Re-render with the real reference so {reference_no} prints correctly.
-        const finalRender = renderWith(refNo);
-        if (!finalRender) throw new Error("Template has no saved content");
-        // Inline the letterhead into the frozen artefact so a re-print is byte-identical.
-        const sheet = letterhead || (await resolveLetterhead(await fetchCompanyIdentity()));
-        fullHtml = buildPrintDocument(finalRender.html, template.name, refNo, sheet);
-        path = `${folder}/${safeRef}.html`;
-        mime = "text/html";
-        const { error: upErr } = await supabase.storage
-          .from("hr-doc-issued")
-          .upload(path, new Blob([fullHtml], { type: "text/html" }), { contentType: "text/html", upsert: false });
-        if (upErr) throw upErr;
-      }
-
-      // Archive a PDF of exactly what was issued. Word letters are converted
-      // server-side by Adobe PDF Services after the row exists (see below), so
-      // the archived PDF is byte-faithful to the Word file.
-      let pdfPath: string | null = null;
-      let pdfBlob: Blob | null = null;
-      if (!isDocx) {
+      if (template.category === "offer" && subjectKind === "candidate") {
+        let viaOnboarding = false;
         try {
-          const { htmlToPdfBlob } = await import("@/lib/docPdf");
-          pdfBlob = await htmlToPdfBlob(fullHtml);
-          pdfPath = `${folder}/${safeRef}.pdf`;
-          const { error: pdfErr } = await supabase.storage
-            .from("hr-doc-issued")
-            .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });
-          if (pdfErr) throw pdfErr;
-        } catch (e) {
-          console.warn("PDF archive failed (non-fatal):", e);
-          pdfPath = null;
-          pdfBlob = null;
+          viaOnboarding = await offerComesFromOnboarding(personId);
+        } catch (e: any) {
+          toast.error(e?.message || "Could not check the candidate's onboarding form");
+          return;
+        }
+        if (viaOnboarding) {
+          qc.invalidateQueries({ queryKey: ["hr_doc_candidate_package", personId] });
+          toast.error(OFFER_VIA_ONBOARDING);
+          return;
         }
       }
-
       const { data: auth } = await supabase.auth.getUser();
+      const result = await issuePlannedLetter({
+        template,
+        version,
+        mappings,
+        values,
+        tokenValues,
+        docxValues,
+        images,
+        imageTokens,
+        resolved,
+        subjectKind,
+        signatoryIds: letterSignatoryIds(plan, mappings),
+        usesLetterhead,
+        letterhead,
+        actor: { id: auth?.user?.id || null, email: auth?.user?.email || null },
+        typedFields: overrides,
+        signedBy: (plan.signingSignatory as any)?.id || null,
+        source: "documents_generate",
+      });
+      const { referenceNo: refNo, linkedEmployeeId, pdfBlob, docxBlob, fullHtml } = result;
+      const safeRef = refNo.replace(/[^\w.-]+/g, "_");
 
-      const signatoryIds = [
-        ...new Set([...mappings.map((m) => m.signatory_id), usesSignatory ? (signingSignatory as any)?.id : null].filter(Boolean)),
-      ];
-
-      // Frozen values: by template token (what was printed) plus the shared variable
-      // name, so later readers (emails, reports) never depend on a template's spelling.
-      const snapshot: Record<string, unknown> = { ...(isDocx ? docxValues : values) };
-      for (const m of mappings) {
-        if (m.field_key && !(m.field_key in snapshot)) snapshot[m.field_key] = isDocx ? docxValues[m.token] : values[m.field_key];
+      if (result.filingFailed) toast.warning("Letter issued, but it could not be filed under the employee's documents.");
+      if (result.replaced.length) {
+        toast.info(`Replaces ${result.replaced.join(", ")}, which is no longer valid.`);
       }
-      if (!("recipient_email" in snapshot) && resolved.email) snapshot.recipient_email = resolved.email;
-
-      const row: Record<string, unknown> = {
-        template_id: template.id,
-        template_version_id: version.id,
-        template_name: template.name,
-        category: template.category,
-        employee_id: ownerEmployeeId,
-        employee_name: resolved.employeeName || "",
-        reference_no: refNo,
-        status: "issued",
-        contains_sensitive: !!template.contains_sensitive,
-        file_path: path,
-        file_mime: mime,
-        pdf_path: pdfPath,
-        values_snapshot: {
-          ...snapshot,
-          ...Object.fromEntries(
-            mappings
-              .filter((m) => (m.field_key || m.token) === "reference_no" || m.token === "reference_no")
-              .map((m) => [m.token, refNo]),
-          ),
-          reference_no: refNo,
-        },
-        signatory_ids: signatoryIds,
-        issued_by: auth?.user?.id || null,
-        issued_by_name: auth?.user?.email || null,
-        issued_at: new Date().toISOString(),
-      };
-      if (resolved.onboardingId) row.onboarding_id = resolved.onboardingId;
-
-      const { data: inserted, error: insErr } = await (supabase as any)
-        .from("hr_documents_issued").insert(row).select("id, employee_id").maybeSingle();
-      if (insErr) throw insErr;
-      // The record may have been linked to an employee while this screen was open;
-      // the database then files the letter under that employee.
-      const linkedEmployeeId: string | null = inserted?.employee_id || ownerEmployeeId;
-
-      // File the letter in the employee's own document section (private reference —
-      // it is signed on demand, never a public URL). A candidate's letter is filed
-      // when they join. If the PDF could not be rasterised we still file the issued
-      // artefact itself, so the employee's Documents tab is never silently empty.
-      if (linkedEmployeeId && inserted?.id) {
-        try {
-          const { privateDocRef } = await import("@/lib/storedDoc");
-          const { data: docRow, error: docErr } = await (supabase as any).from("hr_employee_documents").insert({
-            employee_id: linkedEmployeeId,
-            document_type: "hr_letter",
-            document_name: `${refNo} — ${template.name}`,
-            file_url: privateDocRef("hr-doc-issued", pdfPath || path),
-            notes: `Issued from HR Document Studio on ${new Date().toLocaleDateString()}`,
-            uploaded_by: auth?.user?.email || null,
-            source: "issued",
-            source_ref: `issued:${inserted.id}`,
-          }).select("id").maybeSingle();
-          if (docErr) throw docErr;
-          if (docRow?.id) {
-            await (supabase as any).from("hr_documents_issued")
-              .update({ employee_document_id: docRow.id }).eq("id", inserted.id);
-          }
-        } catch (e) {
-          console.warn("Could not file the letter against the employee (non-fatal):", e);
-          toast.warning("Letter issued, but it could not be filed under the employee's documents.");
-        }
+      if (result.replaceFailed.length) {
+        toast.warning(`${result.replaceFailed.join(", ")} could not be marked as replaced — revoke it in the Issued tab so only one offer stays valid.`);
       }
-
-      // Word lane: convert the exact merged DOCX to PDF server-side (Adobe).
-      if (isDocx && inserted?.id) {
-        supabase.functions
-          .invoke("hr-doc-convert-pdf", { body: { issuedId: inserted.id } })
-          .then(({ data, error }: any) => {
-            if (error || !data?.pdfPath) {
-              console.warn("Adobe PDF conversion failed (non-fatal):", data?.error || error?.message);
-              return;
-            }
-            qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
-            if (linkedEmployeeId) qc.invalidateQueries({ queryKey: ["hr_employee_documents", linkedEmployeeId] });
-          });
-      }
-
-      await (supabase as any).from("hr_doc_audit_log").insert({
-        entity_type: "issued_document",
-        entity_id: inserted?.id || null,
-        action: "issued",
-        actor_id: auth?.user?.id || null,
-        actor_name: auth?.user?.email || null,
-        details: {
-          reference_no: refNo,
-          template: template.name,
-          subject: subjectKind,
-          employee_id: linkedEmployeeId,
-          onboarding_id: resolved.onboardingId,
-          lane: isDocx ? "docx" : "native",
-          pdf: !!pdfPath,
-          letterhead: usesLetterhead,
-        },
+      // Word lane: the PDF is converted server-side in the background.
+      result.pdfConversion?.then((pdfPath) => {
+        if (!pdfPath) return;
+        qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+        if (linkedEmployeeId) qc.invalidateQueries({ queryKey: ["hr_employee_documents", linkedEmployeeId] });
       });
 
       qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
@@ -718,6 +400,7 @@ export function GenerateTab() {
     } catch (e: any) {
       toast.error(e?.message || "Could not issue the letter");
     } finally {
+      issuingRef.current = false;
       setIssuing(false);
     }
   };
@@ -748,7 +431,7 @@ export function GenerateTab() {
 
   const ready = !!personId && !!resolved;
   const canIssue = ready && (!!rendered || isDocx) && !issuing && unresolvedTokens.length === 0 &&
-    missingSignatures.length === 0 && Object.keys(fieldErrors).length === 0;
+    missingSignatures.length === 0 && Object.keys(fieldErrors).length === 0 && !offerViaOnboarding;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
@@ -806,6 +489,12 @@ export function GenerateTab() {
               {subjectKind === "candidate" && (
                 <p className="text-[10px] text-muted-foreground mt-1">
                   Details come from the candidate's onboarding form; salary from its CTC with the standard structure.
+                </p>
+              )}
+              {offerViaOnboarding && (
+                <p role="status" className="text-[11px] text-amber-600 mt-1.5 flex gap-1.5">
+                  <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
+                  <span>{OFFER_VIA_ONBOARDING}</span>
                 </p>
               )}
             </div>

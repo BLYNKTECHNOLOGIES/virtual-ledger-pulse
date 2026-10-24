@@ -145,6 +145,13 @@ export function IssuedTab() {
 
   /** Undo a revocation — the letter becomes valid and visible to the employee again. */
   const restore = async (d: any) => {
+    // A candidate has one valid offer at a time: restoring an old one beside a newer live one would make two.
+    if (String(d.category || "").toLowerCase() === "offer" && d.onboarding_id) {
+      const { data: newer } = await (supabase as any).from("hr_documents_issued")
+        .select("reference_no").eq("onboarding_id", d.onboarding_id).eq("category", d.category)
+        .in("status", ["issued", "delivered"]).neq("id", d.id).limit(1).maybeSingle();
+      if (newer) return toast.error(`${newer.reference_no} is this candidate's valid offer. Revoke it first, or issue a new offer instead of restoring this one.`);
+    }
     const { data: auth } = await supabase.auth.getUser();
     const { error } = await (supabase as any).from("hr_documents_issued").update({
       status: "issued", revoked_by: null, revoked_at: null, revoke_reason: null,
@@ -236,6 +243,7 @@ export function IssuedTab() {
                     {d.onboarding_id && !d.employee_id ? " · candidate (not joined yet)" : ""}
                     {d.issued_at ? ` · ${new Date(d.issued_at).toLocaleDateString()}` : ""}
                     {d.issued_by_name ? ` · by ${d.issued_by_name}` : ""}
+                    {d.status === "superseded" ? ` · replaced by ${docs.find((x: any) => x.id === d.superseded_by_id)?.reference_no || "a revised letter"}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -246,7 +254,7 @@ export function IssuedTab() {
 
                   <Button size="sm" variant="ghost" title="Download Word original" onClick={() => downloadSource(d)}><FileText className="h-4 w-4" /></Button>
 
-                  {d.status !== "revoked" ? (
+                  {d.status === "superseded" ? null : d.status !== "revoked" ? (
                     <>
                       <Button size="sm" variant="ghost" title={d.onboarding_id && !d.employee_id ? "Email to candidate" : "Email to employee"} onClick={() => sendEmail(d)}>
                         <Mail className="h-4 w-4" />

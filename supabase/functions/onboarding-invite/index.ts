@@ -2,10 +2,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { HR_BRAND, hrHeaderHtml, hrSignatureHtml, hrSignatureText, wrapHrEmail } from '../_shared/hrSignature.ts';
-import { handlePrejoining, publicPackage } from './prejoining.ts';
+import { handlePrejoining, liveOffer, publicPackage } from './prejoining.ts';
 import { PREJOINING_DOCS, prejoiningProblems } from '../_shared/prejoining.ts';
 import { joiningSendDateIST } from '../_shared/joiningBatch.ts';
-import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from '../_shared/mailBody.ts'
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress, tidyMailFilename } from '../_shared/mailBody.ts'
 
 const APP_URL = 'https://erp.blynkex.com';
 
@@ -103,7 +103,39 @@ async function requireHr(req: Request): Promise<{ userId?: string; error?: strin
   return { userId };
 }
 
-async function mailInvite(to: string, name: string, link: string, expiresAt: string) {
+/** The offer letter a joining package carries, ready to attach to the invitation. */
+type OfferMail = {
+  issuedId: string;
+  role: string;
+  joiningDate: string;
+  reference: string;
+  attachment: { filename: string; content: string; encoding: 'base64'; contentType: string };
+};
+
+async function offerMail(onb: Record<string, any>): Promise<OfferMail | null> {
+  const p = onb.prejoining || {};
+  if (!p.enabled || !p.offer_file?.issued_id) return null;
+  const offer = await liveOffer(admin, onb.id, String(p.offer_file.issued_id));
+  const { data: file } = await admin.storage.from('hr-doc-issued').download(offer.pdf_path);
+  if (!file) throw new Error('Could not read the offer letter PDF');
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+  return {
+    issuedId: offer.id,
+    role: String(p.role_title || onb.job_role || ''),
+    joiningDate: String(p.joining_date || ''),
+    reference: String(offer.reference_no || ''),
+    attachment: {
+      filename: tidyMailFilename(`${String(offer.reference_no || 'offer-letter').replace(/[\\/]/g, '-')}.pdf`, 'offer-letter.pdf'),
+      content: btoa(bin),
+      encoding: 'base64',
+      contentType: 'application/pdf',
+    },
+  };
+}
+
+async function mailInvite(to: string, name: string, link: string, expiresAt: string, offer: OfferMail | null = null, actorId: string | null = null) {
   const { data: mailbox } = await admin
     .from('hr_mailboxes').select('*').eq('is_active', true).order('created_at').limit(1).maybeSingle();
   if (!mailbox) throw new Error('No active HR mailbox configured');
@@ -117,9 +149,21 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
   const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] || c));
   const expiry = new Date(expiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
 
-  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px 14px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e6ecf3;border-radius:12px;border-collapse:separate;"><tr><td>${hrHeaderHtml()}</td></tr><tr><td style="padding:20px 22px;"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${B.blue};background:#f0f9ff;display:inline-block;padding:4px 10px;border-radius:999px;">Action required</div><h1 style="margin:12px 0 8px;font-size:18px;line-height:1.35;color:${B.ink};font-weight:700;">Complete your onboarding details</h1><p style="margin:0 0 14px;font-size:13.5px;color:#475569;line-height:1.6;">Dear ${esc(name || 'Colleague')}, please complete your onboarding form.</p><a href="${link}" style="display:inline-block;background:${B.blue};color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:700;">Open onboarding form</a><p style="margin:14px 0 0;font-size:12px;color:#64748b;">Valid until ${esc(expiry)}.</p>${hrSignatureHtml('Automated notice · Employee onboarding')}</td></tr></table><div style="text-align:center;font-size:10.5px;color:#94a3b8;padding:14px 6px;">Blynk Virtual Technologies Pvt. Ltd. · HRMS automated notification</div></div></body></html>`;
+  const joining = offer?.joiningDate
+    ? new Date(`${offer.joiningDate}T00:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })
+    : '';
+  const eyebrow = offer ? 'Offer of employment' : 'Action required';
+  const heading = offer ? 'Your offer letter and onboarding form' : 'Complete your onboarding details';
+  const intro = offer
+    ? `<p style="margin:0 0 10px;font-size:13.5px;color:#475569;line-height:1.6;">Dear ${esc(name || 'Candidate')}, we are pleased to offer you the position of <strong style="color:${B.ink};">${esc(offer.role)}</strong> at Blynk Virtual Technologies Pvt. Ltd., joining on <strong style="color:${B.ink};">${esc(joining)}</strong>.</p><p style="margin:0 0 8px;font-size:13.5px;color:#475569;line-height:1.6;">Your offer letter (Ref ${esc(offer.reference)}) is attached. To accept it:</p><ol style="margin:0 0 14px;padding-left:20px;font-size:13.5px;color:#475569;line-height:1.6;"><li>Open your onboarding form, download the offer letter and the E2 declaration, and sign both.</li><li>Fill in your details and upload your documents with the signed offer, the signed E2 and your PCC application proof.</li><li>Submit the form. HR reviews it and confirms your joining.</li></ol>`
+    : `<p style="margin:0 0 14px;font-size:13.5px;color:#475569;line-height:1.6;">Dear ${esc(name || 'Colleague')}, please complete your onboarding form.</p>`;
+  const button = offer ? 'Open my offer and onboarding form' : 'Open onboarding form';
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px 14px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e6ecf3;border-radius:12px;border-collapse:separate;"><tr><td>${hrHeaderHtml()}</td></tr><tr><td style="padding:20px 22px;"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${B.blue};background:#f0f9ff;display:inline-block;padding:4px 10px;border-radius:999px;">${eyebrow}</div><h1 style="margin:12px 0 8px;font-size:18px;line-height:1.35;color:${B.ink};font-weight:700;">${heading}</h1>${intro}<a href="${link}" style="display:inline-block;background:${B.blue};color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:700;">${button}</a><p style="margin:14px 0 0;font-size:12px;color:#64748b;">Valid until ${esc(expiry)}.${offer ? ' Keep this link private.' : ''}</p>${hrSignatureHtml('Automated notice · Employee onboarding')}</td></tr></table><div style="text-align:center;font-size:10.5px;color:#94a3b8;padding:14px 6px;">Blynk Virtual Technologies Pvt. Ltd. · HRMS automated notification</div></div></body></html>`;
 
-  const text = `Complete your onboarding details\n\nDear ${name || 'Colleague'}, please complete your onboarding form.\n\n${link}\n\nValid until ${expiry}.\n\n${hrSignatureText('Automated notice · Employee onboarding')}`;
+  const text = offer
+    ? `Your offer letter and onboarding form\n\nDear ${name || 'Candidate'}, we are pleased to offer you the position of ${offer.role} at Blynk Virtual Technologies Pvt. Ltd., joining on ${joining}.\n\nYour offer letter (Ref ${offer.reference}) is attached. To accept it:\n1. Open your onboarding form, download the offer letter and the E2 declaration, and sign both.\n2. Fill in your details and upload your documents with the signed offer, the signed E2 and your PCC application proof.\n3. Submit the form. HR reviews it and confirms your joining.\n\n${link}\n\nValid until ${expiry}. Keep this link private.\n\n${hrSignatureText('Automated notice · Employee onboarding')}`
+    : `Complete your onboarding details\n\nDear ${name || 'Colleague'}, please complete your onboarding form.\n\n${link}\n\nValid until ${expiry}.\n\n${hrSignatureText('Automated notice · Employee onboarding')}`;
+  const subject = offer ? 'Offer of employment and onboarding form - Blynk' : 'Complete your onboarding details - Blynk';
 
 
   const client = new SMTPClient({ connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } } });
@@ -127,9 +171,10 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
     await client.send({
       from: `${tidyMailAddress(mailbox.from_name || 'Blynkex HR')} <${mailbox.from_address || user}>`,
       to,
-      subject: 'Complete your onboarding details - Blynk',
+      subject: tidyMailSubject(subject, 120),
       content: tidyMailText(text),
-      html: wrapHrEmail(html, { refNote: 'Employee onboarding' }),
+      html: wrapHrEmail(html, { refNote: offer ? `Employee onboarding · Ref ${offer.reference}` : 'Employee onboarding' }),
+      attachments: offer ? ([offer.attachment] as any) : undefined,
     });
   } finally {
     try { await client.close(); } catch { /* ignore */ }
@@ -138,10 +183,19 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
     message_id: `onboarding-invite-${crypto.randomUUID()}`,
     template_name: 'onboarding-invite',
     recipient_email: to,
-    subject: 'Complete your onboarding details - Blynk',
+    subject: tidyMailSubject(subject, 120),
     status: 'sent',
-    metadata: { onboarding_invitation: true },
+    metadata: { onboarding_invitation: true, ...(offer ? { offer_issued_id: offer.issuedId, offer_reference: offer.reference } : {}) },
   });
+  if (offer) {
+    // The offer letter reached the candidate with the invitation.
+    await admin.from('hr_documents_issued').update({ delivered_at: new Date().toISOString(), delivered_to: to }).eq('id', offer.issuedId);
+    await admin.from('hr_doc_audit_log').insert({
+      entity_type: 'issued_document', entity_id: offer.issuedId, action: 'emailed',
+      actor_id: actorId, actor_name: 'onboarding-invite',
+      details: { to, reference_no: offer.reference, attached: true, source: 'onboarding_invite' },
+    }).then(() => {}, () => {});
+  }
   return mailbox.from_address || user;
 }
 
@@ -396,7 +450,7 @@ Deno.serve(async (req) => {
 
       const { data: onb } = await admin
         .from('hr_employee_onboarding')
-        .select('id, first_name, last_name, email, status, prejoining')
+        .select('id, first_name, last_name, email, status, job_role, prejoining')
         .eq('id', onboardingId)
         .maybeSingle();
       if (!onb) return json({ error: 'Onboarding record not found' }, 404);
@@ -437,11 +491,16 @@ Deno.serve(async (req) => {
       if (action === 'send') {
         const to = String(body?.recipientEmail || onb.email || '').trim();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: 'A valid candidate email is required' }, 400);
-        if (onb.prejoining?.enabled && onb.prejoining.joining_date <= joiningSendDateIST(new Date()) && !onb.prejoining.first_send_date) return json({ error:'Revise the offer to an upcoming joining batch before first sending' },409);
-        const sentFrom = await mailInvite(to, `${onb.first_name || ''} ${onb.last_name || ''}`.trim(), link, existing.expires_at);
+        // An offer still waiting for the candidate must not state a joining date that has passed (the joining day itself is fine; corrections may follow joining).
+        if (onb.prejoining?.enabled && onb.prejoining.state === 'published' && onb.prejoining.joining_date < joiningSendDateIST(new Date())) return json({ error:'The joining date in this offer has passed. Send a revised offer with an upcoming joining date.' },409);
+        if (onb.prejoining?.enabled && onb.prejoining.state === 'revision_required') return json({ error:'The joining date or designation changed after the offer was sent. Send the revised offer first.' },409);
+        // A joining package always travels with its offer letter attached.
+        let offer: OfferMail | null = null;
+        try { offer = await offerMail(onb); }
+        catch (e) { return json({ error: e instanceof Error ? e.message : 'The offer letter is unavailable' }, 409); }
+        const sentFrom = await mailInvite(to, `${onb.first_name || ''} ${onb.last_name || ''}`.trim(), link, existing.expires_at, offer, auth.userId || null);
         await admin.from('hr_onboarding_invites').update({ emailed_at: new Date().toISOString() }).eq('id', existing.id);
-        if (onb.prejoining?.enabled && !onb.prejoining.first_send_date) await admin.from('hr_employee_onboarding').update({ prejoining:{ ...onb.prejoining, first_send_date:joiningSendDateIST(new Date()) } }).eq('id',onboardingId);
-        return json({ ok: true, link, sentTo: to, sentFrom, invite: existing });
+        return json({ ok: true, link, sentTo: to, sentFrom, invite: existing, offerAttached: !!offer, offerReference: offer?.reference || null });
       }
 
       return json({ ok: true, link, invite: existing });
@@ -452,6 +511,14 @@ Deno.serve(async (req) => {
     const { data: candidateOnb } = await admin.from('hr_employee_onboarding').select('id,first_name,last_name,email,phone,status,job_role,prejoining').eq('id',invite.onboarding_id).maybeSingle();
     if (!candidateOnb || ['completed','cancelled'].includes(candidateOnb.status)) return json({ error:'This onboarding link is closed' },410);
     const packageData = await publicPackage(admin,candidateOnb);
+
+    // Fresh links to the candidate's own offer letter and the letterhead for E2 (signed links
+    // expire in minutes). Only while the form is open: a submitted form returns nothing again.
+    if (action === 'package-links') {
+      if (invite.status === 'submitted') return json({ error: 'This form has already been submitted.' }, 409);
+      if (!packageData) return json({ error: 'There is no offer with this form. Please contact HR.' }, 404);
+      return json({ offer_url: packageData.offer_url, letterhead_url: packageData.letterhead_url });
+    }
 
     if (action === 'get') {
       // A submitted form never returns the candidate's data again.
@@ -544,6 +611,7 @@ Deno.serve(async (req) => {
       };
 
       if (packageData?.enabled) {
+        if (packageData.offer_valid === false) return json({ error:'Your offer letter was replaced or withdrawn. Please wait for HR to send you the current offer.' },409);
         const problems = prejoiningProblems(normalized, packageData.version, packageData.joining_date);
         if (problems.length) return json({ error:'Complete the current joining package', details:problems },400);
         if (candidateOnb.prejoining.state === 'corrections') {

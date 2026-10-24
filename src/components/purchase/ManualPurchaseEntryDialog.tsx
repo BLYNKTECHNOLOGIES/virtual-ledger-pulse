@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, forwardRef, type ComponentPropsWithoutRef, type ElementRef, type ReactNode } from 'react';
 import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { useQuickAction } from "@/hooks/useQuickAction";
-import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
+import { fetchMarketRate, recordLockedRate } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -405,10 +405,11 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         }
       }
 
-      // Lock the CoinUSDT rate before anything is written: the purchase adds its cost at this rate.
+      // Get the CoinUSDT rate before anything is written: the purchase adds its cost at this rate. Its price
+      // snapshot is saved with the purchase id once the purchase exists (snapshots cannot be updated later).
       const selectedProductCode = selectedProduct?.code?.toUpperCase() || 'USDT';
-      const locked = await fetchAndLockMarketRate(selectedProductCode, { entryType: 'manual_purchase' });
-      const marketRateUsdt = locked.price;
+      const rate = await fetchMarketRate(selectedProductCode);
+      const marketRateUsdt = rate.price;
 
       // For off-market orders, generate the actual order number now (consuming the sequence)
       // For regular orders, use the form value or auto-generate
@@ -515,7 +516,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const orderId = (result as Record<string, unknown>).purchase_order_id as string;
 
       // Store market_rate_usdt (CoinUSDT rate at purchase time)
-      await linkSnapshotToReference(locked.snapshotId, orderId, 'purchase_order');
+      await recordLockedRate(rate, { entryType: 'manual_purchase', referenceId: orderId, referenceType: 'purchase_order' });
       {
         const mpEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
         const mpQty = parseFloat(formData.quantity) || 0;

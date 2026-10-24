@@ -198,13 +198,31 @@ export function buildNewOrderRpcArgs(input: NewOrderInput): NewOrderRpcArgs {
   return { p_order, p_steps };
 }
 
+/**
+ * True when the save call itself failed without a database answer (dropped connection, gateway timeout):
+ * the database may have saved the order anyway, so the operator must check Sales before trying again.
+ * The flow marks the save call's error with fromSaveCall; a database answer carries a 5-character SQLSTATE.
+ */
+export function newOrderOutcomeUnknown(error: unknown): boolean {
+  const e = error as { fromSaveCall?: boolean; code?: unknown } | null;
+  return Boolean(e?.fromSaveCall) && !/^[0-9A-Z]{5}$/.test(String(e?.code ?? ""));
+}
+
+/** Toast title for a failed save. */
+export function newOrderErrorTitle(error: unknown): string {
+  return newOrderOutcomeUnknown(error) ? "Check Sales before trying again" : "Order not saved";
+}
+
 /** Plain-language message for a failed save, with what to do next. */
 export function newOrderErrorMessage(error: unknown): string {
+  if (newOrderOutcomeUnknown(error)) {
+    return "The connection dropped before the answer came back, so this order may already be saved. Look for its order number in Sales before you try again.";
+  }
   const raw = String((error as { message?: string })?.message || error || "")
     .trim()
     .replace(/\.$/, "");
   if (/sales_orders_order_number_key|duplicate key.*order_number/i.test(raw)) {
-    return "This order number is already used by another sale. Nothing was saved. Enter a different order number and try again.";
+    return "This order number is already in Sales. If you just saved this order, it is there: check Sales before doing anything else. Otherwise enter a different order number and try again.";
   }
   if (/row-level security|permission denied/i.test(raw)) {
     return "You don't have permission to create sales orders. Nothing was saved. Ask an admin for Sales access.";

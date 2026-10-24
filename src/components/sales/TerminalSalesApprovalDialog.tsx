@@ -606,6 +606,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         effective_usdt_rate: tsEffUsdtRate,
       };
       const steps: any[] = [];
+      // The wallet debit and its fee row go after the bank and settlement postings: every money call
+      // (purchases, Small sales, New order) posts bank before wallet, so two saves at the same moment
+      // never wait on each other in opposite order.
+      const walletSteps: any[] = [];
 
       // Binance SELL wallet impact = sold quantity + commission (commission is a separate crypto expense).
       // Post the full physical deduction in one wallet debit to prevent recurring drift.
@@ -613,7 +617,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         const assetCode = (od.asset || 'USDT').toUpperCase();
         const totalWalletDebit = quantity + Math.max(commission, 0);
 
-        steps.push({ op: 'wallet_deduction', wallet_id: od.wallet_id, amount: totalWalletDebit, asset_code: assetCode });
+        walletSteps.push({ op: 'wallet_deduction', wallet_id: od.wallet_id, amount: totalWalletDebit, asset_code: assetCode });
 
         // Keep fee analytics/reporting without creating a second wallet DEBIT row.
         if (commission > 0) {
@@ -624,7 +628,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             .single();
           const avgBuyPrice = Number(usdtProd?.average_buying_price || 0);
 
-          steps.push({
+          walletSteps.push({
             op: 'insert',
             table: 'wallet_fee_deductions',
             order_id_column: 'order_id',
@@ -728,6 +732,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         // Guarantee one pending settlement per gateway split
         steps.push({ op: 'sync_split_settlements' });
       }
+      steps.push(...walletSteps);
 
       // Save it all and mark the sync record approved (the call refuses a record that is no longer pending).
       const { data: created, error: createErr } = await supabase.rpc('create_sales_order_with_postings' as any, {

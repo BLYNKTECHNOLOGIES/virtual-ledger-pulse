@@ -36,6 +36,7 @@ import {
   isMethodAvailable,
   istDay,
   newOrderErrorMessage,
+  newOrderErrorTitle,
   pickAutoMethod,
   platformFeeFor,
   quantityFor,
@@ -278,7 +279,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       });
 
       const { data, error } = await supabase.rpc('create_sales_order_with_postings' as any, args as any);
-      if (error) throw error;
+      // Marked so the message can tell a database refusal (nothing saved) from a lost answer (outcome unknown).
+      if (error) throw Object.assign(error, { fromSaveCall: true });
       return data as unknown as { sales_order_id: string; order_number: string };
     },
     onSuccess: async (result) => {
@@ -329,7 +331,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       const message = newOrderErrorMessage(error);
       setSaveError(message);
       toast({
-        title: "Order not saved",
+        title: newOrderErrorTitle(error),
         description: message,
         variant: "destructive"
       });

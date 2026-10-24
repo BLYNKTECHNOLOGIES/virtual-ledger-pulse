@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentUserId } from '@/lib/system-action-logger';
-import { fetchAndLockMarketRate, linkSnapshotToReference, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
+import { fetchAndLockMarketRate, fetchMarketRate, recordLockedRate, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { useActiveBankAccounts } from '@/hooks/useActiveBankAccounts';
 import {
@@ -196,9 +196,10 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
       const totalFee = Number(record.total_fee || 0);
       const netQty = totalQty - totalFee;
 
-      // Lock the CoinUSDT rate before anything is written: the purchase adds its cost at this rate.
-      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
-      const marketRate = locked.price;
+      // Get the CoinUSDT rate before anything is written: the purchase adds its cost at this rate. Its price
+      // snapshot is saved with the purchase id once the purchase exists (snapshots cannot be updated later).
+      const rate = await fetchMarketRate(assetCode);
+      const marketRate = rate.price;
 
       let result: any;
       let rpcError: any;
@@ -271,7 +272,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
 
       // Update purchase_orders source & market rate
       if (result?.purchase_order_id) {
-        await linkSnapshotToReference(locked.snapshotId, result.purchase_order_id, 'purchase_order');
+        const locked = await recordLockedRate(rate, { entryType: 'batch_approval', referenceId: result.purchase_order_id, referenceType: 'purchase_order' });
         const rawFee = totalFee;
         const feeUsdt = assetCode === 'USDT' ? rawFee : rawFee * (marketRate > 0 ? marketRate : 0);
 

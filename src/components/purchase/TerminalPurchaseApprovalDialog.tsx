@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
-import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
+import { fetchAndLockMarketRate, fetchMarketRate, recordLockedRate } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -408,10 +408,11 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         throw new Error('This order is already linked to another terminal sync record. Please refresh the queue.');
       }
 
-      // Lock the CoinUSDT rate before anything is written: the purchase adds its cost at this rate.
+      // Get the CoinUSDT rate before anything is written: the purchase adds its cost at this rate. Its price
+      // snapshot is saved with the purchase id once the purchase exists (snapshots cannot be updated later).
       const asset = (od.asset || 'USDT').toUpperCase();
-      const locked = await fetchAndLockMarketRate(asset, { entryType: 'purchase_approval' });
-      const marketRateUsdt = locked.price;
+      const rate = await fetchMarketRate(asset);
+      const marketRateUsdt = rate.price;
 
       if (existingPurchase?.id) {
         result = { success: true, purchase_order_id: existingPurchase.id, recovered: true };
@@ -534,7 +535,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
       // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {
-        await linkSnapshotToReference(locked.snapshotId, result.purchase_order_id, 'purchase_order');
+        await recordLockedRate(rate, { entryType: 'purchase_approval', referenceId: result.purchase_order_id, referenceType: 'purchase_order' });
 
         // Calculate fee in USDT equivalent
         const rawCommission = Number(od.commission || 0);

@@ -6,6 +6,8 @@ import {
   isMethodAvailable,
   istDay,
   newOrderErrorMessage,
+  newOrderErrorTitle,
+  newOrderOutcomeUnknown,
   pickAutoMethod,
   platformFeeFor,
   quantityFor,
@@ -183,7 +185,7 @@ describe("buildNewOrderRpcArgs", () => {
 
 describe("newOrderErrorMessage", () => {
   it("explains what happened and what to do", () => {
-    expect(newOrderErrorMessage({ message: 'duplicate key value violates unique constraint "sales_orders_order_number_key"' })).toMatch(/already used.*Enter a different order number/);
+    expect(newOrderErrorMessage({ message: 'duplicate key value violates unique constraint "sales_orders_order_number_key"' })).toMatch(/already in Sales.*check Sales.*different order number/);
     expect(newOrderErrorMessage({ message: "Insufficient wallet balance. Available: 10.0000, Required: 420.5000" })).toBe(
       "Insufficient wallet balance. Available: 10.0000, Required: 420.5000. Nothing was saved. Pick another wallet or lower the amount.",
     );
@@ -192,6 +194,25 @@ describe("newOrderErrorMessage", () => {
     expect(newOrderErrorMessage(new Error("Market price unavailable for BTC. Cannot proceed without a valid USDT rate."))).toBe(
       "Market price unavailable for BTC. Cannot proceed without a valid USDT rate. Nothing was saved. Check the details and try again.",
     );
+  });
+
+  it("never says 'nothing was saved' when the save call got no database answer", () => {
+    // supabase-js reports a dropped connection as an error with an empty code; a timeout has no code at all.
+    const dropped = { message: "TypeError: Failed to fetch", code: "", fromSaveCall: true };
+    const timeout = { message: "upstream request timeout", fromSaveCall: true };
+    for (const e of [dropped, timeout]) {
+      expect(newOrderOutcomeUnknown(e)).toBe(true);
+      expect(newOrderErrorMessage(e)).toMatch(/may already be saved.*Sales before you try again/);
+      expect(newOrderErrorMessage(e)).not.toMatch(/nothing was saved/i);
+      expect(newOrderErrorTitle(e)).toBe("Check Sales before trying again");
+    }
+    // A database answer (SQLSTATE) means the call rolled back.
+    const refused = { message: "Insufficient wallet balance", code: "P0001", fromSaveCall: true };
+    expect(newOrderOutcomeUnknown(refused)).toBe(false);
+    expect(newOrderErrorTitle(refused)).toBe("Order not saved");
+    expect(newOrderErrorMessage(refused)).toMatch(/Nothing was saved/);
+    // Errors raised before the save call (validation, price lookup) are definite.
+    expect(newOrderOutcomeUnknown(new Error("Select the stock you sold."))).toBe(false);
   });
 });
 

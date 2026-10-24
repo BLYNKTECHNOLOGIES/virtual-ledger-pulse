@@ -566,15 +566,7 @@ Deno.serve(async (req) => {
       if (upErr) return json({ error: upErr.message }, 500);
       if (!committed) return json({error:'This form has already been submitted.'},409);
 
-      // Push the candidate's answers into the HR onboarding draft and alert HR.
-      if (packageData?.enabled) {
-        const reviews = { ...(candidateOnb.prejoining.reviews || {}) };
-        for (const key of ['details', ...PREJOINING_DOCS.map(d => d.key)]) if (reviews[key]?.status !== 'approved') reviews[key] = { status:'pending' };
-        const { error: stateError } = await admin.from('hr_employee_onboarding').update({ prejoining:{ ...candidateOnb.prejoining, reviews, state:'submitted', submitted_at:new Date().toISOString() } }).eq('id',invite.onboarding_id);
-        if (stateError) return json({ error:stateError.message },500);
-        await notifyHr(invite.onboarding_id, normalized);
-        return json({ ok:true, merged:false, pendingReview:true });
-      }
+      // Standard (non-package) onboarding retains its existing handoff.
       const merge = await mergeIntoOnboarding(invite.onboarding_id, normalized);
       await notifyHr(invite.onboarding_id, normalized);
       return json({ ok: true, merged: merge.ok, mergeError: merge.error });

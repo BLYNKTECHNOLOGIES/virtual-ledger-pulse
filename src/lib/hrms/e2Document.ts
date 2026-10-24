@@ -18,7 +18,8 @@ export async function generateE2(form: Record<string, any>, pkg: Record<string, 
   const name = `${form.first_name || ''} ${form.last_name || ''}`.trim();
   if (!name) throw new Error('Enter your name before downloading E2');
   for (const item of DISCLOSURES) if (!String(form.e2_disclosures?.[item.key] || '').trim()) throw new Error('Complete all four disclosures, writing None where applicable');
-  const artwork = await toDataUri(pkg.letterhead_url);
+  const letterheadUrl = String(pkg.letterhead_url).startsWith('/__l5e/') ? `https://erp.blynkex.com${pkg.letterhead_url}` : pkg.letterhead_url;
+  const artwork = await toDataUri(letterheadUrl);
   if (!artwork) throw new Error('Could not load the company letterhead. Retry the download.');
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
   const pdf = new jsPDF({ unit:'mm',format:'a4' });

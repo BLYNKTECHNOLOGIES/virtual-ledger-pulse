@@ -20,7 +20,8 @@ export async function handlePrejoining(admin: any, body: any, userId: string) {
     const { data: company } = await admin.from('hr_company_identity').select('*').limit(1).maybeSingle();
     if (!company?.letterhead_url && !company?.letterhead_path) throw new Error('Company letterhead must be configured');
     const version = Number(current.version || 0) + 1;
-    next = { enabled: true, state: 'published', version, offer_reference: ref, role_title: onb.job_role, company_name: company.legal_name, joining_date: date, joining_choices: dates, offer_file: offer, company, reviews: {}, published_at: new Date().toISOString(), published_by: userId, history: [...(current.history || []), ...(current.version ? [{ ...current, history: undefined }] : [])] };
+    const {data:oldInvite}=await admin.from('hr_onboarding_invites').select('payload').eq('onboarding_id',id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    next = { enabled: true, state: 'published', version, first_send_date:current.first_send_date, offer_reference: ref, role_title: onb.job_role, company_name: company.legal_name, joining_date: date, joining_choices: dates, offer_file: offer, company, reviews: {}, published_at: new Date().toISOString(), published_by: userId, history: [...(current.history || []), ...(current.version ? [{ ...current, history: undefined, submission:oldInvite?.payload }] : [])] };
     extra = { date_of_joining: date };
   } else if (body.action === 'review-package') {
     if (!current.enabled || !['submitted','review','ready'].includes(current.state)) throw new Error('A current candidate submission is required');
@@ -35,7 +36,7 @@ export async function handlePrejoining(admin: any, body: any, userId: string) {
     next = { ...current, reviews, state: prejoiningReady(inv.payload, reviews, current.version, current.joining_date) ? 'ready' : 'review' };
   } else if (body.action === 'return-corrections') {
     if (!current.enabled || !Object.values(current.reviews || {}).some((r: any) => r.status === 'correction')) throw new Error('Mark at least one item for correction first');
-    next.state = 'corrections';
+    next = {...current,state:'corrections',arrival_confirmed_at:null,arrival_confirmed_by:null};
   } else if (body.action === 'confirm-arrival') {
     if (current.state !== 'ready' || current.joining_date > joiningSendDateIST(new Date())) throw new Error('HR must complete review and wait until the joining date');
     next = { ...current, arrival_confirmed_at: new Date().toISOString(), arrival_confirmed_by: userId };
@@ -65,5 +66,6 @@ export async function publicPackage(admin: any, onb: any) {
     const { data } = await admin.storage.from('employee-documents').createSignedUrl(path,600);
     offerUrl = data?.signedUrl;
   }
-  return { enabled:true, state:p.state, version:p.version, offer_reference:p.offer_reference, role_title:p.role_title, company_name:p.company_name, joining_date:p.joining_date, joining_choices:p.joining_choices, offer_url:offerUrl, reviews:p.reviews || {}, letterhead_url:letterhead, margins:{ top:Number(company?.letterhead_margin_top_mm || 35), bottom:Number(company?.letterhead_margin_bottom_mm || 30), left:Number(company?.letterhead_margin_left_mm || 19), right:Number(company?.letterhead_margin_right_mm || 19) } };
+  const reviews=Object.fromEntries(Object.entries(p.reviews || {}).map(([k,v])=>[k,{status:(v as any).status,note:(v as any).note}]));
+  return { enabled:true, state:p.state, version:p.version, offer_reference:p.offer_reference, role_title:p.role_title, company_name:p.company_name, joining_date:p.joining_date, joining_choices:p.joining_choices, offer_url:offerUrl, reviews, letterhead_url:letterhead, margins:{ top:Number(company?.letterhead_margin_top_mm || 35), bottom:Number(company?.letterhead_margin_bottom_mm || 30), left:Number(company?.letterhead_margin_left_mm || 19), right:Number(company?.letterhead_margin_right_mm || 19) } };
 }

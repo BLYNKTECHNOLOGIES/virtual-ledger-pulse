@@ -44,7 +44,7 @@ export function PrejoiningReview({id}:{id:string}) {
       <Button variant="outline" disabled={busy} onClick={()=>action('publish-package',{offerReference:reference || p.offer_reference,joiningDate:date || p.joining_date || choices[0]})}>{p.enabled?'Republish revised package':'Enable & publish package'}</Button>
     </div>}
     {p.enabled && data?.invite?.status==='submitted' && <div className="space-y-4">
-      <dl className="text-sm grid sm:grid-cols-2 gap-2">{['first_name','last_name','email','phone','date_of_birth','address','city','state','zip','pan_number','aadhaar_number','bank_account_name','bank_name','bank_account_number','bank_ifsc'].map(k=><div key={k} className="min-w-0"><dt className="text-muted-foreground capitalize">{k.replaceAll('_',' ')}</dt><dd className="break-words">{payload[k] || '—'}</dd></div>)}</dl>
+      <dl className="text-sm grid sm:grid-cols-2 gap-2">{['first_name','last_name','email','phone','date_of_birth','address','city','state','zip','pan_number','aadhaar_number','bank_account_name','bank_name','bank_account_number','bank_ifsc'].map(k=><div key={k} className="min-w-0"><dt className="text-muted-foreground capitalize">{k.replace(/_/g,' ')}</dt><dd className="break-words">{payload[k] || '—'}</dd></div>)}</dl>
       {DISCLOSURES.map(d=><p className="text-sm break-words" key={d.key}><strong>{d.label}:</strong> {payload.e2_disclosures?.[d.key] || '—'}</p>)}
       {[{key:'details',label:'Personal details',required:true},...PREJOINING_DOCS].map(item=><div key={item.key} className="border-b border-border pb-3 space-y-2">
         <p className="text-sm font-medium">{item.label} · {p.reviews?.[item.key]?.status || 'Pending'}</p>

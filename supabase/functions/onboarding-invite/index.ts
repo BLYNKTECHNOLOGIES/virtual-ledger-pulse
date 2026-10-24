@@ -1,7 +1,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
-import { HR_BRAND, hrHeaderHtml, hrSignatureHtml, hrSignatureText } from '../_shared/hrSignature.ts';
+import { HR_BRAND, hrHeaderHtml, hrSignatureHtml, hrSignatureText, wrapHrEmail } from '../_shared/hrSignature.ts';
+import { handlePrejoining, publicPackage } from './prejoining.ts';
+import { PREJOINING_DOCS, prejoiningProblems } from '../_shared/prejoining.ts';
+import { joiningSendDateIST } from '../_shared/joiningBatch.ts';
 import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from '../_shared/mailBody.ts'
 
 const APP_URL = 'https://erp.blynkex.com';
@@ -126,7 +129,7 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
       to,
       subject: 'Complete your onboarding details - Blynk',
       content: tidyMailText(text),
-      html,
+      html: wrapHrEmail(html, { refNote: 'Employee onboarding' }),
     });
   } finally {
     try { await client.close(); } catch { /* ignore */ }
@@ -137,7 +140,7 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
     recipient_email: to,
     subject: 'Complete your onboarding details - Blynk',
     status: 'sent',
-    metadata: { link },
+    metadata: { onboarding_invitation: true },
   });
   return mailbox.from_address || user;
 }
@@ -152,6 +155,9 @@ const DOC_KEY_MAP: Record<string, string> = {
   cancelled_cheque: 'bank_details',
   education: 'educational_certificate',
   experience: 'experience_letter',
+  signed_offer: 'signed_offer',
+  signed_e2: 'signed_e2',
+  pcc_application: 'pcc_application',
 };
 
 // Public-form upload rules: only the form's document keys, only document/photo
@@ -328,6 +334,13 @@ Deno.serve(async (req) => {
     const action = String(body?.action || '');
     const token = String(body?.token || '');
 
+    if (['publish-package','review-package','return-corrections','confirm-arrival'].includes(action)) {
+      const auth = await requireHr(req);
+      if (auth.error || !auth.userId) return json({ error: auth.error || 'Unauthorized' }, auth.error === 'Forbidden' ? 403 : 401);
+      try { return json(await handlePrejoining(admin, body, auth.userId)); }
+      catch (e) { return json({ error: e instanceof Error ? e.message : 'Package action failed' }, 400); }
+    }
+
     // ── HR-authenticated actions ──
     if (action === 'sample') {
       const to = String(body?.recipientEmail || '').trim().toLowerCase();
@@ -366,6 +379,8 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (!inv?.payload) return json({ error: 'No submitted candidate form found' }, 404);
+      const { data: reviewOnb } = await admin.from('hr_employee_onboarding').select('prejoining').eq('id',onboardingId).single();
+      if (reviewOnb?.prejoining?.enabled && reviewOnb.prejoining.state !== 'ready') return json({ error: 'Complete HR review before importing the pre-joining submission' },409);
       const r = await mergeIntoOnboarding(onboardingId, inv.payload as Record<string, any>);
       if (!r.ok) return json({ error: r.error || 'Merge failed' }, 500);
       return json({ ok: true });
@@ -381,10 +396,16 @@ Deno.serve(async (req) => {
 
       const { data: onb } = await admin
         .from('hr_employee_onboarding')
-        .select('id, first_name, last_name, email')
+        .select('id, first_name, last_name, email, status, prejoining')
         .eq('id', onboardingId)
         .maybeSingle();
       if (!onb) return json({ error: 'Onboarding record not found' }, 404);
+      if (['completed','cancelled'].includes(onb.status)) return json({ error:'Onboarding is closed' },409);
+      if (body?.reissue === true) {
+        // Rotate the bearer link, but never discard submitted evidence.
+        const { error: rotateError } = await admin.from('hr_onboarding_invites').update({ token:newToken(), expires_at:new Date(Date.now()+14*86400000).toISOString() }).eq('onboarding_id',onboardingId);
+        if (rotateError) return json({ error:rotateError.message },500);
+      }
 
       let { data: existing } = await admin
         .from('hr_onboarding_invites')
@@ -395,7 +416,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       const expired = existing && new Date(existing.expires_at).getTime() < Date.now();
-      if (!existing || body?.reissue === true || (expired && existing.status !== 'submitted')) {
+      if (!existing || (expired && existing.status !== 'submitted')) {
         const { data: created, error: cErr } = await admin
           .from('hr_onboarding_invites')
           .insert({
@@ -410,13 +431,16 @@ Deno.serve(async (req) => {
         existing = created;
       }
 
-      const link = `${APP_URL}/onboarding/apply/${existing!.token}`;
+      if (!existing) return json({ error:'Could not create invitation' },500);
+      const link = `${APP_URL}/onboarding/apply/${existing.token}`;
 
       if (action === 'send') {
         const to = String(body?.recipientEmail || onb.email || '').trim();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: 'A valid candidate email is required' }, 400);
-        const sentFrom = await mailInvite(to, `${onb.first_name || ''} ${onb.last_name || ''}`.trim(), link, existing!.expires_at);
-        await admin.from('hr_onboarding_invites').update({ emailed_at: new Date().toISOString() }).eq('id', existing!.id);
+        if (onb.prejoining?.enabled && onb.prejoining.joining_date <= joiningSendDateIST(new Date()) && !onb.prejoining.first_send_date) return json({ error:'Revise the offer to an upcoming joining batch before first sending' },409);
+        const sentFrom = await mailInvite(to, `${onb.first_name || ''} ${onb.last_name || ''}`.trim(), link, existing.expires_at);
+        await admin.from('hr_onboarding_invites').update({ emailed_at: new Date().toISOString() }).eq('id', existing.id);
+        if (onb.prejoining?.enabled && !onb.prejoining.first_send_date) await admin.from('hr_employee_onboarding').update({ prejoining:{ ...onb.prejoining, first_send_date:joiningSendDateIST(new Date()) } }).eq('id',onboardingId);
         return json({ ok: true, link, sentTo: to, sentFrom, invite: existing });
       }
 
@@ -425,10 +449,13 @@ Deno.serve(async (req) => {
 
     const { invite, error, status } = await loadInvite(token);
     if (!invite) return json({ error }, status || 400);
+    const { data: candidateOnb } = await admin.from('hr_employee_onboarding').select('id,first_name,last_name,email,phone,status,job_role,prejoining').eq('id',invite.onboarding_id).maybeSingle();
+    if (!candidateOnb || ['completed','cancelled'].includes(candidateOnb.status)) return json({ error:'This onboarding link is closed' },410);
+    const packageData = await publicPackage(admin,candidateOnb);
 
     if (action === 'get') {
       // A submitted form never returns the candidate's data again.
-      if (invite.status === 'submitted') return json({ status: 'submitted', submitted: true });
+      if (invite.status === 'submitted') return json({ status: 'submitted', submitted: true, package:packageData ? { state:packageData.state, reviews:packageData.reviews } : null });
       if (invite.status === 'pending') {
         await admin
           .from('hr_onboarding_invites')
@@ -451,6 +478,7 @@ Deno.serve(async (req) => {
         status: invite.status === 'pending' ? 'opened' : invite.status,
         submitted: false,
         payload: { ...prefill, ...(invite.payload || {}) },
+        package:packageData,
       });
     }
 
@@ -460,6 +488,7 @@ Deno.serve(async (req) => {
 
     if (action === 'save') {
       const payload = body?.payload && typeof body.payload === 'object' ? body.payload : {};
+      if (packageData?.enabled && Number(payload.package_version) !== packageData.version) return json({ error:'Reload the current offer before saving' },409);
       const { error: upErr } = await admin
         .from('hr_onboarding_invites')
         .update({ payload })
@@ -471,6 +500,7 @@ Deno.serve(async (req) => {
     if (action === 'upload-url') {
       const field = String(body?.field || '');
       if (!UPLOAD_FIELDS.has(field)) return json({ error: 'Unknown document type' }, 400);
+      if (!packageData?.enabled && ['signed_e2','signed_offer','pcc_application'].includes(field)) return json({ error:'Pre-joining is not enabled' },400);
       const filename = String(body?.filename || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
       if (!UPLOAD_EXT.includes(fileExt(filename))) {
         return json({ error: 'Only PDF or photo files (JPG, PNG, WEBP, HEIC) can be uploaded.' }, 400);
@@ -506,14 +536,33 @@ Deno.serve(async (req) => {
         submitted_from_ip: req.headers.get('x-forwarded-for') || null,
       };
 
+      if (packageData?.enabled) {
+        const problems = prejoiningProblems(normalized, packageData.version, packageData.joining_date);
+        if (problems.length) return json({ error:'Complete the current joining package', details:problems },400);
+        if (candidateOnb.prejoining.state === 'corrections') {
+          // Approved evidence remains unchanged; only requested corrections may replace it.
+          for (const [key,review] of Object.entries(candidateOnb.prejoining.reviews || {})) {
+            if ((review as any).status === 'approved' && key !== 'details' && JSON.stringify(normalized.documents?.[key]) !== JSON.stringify((invite.payload as any)?.documents?.[key])) return json({ error:'An approved document cannot be replaced during corrections' },409);
+          }
+        }
+      }
+
 
       const { error: upErr } = await admin
         .from('hr_onboarding_invites')
         .update({ payload: normalized, status: 'submitted', submitted_at: new Date().toISOString() })
-        .eq('id', invite.id);
+        .eq('id', invite.id).neq('status','submitted').select('id').maybeSingle();
       if (upErr) return json({ error: upErr.message }, 500);
 
       // Push the candidate's answers into the HR onboarding draft and alert HR.
+      if (packageData?.enabled) {
+        const reviews = { ...(candidateOnb.prejoining.reviews || {}) };
+        for (const key of ['details', ...PREJOINING_DOCS.map(d => d.key)]) if (reviews[key]?.status !== 'approved') reviews[key] = { status:'pending' };
+        const { error: stateError } = await admin.from('hr_employee_onboarding').update({ prejoining:{ ...candidateOnb.prejoining, reviews, state:'submitted', submitted_at:new Date().toISOString() } }).eq('id',invite.onboarding_id);
+        if (stateError) return json({ error:stateError.message },500);
+        await notifyHr(invite.onboarding_id, normalized);
+        return json({ ok:true, merged:false, pendingReview:true });
+      }
       const merge = await mergeIntoOnboarding(invite.onboarding_id, normalized);
       await notifyHr(invite.onboarding_id, normalized);
       return json({ ok: true, merged: merge.ok, mergeError: merge.error });

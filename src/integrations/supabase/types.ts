@@ -36356,6 +36356,7 @@ export type Database = {
           p_description?: string
           p_fee_percentage?: number
           p_is_off_market?: boolean
+          p_market_rate_usdt?: number
           p_order_date: string
           p_order_number: string
           p_pan_number?: string
@@ -36377,6 +36378,7 @@ export type Database = {
           p_description?: string
           p_fee_percentage?: number
           p_is_off_market?: boolean
+          p_market_rate_usdt?: number
           p_order_date: string
           p_order_number: string
           p_pan_number?: string
@@ -36398,6 +36400,7 @@ export type Database = {
           p_description?: string
           p_fee_percentage?: number
           p_is_off_market?: boolean
+          p_market_rate_usdt?: number
           p_order_date: string
           p_order_number: string
           p_pan_number?: string
@@ -36501,6 +36504,7 @@ export type Database = {
           p_description?: string
           p_fee_percentage?: number
           p_is_off_market?: boolean
+          p_market_rate_usdt?: number
           p_order_date: string
           p_order_number: string
           p_pan_number?: string
@@ -36522,6 +36526,7 @@ export type Database = {
           p_description?: string
           p_fee_percentage?: number
           p_is_off_market?: boolean
+          p_market_rate_usdt?: number
           p_order_date: string
           p_order_number: string
           p_pan_number?: string
@@ -36559,6 +36564,10 @@ export type Database = {
           role_name: string
         }
         Returns: string
+      }
+      create_sales_order_with_postings: {
+        Args: { p_order: Json; p_source?: Json; p_steps?: Json }
+        Returns: Json
       }
       create_seller_client_with_evidence: {
         Args: {

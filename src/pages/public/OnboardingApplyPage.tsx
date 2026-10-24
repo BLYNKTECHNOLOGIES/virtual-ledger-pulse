@@ -10,6 +10,8 @@ import { Loader2, CheckCircle2, Upload, FileCheck2, AlertCircle } from "lucide-r
 import { BrandLogo } from "@/components/BrandLogo";
 import { toast } from "sonner";
 import PrejoiningDemo from "./PrejoiningDemo";
+import { CandidatePackageForm } from '@/components/hrms/onboarding-pipeline/CandidatePackageForm';
+import { PREJOINING_DOCS } from '@/lib/hrms/prejoining';
 
 type Doc = { key: string; label: string; required: boolean; multiple?: boolean };
 
@@ -49,6 +51,7 @@ function LiveOnboardingApplyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [form, setForm] = useState<Record<string, any>>(emptyForm);
+  const [pkg, setPkg] = useState<Record<string,any> | null>(null);
   const saveTimer = useRef<number | null>(null);
 
   const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
@@ -61,7 +64,11 @@ function LiveOnboardingApplyPage() {
       if (error || (data as any)?.error) {
         setFatal((data as any)?.error || "This link is not valid or has expired.");
       } else {
-        setForm({ ...emptyForm, ...(data as any).payload });
+        const loaded = data as any;
+        setPkg(loaded.package || null);
+        const payload = {...emptyForm, ...loaded.payload};
+        const revised = loaded.package?.enabled && payload.package_version !== loaded.package.version;
+        setForm(loaded.package?.enabled ? {...payload, package_version:loaded.package.version, joining_date:loaded.package.joining_date, ...(revised ? {joining_confirmed:false,e2_consent:false,documents:{...payload.documents,signed_offer:[],signed_e2:[]}} : {})} : payload);
         setSubmitted(Boolean((data as any).submitted));
       }
       setLoading(false);
@@ -111,7 +118,7 @@ function LiveOnboardingApplyPage() {
   const submit = async () => {
     setSubmitting(true);
     setErrors([]);
-    const missingDocs = DOCS.filter((d) => d.required && !(form.documents?.[d.key]?.length));
+    const missingDocs = (pkg?.enabled ? PREJOINING_DOCS : DOCS).filter((d) => d.required && !(form.documents?.[d.key]?.length));
     if (missingDocs.length) {
       setErrors(missingDocs.map((d) => `${d.label} is required`));
       setSubmitting(false);
@@ -175,6 +182,7 @@ function LiveOnboardingApplyPage() {
                 Your onboarding details have been submitted to the HR team. We will reach out if anything
                 further is needed.
               </p>
+              {pkg && <p className="text-sm mt-3 text-muted-foreground">{pkg.state==='ready' ? 'HR review is complete. Joining remains subject to confirmation of your arrival.' : 'Your joining package is awaiting HR review. Submission does not activate employment.'}</p>}
             </div>
             <Signature />
           </Card>
@@ -196,6 +204,7 @@ function LiveOnboardingApplyPage() {
                 </ul>
               </div>
             )}
+            {pkg?.state==='corrections' && <div className="border-l-2 border-destructive pl-3 text-sm">{Object.entries(pkg.reviews || {}).filter(([,v])=>(v as any).status==='correction').map(([key,v])=><p key={key}>{key==='details'?'Personal details':PREJOINING_DOCS.find(d=>d.key===key)?.label}: {(v as any).note}</p>)}</div>}
 
             <Section title="Personal details">
               <Grid>
@@ -256,12 +265,13 @@ function LiveOnboardingApplyPage() {
 
             <Section title="Documents">
               <div className="space-y-3">
-                {DOCS.map((d) => (
-                  <DocRow key={d.key} doc={d} files={form.documents?.[d.key] || []} onUpload={(f) => uploadFile(d.key, f)} />
+                {(pkg?.enabled ? PREJOINING_DOCS : DOCS).map((d) => (
+                  <DocRow key={d.key} doc={d} disabled={pkg?.state==='corrections' && pkg.reviews?.[d.key]?.status==='approved'} files={form.documents?.[d.key] || []} onUpload={(f) => uploadFile(d.key, f)} />
                 ))}
               </div>
             </Section>
 
+            {pkg?.enabled && <CandidatePackageForm form={form} pkg={pkg} set={set}/>}
             <Section title="Declaration">
               <label className="flex items-start gap-3 text-sm text-foreground">
                 <Checkbox checked={!!form.declaration_accepted} onCheckedChange={(v) => set("declaration_accepted", !!v)} className="mt-0.5" />
@@ -324,7 +334,7 @@ function SelectBox({ value, onChange, options }: { value: string; onChange: (v: 
   );
 }
 
-function DocRow({ doc, files, onUpload }: { doc: Doc; files: FileRef[]; onUpload: (f: File) => Promise<void> }) {
+function DocRow({ doc, files, onUpload, disabled }: { doc: Doc; files: FileRef[]; onUpload: (f: File) => Promise<void>; disabled?:boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -346,7 +356,7 @@ function DocRow({ doc, files, onUpload }: { doc: Doc; files: FileRef[]; onUpload
           type="button"
           variant="outline"
           size="sm"
-          disabled={busy}
+          disabled={busy || disabled}
           onClick={() => inputRef.current?.click()}
           className="h-9 w-full sm:w-32 sm:shrink-0 justify-center"
         >

@@ -15,6 +15,7 @@ import { Plus, Minus, CheckCircle2, AlertCircle, Check, Edit, Loader2 } from "lu
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 import { pickChanged, sameAllocation, sameValue } from "@/lib/order-edit-changes";
+import { fetchMarketRate, recordLockedRate } from "@/lib/effectiveUsdtEngine";
 import { cn } from "@/lib/utils";
 import { ShareBar } from "@/components/finance-ui/primitives";
 import {
@@ -438,6 +439,21 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         if (data.product_id) {
           const { data: selectedProd } = await supabase.from('products').select('code').eq('id', data.product_id).single();
           if (selectedProd?.code) productCode = selectedProd.code;
+        }
+
+        // A product change re-posts the coins as the new product. The order's stored USDT rate is for the old
+        // coin, so record the new coin's rate for this purchase first: the database adds the new coin's cost at
+        // that rate. Without it nothing is saved.
+        if (productChanged && productCode.toUpperCase() !== 'USDT') {
+          const newCoinRate = await fetchMarketRate(productCode);
+          const recorded = await recordLockedRate(newCoinRate, {
+            entryType: 'purchase_edit',
+            referenceId: order.id,
+            referenceType: 'purchase_order',
+          });
+          if (!recorded.snapshotId) {
+            throw new Error(`The ${productCode.toUpperCase()} rate could not be recorded for this purchase. Nothing was saved. Try again.`);
+          }
         }
 
         // Build split payments JSON if using multiple payments

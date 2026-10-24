@@ -38444,6 +38444,10 @@ export type Database = {
           training_period_months: number
         }[]
       }
+      hr_prejoining_submit: {
+        Args: { p_invite_id: string; p_payload: Json; p_version: number }
+        Returns: undefined
+      }
       hr_probation_end_date: {
         Args: { p_employee_id: string }
         Returns: string

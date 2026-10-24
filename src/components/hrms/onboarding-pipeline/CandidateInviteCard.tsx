@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Link2, Mail, Copy, RefreshCw, CheckCircle2 } from "lucide-react";
+import { PrejoiningReview } from './PrejoiningReview';
 
 const APP_URL = "https://erp.blynkex.com";
 
@@ -19,10 +20,11 @@ export function CandidateInviteCard({ onboardingId, email }: { onboardingId?: st
     queryKey: ["onboarding_invite", onboardingId],
     enabled: !!onboardingId,
     queryFn: async () => {
+      if (!onboardingId) return null;
       const { data, error } = await supabase
         .from("hr_onboarding_invites")
         .select("id, token, status, expires_at, submitted_at, emailed_at")
-        .eq("onboarding_id", onboardingId!)
+        .eq("onboarding_id", onboardingId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -144,6 +146,7 @@ export function CandidateInviteCard({ onboardingId, email }: { onboardingId?: st
           </div>
         )}
 
+        <PrejoiningReview id={onboardingId}/>
       </CardContent>
     </Card>
   );

@@ -16,12 +16,19 @@ export async function handlePrejoining(admin: any, body: any, userId: string) {
     const firstDate = current.first_send_date || joiningSendDateIST(new Date());
     const dates = joiningChoices(firstDate);
     const date = String(body.joiningDate || dates[0]);
-    if (!dates.includes(date)) throw new Error('Select one of the four upcoming joining batches');
+    const custom = !dates.includes(date);
+    const customReason = String(body.customReason || '').trim().slice(0, 500);
+    if (custom) {
+      // Uncommon cases: HR may offer any future date, but must record why.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) throw new Error('Enter a valid joining date');
+      if (date <= joiningSendDateIST(new Date())) throw new Error('A custom joining date must be after today (IST)');
+      if (customReason.length < 5) throw new Error('Give a reason for the custom joining date');
+    }
     const { data: company } = await admin.from('hr_company_identity').select('*').limit(1).maybeSingle();
     if (!company?.letterhead_url && !company?.letterhead_path) throw new Error('Company letterhead must be configured');
     const version = Number(current.version || 0) + 1;
     const {data:oldInvite}=await admin.from('hr_onboarding_invites').select('payload').eq('onboarding_id',id).order('created_at',{ascending:false}).limit(1).maybeSingle();
-    next = { enabled: true, state: 'published', version, first_send_date:current.first_send_date, offer_reference: ref, role_title: onb.job_role, company_name: company.legal_name, joining_date: date, joining_choices: dates, offer_file: offer, company, reviews: {}, published_at: new Date().toISOString(), published_by: userId, history: [...(current.history || []), ...(current.version ? [{ ...current, history: undefined, submission:oldInvite?.payload }] : [])] };
+    next = { enabled: true, state: 'published', version, first_send_date:current.first_send_date, offer_reference: ref, role_title: onb.job_role, company_name: company.legal_name, joining_date: date, joining_choices: dates, joining_custom: custom ? { reason: customReason, set_by: userId, set_at: new Date().toISOString() } : null, offer_file: offer, company, reviews: {}, published_at: new Date().toISOString(), published_by: userId, history: [...(current.history || []), ...(current.version ? [{ ...current, history: undefined, submission:oldInvite?.payload }] : [])] };
     extra = { date_of_joining: date };
   } else if (body.action === 'review-package') {
     if (!current.enabled || !['submitted','review','ready'].includes(current.state)) throw new Error('A current candidate submission is required');

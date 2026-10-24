@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ComponentProps, KeyboardEvent, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -29,8 +29,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { PaymentMethodSelectionDialog } from "./PaymentMethodSelectionDialog";
-import { UserPayingStatusDialog } from "./UserPayingStatusDialog";
-import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import { fetchAndLockMarketRate } from "@/lib/effectiveUsdtEngine";
+import {
+  buildNewOrderRpcArgs,
+  isMethodAvailable,
+  istDay,
+  newOrderErrorMessage,
+  pickAutoMethod,
+  platformFeeFor,
+  quantityFor,
+  riskCategoryForAppetite,
+  withLiveSalesUsage,
+} from "@/lib/sales-new-order";
 import { cn } from "@/lib/utils";
 import {
   Callout,
@@ -41,6 +52,7 @@ import {
   Facts,
   Field,
   FieldGrid,
+  PanelSkeleton,
   Section,
   SummaryRow,
   dialogContentClass,
@@ -72,15 +84,24 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     risk_appetite: 'HIGH_RISK'
   });
   const [orderAmount, setOrderAmount] = useState('');
-  const [usdtAmount, setUsdtAmount] = useState(0);
   const [cosmosAlert, setCosmosAlert] = useState(false);
   const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Transfer' | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<any[]>([]);
   const [usedPaymentMethods, setUsedPaymentMethods] = useState<string[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(false);
+  const [methodsError, setMethodsError] = useState<string | null>(null);
   const [paymentMethodDialogOpen, setPaymentMethodDialogOpen] = useState(false);
-  const [userPayingDialogOpen, setUserPayingDialogOpen] = useState(false);
-  const [pendingSalesOrder, setPendingSalesOrder] = useState<any>(null);
+  // Payment-method picker (User paying, Change method): the type it lists and the account it preselects.
+  const [pickerType, setPickerType] = useState<'UPI' | 'Bank Transfer'>('UPI');
+  const [pickerMethodId, setPickerMethodId] = useState<string | undefined>(undefined);
+  const [leadError, setLeadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Set synchronously on submit, so a fast double click cannot save the order (or the lead) twice.
+  const submittingRef = useRef(false);
+  const leadSubmittingRef = useRef(false);
+  // Only the latest receiving-account lookup may update the step.
+  const methodsRequestRef = useRef(0);
   // Generate unique order number - only used as fallback if user doesn't provide one
   const generateOrderNumber = () => {
     const timestamp = Date.now();
@@ -90,12 +111,10 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
   const [finalOrderData, setFinalOrderData] = useState({
     order_number: "", // Empty - user must enter order number
-    platform: '', 
     quantity: 1, 
-    platform_fees: 0,
     description: '', 
     stockName: '', 
-    warehouseId: '', 
+    walletId: '', 
     price: 0
   });
 
@@ -134,45 +153,44 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
   // Remove warehouse functionality - using wallets only
 
-  const getRiskCategoryFromAppetite = (appetite: string) => {
-    switch (appetite) {
-      case 'LOW': return 'Low Risk';
-      case 'MEDIUM': return 'Medium Risk';
-      case 'HIGH': return 'High Risk';
-      case 'NONE': return 'No Risk';
-      default: return 'High Risk';
-    }
-  };
+  // Payment-method risk category for the client (one mapping for the whole flow, see sales-new-order.ts).
+  const clientRiskCategory = riskCategoryForAppetite(selectedClient?.risk_appetite || newClientData.risk_appetite);
 
   // Fetch payment methods when payment type is selected
   const fetchPaymentMethods = async () => {
     if (!paymentType) return;
-    
-    const riskLevel = selectedClient?.risk_appetite || newClientData.risk_appetite;
-    const riskCategory = getRiskCategoryFromAppetite(riskLevel);
-    
-    let query = supabase
-      .from('sales_payment_methods')
-      .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name), payment_gateway')
-      .eq('is_active', true)
-      .eq('risk_category', riskCategory);
+    const request = ++methodsRequestRef.current;
+    setMethodsLoading(true);
+    setMethodsError(null);
 
-    if (paymentType) {
-      query = query.eq('type', paymentType === 'UPI' ? 'UPI' : 'Bank Account');
-    }
+    try {
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name, status), payment_gateway')
+        .eq('is_active', true)
+        .eq('risk_category', clientRiskCategory)
+        .eq('type', paymentType === 'UPI' ? 'UPI' : 'Bank Account');
+      if (error) throw error;
 
-    const { data, error } = await query;
-    if (error) throw error;
-    
-    setAvailablePaymentMethods(data || []);
-    
-    // Find next available payment method that hasn't been used
-    if (data && data.length > 0) {
-      const availableMethod = data.find(method => 
-        method.current_usage < method.payment_limit && 
-        !usedPaymentMethods.includes(method.id)
+      // Limits are compared with the live usage, in code (the stored current_usage is not maintained).
+      const methods = await withLiveSalesUsage(data || []);
+      if (request !== methodsRequestRef.current) return;
+      setAvailablePaymentMethods(methods);
+
+      // Keep the account already chosen while it still has room; otherwise the next one that hasn't been shown.
+      setSelectedPaymentMethod((current: any) =>
+        methods.find((method) => method.id === current?.id && isMethodAvailable(method, method.current_usage)) ??
+        methods.find((method) => isMethodAvailable(method, method.current_usage) && !usedPaymentMethods.includes(method.id)) ??
+        null
       );
-      setSelectedPaymentMethod(availableMethod || null);
+    } catch (error: any) {
+      if (request !== methodsRequestRef.current) return;
+      console.error('Error loading receiving accounts:', error);
+      setAvailablePaymentMethods([]);
+      setSelectedPaymentMethod(null);
+      setMethodsError(error?.message || 'Unknown error');
+    } finally {
+      if (request === methodsRequestRef.current) setMethodsLoading(false);
     }
   };
 
@@ -186,16 +204,10 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   useEffect(() => {
     const amount = parseFloat(orderAmount) || 0;
     if (finalOrderData.price > 0 && amount > 0) {
-      const calculatedQuantity = amount / finalOrderData.price;
+      const calculatedQuantity = quantityFor(amount, finalOrderData.price);
       setFinalOrderData(prev => ({ ...prev, quantity: calculatedQuantity }));
     }
   }, [orderAmount, finalOrderData.price]);
-
-  // Auto-calculate USDT amount when order amount changes
-  useEffect(() => {
-    const amount = parseFloat(orderAmount) || 0;
-    setUsdtAmount(amount); // Default USDT amount to order amount
-  }, [orderAmount]);
 
   // Create lead mutation
   const createLeadMutation = useMutation({
@@ -205,254 +217,125 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       return data;
     },
     onSuccess: () => {
-      toast({ title: "Order Cancelled", description: "Record moved to Leads for follow-up" });
+      toast({ title: "Order cancelled", description: "The client and amount are saved in Leads for follow-up." });
       resetFlow();
       onOpenChange(false);
+    },
+    onError: (error: any) => {
+      console.error('Lead creation failed:', error);
+      const message = `${String(error?.message || 'Unknown error').replace(/\.$/, '')}. Nothing was saved. Try again, or close this window and add the lead from Leads.`;
+      setLeadError(message);
+      toast({ title: "Lead not saved", description: message, variant: "destructive" });
+    },
+    onSettled: () => {
+      leadSubmittingRef.current = false;
     }
   });
 
-  // Create sales order mutation with wallet deduction
+  // Create the sales order: one call to create_sales_order_with_postings writes the order, the wallet debit
+  // and the platform fee in one transaction (all or nothing). The sales_orders INSERT triggers post the bank
+  // INCOME (direct method) or the pending settlement (gateway method), the stock row and, for a client that
+  // is not on file, the onboarding approval. Payment-method usage is computed live, so nothing updates it here.
   const createSalesOrderMutation = useMutation({
-    mutationFn: async (orderData: any) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Get the selected product and wallet
+    mutationFn: async () => {
       const selectedProduct = products?.find(p => p.name === finalOrderData.stockName);
-      const walletId = selectedClient?.walletId || newClientData.walletId;
+      const selectedWallet = wallets?.find(w => w.id === finalOrderData.walletId);
+      const amount = parseFloat(orderAmount) || 0;
+      if (!selectedPaymentMethod?.id) throw new Error('No receiving account is selected. Go back to the payment step and choose one.');
+      if (!selectedProduct) throw new Error('Select the stock you sold.');
+      if (!selectedWallet) throw new Error('Select the wallet the stock leaves from.');
+      if (!(amount > 0)) throw new Error('The order amount must be more than zero. Go back and enter the amount.');
 
-      // Validate stock before creating sales order
-      if (selectedProduct && finalOrderData.quantity) {
-        const { data: product, error: productError } = await supabase
-          .from('products')
-          .select('name, current_stock_quantity')
-          .eq('id', selectedProduct.id)
-          .single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) throw new Error('Your session has ended. Sign in again, then complete the order.');
 
-        if (productError) throw productError;
+      // Market rate locked at creation, as Manual entry does (1 for USDT; live USDT price for other assets).
+      const assetCode = String(selectedProduct.code || 'USDT').toUpperCase();
+      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'manual_sales' });
 
-        if (!product) {
-          throw new Error('Product not found');
-        }
-
-        const netQuantity = finalOrderData.quantity;
-        const platformFees = finalOrderData.platform_fees || 0;
-        const totalQuantityNeeded = netQuantity + platformFees;
-
-        if (product.current_stock_quantity < totalQuantityNeeded) {
-          throw new Error(
-            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${totalQuantityNeeded} (${netQuantity} + ${platformFees} fees) for product: ${product.name}`
-          );
-        }
-      }
-
-      // Validate wallet balance for USDT transactions
-      if (walletId && usdtAmount > 0) {
-        const walletName = wallets?.find((w) => w.id === walletId)?.wallet_name || 'Selected wallet';
-        const walletBalance = await fetchWalletLedgerUsdtBalance(walletId);
-
-        const netQuantity = finalOrderData.quantity;
-        const platformFees = finalOrderData.platform_fees || 0;
-        const totalUsdtNeeded = netQuantity + platformFees;
-
-        if (walletBalance < totalUsdtNeeded) {
-          throw new Error(
-            `Insufficient wallet balance. Available: ${walletBalance}, Required: ${totalUsdtNeeded} (${netQuantity} + ${platformFees} fees) in wallet: ${walletName}`
-          );
-        }
-      }
-      
-      // Get platform from wallet if available
-      let platform = finalOrderData.platform;
-      if (walletId && wallets) {
-        const selectedWallet = wallets.find(w => w.id === walletId);
-        if (selectedWallet) {
-          platform = selectedWallet.wallet_name.split(' ')[0]; // Extract platform from wallet name
-        }
-      }
-      
-      // Prepare the complete sales order data
-      const salesOrderData = {
-        order_number: finalOrderData.order_number,
-        client_name: selectedClient?.name || newClientData.name,
-        client_phone: selectedClient?.phone || newClientData.phone,
-        wallet_id: walletId || null,
-        platform: platform || null,
-        usdt_amount: usdtAmount,
-        platform_fees: finalOrderData.platform_fees || 0,
-        product_id: selectedProduct?.id || null,
-        warehouse_id: finalOrderData.warehouseId,
-        quantity: finalOrderData.quantity,
-        price_per_unit: finalOrderData.price,
-        total_amount: parseFloat(orderAmount) || 0,
-        sales_payment_method_id: selectedPaymentMethod?.id,
-        payment_status: 'COMPLETED',
-        status: 'COMPLETED',
-        order_date: new Date().toISOString().split('T')[0],
+      const args = buildNewOrderRpcArgs({
+        orderNumber: finalOrderData.order_number,
+        clientId: orderType === 'repeat' ? selectedClient?.id ?? null : null,
+        clientName: selectedClient?.name || newClientData.name.trim(),
+        clientPhone: selectedClient?.phone || newClientData.phone,
+        clientState: selectedClient?.state ?? null,
+        riskLevel: selectedClient?.risk_appetite || newClientData.risk_appetite,
+        cosmosAlert,
+        amount,
+        pricePerUnit: finalOrderData.price,
+        product: { id: selectedProduct.id, code: selectedProduct.code },
+        wallet: {
+          id: selectedWallet.id,
+          name: selectedWallet.wallet_name,
+          feePercentage: selectedWallet.fee_percentage,
+          feeEnabled: selectedWallet.is_fee_enabled,
+        },
+        paymentMethod: { id: selectedPaymentMethod.id, payment_gateway: selectedPaymentMethod.payment_gateway },
+        marketRateUsdt: locked.price,
         description: finalOrderData.description,
-        cosmos_alert: cosmosAlert,
-        risk_level: selectedClient?.risk_appetite || newClientData.risk_appetite,
-        created_by: user?.id
-      };
+        createdBy: user.id,
+        orderDate: istDay(),
+      });
 
-
-      // First create the sales order
-      const { data: salesOrder, error: salesError } = await supabase
-        .from('sales_orders')
-        .insert([salesOrderData])
-        .select()
-        .single();
-      
-      if (salesError) {
-        console.error('Sales order creation error:', salesError);
-        throw salesError;
-      }
-
-
-      // Process wallet deduction if USDT amount is specified and wallet is selected
-      if (walletId && usdtAmount > 0) {
-        try {
-          const netQuantity = finalOrderData.quantity;
-          const platformFees = finalOrderData.platform_fees || 0;
-          
-          // Deduct only the quantity sold from wallet (not including fees)
-          const { error: walletError } = await supabase.rpc(
-            'process_sales_order_wallet_deduction',
-            {
-              sales_order_id: salesOrder.id,
-              wallet_id: walletId,
-              usdt_amount: netQuantity  // Only the quantity sold, fees are separate
-            }
-          );
-
-          if (walletError) {
-            console.error('Wallet deduction error:', walletError);
-            throw new Error(`Wallet deduction failed: ${walletError.message}`);
-          }
-
-          
-          // Process platform fee deduction separately (if applicable)
-          if (platformFees > 0) {
-            
-            const { data: feeResult, error: feeError } = await supabase.rpc('process_platform_fee_deduction', {
-              p_order_id: salesOrder.id,
-              p_order_type: 'SALES_ORDER',
-              p_wallet_id: walletId,
-              p_fee_amount: platformFees,
-              p_order_number: finalOrderData.order_number
-            });
-            
-            if (feeError) {
-              console.error('Error processing platform fee:', feeError);
-              // Don't throw - the main order was created, just log the fee error
-              console.warn('⚠️ Platform fee deduction failed, but order was created');
-            } else {
-            }
-            
-            // Update the sales order with fee details
-            const selectedWallet = wallets?.find(w => w.id === walletId);
-            const feePercentage = Number(selectedWallet?.fee_percentage || 0);
-            
-            await supabase
-              .from('sales_orders')
-              .update({ 
-                fee_amount: platformFees,
-                fee_percentage: feePercentage
-              })
-              .eq('id', salesOrder.id);
-          }
-        } catch (walletError) {
-          // If wallet deduction fails, we should probably handle this more gracefully
-          console.error('Error processing wallet deduction:', walletError);
-          throw walletError;
-        }
-      }
-
-      // Bank transaction is handled automatically by database trigger: create_sales_bank_transaction
-      // Only update payment method usage here for direct payment methods
-      if (selectedPaymentMethod?.bank_account_id && !selectedPaymentMethod?.payment_gateway) {
-        const { error: usageError } = await supabase
-          .from('sales_payment_methods')
-          .update({
-            current_usage: selectedPaymentMethod.current_usage + (parseFloat(orderAmount) || 0),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', selectedPaymentMethod.id);
-
-        if (usageError) {
-          console.error('Error updating payment method usage:', usageError);
-        }
-      }
-
-
-      return salesOrder;
+      const { data, error } = await supabase.rpc('create_sales_order_with_postings' as any, args as any);
+      if (error) throw error;
+      return data as unknown as { sales_order_id: string; order_number: string };
     },
-     onSuccess: async (data) => {
-       
-       // Check if client exists - if not, create an onboarding approval request for new buyers
-       try {
-         const clientName = selectedClient?.name || newClientData.name;
-         const clientPhone = selectedClient?.phone || newClientData.phone;
-         
-         const { data: existingClient } = await supabase
-           .from('clients')
-           .select('id, name')
-           .ilike('name', clientName.trim())
-           .eq('is_deleted', false)
-           .limit(1)
-           .maybeSingle();
-         
-         // If client doesn't exist, create an onboarding approval request
-         if (!existingClient) {
-           const { error: approvalError } = await supabase
-             .from('client_onboarding_approvals')
-             .insert({
-               sales_order_id: data.id,
-               client_name: clientName,
-               client_phone: clientPhone || null,
-               order_amount: parseFloat(orderAmount) || 0,
-               order_date: new Date().toISOString().split('T')[0],
-               approval_status: 'PENDING'
-             });
- 
-           if (approvalError) {
-             console.error('⚠️ Failed to create approval request:', approvalError);
-           } else {
-           }
-          } else {
-            // Update client phone/state from order data
+    onSuccess: async (result) => {
+      // The order is saved: nothing below may turn this into an error.
+      try {
+        // Repeat client: refresh phone/state on that client only, found by its id (never by name).
+        // A client that is not on file gets its onboarding approval from the INSERT trigger
+        // (trigger_create_client_onboarding_approval), so nothing is added here.
+        if (orderType === 'repeat' && selectedClient?.id) {
+          try {
             const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
             await updateClientFromOrder({
-              clientId: existingClient.id,
-              phone: clientPhone,
+              clientId: selectedClient.id,
+              phone: selectedClient.phone,
+              state: selectedClient.state,
+            });
+          } catch (followUpError) {
+            console.error('Client follow-up after sales order failed:', followUpError);
+            toast({
+              title: "Client details not updated",
+              description: "The order is saved. Check the client's phone and state on the Clients page.",
             });
           }
-       } catch (approvalCheckError) {
-         console.error('Error checking for existing client:', approvalCheckError);
-       }
-       
-      toast({ 
-        title: "Success", 
-        description: "Sales order created successfully with wallet deduction and all linked records updated" 
-      });
-      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
-      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
-       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+        }
+
+        toast({
+          title: "Sales order created",
+          description: `Order ${result?.order_number || finalOrderData.order_number} is saved with its wallet, payment and stock entries.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+        queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        queryClient.invalidateQueries({ queryKey: ['wallets'] });
+        queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
+      } catch (afterSaveError) {
+        console.error('After-save step failed (the order is saved):', afterSaveError);
+      }
       resetFlow();
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Sales order creation failed:', error);
-      toast({ 
-        title: "Error", 
-        description: `Failed to create sales order: ${error.message}`,
+      const message = newOrderErrorMessage(error);
+      setSaveError(message);
+      toast({
+        title: "Order not saved",
+        description: message,
         variant: "destructive"
       });
+    },
+    onSettled: () => {
+      submittingRef.current = false;
     }
   });
 
@@ -467,7 +350,11 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     setSelectedPaymentMethod(null);
     setAvailablePaymentMethods([]);
     setUsedPaymentMethods([]);
-    setFinalOrderData({ order_number: generateOrderNumber(), platform: '', quantity: 1, platform_fees: 0, description: '', stockName: '', warehouseId: '', price: 0 });
+    setMethodsError(null);
+    setLeadError(null);
+    setSaveError(null);
+    setPickerMethodId(undefined);
+    setFinalOrderData({ order_number: generateOrderNumber(), quantity: 1, description: '', stockName: '', walletId: '', price: 0 });
   };
 
   const handleOrderTypeSelection = (type: 'repeat' | 'new') => {
@@ -477,13 +364,14 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
   const handleAmountVerification = () => {
     const amount = parseFloat(orderAmount) || 0;
-    if (selectedClient && amount > (selectedClient.monthly_limit - selectedClient.current_month_used)) {
-      setCosmosAlert(true);
-    }
+    // Re-checked on every Continue: the alert saved with the order follows the amount entered last.
+    setCosmosAlert(!!selectedClient && amount > (selectedClient.monthly_limit - selectedClient.current_month_used));
     setCurrentStep('payment-type-selection');
   };
 
   const handlePaymentTypeSelection = () => {
+    // After a failed lookup, Continue tries again (the type itself may not have changed).
+    if (methodsError) fetchPaymentMethods();
     setCurrentStep('payment-method-display');
   };
 
@@ -492,13 +380,18 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   };
 
   const handleOrderCancelled = () => {
+    if (leadSubmittingRef.current || createLeadMutation.isPending) return;
+    leadSubmittingRef.current = true;
+    setLeadError(null);
+    const amount = parseFloat(orderAmount) || 0;
+    // Real leads columns only (as Leads → New lead writes them); created_by is set by the leads trigger.
     const leadData = {
-      name: selectedClient?.name || newClientData.name,
-      contact_number: selectedClient?.phone || newClientData.phone,
-      estimated_order_value: parseFloat(orderAmount) || 0,
+      name: (selectedClient?.name || newClientData.name || '').trim(),
+      contact_number: (selectedClient?.phone || newClientData.phone || '').trim() || null,
+      estimated_order_value: amount,
       status: 'NEW',
-      source: 'Cancelled Sales Order',
-      description: `Cancelled order for amount ₹${orderAmount}`
+      lead_type: 'SELL',
+      description: `Cancelled sales order for ${fmtInr(amount)}${paymentType ? ` (${paymentType})` : ''}.`
     };
     createLeadMutation.mutate(leadData);
   };
@@ -520,7 +413,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       setUsedPaymentMethods(newUsedMethods);
       
       const nextMethod = availablePaymentMethods.find(method => 
-        method.current_usage < method.payment_limit && 
+        isMethodAvailable(method, method.current_usage) && 
         !newUsedMethods.includes(method.id) &&
         method.type === (paymentType === 'UPI' ? 'UPI' : 'Bank Account')
       );
@@ -535,191 +428,92 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     }
   };
 
+  // User paying: confirm the receiving account in the picker, then wait inside this dialog. Nothing is saved
+  // until the payment is received and the sale details are submitted.
   const handleUserPaying = async () => {
-    const riskLevel = selectedClient?.risk_appetite || newClientData.risk_appetite;
-    const riskCategory = getRiskCategoryFromAppetite(riskLevel);
-    
-    // Auto-select payment method based on smart logic
-    await autoSelectPaymentMethod(riskCategory);
-    
-    // Open dialog with auto-selected method
+    setLeadError(null);
+    // The account already shown to the client stays selected while it still has room.
+    if (selectedPaymentMethod && isMethodAvailable(selectedPaymentMethod, selectedPaymentMethod.current_usage)) {
+      openMethodPicker(paymentType || 'UPI', selectedPaymentMethod.id);
+      return;
+    }
+    const autoMethod = await autoSelectPaymentMethod(clientRiskCategory);
+    openMethodPicker(autoMethod ? (autoMethod.type === 'Bank Account' ? 'Bank Transfer' : 'UPI') : paymentType || 'UPI', autoMethod?.id);
+  };
+
+  const openMethodPicker = (type: 'UPI' | 'Bank Transfer', methodId?: string) => {
+    setPickerType(type);
+    setPickerMethodId(methodId);
     setPaymentMethodDialogOpen(true);
   };
 
+  /** Suggests an account for the picker; the flow's own selection changes only when the operator confirms one. */
   const autoSelectPaymentMethod = async (riskCategory: string) => {
     try {
-      // Fetch available payment methods for the risk category
+      // Fetch the active payment methods for the risk category; limits are compared with live usage in code.
       const { data: methods, error } = await supabase
         .from('sales_payment_methods')
         .select('*, bank_accounts:bank_account_id(*)')
         .eq('is_active', true)
-        .eq('risk_category', riskCategory)
-        .gt('payment_limit', 'current_usage');
+        .eq('risk_category', riskCategory);
 
       if (error) throw error;
 
-      if (methods && methods.length > 0) {
-        // Smart selection logic:
-        // 1. Prefer UPI methods for speed
-        // 2. Then prefer methods with highest available balance
-        // 3. Avoid recently used methods
-        
-        const upiMethods = methods.filter(m => m.type === 'UPI');
-        const bankMethods = methods.filter(m => m.type === 'Bank Account');
-        
-        let selectedMethod = null;
-        
-        if (upiMethods.length > 0) {
-          // Select UPI method with highest available balance
-          selectedMethod = upiMethods.reduce((best, current) => 
-            (current.payment_limit - current.current_usage) > (best.payment_limit - best.current_usage) 
-              ? current : best
-          );
-          setPaymentType('UPI');
-        } else if (bankMethods.length > 0) {
-          // Select bank method with highest available balance
-          selectedMethod = bankMethods.reduce((best, current) => 
-            (current.payment_limit - current.current_usage) > (best.payment_limit - best.current_usage) 
-              ? current : best
-          );
-          setPaymentType('Bank Transfer');
-        }
-
-        if (selectedMethod) {
-          setSelectedPaymentMethod(selectedMethod);
-          setAvailablePaymentMethods(methods);
-          
-          toast({ 
-            title: "Payment Method Auto-Selected", 
-            description: `${selectedMethod.type} method selected based on availability and risk level` 
-          });
-        }
+      // Smart selection logic: UPI methods first (speed), then the one with the most room under its limit.
+      const selectedMethod = pickAutoMethod(await withLiveSalesUsage(methods || []), (m) => m.current_usage);
+      if (selectedMethod) {
+        toast({
+          title: "Payment method selected",
+          description: `${selectedMethod.type} account with the most room for ${riskCategory} clients. Check it before you continue.`
+        });
       }
-    } catch (error) {
+      return selectedMethod;
+    } catch (error: any) {
       console.error('Error auto-selecting payment method:', error);
-      toast({ 
-        title: "Error", 
-        description: "Failed to auto-select payment method", 
-        variant: "destructive" 
+      toast({
+        title: "No account picked",
+        description: `${String(error?.message || 'Unknown error').replace(/\.$/, '')}. Choose the account from the list.`,
+        variant: "destructive"
       });
+      return null;
     }
   };
 
   const handlePaymentReceived = () => {
+    setLeadError(null);
+    setSaveError(null);
+    // A new client's wallet chosen on the client step is the default; the operator confirms it in the form.
     setFinalOrderData(prev => ({
       ...prev,
-      walletId: selectedClient?.walletId || newClientData.walletId || ''
+      walletId: prev.walletId || newClientData.walletId || ''
     }));
     setCurrentStep('final-form');
   };
 
-  const handlePaymentStatusChange = async (status: string, paymentMethodId?: string) => {
+  /** The picker's answer: the confirmed account becomes the order's receiving account. */
+  const handlePaymentStatusChange = (status: string, paymentMethodId?: string, paymentMethod?: any) => {
+    const chosen = paymentMethod || availablePaymentMethods.find((m) => m.id === paymentMethodId) || null;
+    if (chosen) {
+      setSelectedPaymentMethod(chosen);
+      setPaymentType(chosen.type === 'Bank Account' ? 'Bank Transfer' : 'UPI');
+    }
     if (status === "USER_PAYING") {
-      // Create pending sales order and close dialog
-      await createPendingSalesOrder(paymentMethodId);
-      // Refetch sales orders to show the new order immediately
-      await queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
-      resetFlow();
-      onOpenChange(false);
+      setLeadError(null);
+      setCurrentStep('user-paying-status');
     } else if (status === "PAYMENT_DONE") {
-      // Update order to completed and proceed to final form
-      if (pendingSalesOrder) {
-        await updateSalesOrderStatus(pendingSalesOrder.id, "PAYMENT_DONE", paymentMethodId);
-        setCurrentStep('final-form');
-      }
-    } else if (status === "ORDER_CANCELLED") {
-      // Handle cancellation
-      handleOrderCancelled();
+      handlePaymentReceived();
     }
   };
 
-  const handleUserPayingStatusChange = async (status: string) => {
-    if (!pendingSalesOrder) return;
-
-    if (status === "PAYMENT_DONE") {
-      await updateSalesOrderStatus(pendingSalesOrder.id, "PAYMENT_DONE");
-      setUserPayingDialogOpen(false);
-      setCurrentStep('final-form');
-    } else if (status === "ORDER_CANCELLED") {
-      await updateSalesOrderStatus(pendingSalesOrder.id, "ORDER_CANCELLED");
-      handleOrderCancelled();
-    }
-  };
-
-  const createPendingSalesOrder = async (paymentMethodId?: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Get selected wallet ID
-      const walletId = selectedClient?.walletId || newClientData.walletId;
-      
-      const salesOrderData = {
-        order_number: finalOrderData.order_number,
-        client_name: selectedClient?.name || newClientData.name,
-        client_phone: selectedClient?.phone || newClientData.phone,
-        wallet_id: walletId || null,
-        total_amount: parseFloat(orderAmount) || 0,
-        usdt_amount: usdtAmount || parseFloat(orderAmount) || 0, // Default USDT amount to order amount
-        quantity: 1,
-        price_per_unit: parseFloat(orderAmount) || 0,
-        sales_payment_method_id: paymentMethodId,
-        payment_status: 'USER_PAYING',
-        status: 'PENDING',
-        order_date: new Date().toISOString().split('T')[0],
-        description: `Pending order - awaiting payment confirmation`,
-        cosmos_alert: cosmosAlert,
-        risk_level: selectedClient?.risk_appetite || newClientData.risk_appetite,
-        created_by: user?.id
-      };
-
-      const { data: salesOrder, error } = await supabase
-        .from('sales_orders')
-        .insert([salesOrderData])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setPendingSalesOrder(salesOrder);
-      toast({ title: "Order Created", description: "Order created with USER_PAYING status" });
-      
-    } catch (error) {
-      console.error('Error creating pending sales order:', error);
-      toast({ title: "Error", description: "Failed to create order", variant: "destructive" });
-    }
-  };
-
-  const updateSalesOrderStatus = async (orderId: string, status: string, paymentMethodId?: string) => {
-    try {
-      const updateData: any = {
-        payment_status: status,
-        updated_at: new Date().toISOString()
-      };
-
-      if (paymentMethodId) {
-        updateData.sales_payment_method_id = paymentMethodId;
-      }
-
-      if (status === "PAYMENT_DONE") {
-        updateData.status = "COMPLETED";
-      }
-
-      const { error } = await supabase
-        .from('sales_orders')
-        .update(updateData)
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      toast({ title: "Status Updated", description: `Order status updated to ${status.replace('_', ' ')}` });
-      
-    } catch (error) {
-      console.error('Error updating sales order status:', error);
-      toast({ title: "Error", description: "Failed to update order status", variant: "destructive" });
-    }
+  /** Waiting step: show the picker again for another account of the same type. */
+  const handleChangeMethod = () => {
+    setLeadError(null);
+    openMethodPicker(paymentType || 'UPI', selectedPaymentMethod?.id);
   };
 
   const handleFinalSubmit = () => {
+    // Hard stop against double submits (the button's disabled state updates a render later).
+    if (submittingRef.current || createSalesOrderMutation.isPending) return;
 
     // Validate required fields
     if (!finalOrderData.order_number) {
@@ -730,8 +524,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       toast({ title: "Error", description: "Stock selection is required", variant: "destructive" });
       return;
     }
-    if (!finalOrderData.warehouseId) {
-      toast({ title: "Error", description: "Warehouse selection is required", variant: "destructive" });
+    if (!finalOrderData.walletId) {
+      toast({ title: "Error", description: "Wallet selection is required", variant: "destructive" });
       return;
     }
     if (!finalOrderData.price || finalOrderData.price <= 0) {
@@ -739,7 +533,9 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       return;
     }
 
-    createSalesOrderMutation.mutate({});
+    setSaveError(null);
+    submittingRef.current = true;
+    createSalesOrderMutation.mutate();
   };
 
   const copyToClipboard = (text: string) => {
@@ -757,6 +553,57 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const viewContext = stepMeta.n >= 3
     ? [viewClientName, viewAmount > 0 ? fmtInr(viewAmount) : null, paymentType].filter(Boolean).join(' · ')
     : null;
+
+  /** The receiving account's details with copy buttons (receiving-account step and the waiting step). */
+  const renderReceivingAccount = (method: any) => (
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      {(method.nickname || method.bank_accounts?.account_name) && (
+        <div className="border-b border-border bg-muted/30 px-3 py-2 sm:px-4">
+          <p className="truncate text-[13px] font-semibold text-foreground">
+            {method.nickname || method.bank_accounts?.account_name}
+          </p>
+          {method.nickname && method.bank_accounts?.account_name && (
+            <p className="truncate text-xs text-muted-foreground">{method.bank_accounts.account_name}</p>
+          )}
+        </div>
+      )}
+      <div className="divide-y divide-border">
+        {method.type === 'UPI' ? (
+          <CopyRow
+            label="UPI ID"
+            value={method.upi_id}
+            mono
+            onCopy={() => copyToClipboard(method.upi_id)}
+          />
+        ) : (
+          <>
+            <CopyRow
+              label="Account holder name"
+              value={method.bank_accounts?.bank_account_holder_name}
+              onCopy={() => copyToClipboard(method.bank_accounts?.bank_account_holder_name || '')}
+            />
+            <CopyRow
+              label="Account number"
+              value={method.bank_accounts?.account_number}
+              mono
+              onCopy={() => copyToClipboard(method.bank_accounts?.account_number || '')}
+            />
+            <CopyRow
+              label="IFSC code"
+              value={method.bank_accounts?.IFSC}
+              mono
+              onCopy={() => copyToClipboard(method.bank_accounts?.IFSC || '')}
+            />
+            <CopyRow
+              label="Bank name"
+              value={method.bank_accounts?.bank_name}
+              onCopy={() => copyToClipboard(method.bank_accounts?.bank_name || '')}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   const renderCosmos = () => {
     const limit = Number(selectedClient.monthly_limit) || 0;
@@ -889,7 +736,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                       <SelectValue placeholder="Select a client" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clients?.map((client) => (
+                      {clients?.filter((client) => !client.is_deleted).map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           <span className="font-medium">{client.name}</span>
                           <span className="text-muted-foreground"> · ID {client.client_id} · {client.risk_appetite}</span>
@@ -950,7 +797,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   { label: 'Client risk level', value: viewRiskLevel || '—' },
                   {
                     label: 'Risk category',
-                    value: getRiskCategoryFromAppetite(viewRiskLevel),
+                    value: clientRiskCategory,
                     hint: 'Decides which receiving accounts are offered.',
                   },
                 ]}
@@ -962,59 +809,19 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       case 'payment-method-display':
         return (
           <div className="space-y-5">
-            {selectedPaymentMethod ? (
+            {methodsLoading && !selectedPaymentMethod ? (
+              <PanelSkeleton rows={3} label="Loading receiving accounts" />
+            ) : methodsError ? (
+              <Callout tone="danger" title="Receiving accounts could not be loaded">
+                {methodsError.replace(/\.$/, '')}. Go back and choose the payment type again.
+              </Callout>
+            ) : selectedPaymentMethod ? (
               <>
                 <Group
                   title="Receiving account"
                   actions={<Chip tone="neutral">{selectedPaymentMethod.type}</Chip>}
                 >
-                  <div className="overflow-hidden rounded-lg border border-border bg-card">
-                    {(selectedPaymentMethod.nickname || selectedPaymentMethod.bank_accounts?.account_name) && (
-                      <div className="border-b border-border bg-muted/30 px-3 py-2 sm:px-4">
-                        <p className="truncate text-[13px] font-semibold text-foreground">
-                          {selectedPaymentMethod.nickname || selectedPaymentMethod.bank_accounts?.account_name}
-                        </p>
-                        {selectedPaymentMethod.nickname && selectedPaymentMethod.bank_accounts?.account_name && (
-                          <p className="truncate text-xs text-muted-foreground">{selectedPaymentMethod.bank_accounts.account_name}</p>
-                        )}
-                      </div>
-                    )}
-                    <div className="divide-y divide-border">
-                      {selectedPaymentMethod.type === 'UPI' ? (
-                        <CopyRow
-                          label="UPI ID"
-                          value={selectedPaymentMethod.upi_id}
-                          mono
-                          onCopy={() => copyToClipboard(selectedPaymentMethod.upi_id)}
-                        />
-                      ) : (
-                        <>
-                          <CopyRow
-                            label="Account holder name"
-                            value={selectedPaymentMethod.bank_accounts?.bank_account_holder_name}
-                            onCopy={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.bank_account_holder_name || '')}
-                          />
-                          <CopyRow
-                            label="Account number"
-                            value={selectedPaymentMethod.bank_accounts?.account_number}
-                            mono
-                            onCopy={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.account_number || '')}
-                          />
-                          <CopyRow
-                            label="IFSC code"
-                            value={selectedPaymentMethod.bank_accounts?.IFSC}
-                            mono
-                            onCopy={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.IFSC || '')}
-                          />
-                          <CopyRow
-                            label="Bank name"
-                            value={selectedPaymentMethod.bank_accounts?.bank_name}
-                            onCopy={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.bank_name || '')}
-                          />
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  {renderReceivingAccount(selectedPaymentMethod)}
                 </Group>
 
                 <Group title="Account limit" bodyClassName="space-y-3">
@@ -1055,7 +862,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 title={availablePaymentMethods.length === 0 ? 'No receiving account available' : 'No accounts left to offer'}
               >
                 {availablePaymentMethods.length === 0
-                  ? `No ${paymentType} payment methods are available for the ${selectedClient?.risk_appetite || newClientData.risk_appetite} risk level. Ask an admin to add one, or go back and choose another payment type.`
+                  ? `No ${paymentType} payment methods are available for the ${clientRiskCategory} category (client risk level ${viewRiskLevel || '—'}). Ask an admin to add one, or go back and choose another payment type.`
                   : 'Every available account of this type has already been shown. Ask an admin for another account, or go back and choose another payment type.'}
               </Callout>
             )}
@@ -1094,7 +901,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
               icon={Clock}
               tone="info"
               title="User paying"
-              description="Pick the account, then save the order as User paying while the client pays."
+              description="Confirm the account, then wait here while the client pays. Nothing is saved until the money arrives."
               onClick={handleUserPaying}
             />
             <OptionRow
@@ -1111,20 +918,95 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
               busy={createLeadMutation.isPending}
               onClick={handleOrderCancelled}
             />
+            {leadError && (
+              <Callout tone="danger" title="Lead not saved">
+                {leadError}
+              </Callout>
+            )}
+          </div>
+        );
+
+      case 'user-paying-status':
+        return (
+          <div className="space-y-5">
+            <Group
+              title="Waiting for payment"
+              icon={Clock}
+              actions={selectedPaymentMethod ? <Chip tone="neutral">{selectedPaymentMethod.type}</Chip> : undefined}
+              bodyClassName="space-y-3"
+            >
+              <Facts
+                cols={2}
+                className="grid-cols-2"
+                items={[
+                  { label: 'Client', value: viewClientName || '—' },
+                  { label: 'Amount', value: viewAmount > 0 ? fmtInr(viewAmount) : '—', className: 'tabular-nums' },
+                ]}
+              />
+              {selectedPaymentMethod ? (
+                renderReceivingAccount(selectedPaymentMethod)
+              ) : (
+                <Callout tone="warning" title="No receiving account">
+                  Use Change method to pick the account the client pays into.
+                </Callout>
+              )}
+            </Group>
+
+            <div className="space-y-2" role="group" aria-label="What happened with the payment">
+              <OptionRow
+                icon={CheckCircle}
+                tone="success"
+                title="Payment received"
+                description="The money has arrived. Fill in the sale details and complete the order."
+                onClick={handlePaymentReceived}
+              />
+              <OptionRow
+                icon={ArrowLeftRight}
+                title="Change method"
+                description="The client wants to pay into another account. Pick it from the list."
+                onClick={handleChangeMethod}
+              />
+              <OptionRow
+                icon={X}
+                tone="danger"
+                title="Order cancelled"
+                description="The client won't pay. Save the client and amount as a lead for follow-up."
+                busy={createLeadMutation.isPending}
+                onClick={handleOrderCancelled}
+              />
+              {leadError && (
+                <Callout tone="danger" title="Lead not saved">
+                  {leadError}
+                </Callout>
+              )}
+            </div>
           </div>
         );
 
       case 'final-form': {
         const stockProduct = products?.find((p) => p.name === finalOrderData.stockName);
+        const formWallet = wallets?.find((w) => w.id === finalOrderData.walletId);
+        const formAsset = String(stockProduct?.code || 'USDT').toUpperCase();
+        // Platform fee as the order will charge it: the wallet's fee % of the quantity (Manual entry rule).
+        const feePct = formWallet?.is_fee_enabled ? Number(formWallet.fee_percentage || 0) : 0;
+        const feeAmount = formWallet && finalOrderData.price > 0
+          ? platformFeeFor(finalOrderData.quantity, { id: formWallet.id, name: formWallet.wallet_name, feePercentage: formWallet.fee_percentage, feeEnabled: formWallet.is_fee_enabled }).amount
+          : 0;
         return (
           <div className="space-y-5">
+            {saveError && (
+              <Callout tone="danger" title="Order not saved">
+                {saveError}
+              </Callout>
+            )}
+
             <Group title="Client">
               <Facts
                 cols={3}
                 items={[
                   { label: 'Customer name', value: selectedClient?.name || newClientData.name || '—' },
                   { label: 'Contact number', value: selectedClient?.phone || newClientData.phone || '—', mono: true },
-                  { label: 'Wallet address', value: selectedClient?.walletId || newClientData.walletId || '—', mono: true },
+                  { label: 'State', value: selectedClient?.state || '—' },
                 ]}
               />
             </Group>
@@ -1164,8 +1046,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
                 <Field label="Wallet" htmlFor="new-order-wallet" required>
                   <Select
-                    value={finalOrderData.warehouseId}
-                    onValueChange={(value) => setFinalOrderData(prev => ({ ...prev, warehouseId: value }))}
+                    value={finalOrderData.walletId}
+                    onValueChange={(value) => setFinalOrderData(prev => ({ ...prev, walletId: value }))}
                   >
                     <SelectTrigger id="new-order-wallet">
                       <SelectValue placeholder="Select wallet" />
@@ -1192,21 +1074,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   />
                 </Field>
 
-                <Field
-                  label="Platform fees (USDT)"
-                  htmlFor="new-order-fees"
-                  hint={finalOrderData.platform_fees > 0 ? 'Fees will be deducted from total quantity' : undefined}
-                >
-                  <Input
-                    id="new-order-fees"
-                    type="number"
-                    step="0.01"
-                    value={finalOrderData.platform_fees}
-                    onChange={(e) => setFinalOrderData(prev => ({ ...prev, platform_fees: parseFloat(e.target.value) || 0 }))}
-                    placeholder="Enter platform fees"
-                    className="tabular-nums"
-                  />
-                </Field>
               </FieldGrid>
             </Group>
 
@@ -1217,11 +1084,16 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 hint="Amount ÷ price per unit, worked out for you"
                 value={fmtAssetQty(finalOrderData.quantity, stockProduct?.code, 6)}
               />
-              {finalOrderData.platform_fees > 0 && (
+              <SummaryRow
+                label="Platform fee"
+                hint={feePct > 0 ? `${feePct}% of the quantity, charged by this wallet` : formWallet ? 'This wallet charges no platform fee' : 'Set by the wallet you pick'}
+                value={feePct > 0 ? (feeAmount > 0 ? `${feeAmount.toFixed(6)} USDT` : '—') : formWallet ? 'None' : '—'}
+              />
+              {feeAmount > 0 && formAsset === 'USDT' && (
                 <SummaryRow
                   label="Total deducted"
-                  hint="Net quantity + platform fees"
-                  value={`${(finalOrderData.quantity + finalOrderData.platform_fees).toFixed(6)} USDT`}
+                  hint="Net quantity + platform fee"
+                  value={`${(finalOrderData.quantity + feeAmount).toFixed(6)} USDT`}
                 />
               )}
               <SummaryRow
@@ -1281,7 +1153,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         return (
           <Button
             onClick={handleFinalSubmit}
-            disabled={!finalOrderData.order_number || !finalOrderData.stockName || !finalOrderData.warehouseId || !finalOrderData.price || createSalesOrderMutation.isPending}
+            disabled={!finalOrderData.order_number || !finalOrderData.stockName || !finalOrderData.walletId || !finalOrderData.price || createSalesOrderMutation.isPending}
           >
             {createSalesOrderMutation.isPending ? (
               <>
@@ -1303,7 +1175,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     ? [
         !finalOrderData.order_number && 'order number',
         !finalOrderData.stockName && 'stock',
-        !finalOrderData.warehouseId && 'wallet',
+        !finalOrderData.walletId && 'wallet',
         (!finalOrderData.price || finalOrderData.price <= 0) && 'a valid price',
       ].filter(Boolean) as string[]
     : [];
@@ -1315,8 +1187,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           icon={ShoppingCart}
           title="New sales order"
           description={
-            currentStep === 'payment-method-display' && !selectedPaymentMethod
-              ? 'There is no receiving account to share for this payment type.'
+            currentStep === 'payment-method-display' && !selectedPaymentMethod && !methodsLoading
+              ? (methodsError ? 'The receiving accounts could not be loaded.' : 'There is no receiving account to share for this payment type.')
               : stepMeta.hint
           }
           meta={<StepProgress step={stepMeta.n} total={STEP_COUNT} label={stepMeta.label} context={viewContext} />}
@@ -1332,6 +1204,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             onClick={() => {
               if (currentStep === 'order-type') {
                 onOpenChange(false);
+              } else if (currentStep === 'user-paying-status') {
+                setCurrentStep('action-buttons');
               } else {
                 const steps: FlowStep[] = ['order-type', 'amount-verification', 'payment-type-selection', 'payment-method-display', 'action-buttons', 'final-form'];
                 const currentIndex = steps.indexOf(currentStep);
@@ -1358,22 +1232,10 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           orderAmount={parseFloat(orderAmount) || 0}
           clientName={selectedClient?.name || newClientData.name}
           orderId=""
-          riskCategory={getRiskCategoryFromAppetite(selectedClient?.risk_appetite || newClientData.risk_appetite)}
-          paymentType={paymentType || 'UPI'}
+          riskCategory={clientRiskCategory}
+          paymentType={pickerType}
+          selectedMethodId={pickerMethodId}
           onStatusChange={handlePaymentStatusChange}
-        />
-
-        {/* User Paying Status Dialog */}
-        <UserPayingStatusDialog
-          open={userPayingDialogOpen}
-          onOpenChange={setUserPayingDialogOpen}
-          clientName={selectedClient?.name || newClientData.name}
-          orderAmount={parseFloat(orderAmount) || 0}
-          onStatusChange={handleUserPayingStatusChange}
-          onAlternativeMethod={() => {
-            setUserPayingDialogOpen(false);
-            setPaymentMethodDialogOpen(true);
-          }}
         />
       </DialogContent>
     </Dialog>

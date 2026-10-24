@@ -7,6 +7,10 @@
 //              reply, or a conflict for the inbox. The client's wording joins the question. The words typed before a
 //              rewrite (the note) are the reason behind the reply: kept with its example chat and shown with a conflict it
 //              raises. They never reach the judge (a one-off decision must not quietly outrank an approved reply).
+//              A step of the script (kind 'step') sent as offered is counted as used (and approved if tentative): its
+//              words change only on the Playbook page, and it has no client wording. A client message that asks nothing
+//              (pictures, values, "ok", or a plain answer to our last question) is never kept as a way of asking and never
+//              starts a new question. One save per press: the same press (order, suggestion, text) saves once, on the server.
 //  reject    — a draft was rejected; kept with the reason as an example to avoid, never as SOP.
 //  undo      — reverts a learning event (the toast's Undo).
 //  index     — makes phrasings added on the Playbook page searchable right away (one small embedding call).
@@ -15,13 +19,14 @@ import {
   applyAddress, buildJudgeMessages, buildTranslateMessages, chatBefore, chatTail, clientTurn, contextText, costInr, detectLang, generalize,
   guardDraft, JUDGE_SCHEMA, maskPII, normText, TRANSLATE_SCHEMA, type JudgeCandidate, type TemplateValues,
 } from '../_shared/copilot-playbook.ts'
-import { buildChatContext, type OrderHint } from '../_shared/copilot-context.ts'
+import { buildChatContext, stepInput, type OrderHint } from '../_shared/copilot-context.ts'
+import { notAQuestion, turnNeedsAnswer, waitingBefore } from '../_shared/copilot-steps.ts'
 import {
   asksToPayNow, beforeVerification, covers, detectSituation, fitsOrder, fitsStage, invitesPayment, markable, requiredOnly, resolveSituation,
   scopeStages, situationDef, STATUS_SITUATIONS, statusFromEvents,
 } from '../_shared/copilot-situation.ts'
 import type { Side } from '../_shared/copilot-playbook.ts'
-import type { MatchRow, Store } from '../_shared/copilot-store.ts'
+import type { CopilotConfig, MatchRow, Store } from '../_shared/copilot-store.ts'
 import type { Ai } from '../_shared/copilot-ai.ts'
 
 export interface LearnInput {
@@ -44,6 +49,10 @@ export interface LearnInput {
   note?: string | null
   /** Saving an operator's rewritten reply from the Playbook inbox: the item is closed once it is saved. */
   inboxItemId?: string | null
+  /** The reply was inserted from the panel's next step (that step's key): it is counted as a use of the step. */
+  stepKey?: string | null
+  /** The client message the reply answered, as the screen named it: two presses for two client messages are two saves. */
+  turnKey?: string | null
   callId?: string
   reason?: string
   eventId?: string
@@ -69,6 +78,19 @@ function dbErr(e: { message: string; code?: string }): Out {
 const stagesOf = scopeStages
 /** Same rule as the database's "fits" (shared with the draft engine). */
 export { fitsOrder }
+
+/** The key of one press (one save per press): the order, why, the suggestion and the text sent. Not the person: the same
+ *  reply sent once is saved once, however many taps or retries reach the server. */
+export async function learnKey(input: LearnInput, finalText: string): Promise<string> {
+  const before = Number(input?.beforeAt)
+  const parts = [
+    String(input?.orderNumber ?? ''), String(input?.cause ?? ''), uuidOrNull(input?.requestId) ?? '', uuidOrNull(input?.sourceEntryId) ?? '',
+    uuidOrNull(input?.sourceCallId) ?? '', uuidOrNull(input?.inboxItemId) ?? '', Number.isFinite(before) && before > 0 ? `earlier:${before}` : '',
+    typeof input?.turnKey === 'string' ? input.turnKey.slice(0, 300) : '', normText(finalText),
+  ]
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(parts.join('\u241f')))
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
 
 /** The client's wording to keep: the part the judge quoted (if it is really in the question), else the message that matched. */
 export function pickPhrasing(question: string, quoted: string | null | undefined, matchedInput: string | null | undefined): string {
@@ -153,6 +175,79 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
   if (!ORDER_RE.test(orderNumber)) return { status: 400, body: { error: 'invalid', field: 'orderNumber' } }
   const finalText = String(input?.finalText ?? '').trim()
   if (!finalText || finalText.length > 2000) return { status: 400, body: { error: 'invalid', field: 'finalText' } }
+
+  // One save per press: a repeated press gets the first answer back. A save that was undone may be made again: one press
+  // takes the key back (a conditional update), so two presses after an Undo still save once.
+  const key = await learnKey(input, finalText)
+  let claim = await store.claimLearnKey(key, userId, orderNumber)
+  if (!claim.claimed && claim.result?.eventId && await store.eventUndone(String(claim.result.eventId))) {
+    const token = await store.reclaimLearnKey(key, userId, String(claim.result.eventId))
+    // Not taken back: another press took it first and is saving (its undone answer is not given as this press's).
+    claim = token ? { claimed: true, token, result: null } : { claimed: false, token: null, result: null }
+  }
+  if (!claim.claimed) {
+    if (claim.result) return { status: 200, body: { ...claim.result, repeated: true } }
+    return { status: 409, body: { error: 'in_progress', message: 'This reply is being saved already.' } }
+  }
+  const token = claim.token
+  let out: Out
+  try {
+    out = await learnOnce(deps, userId, input, cause, orderNumber, finalText, cfg)
+  } catch (e) {
+    await store.releaseLearnKey(key, token)
+    throw e
+  }
+  // Only a save that changed the Playbook keeps its key; a refusal or a skip can be pressed again.
+  if (out.status === 200 && out.body?.eventId) await store.finishLearnKey(key, token, out.body)
+  else await store.releaseLearnKey(key, token)
+  return out
+}
+
+/**
+ * A Playbook entry sent as it was offered, counted as used (approved if tentative): its words, situations and client
+ * wordings stay as they are, and no example is kept. For a script step from the panel's next step, and for a Playbook
+ * reply sent to a client message that asks nothing. Sent edited, nothing is saved (a step's words change on the
+ * Playbook page; new wording needs a client question to be filed under).
+ */
+async function useAsOffered(store: Store, userId: string, input: LearnInput, source: any, cause: 'sent' | 'approved' | 'saved', orderNumber: string,
+  finalText: string, why: 'step' | 'no_question'): Promise<Out> {
+  const step = source.kind === 'step'
+  const base = {
+    kind: step ? 'step' : 'reply', stepKey: step ? source.step_key ?? null : null, entryId: source.id, title: source.title ?? null, judged: false,
+    phrasing: null, situation: null,
+  }
+  const asOffered = typeof input?.insertedText === 'string' && normText(input.insertedText) === normText(finalText)
+  if (!asOffered) return { status: 200, body: { ...base, action: 'skipped', reason: why === 'step' ? 'step_edited' : 'no_question' } }
+  const lang: 'en' | 'hi' = detectLang(finalText) === 'hi' && source.reply_hi ? 'hi' : source.reply_en ? 'en' : 'hi'
+  const text = String((lang === 'hi' ? source.reply_hi : source.reply_en) ?? '').trim()
+  if (!text) return { status: 200, body: { ...base, action: 'skipped', reason: step ? 'step_empty' : 'no_question' } }
+  const requestId = uuidOrNull(input?.requestId)
+  const [order, req] = await Promise.all([store.order(orderNumber).catch(() => null), requestId ? store.getRequest(requestId) : Promise.resolve(null)])
+  const result = await store.learnApply({
+    p_user_id: userId, p_cause: cause, p_relation: 'merge', p_target_entry_id: source.id,
+    p_question_text: null, p_question_embedding: null, p_question_language: lang, p_reply_language: lang,
+    p_reply_text: text, p_reply_other: null, p_title: source.title ?? null, p_scope: {},
+    p_order_number: orderNumber, p_account_id: (order?.exchange_account_id as string | null) ?? uuidOrNull(input?.exchangeAccountId),
+    p_request_id: req && req.order_number === orderNumber ? req.id : null, p_draft_call_id: null, p_draft_edited: false,
+    p_context: { kind: base.kind, step_key: base.stepKey, used_as: why },
+    p_target_topic_id: null, p_stage: null, p_example_chat: null, p_example_text: null, p_example_embedding: null,
+  })
+  if (result.error) return dbErr(result.error)
+  const d = result.data ?? {}
+  console.log(JSON.stringify({ fn: 'copilot-learn', outcome: d.action, used_as: why, step: base.stepKey }))
+  return {
+    status: 200,
+    body: {
+      ...base, eventId: d.event_id, action: d.action, entryId: d.entry_id ?? source.id, topicId: d.topic_id ?? null, title: d.title ?? base.title,
+      stored: text, storedLanguage: lang, reason: step ? 'Script step used' : 'Counted as a use; the client asked nothing', inboxItemId: null,
+      otherEntryId: null, inboxItemClosed: false,
+    },
+  }
+}
+
+async function learnOnce(deps: Deps, userId: string, input: LearnInput, cause: 'sent' | 'approved' | 'saved', orderNumber: string, finalText: string,
+  cfg: CopilotConfig): Promise<Out> {
+  const { store, ai } = deps
   const sourceEntryId = uuidOrNull(input?.sourceEntryId)
   const sourceCallId = uuidOrNull(input?.sourceCallId)
   const requestId = uuidOrNull(input?.requestId)
@@ -164,8 +259,16 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
   if (inboxItemId && (!item || item.kind !== 'operator_reply' || item.order_number !== orderNumber)) return { status: 404, body: { error: 'not_found' } }
   if (item && item.status !== 'open') return { status: 409, body: { error: 'already_resolved', message: 'This reply was already saved or dismissed.' } }
   const noteText = typeof input?.note === 'string' && input.note.trim() ? input.note : (typeof item?.context?.rough === 'string' ? item.context.rough : '')
-  // Kept the way the reply is: the order's values as placeholders, anything else personal masked.
-  const note = maskPII(generalize(noteText.trim(), input?.templateValues ?? {}, [])).slice(0, 600) || null
+
+  let source: any = null
+  if (sourceEntryId) {
+    source = (await store.entries([sourceEntryId]))[0] ?? null
+    if (source && source.status === 'retired') source = null
+  }
+  // Inserted from the panel's next step: a use of that step. (A step offered as the reply to a client's question takes the
+  // usual way below, so its client wordings keep growing.)
+  const fromStep = !item && source?.kind === 'step' && typeof input?.stepKey === 'string' && input.stepKey === source.step_key
+  if (fromStep) return useAsOffered(store, userId, input, source, cause, orderNumber, finalText, 'step')
 
   // ── The client's question, the order context and the chat's situation ──
   let question = ''
@@ -178,9 +281,14 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
   let ctxText = ''
   let ctxEmbedding: number[] | null = null
   let ctxInfo: { side: string | null; status: string; category: string; accountId: string | null; clientState: string; stage: string | null }
+  // The client's message asks nothing (pictures, values, "ok", a plain answer to our last question): its wording is never
+  // kept, and a reply with no Playbook reply behind it is not saved.
+  let asksNothing = false
   const req = requestId && !input?.beforeAt ? await store.getRequest(requestId) : null
   if (req && req.order_number === orderNumber && req.question_text) {
     question = req.question_text
+    // copilot-draft kept its own verdict on the client's turn ("Draft anyway" on an answer such as "trading").
+    asksNothing = notAQuestion(question) || req.context?.asks_nothing === true
     questionLang = req.question_language === 'hi' ? 'hi' : 'en'
     const qe = req.question_embedding as any
     requestEmbedding = qe ? (typeof qe === 'string' ? JSON.parse(qe) : qe) : null
@@ -226,6 +334,13 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     prior = chatBefore(t)
     ctxText = contextText(prior, situation.label)
     ctxInfo = { side: ctx.side, status, category: ctx.category, accountId: ctx.accountId, clientState: ctx.clientState, stage: situation.code }
+    // The same rule as the suggestions: what we were waiting for when the client's turn began.
+    const awaited = waitingBefore(stepInput(ctx, now, { status, stage: situation.code, transcript: t, now: cut ? before : now.getTime(), payBy: null }), turn.messages)
+    asksNothing = notAQuestion(question) || !turnNeedsAnswer(turn.messages, awaited)
+    if (asksNothing) {
+      return source && !item ? useAsOffered(store, userId, input, source, cause, orderNumber, finalText, 'no_question')
+        : { status: 200, body: { action: 'skipped', reason: 'no_question', judged: false } }
+    }
     const e = await ai.embed(ctxText ? [question, ctxText] : [question], cfg.embedding_model)
     await store.logCall({
       user_id: userId, order_number: orderNumber, exchange_account_id: ctx.accountId, purpose: 'embed', model: cfg.embedding_model,
@@ -249,12 +364,19 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     ctxEmbedding = null
   }
   const stage = ctxInfo.stage && situationDef(ctxInfo.stage) ? ctxInfo.stage : null
+  if (asksNothing) {
+    return source && !item ? useAsOffered(store, userId, input, source, cause, orderNumber, finalText, 'no_question')
+      : { status: 200, body: { action: 'skipped', reason: 'no_question', judged: false } }
+  }
 
   // ── The reply, made reusable ──
   const phones = await store.allContactPhones()
+  // The order's values as placeholders (the amount after TDS only on our buy orders), anything else personal masked.
+  const values: TemplateValues = { ...(input?.templateValues ?? {}), side: ctxInfo.side }
+  const note = maskPII(generalize(noteText.trim(), values, [])).slice(0, 600) || null
   // Placeholders first (the order's values and our team numbers), then personal data masked before the judge sees it.
-  let stored = maskPII(generalize(guardDraft(finalText).text, input?.templateValues ?? {}, phones))
-  const replyLang: 'en' | 'hi' = detectLang(stored) === 'hi' ? 'hi' : detectLang(stored) === 'en' ? 'en' : questionLang
+  let stored = maskPII(generalize(guardDraft(finalText).text, values, phones))
+  let replyLang: 'en' | 'hi' = detectLang(stored) === 'hi' ? 'hi' : detectLang(stored) === 'en' ? 'en' : questionLang
   const edited = input?.insertedText ? normText(input.insertedText) !== normText(finalText) : null
 
   // ── Candidate questions with all their live replies ──
@@ -266,11 +388,6 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
       status: ctxInfo.status, clientState: ctxInfo.clientState, stage, contextEmbedding: ctxEmbedding, includeTentative: true, includeConflicts: true,
       minSimilarity: cfg.learn_threshold, limit: 5,
     })
-  }
-  let source: any = null
-  if (sourceEntryId) {
-    source = (await store.entries([sourceEntryId]))[0] ?? null
-    if (source && source.status === 'retired') source = null
   }
   // The client message that matched the question best (from the suggestion request), for a clean phrasing.
   const matchedInput = (topicId: string | null) => {
@@ -291,7 +408,8 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
   let situationSpecific = false
 
   const sourceText = source ? applyAddress(String((replyLang === 'hi' ? source.reply_hi : source.reply_en) ?? ''), 'sir') : null
-  if (source && sourceText && normText(sourceText) === normText(stored)) {
+  const sentAsIs = !!(source && sourceText && normText(sourceText) === normText(stored))
+  if (sentAsIs) {
     // Used unchanged: the same reply, now also proven in this situation.
     target = source.id
     relation = fitsStage(source.scope, stage) || !stage ? 'merge' : 'widen'
@@ -301,7 +419,9 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
     // Group the candidates by question for the judge.
     const groups = new Map<string, JudgeCandidate>()
     const scopes = new Map<string, any>()
-    const add = (topicId: string, title: string, similarity: number, r: { entryId: string; status: string; scope: any; fits: boolean; en: string | null; hi: string | null }) => {
+    const kinds = new Map<string, string>()
+    const add = (topicId: string, title: string, similarity: number, r: { entryId: string; status: string; scope: any; fits: boolean; en: string | null; hi: string | null; kind?: string | null }) => {
+      if (r.kind) kinds.set(r.entryId, r.kind)
       const g = groups.get(topicId) ?? { questionId: topicId, title, similarity, questions: [], replies: [] }
       g.similarity = Math.max(g.similarity, similarity)
       if (!g.replies.some((x) => x.entryId === r.entryId)) {
@@ -316,9 +436,9 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
       }
       groups.set(topicId, g)
     }
-    for (const c of candidates) add(c.topic_id, c.title, c.similarity, { entryId: c.entry_id, status: c.status, scope: c.scope, fits: c.fits, en: c.reply_en, hi: c.reply_hi })
+    for (const c of candidates) add(c.topic_id, c.title, c.similarity, { entryId: c.entry_id, status: c.status, scope: c.scope, fits: c.fits, en: c.reply_en, hi: c.reply_hi, kind: c.kind })
     if (source && source.topic_id) {
-      add(source.topic_id, source.title, 1, { entryId: source.id, status: source.status, scope: source.scope, fits: fitsOrder(source.scope, ctxInfo, stage), en: source.reply_en, hi: source.reply_hi })
+      add(source.topic_id, source.title, 1, { entryId: source.id, status: source.status, scope: source.scope, fits: fitsOrder(source.scope, ctxInfo, stage), en: source.reply_en, hi: source.reply_hi, kind: source.kind })
     }
     const list = [...groups.values()]
     const replyById = new Map(list.flatMap((g) => g.replies.map((r) => [r.entryId, { ...r, topicId: g.questionId, stageFits: fitsStage(scopes.get(r.entryId), stage) }] as const)))
@@ -375,13 +495,15 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
             // applies, otherwise a wider situation.
             if (relation === 'conflict' && !t.fitsNow) { relation = 'variant'; targetTopic = t.topicId; target = null }
             else if (relation === 'update' && !t.fitsNow && stage) { relation = 'variant'; targetTopic = t.topicId; target = null }
+            // A script step's words change only on the Playbook page: different words from the chat are a reply of their own.
+            else if ((relation === 'update' || relation === 'conflict') && kinds.get(t.entryId) === 'step') { relation = 'variant'; targetTopic = t.topicId; target = null }
             else if (relation === 'merge' && !t.stageFits && stage) relation = 'widen'
             else if (relation === 'widen' && (t.stageFits || !stage)) relation = 'merge'
           }
         }
         if (relation === 'new') { target = null; targetTopic = null }
         if (d.client_specific && typeof d.generalized_reply === 'string' && d.generalized_reply.trim()) {
-          stored = maskPII(generalize(guardDraft(d.generalized_reply).text, {}, phones))
+          stored = maskPII(generalize(guardDraft(d.generalized_reply).text, { side: ctxInfo.side }, phones))
         }
         if (typeof d.other_language_reply === 'string' && d.other_language_reply.trim()) {
           const o = guardDraft(d.other_language_reply).text
@@ -405,6 +527,29 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
         phrasing = pickPhrasing(question, null, matchedInput(source?.topic_id ?? null))
       }
     }
+  }
+
+  // A script step's words and situations change only on the Playbook page: the same answer as a step (used unchanged, or
+  // judged the same) is a use of it with its own words, in a copy a person wrote (never filling or confirming another
+  // copy), and never widens its situations. The client's wording and the chat are kept as for any reply.
+  const tgtRow: any = target ? (candidates.find((c) => c.entry_id === target) ?? (source && source.id === target ? source : null)) : null
+  if (tgtRow?.kind === 'step' && (relation === 'merge' || relation === 'widen')) {
+    // A machine-written copy counts only when it was sent exactly as it is (then a person has read it).
+    const own = (l: 'en' | 'hi') => {
+      const text = String((l === 'en' ? tgtRow.reply_en : tgtRow.reply_hi) ?? '').trim()
+      const auto = l === 'en' ? tgtRow.reply_en_auto : tgtRow.reply_hi_auto
+      return text && (!auto || (sentAsIs && source?.id === target && l === replyLang)) ? text : null
+    }
+    const otherLang: 'en' | 'hi' = replyLang === 'en' ? 'hi' : 'en'
+    const lang = own(replyLang) ? replyLang : own(otherLang) ? otherLang : null
+    if (!lang) {
+      return { status: 200, body: { action: 'skipped', reason: 'step_edited', kind: 'step', stepKey: tgtRow.step_key ?? null, entryId: target, judged } }
+    }
+    relation = 'merge'
+    stored = own(lang)!
+    replyLang = lang
+    other = null
+    scope = {}
   }
 
   // A reply that asks the client to pay belongs to the payment step of our sell orders. It is never written into a
@@ -451,10 +596,14 @@ export async function handleLearn(deps: Deps, userId: string, input: LearnInput)
   }
 
   // The phrasing's own embedding. For the whole question the fresh one is used, or (null) the database takes the
-  // embedding stored with the suggestion request; a shorter phrasing gets its own (a fraction of a paisa).
+  // embedding stored with the suggestion request; a shorter phrasing gets its own (a fraction of a paisa). A wording that
+  // asks nothing is never kept.
   let phrasingEmbedding: number[] | null = embedding
   phrasing = maskPII(phrasing)
-  if (normText(phrasing) !== normText(question)) {
+  if (!asksNothing && notAQuestion(phrasing) && !notAQuestion(question)) phrasing = question
+  const keepPhrasing = !asksNothing && !notAQuestion(phrasing)
+  if (!keepPhrasing) { phrasing = ''; phrasingEmbedding = null }
+  if (keepPhrasing && normText(phrasing) !== normText(question)) {
     const e = await ai.embed([phrasing], cfg.embedding_model)
     await store.logCall({
       request_id: req?.id ?? null, user_id: userId, order_number: orderNumber, exchange_account_id: ctxInfo.accountId, purpose: 'embed',

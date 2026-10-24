@@ -9,6 +9,7 @@
 import { chatTail, clientTurn, costInr, detectLang, generalize, guardDraft, maskPII, normText, type TemplateValues } from '../_shared/copilot-playbook.ts'
 import { buildLightContext, type OrderHint } from '../_shared/copilot-context.ts'
 import { situationDef } from '../_shared/copilot-situation.ts'
+import { notAQuestion, turnNeedsAnswer, waitingBefore } from '../_shared/copilot-steps.ts'
 import {
   addressFor, applyVerify, buildRephraseMessages, buildVerifyMessages, checkRephrase, istDayStart, protect, protectLike, readVerify,
   REPHRASE_SCHEMA, VERIFY_SCHEMA,
@@ -185,13 +186,18 @@ async function used(deps: Deps, cfg: CopilotConfig, userId: string, input: Rephr
   let t = ctx.transcript.filter((m) => m.at < sentAt)
   while (t.length && (t[t.length - 1].who === 'us' || t[t.length - 1].who === 'auto')) t = t.slice(0, -1)
   const turn = clientTurn(t)
-  if (!turn) {
+  // A reply to a message that asks nothing (pictures, values, "ok", a plain answer to our last question) is the next step
+  // of the script, not an answer for the Playbook: it does not go to the inbox (the same rule as the suggestions).
+  const awaited = turn
+    ? waitingBefore({ side: ctx.side, status: ctx.status, stage: ctx.situation.code, clientState: 'new', transcript: t, now: sentAt }, turn.messages)
+    : null
+  if (!turn || notAQuestion(maskPII(turn.question)) || !turnNeedsAnswer(turn.messages, awaited)) {
     await store.markRephraseUsed(callId, userId, edited)
     return { status: 200, body: { queued: false, reason: 'no_question' } }
   }
-  // Stored the way the Playbook keeps replies: the order's values as placeholders, our team numbers as {contact:x}, any
-  // other personal value masked. The typed words are kept the same way.
-  const values = input?.templateValues ?? {}
+  // Stored the way the Playbook keeps replies: the order's values as placeholders (the amount after TDS only on our buy
+  // orders), our team numbers as {contact:x}, any other personal value masked. The typed words are kept the same way.
+  const values: TemplateValues = { ...(input?.templateValues ?? {}), side: ctx.side }
   const sent = maskPII(generalize(guardDraft(finalText).text, values, await store.allContactPhones()))
   const rough = generalize(await typedWords(store, userId, orderNumber, call, input?.roughCallId) ?? '', values, []) || null
   const row = {

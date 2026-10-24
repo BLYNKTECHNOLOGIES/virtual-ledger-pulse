@@ -232,7 +232,7 @@ Deno.test("the judge's quote is used only when it is really in the client's mess
   eq(s.learnCalls[0].p_question_text, 'tds kyu kata')
   s.learnCalls = []
   a.replies['google/gemini-3-flash-preview'] = judgeReply({ phrasing: 'Why was TDS deducted?' })
-  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, 1% TDS is deducted as per law.' })
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, 1% TDS is deducted as per the law.' })
   eq(s.learnCalls[0].p_question_text, 'tds kyu kata', 'an invented quote falls back to the message that matched')
 })
 
@@ -326,8 +326,8 @@ Deno.test("saving an earlier message files it under the situation it was sent in
   eq(p.p_question_text, 'Can I pay now?')
   // the same save without beforeAt (the latest message) uses today's situation
   s.learnCalls = []; s.matchCalls = []
-  s.rows = [...s.rows, msg('client', 'thanks'), msg('us', 'Thank you, sir.')]
-  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Thank you, sir.' })
+  s.rows = [...s.rows, msg('client', 'When will I get the TDS certificate?'), msg('us', 'Sir, the TDS certificate is shared every quarter.')]
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Sir, the TDS certificate is shared every quarter.' })
   eq(s.learnCalls[0].p_stage, 'done')
 })
 
@@ -539,8 +539,8 @@ Deno.test("saving an earlier message: Binance's \"verified\" today does not file
   eq(s.learnCalls[0].p_stage, 'sell.kyc.pending', 'KYC was still pending when it was sent')
   // the latest message, today: verified on Binance
   s.learnCalls = []
-  s.rows = [q, r1, msg('client', 'thank you'), msg('us', 'Thank you, sir.')]
-  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Thank you, sir.' })
+  s.rows = [q, r1, msg('client', 'Is TDS deducted on this?'), msg('us', 'No sir, there is no TDS on this order.')]
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'No sir, there is no TDS on this order.' })
   eq(s.learnCalls[0].p_stage, 'sell.pay.ready')
 })
 
@@ -672,4 +672,252 @@ Deno.test('saving an operator reply that fails gives it back to the inbox; Undo 
   ;(item.context as any).saved_event_id = '00000000-0000-4000-8000-000000000556'
   const undo2 = await run(s, a, { action: 'undo', eventId: '00000000-0000-4000-8000-000000000556' })
   eq([undo2.body.inboxItemReopened, item.status, (item.context as any).saved_event_id], [true, 'open', undefined])
+})
+
+// ─── CP-8: script steps, messages that ask nothing, one save per press ───────────────────────────
+
+const stepEntry = (over: Record<string, unknown> = {}) => ({
+  id: id(), topic_id: id(), kind: 'step', step_key: 'source_of_funds', status: 'tentative', scope: { sides: ['SELL'] }, title: 'Source of funds',
+  reply_en: 'Sir, may I know your source of funds?', reply_hi: 'Sir, aapke funds ka source kya hai?', ...over,
+})
+
+Deno.test('a script step from the next step, sent as offered, is counted as used: no AI, no client wording, its words unchanged', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const st = stepEntry()
+  s.entryRows = [st]
+  // we spoke last (no client turn needed for a step)
+  s.rows = [msg('client', 'trading'), msg('us', 'Sir, may I know your source of funds?')]
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, sourceEntryId: st.id, stepKey: 'source_of_funds', insertedText: 'Sir, may I know your source of funds?', finalText: 'Sir, may I know your source of funds?' })
+  eq(r.status, 200); eq(r.body.kind, 'step'); eq(r.body.stepKey, 'source_of_funds')
+  eq(a.chats.length + a.embeds.length, 0, 'no AI')
+  const p = s.learnCalls[0]
+  eq([p.p_relation, p.p_target_entry_id, p.p_question_text, p.p_reply_text, p.p_example_chat, p.p_stage, p.p_reply_other, p.p_scope],
+    ['merge', st.id, null, st.reply_en, null, null, null, {}])
+  // the Hinglish words when the Hinglish copy was sent
+  s.learnCalls = []
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, sourceEntryId: st.id, stepKey: 'source_of_funds', insertedText: st.reply_hi, finalText: st.reply_hi })
+  eq([s.learnCalls[0].p_reply_language, s.learnCalls[0].p_reply_text], ['hi', st.reply_hi])
+})
+
+Deno.test('a script step from the next step, edited before sending, is not saved (steps change on the Playbook page)', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const st = stepEntry()
+  s.entryRows = [st]
+  s.rows = [msg('client', 'trading')]
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, sourceEntryId: st.id, stepKey: 'source_of_funds', insertedText: st.reply_en, finalText: 'Sir, may I know your source of funds? Salary or business?' })
+  eq([r.status, r.body.action, r.body.reason], [200, 'skipped', 'step_edited'])
+  eq(s.learnCalls.length + a.chats.length + a.embeds.length, 0)
+})
+
+Deno.test('a step offered as the reply to a client question keeps learning: its wordings grow; an edit is a reply of its own', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const st = stepEntry({ step_key: 'mark_paid', status: 'approved', scope: { sides: ['SELL'], stages: ['sell.pay.ready'] }, title: 'Payment done — please release',
+    reply_en: 'Thank you, sir. Please mark the order as paid on Binance.', reply_hi: null })
+  s.entryRows = [st]
+  const reqId = await withRequest(s, 'payment done please release fast', { situation: 'sell.pay.ready' })
+  // unchanged, from the replies (no step key): the client's wording is kept, as for any reply
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, sourceEntryId: st.id, insertedText: st.reply_en, finalText: st.reply_en })
+  eq(r.status, 200); eq(a.chats.length, 0)
+  const p = s.learnCalls[0]
+  eq([p.p_relation, p.p_target_entry_id, p.p_question_text], ['merge', st.id, 'payment done please release fast'])
+  // a step key that is not the entry's own is not a use of the step
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, sourceEntryId: st.id, stepKey: 'kyc', insertedText: st.reply_en, finalText: `${st.reply_en} ` })
+  eq(s.learnCalls.length, 1, 'the same press: saved once')
+  // edited: the judge sees it; "update" or "conflict" on a step becomes a reply of its own in the step's question
+  for (const relation of ['update', 'conflict']) {
+    const t = new FakeStore(), b = new FakeAi()
+    t.entryRows = [st]
+    const rq = await withRequest(t, 'payment done please release fast', { situation: 'sell.pay.ready' })
+    b.replies['google/gemini-3-flash-preview'] = judgeReply({ relation, target_entry_id: st.id, target_question_id: st.topic_id })
+    const out = await run(t, b, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: rq, sourceEntryId: st.id, insertedText: st.reply_en,
+      finalText: 'Thank you, sir. Please mark the order as paid on Binance; we will release it after checking.' })
+    eq(out.status, 200); eq(b.chats.length, 1, 'judged')
+    const q = t.learnCalls[0]
+    eq([q.p_relation, q.p_target_entry_id, q.p_target_topic_id], ['variant', null, st.topic_id], relation)
+  }
+})
+
+Deno.test('a reply to a message that asks nothing is not saved: no new question, no AI', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  for (const rows of [
+    [msg('client', 'img', 'image'), msg('us', 'Thank you sir, checking.')],
+    [msg('client', 'ok sir'), msg('us', 'Thank you sir, checking.')],
+    [msg('client', '9876543210'), msg('us', 'Thank you sir, checking.')],
+    // a plain answer to our last question
+    [msg('us', 'Sir, may I know the purpose of this trade?'), msg('client', 'trading'), msg('us', 'Thank you sir, checking.')],
+  ]) {
+    s.rows = rows
+    const r = await run(s, a, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: `Thank you sir, checking. ${rows.length}` })
+    eq([r.status, r.body.action, r.body.reason], [200, 'skipped', 'no_question'], JSON.stringify(rows.map((x) => x.message_text)))
+  }
+  eq(s.learnCalls.length + a.chats.length + a.embeds.length, 0)
+  // a suggestion request for a picture ("Draft anyway"): the same
+  const reqId = await withRequest(s, '[image]')
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, the photo is not clear.' })
+  eq(r.body.action, 'skipped'); eq(s.learnCalls.length + a.chats.length, 0)
+})
+
+Deno.test('a question or complaint while we wait for an answer is saved as a client question (never taken as the answer)', async () => {
+  for (const text of ['I am already verified', 'Mera KYC ho chuka hai', 'police complaint karunga']) {
+    const s = new FakeStore(), a = new FakeAi()
+    a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new' })
+    s.rows = [msg('us', 'May I kindly request you to share your Aadhar card, (front and back) and Mobile no'), msg('client', 'img', 'image'),
+      msg('us', 'Which bank will you use to pay, sir?'), msg('client', text), msg('us', 'Sir, we will check it and get back to you.')]
+    const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: 'Sir, we will check it and get back to you.' })
+    eq([r.status, s.learnCalls.length, s.learnCalls[0]?.p_question_text], [200, 1, text], text)
+  }
+})
+
+Deno.test('a Playbook reply sent for a message that asks nothing: as offered, a use with its own words only; edited, nothing is saved', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const e = entry({ title: 'Payment screenshot', reply_en: 'Sir, please share the payment screenshot.' })
+  s.entryRows = [{ id: e.entry_id, topic_id: e.topic_id, kind: 'reply', scope: { sides: ['SELL'], stages: ['sell.pay.checking'] }, status: 'approved', title: e.title, reply_en: e.reply_en, reply_hi: null }]
+  s.rows = [msg('client', 'img', 'image')]
+  // edited (here into a KYC message): never written into the approved reply, never widened to another step
+  const edited = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, sourceEntryId: e.entry_id, insertedText: e.reply_en,
+    finalText: 'Sir, aapka Aadhaar photo clear nahi hai, please dobara bhejiye.' })
+  eq([edited.status, edited.body.action, edited.body.reason], [200, 'skipped', 'no_question'])
+  eq(s.learnCalls.length + a.chats.length + a.embeds.length, 0)
+  // as offered: counted, with the reply's own words; no wording, other language, situation or example
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, sourceEntryId: e.entry_id, insertedText: e.reply_en, finalText: e.reply_en })
+  eq(r.status, 200); eq(a.chats.length + a.embeds.length, 0, 'no AI')
+  const p = s.learnCalls[0]
+  eq([p.p_relation, p.p_target_entry_id, p.p_question_text, p.p_question_embedding, p.p_reply_text, p.p_reply_other, p.p_scope, p.p_stage, p.p_example_chat],
+    ['merge', e.entry_id, null, null, e.reply_en, null, {}, null, null])
+})
+
+Deno.test('"Draft anyway" on a plain answer: the sent draft is not saved as a client question', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  // copilot-draft kept its verdict on the client's turn ("trading" answered our question about the purpose)
+  const reqId = await withRequest(s, 'trading', { asks_nothing: true })
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, sourceCallId: id(), insertedText: 'Thank you, sir. Noted.', finalText: 'Thank you, sir. Noted.' })
+  eq([r.status, r.body.action, r.body.reason], [200, 'skipped', 'no_question'])
+  eq(s.learnCalls.length + a.chats.length + a.embeds.length, 0)
+  // the same kind of reply to a real question is saved
+  const t = new FakeStore(), b = new FakeAi()
+  const q = await withRequest(t, 'Is this trade safe for me?', { asks_nothing: false })
+  b.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new' })
+  eq((await run(t, b, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: q, sourceCallId: id(), finalText: 'Yes, sir, it is completely safe.' })).status, 200)
+  eq([t.learnCalls.length, t.learnCalls[0]?.p_relation, t.learnCalls[0]?.p_question_text], [1, 'new', 'Is this trade safe for me?'])
+})
+
+Deno.test('one save per press: a repeated press gets the first answer; after Undo it saves again; a save in progress is refused', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const reqId = await withRequest(s)
+  const input = { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, the TDS certificate is shared every quarter.' }
+  s.learnResult = { event_id: '00000000-0000-4000-8000-0000000000e1', action: 'created', entry_id: 'en-1', title: 'T' }
+  const first = await run(s, a, input)
+  const again = await run(s, a, input)
+  eq(s.learnCalls.length, 1, 'saved once'); eq(again.body.repeated, true); eq(again.body.eventId, first.body.eventId)
+  await run(s, a, { action: 'undo', eventId: first.body.eventId })
+  await run(s, a, input)
+  eq(s.learnCalls.length, 2, 'saved again after Undo')
+  // the same press by the other approver while the first save is still running
+  const t = new FakeStore()
+  const req2 = await withRequest(t)
+  const { learnKey } = await import('./handler.ts')
+  t.learnKeys.set(await learnKey({ ...input, requestId: req2 } as any, input.finalText), { user_id: SHUBHAM, order_number: ORDER, result: null })
+  const refused = await run(t, new FakeAi(), { ...input, requestId: req2 })
+  eq([refused.status, refused.body.error], [409, 'in_progress']); eq(t.learnCalls.length, 0)
+  // a different text in the same chat is a different press
+  eq((await run(t, new FakeAi(), { ...input, requestId: req2, finalText: 'Sir, it is shared every quarter.' })).status, 200)
+})
+
+Deno.test('after Undo, two presses save once; a press that lost the race is not given the undone answer', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const reqId = await withRequest(s)
+  const input = { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, the TDS certificate is shared every quarter.' }
+  s.learnResult = { event_id: '00000000-0000-4000-8000-0000000000e2', action: 'created', entry_id: 'en-1', title: 'T' }
+  const first = await run(s, a, input)
+  await run(s, a, { action: 'undo', eventId: first.body.eventId })
+  // the other press took the key back first (one conditional update wins): this one saves nothing and says so
+  const reclaim = s.reclaimLearnKey.bind(s)
+  s.reclaimLearnKey = () => Promise.resolve(null)
+  const lost = await run(s, a, input)
+  eq([lost.status, lost.body.error, s.learnCalls.length], [409, 'in_progress', 1])
+  // both at once: one saves again (a new event); the other waits for it or gets its answer
+  s.reclaimLearnKey = reclaim
+  s.learnResult = { ...s.learnResult, event_id: '00000000-0000-4000-8000-0000000000e3' }
+  const both = await Promise.all([run(s, a, input), run(s, a, input)])
+  eq(s.learnCalls.length, 2, 'the first save and one save again')
+  ok(both.every((x) => x.body.eventId !== first.body.eventId), 'the undone answer is never given back')
+})
+
+Deno.test('a save that lost its key (taken over after two minutes) neither finishes nor gives back the new holder\'s key', async () => {
+  for (const fails of [false, true]) {
+    const s = new FakeStore(), a = new FakeAi()
+    const reqId = await withRequest(s)
+    const apply = s.learnApply.bind(s)
+    // while this save runs, another press takes the key over
+    s.learnApply = (p: Record<string, unknown>) => { for (const k of s.learnKeys.values()) k.token = 'new-holder'; return apply(p) }
+    if (fails) s.learnFails = { message: 'boom' }
+    await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, the TDS certificate is shared every quarter.' })
+    const [k] = [...s.learnKeys.values()]
+    eq([s.learnKeys.size, k?.token, k?.result], [1, 'new-holder', null], fails ? 'release' : 'finish')
+  }
+})
+
+Deno.test('two client messages answered with the same words are two saves; so are two earlier messages', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const q1 = msg('client', 'When will I get Form 16A?'), r1 = msg('us', 'Sir, it is shared every quarter.')
+  const q2 = msg('client', 'Form 16A kab milega?'), r2 = msg('us', 'Sir, it is shared every quarter.')
+  s.rows = [q1, r1]
+  const text = 'Sir, it is shared every quarter.'
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: text, turnKey: q1.binance_message_id })
+  s.rows = [q1, r1, q2, r2]
+  const again = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: text, turnKey: q1.binance_message_id })
+  eq([s.learnCalls.length, again.body.repeated], [1, true], 'the same client message: once')
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, finalText: text, turnKey: q2.binance_message_id })
+  eq(s.learnCalls.length, 2, 'the next client message: saved')
+  eq(s.learnCalls[1].p_question_text, 'Form 16A kab milega?')
+  // saving two of our earlier messages with the same words
+  const t = new FakeStore(), b = new FakeAi()
+  t.rows = [q1, r1, q2, r2]
+  for (const m of [r1, r2]) await run(t, b, { action: 'learn', cause: 'saved', orderNumber: ORDER, finalText: text, beforeAt: Number(m.binance_create_time) })
+  eq(t.learnCalls.map((p) => p.p_question_text), ['When will I get Form 16A?', 'Form 16A kab milega?'])
+})
+
+Deno.test('a refused save gives the press back, so it can be pressed again', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  const reqId = await withRequest(s)
+  s.learnFails = { message: 'boom' }
+  const input = { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, finalText: 'Sir, the TDS certificate is shared every quarter.' }
+  eq((await run(s, a, input)).status, 500)
+  s.learnFails = null
+  eq((await run(s, a, input)).status, 200); eq(s.learnCalls.length, 2)
+})
+
+Deno.test('a step judged the same keeps its own words and situations: no edited copy, no other language, no widening (second review)', async () => {
+  const st = stepEntry({ step_key: 'paying', status: 'approved', scope: { sides: ['BUY'], stages: ['buy.pay.processing'] }, title: 'Payment processing update',
+    reply_en: 'Sir, your payment is being processed; we will update you once it has been sent.',
+    reply_hi: 'Sir, aapka payment process ho raha hai.', reply_en_auto: false, reply_hi_auto: true })
+  // edited Hinglish, judged "merge", in another situation (would widen)
+  const s = new FakeStore(), a = new FakeAi()
+  s.entryRows = [st]
+  const reqId = await withRequest(s, 'payment kab hoga?', { side: 'BUY', situation: 'buy.pay.cooling' })
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'merge', target_entry_id: st.id, other_language_reply: 'Sir, your payment is in process.' })
+  const r = await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, sourceEntryId: st.id, insertedText: st.reply_hi,
+    finalText: 'Sir, aapka payment process ho raha hai, thodi der mein bhej denge.' })
+  eq(r.status, 200)
+  const p = s.learnCalls[0]
+  eq([p.p_relation, p.p_target_entry_id, p.p_reply_language, p.p_reply_text, p.p_reply_other, p.p_scope],
+    ['merge', st.id, 'en', st.reply_en, null, {}], 'the human copy, never the machine-written one filled with the edit')
+  eq(p.p_question_text, 'payment kab hoga?', "the client's wording is still kept")
+  // sent exactly as offered (its machine-written Hindi copy) in another situation: a use, not a widening
+  const t = new FakeStore(), b = new FakeAi()
+  t.entryRows = [st]
+  const rq = await withRequest(t, 'payment kab hoga?', { side: 'BUY', situation: 'buy.pay.cooling' })
+  await run(t, b, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: rq, sourceEntryId: st.id, insertedText: st.reply_hi, finalText: st.reply_hi })
+  const q = t.learnCalls[0]
+  eq([q.p_relation, q.p_reply_language, q.p_reply_text, b.chats.length], ['merge', 'hi', st.reply_hi, 0])
+})
+
+Deno.test('buy orders: the amount after TDS and the TDS become placeholders when saved', async () => {
+  const s = new FakeStore(), a = new FakeAi()
+  s.orderRow = { ...s.orderRow, trade_type: 'BUY', total_price: '4500' }
+  const reqId = await withRequest(s, 'why you paid less?', { side: 'BUY' })
+  a.replies['google/gemini-3-flash-preview'] = judgeReply({ relation: 'new' })
+  await run(s, a, { action: 'learn', cause: 'sent', orderNumber: ORDER, requestId: reqId, templateValues: { amount: 4500 },
+    finalText: 'Sir, 1% TDS of ₹45 is deducted on ₹4,500.00, so we paid you ₹4,455.00.' })
+  eq(s.learnCalls[0].p_reply_text, 'Sir, 1% TDS of ₹{tds_amount} is deducted on ₹{amount}, so we paid you ₹{net_amount}.')
 })

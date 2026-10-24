@@ -13,7 +13,10 @@ import {
   applyAddress, buildDraftMessages, buildRouteMessages, chatTail, contactCodes, costInr, detectLang, DRAFT_SCHEMA, guardDraft, INSTRUCTIONS,
   istLabel, maskPII, routeSchema, sideMeaning, statusMeaning, type ContactPurpose, type RouteCandidate,
 } from '../_shared/copilot-playbook.ts'
-import { buildChatContext, contextSummary, orderFacts, type ChatContext, type OrderHint } from '../_shared/copilot-context.ts'
+import { buildChatContext, contextSummary, orderFacts, stepInput, type ChatContext, type OrderHint } from '../_shared/copilot-context.ts'
+import {
+  missingSteps, type NextSteps, planSteps, type StepEntry, stepOffers, turnNeedsAnswer, waitingBefore, waitingSince,
+} from '../_shared/copilot-steps.ts'
 import {
   alternativeSteps, beforeVerification, detectSituation, fitsOrder, invitesPayment, isSmallTalk, type OrderFit, scopeStages, situationDef,
   stageDepth,
@@ -101,6 +104,22 @@ function playbookItem(m: MatchRow, lang: 'en' | 'hi', address: 'sir' | 'maam') {
   }
 }
 
+/**
+ * The next step of the desk's script for this chat (no AI): what to send next, what the client has answered so far, what
+ * we are waiting for, and actions in Binance (share the details, send the proof, extend the time). Worked out fresh for
+ * every answer, cached or not, because our own messages move it on. Tentative steps are offered (approvers only here).
+ */
+export function nextSteps(ctx: ChatContext, rows: StepEntry[], now: Date): NextSteps {
+  const plan = planSteps(stepInput(ctx, now))
+  const order: OrderFit = { side: ctx.side, category: ctx.category, accountId: ctx.accountId, status: ctx.status, clientState: ctx.clientState }
+  const offers = stepOffers(plan, rows, { order, stage: ctx.situation.code, side: ctx.side, lang: ctx.language.lang, address: ctx.address, now, tentative: true })
+  const since = waitingSince(ctx.transcript)
+  return {
+    offers, checklist: plan.checklist, waitingFor: plan.waitingFor, hints: plan.hints, knownClient: plan.knownClient,
+    waitingSince: since ? new Date(since).toISOString() : null, missing: missingSteps(plan, offers),
+  }
+}
+
 async function contactsFor(store: Store, purposes: Set<ContactPurpose>) {
   if (!purposes.size) return { contacts: {}, missing: [] as string[] }
   // A team that is switched off gives no number.
@@ -125,8 +144,14 @@ function budgetInfo(cfg: CopilotConfig, spent: number) {
 }
 
 /**
+ * How specific a fitting reply is: its situation first (a step beats a group beats "any"), then a reply written for a kind
+ * of client (client_states: returning clients whose KYC we hold, say) beats one for every client at the same depth.
+ */
+const specific = (m: Pick<MatchRow, 'specificity' | 'scope'>) => m.specificity * 2 + (Array.isArray(m.scope?.client_states) && m.scope.client_states.length ? 1 : 0)
+
+/**
  * Per question, the replies that fit now and are the most specific for this situation (a step beats a group beats
- * "any"). An approved reply is always offered over tentative ones; a tentative reply is added only when it is more
+ * "any"; then a reply for this kind of client). An approved reply is always offered over tentative ones; a tentative reply is added only when it is more
  * specific than every approved one (a proposal for exactly this situation).
  */
 export function bestFitting(matches: MatchRow[], perQuestion = 2): MatchRow[] {
@@ -134,14 +159,14 @@ export function bestFitting(matches: MatchRow[], perQuestion = 2): MatchRow[] {
   for (const m of matches) {
     if (!m.fits) continue
     const b = best.get(m.topic_id) ?? { approved: -1, tentative: -1 }
-    if (m.status === 'approved') b.approved = Math.max(b.approved, m.specificity)
-    else b.tentative = Math.max(b.tentative, m.specificity)
+    if (m.status === 'approved') b.approved = Math.max(b.approved, specific(m))
+    else b.tentative = Math.max(b.tentative, specific(m))
     best.set(m.topic_id, b)
   }
   const kept = matches.filter((m) => {
     if (!m.fits) return false
     const b = best.get(m.topic_id)!
-    return m.status === 'approved' ? m.specificity === b.approved : m.specificity === b.tentative && b.tentative > b.approved
+    return m.status === 'approved' ? specific(m) === b.approved : specific(m) === b.tentative && b.tentative > b.approved
   })
   // Several replies for the same situation (learned in different chats): approved first, then the one used in the
   // most similar chat. Questions keep the matcher's order (best phrasing first).
@@ -335,12 +360,33 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
   if (!cfg) return { status: 503, body: { error: 'not_configured' } }
   if (!(await store.isApprover(userId))) return { status: 403, body: { error: 'not_approver' } }
 
-  const ctx = await buildChatContext(store, cfg, orderNumber, accountHint, input?.hint ?? null, now)
+  const [ctx, stepRows] = await Promise.all([
+    buildChatContext(store, cfg, orderNumber, accountHint, input?.hint ?? null, now),
+    store.steps().catch((): StepEntry[] => []),
+  ])
   const summary = contextSummary(ctx)
   const turn = ctx.turn
   const stage = ctx.situation.code
+  const next = nextSteps(ctx, stepRows, now)
+  const stepPurposes = new Set<ContactPurpose>(next.offers.flatMap((o) => contactCodes(o.text)))
   if (mode === 'context' || (mode === 'suggest' && !turn)) {
-    return { status: 200, body: { status: 'nothing_to_answer', context: summary, playbook: [], related: [], drafts: [], otherSituations: [], heldBack: [], alternatives: [], otherSteps: [] } }
+    const { contacts, missing } = await contactsFor(store, stepPurposes)
+    return { status: 200, body: { status: 'nothing_to_answer', context: summary, playbook: [], related: [], drafts: [], otherSituations: [], heldBack: [], alternatives: [], otherSteps: [], next, contacts, missingContacts: missing } }
+  }
+  // Nothing asked: pictures, values, a bank's name, "ok", or a plain answer to our last question. The next step is the
+  // answer, with no lookup and no AI ("Draft anyway" still drafts, and the verdict is kept with that request for saving).
+  const asksNothing = !!turn && !turnNeedsAnswer(turn.messages, waitingBefore(stepInput(ctx, now), turn.messages))
+  if (mode === 'suggest' && asksNothing) {
+    const { contacts, missing } = await contactsFor(store, stepPurposes)
+    console.log(JSON.stringify({ fn: 'copilot-draft', outcome: 'no_question', situation: stage, steps: next.offers.length }))
+    return {
+      status: 200,
+      body: {
+        status: 'ready', skippedReason: 'no_question', context: summary, question: null, playbook: [], related: [], drafts: [],
+        contactPurposes: [...stepPurposes], otherSituations: [], heldBack: [], alternatives: [], otherSteps: [], route: null, lead: null, next,
+        requestId: null, cached: false, contacts, missingContacts: missing, aiAvailable: true, aiFailed: 0,
+      },
+    }
   }
 
   // One automatic suggestion per chat state (latest client message, order status and situation), shared by both approvers.
@@ -360,11 +406,11 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
       const age = now.getTime() - new Date(existing.created_at).getTime()
       if (['ready', 'capped', 'skipped'].includes(existing.status) && existing.result) {
         const spent = await store.monthSpend()
-        const purposes = new Set<ContactPurpose>((existing.result.contactPurposes ?? []) as ContactPurpose[])
+        const purposes = new Set<ContactPurpose>([...((existing.result.contactPurposes ?? []) as ContactPurpose[]), ...stepPurposes])
         const { contacts, missing } = await contactsFor(store, purposes)
-        // The suggestions are the cached ones (same message, status and situation); the order facts are today's
-        // (deadlines, appeal case, client records).
-        return { status: 200, body: { ...existing.result, context: summary, requestId: existing.id, cached: true, contacts, missingContacts: missing, budget: budgetInfo(cfg, spent) } }
+        // The suggestions are the cached ones (same message, status and situation); the order facts and the next step are
+        // today's (deadlines, appeal case, client records, our own messages since).
+        return { status: 200, body: { ...existing.result, context: summary, next, requestId: existing.id, cached: true, contacts, missingContacts: missing, budget: budgetInfo(cfg, spent) } }
       }
       // retryAfterMs: when this request may be taken over, so a waiting approver keeps asking until then.
       if (existing.status === 'pending' && age < PENDING_FRESH_MS) return { status: 202, body: { status: 'pending', requestId: existing.id, retryAfterMs: PENDING_FRESH_MS - Math.max(0, age) } }
@@ -620,7 +666,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
     const purposes = new Set<ContactPurpose>()
     for (const d of drafts) for (const p of d.contacts as ContactPurpose[]) purposes.add(p)
     for (const p of [...playbook, ...relatedItems, ...alternatives]) for (const c of contactCodes(p.text)) purposes.add(c)
-    const { contacts, missing } = await contactsFor(store, purposes)
+    const { contacts, missing } = await contactsFor(store, new Set([...purposes, ...stepPurposes]))
 
     const result = {
       status, skippedReason, context: summary,
@@ -638,7 +684,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
       status, question_text: question || null, question_language: question ? (detectLang(question) === 'hi' ? 'hi' : 'en') : null,
       question_embedding: vectors ? vectors[0] : null,
       context_embedding: contextVector,
-      context: { ...summary, inputs, chat_tail: chatTail(ctx.transcript), chat_before: ctx.before, context_text: ctx.contextText },
+      context: { ...summary, inputs, chat_tail: chatTail(ctx.transcript), chat_before: ctx.before, context_text: ctx.contextText, asks_nothing: asksNothing },
       // picked_by: how the question was recognised (meaning, lead or ai), kept for the scorecard.
       matches: matches.map((m) => ({
         entry_id: m.entry_id, topic_id: m.topic_id, similarity: m.similarity, status: m.status, conflict: m.conflict_open,
@@ -648,7 +694,7 @@ export async function handleDraft(deps: Deps, userId: string, input: DraftInput)
       result, latency_ms: Date.now() - t0,
     })
     console.log(JSON.stringify({ fn: 'copilot-draft', outcome: status, mode, situation: stage, drafts: drafts.length, playbook: playbook.length, route: route?.result ?? null, lead: !!lead, ms: Date.now() - t0 }))
-    return { status: 200, body: { ...result, requestId, cached: false, contacts, missingContacts: missing, budget: budgetInfo(cfg, spent) } }
+    return { status: 200, body: { ...result, next, requestId, cached: false, contacts, missingContacts: missing, budget: budgetInfo(cfg, spent) } }
   } catch (e) {
     await store.updateRequest(requestId!, { status: 'error', error: String((e as Error)?.message ?? e).slice(0, 300), latency_ms: Date.now() - t0 })
     console.error(JSON.stringify({ fn: 'copilot-draft', outcome: 'error', ms: Date.now() - t0 }))

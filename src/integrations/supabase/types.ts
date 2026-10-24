@@ -12643,6 +12643,7 @@ export type Database = {
       }
       hr_doc_field_catalog: {
         Row: {
+          aliases: string[]
           allows_instances: boolean
           created_at: string
           data_type: string
@@ -12661,6 +12662,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aliases?: string[]
           allows_instances?: boolean
           created_at?: string
           data_type?: string
@@ -12679,6 +12681,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aliases?: string[]
           allows_instances?: boolean
           created_at?: string
           data_type?: string
@@ -12880,6 +12883,7 @@ export type Database = {
           reference_pattern: string | null
           requires_approval: boolean
           status: string
+          subject: string
           updated_at: string
         }
         Insert: {
@@ -12897,6 +12901,7 @@ export type Database = {
           reference_pattern?: string | null
           requires_approval?: boolean
           status?: string
+          subject?: string
           updated_at?: string
         }
         Update: {
@@ -12914,6 +12919,7 @@ export type Database = {
           reference_pattern?: string | null
           requires_approval?: boolean
           status?: string
+          subject?: string
           updated_at?: string
         }
         Relationships: [
@@ -12945,6 +12951,7 @@ export type Database = {
           issued_at: string | null
           issued_by: string | null
           issued_by_name: string | null
+          onboarding_id: string | null
           pdf_path: string | null
           reference_no: string | null
           revoke_reason: string | null
@@ -12978,6 +12985,7 @@ export type Database = {
           issued_at?: string | null
           issued_by?: string | null
           issued_by_name?: string | null
+          onboarding_id?: string | null
           pdf_path?: string | null
           reference_no?: string | null
           revoke_reason?: string | null
@@ -13011,6 +13019,7 @@ export type Database = {
           issued_at?: string | null
           issued_by?: string | null
           issued_by_name?: string | null
+          onboarding_id?: string | null
           pdf_path?: string | null
           reference_no?: string | null
           revoke_reason?: string | null
@@ -13027,6 +13036,13 @@ export type Database = {
           values_snapshot?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "hr_documents_issued_onboarding_id_fkey"
+            columns: ["onboarding_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_onboarding"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "hr_documents_issued_superseded_by_id_fkey"
             columns: ["superseded_by_id"]
@@ -37942,6 +37958,11 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      hr_doc_issued_object_is_mine: {
+        Args: { _name: string }
+        Returns: boolean
+      }
+      hr_doc_standard_ctc_structure: { Args: never; Returns: Json }
       hr_drift_alerts_auto_close: {
         Args: { p_dedup_key: string; p_reason?: string }
         Returns: number

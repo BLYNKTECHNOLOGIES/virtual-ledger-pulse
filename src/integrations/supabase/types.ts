@@ -13912,6 +13912,7 @@ export type Database = {
           position_id: string | null
           post_training_ctc: number | null
           post_training_shift_id: string | null
+          prejoining: Json
           probation_end_date: string | null
           razorpay_employee_id: string | null
           razorpay_reconciliation: Json | null
@@ -13965,6 +13966,7 @@ export type Database = {
           position_id?: string | null
           post_training_ctc?: number | null
           post_training_shift_id?: string | null
+          prejoining?: Json
           probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
@@ -14018,6 +14020,7 @@ export type Database = {
           position_id?: string | null
           post_training_ctc?: number | null
           post_training_shift_id?: string | null
+          prejoining?: Json
           probation_end_date?: string | null
           razorpay_employee_id?: string | null
           razorpay_reconciliation?: Json | null
@@ -38440,6 +38443,10 @@ export type Database = {
           swap_due: string
           training_period_months: number
         }[]
+      }
+      hr_prejoining_submit: {
+        Args: { p_invite_id: string; p_payload: Json; p_version: number }
+        Returns: undefined
       }
       hr_probation_end_date: {
         Args: { p_employee_id: string }

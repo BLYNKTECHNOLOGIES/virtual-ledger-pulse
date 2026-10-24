@@ -31,7 +31,7 @@ export function Stage4OfferPolicy({ data, onboardingData, onSave, onComplete, on
 
   useEffect(() => {
     const existing = (data?.offer_policy_documents && typeof data.offer_policy_documents === "object") ? data.offer_policy_documents : {};
-    const init: Record<string, { received: boolean; file_url?: string; file_name?: string }> = {};
+    const init: Record<string, { received: boolean; file_url?: string; file_name?: string }> = { ...existing };
     SIGNED_DOCS.forEach(f => {
       init[f.key] = {
         received: existing[f.key]?.received || false,

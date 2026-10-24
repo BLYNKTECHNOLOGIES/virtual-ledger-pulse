@@ -34,6 +34,8 @@ export default function LoansPage() {
   });
   // Month used when staging a payout addition from the loan detail dialog
   const [stageMonth, setStageMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [newEmi, setNewEmi] = useState("");
+  const [emiReason, setEmiReason] = useState("");
   // EMI is derived from amount / tenure / interest until HR types their own figure.
   const [emiTouched, setEmiTouched] = useState(false);
 
@@ -654,6 +656,47 @@ export default function LoansPage() {
                   </div>
                 )}
               </div>
+
+              {["approved", "active", "paused"].includes(selectedLoan.status) && (() => {
+                const collected = repayments.filter((r: any) => ["paid", "pushed"].includes(r.status)).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+                const remaining = Math.max(0, Number(selectedLoan.amount || 0) - collected);
+                if (remaining <= 0) return null;
+                const emi = Number(newEmi);
+                const months = emi > 0 ? Math.ceil((remaining - 0.005) / emi) : 0;
+                return (
+                  <div className="border-t pt-4 space-y-2">
+                    <h4 className="text-sm font-semibold">Change EMI</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Already collected ₹{collected.toLocaleString("en-IN")} stays as it is. The remaining ₹{remaining.toLocaleString("en-IN")} is re-spread from the first month whose payroll has not run yet.
+                    </p>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div>
+                        <Label className="text-xs">New EMI (₹)</Label>
+                        <Input type="number" className="h-9 w-32" value={newEmi} onChange={(e) => setNewEmi(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">or months left</Label>
+                        <Input type="number" min={1} className="h-9 w-24" placeholder="—"
+                          onChange={(e) => { const m = Number(e.target.value); if (m > 0) setNewEmi(String(Math.ceil(remaining / m))); }} />
+                      </div>
+                      <div className="flex-1 min-w-[160px]">
+                        <Label className="text-xs">Reason</Label>
+                        <Input className="h-9" value={emiReason} onChange={(e) => setEmiReason(e.target.value)} placeholder="e.g. employee asked to stretch" />
+                      </div>
+                      <Button size="sm" disabled={reschedule.isPending || !(emi > 0) || emi > remaining || emi === Number(selectedLoan.emi_amount)}
+                        onClick={() => reschedule.mutate()}>
+                        Save new EMI
+                      </Button>
+                    </div>
+                    {emi > 0 && emi <= remaining && (
+                      <p className="text-xs text-muted-foreground">
+                        {months} more installment{months === 1 ? "" : "s"}{months > 1 ? `, last ₹${Math.round(remaining - emi * (months - 1)).toLocaleString("en-IN")}` : ""}.
+                      </p>
+                    )}
+                    {emi > remaining && <p className="text-xs text-destructive">EMI cannot be more than the remaining ₹{remaining.toLocaleString("en-IN")}.</p>}
+                  </div>
+                );
+              })()}
 
               {["razorpay_advance", "payroll_addition"].includes(selectedLoan.disbursement_mode) &&
                 !selectedLoan.payroll_addition_id &&

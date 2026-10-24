@@ -7105,6 +7105,33 @@ export type Database = {
           },
         ]
       }
+      copilot_learn_keys: {
+        Row: {
+          claim_token: string
+          created_at: string
+          key: string
+          order_number: string
+          result: Json | null
+          user_id: string
+        }
+        Insert: {
+          claim_token?: string
+          created_at?: string
+          key: string
+          order_number: string
+          result?: Json | null
+          user_id: string
+        }
+        Update: {
+          claim_token?: string
+          created_at?: string
+          key?: string
+          order_number?: string
+          result?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       copilot_learning_events: {
         Row: {
           action: string

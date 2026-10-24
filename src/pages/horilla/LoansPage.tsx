@@ -283,6 +283,27 @@ export default function LoansPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Change EMI mid-loan: collected installments stay, the rest is re-spread
+  const reschedule = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).rpc("hr_reschedule_loan", {
+        p_loan_id: selectedLoan.id, p_new_emi: Number(newEmi), p_reason: emiReason || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      qc.invalidateQueries({ queryKey: ["hr_loan_repayments", selectedLoan?.id] });
+      setSelectedLoan((prev: any) => (prev ? { ...prev, emi_amount: Number(newEmi) } : prev));
+      setEmiReason("");
+      toast.success(selectedLoan?.status === "paused"
+        ? "EMI changed — the new plan is built when recovery resumes"
+        : `EMI changed — ${d?.new_installments ?? 0} installments re-planned`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   // Pause stops the scheduler from pushing further EMIs; resume rebuilds the plan
   const togglePause = useMutation({
     mutationFn: async (pause: boolean) => {
